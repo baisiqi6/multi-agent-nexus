@@ -5,7 +5,7 @@ Provides:
   /monitor   — agent health and token usage
   /dashboard — auto-updating health embed
   /discover  — post a finding to #discoveries
-  /claude, /codex, /local-agent, /research — slash command entry points for agents
+  /claude, /codex, /mac-openclaw, /research — slash command entry points for agents
   /new-channel — register current channel with agents
   /restart   — restart the bot process
 """
@@ -26,6 +26,7 @@ from utils.fake_message import FakeMessage
 log = logging.getLogger(__name__)
 
 _bot_start_time: float | None = None
+LOCAL_AGENT_NAME = "mac-openclaw"
 
 
 class Utility(commands.Cog):
@@ -37,6 +38,11 @@ class Utility(commands.Cog):
         self._monitor_last_called: dict[int, float] = {}
         global _bot_start_time
         _bot_start_time = time.monotonic()
+
+    def _agent_label(self, agent_name: str) -> str:
+        return self.bot.agent_configs.get(agent_name, {}).get(
+            "display_name", agent_name.capitalize()
+        )
 
     async def get_status(self) -> str:
         """Build a status string showing agent health and token usage."""
@@ -64,13 +70,13 @@ class Utility(commands.Cog):
                     )
                 if totals["cost_usd"]:
                     stats_parts.append(f"${totals['cost_usd']:.4f}")
-                lines.append(f"- {name.capitalize()}: Online (`{model_info}`)")
+                lines.append(f"- {self._agent_label(name)}: Online (`{model_info}`)")
                 if stats_parts:
                     lines.append(f"  24h tokens: {', '.join(stats_parts)}")
             else:
                 self.bot._agent_status[name] = False
                 lines.append(
-                    f"- {name.capitalize()}: OFFLINE ({health.get('error', 'unknown')})"
+                    f"- {self._agent_label(name)}: OFFLINE ({health.get('error', 'unknown')})"
                 )
 
         lines.append("- Database: Connected")
@@ -79,11 +85,12 @@ class Utility(commands.Cog):
     @commands.command(name="help")
     async def help_command(self, ctx):
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
+        local_label = self._agent_label(LOCAL_AGENT_NAME)
         await ctx.send(
             f"**{bot_name} commands (use `/help` for the full slash command list):**\n"
             "\n"
-            "**Agents** — `@Claude`, `@Local Agent`, `@Codex` role mentions or "
-            "`/claude`, `/local-agent`, `/codex`, `/research`\n"
+            f"**Agents** — `@Claude`, `@{local_label}`, `@Codex` role mentions or "
+            "`/claude`, `/mac-openclaw`, `/codex`, `/research`\n"
             "**Wiki** — `/wiki [action] [page]`\n"
             "**Utility** — `/monitor`, `/dashboard`, `/discover`, `/new-channel`, `/restart`"
         )
@@ -106,13 +113,13 @@ class Utility(commands.Cog):
 
     # --- Slash commands for agents ---
 
-    @app_commands.command(name="local-agent", description="Ask the local LLM agent a question")
+    @app_commands.command(name="mac-openclaw", description="Ask the Mac OpenClaw agent a question")
     @app_commands.describe(prompt="Your question or prompt")
-    async def slash_local_agent(self, interaction: discord.Interaction, prompt: str):
+    async def slash_mac_openclaw(self, interaction: discord.Interaction, prompt: str):
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.display_name}:** {prompt}")
         await self.bot.handle_agent_request(
-            agent_name="local-agent",
+            agent_name=LOCAL_AGENT_NAME,
             prompt=prompt,
             thread_id=str(interaction.channel_id),
             channel=interaction.channel,
@@ -179,21 +186,22 @@ class Utility(commands.Cog):
     @app_commands.command(name="help", description="Show all available commands")
     async def slash_help(self, interaction: discord.Interaction):
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
+        local_label = self._agent_label(LOCAL_AGENT_NAME)
         await interaction.response.send_message(
             f"**{bot_name} commands:**\n"
             "\n"
             "**Agents**\n"
             "`@Claude <msg>` — Claude (role mention)\n"
-            "`@Local Agent <msg>` — local LLM agent (role mention)\n"
+            f"`@{local_label} <msg>` — local OpenClaw agent (role mention)\n"
             "`@Codex <msg>` — Codex (role mention)\n"
-            "`/local-agent <prompt>` — slash command for local LLM agent\n"
+            "`/mac-openclaw <prompt>` — slash command for Mac OpenClaw\n"
             "`/claude <prompt>` — slash command for Claude\n"
             "`/codex <prompt>` — slash command for Codex\n"
             "`/research <query>` — web research (requires researcher agent)\n"
             "\n"
             "**Wiki**\n"
             "`/wiki [action] [page]` — manage the project wiki\n"
-            "`/wiki-private [action] [page]` — private wiki (local agent only)\n"
+            "`/wiki-private [action] [page]` — private wiki (Mac OpenClaw only)\n"
             "\n"
             "**Utility**\n"
             "`/monitor` — agent health and token usage\n"
@@ -293,13 +301,13 @@ class Utility(commands.Cog):
                 self.bot._agent_status[name] = True
                 model = health.get("model", "?")
                 embed.add_field(
-                    name=name.capitalize(), value=f"Online\n`{model}`", inline=True
+                    name=self._agent_label(name), value=f"Online\n`{model}`", inline=True
                 )
             else:
                 self.bot._agent_status[name] = False
                 all_ok = False
                 embed.add_field(
-                    name=name.capitalize(),
+                    name=self._agent_label(name),
                     value=f"OFFLINE\n{health.get('error', '?')[:50]}",
                     inline=True,
                 )

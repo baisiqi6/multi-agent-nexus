@@ -26,6 +26,8 @@ from services.wiki import parse_curation_output
 
 log = logging.getLogger("discord-nexus")
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+LOCAL_AGENT_NAME = "mac-openclaw"
+LEGACY_LOCAL_AGENT_NAME = "local-agent"
 
 
 def _strip_frontmatter(text: str) -> str:
@@ -240,7 +242,10 @@ class WikiCog(commands.Cog):
         # Call LM Studio directly for curation
         lmstudio_config = self.bot.config.get("lmstudio", {})
         api_url = f"{lmstudio_config.get('base_url', 'http://localhost:1234/v1')}/chat/completions"
-        local_agent_config = self.bot.agent_configs.get("local-agent", {})
+        local_agent_config = self.bot.agent_configs.get(
+            LOCAL_AGENT_NAME,
+            self.bot.agent_configs.get(LEGACY_LOCAL_AGENT_NAME, {}),
+        )
         model = local_agent_config.get("model", "")
 
         messages = [
@@ -293,7 +298,7 @@ class WikiCog(commands.Cog):
                         content = body.rstrip() + "\n\n" + content
                 await wiki.write_page(
                     page_name, content,
-                    author="local-agent", source="curation",
+                    author=LOCAL_AGENT_NAME, source="curation",
                     status="draft", aliases=action.get("aliases", []),
                 )
                 wrote += 1

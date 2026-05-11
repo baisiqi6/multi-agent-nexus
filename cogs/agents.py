@@ -3,7 +3,7 @@
 This cog handles all agent interactions:
   - !claude / !c  → Claude Code CLI
   - !codex / !g   → Codex CLI
-  - !local-agent / !m  → Local LLM (via OpenClaw relay or LocalLLMAgent)
+  - !mac-openclaw / !local-agent / !m  → Local LLM via OpenClaw or LocalLLMAgent
   - !all / !a     → Broadcasts to all agents
   - @AgentRole    → Discord role mention routing
 
@@ -38,6 +38,10 @@ from utils.log import set_correlation, clear_correlation
 
 log = logging.getLogger("discord-nexus")
 
+LOCAL_AGENT_NAME = "mac-openclaw"
+LEGACY_LOCAL_AGENT_NAME = "local-agent"
+LOCAL_AGENT_NAMES = {LOCAL_AGENT_NAME, LEGACY_LOCAL_AGENT_NAME}
+
 
 def build_discord_context(alert_mention: str | None, mission: str, wiki_context: str) -> str:
     """Build the [Discord Context] block appended to relay messages for local agents."""
@@ -59,6 +63,10 @@ def _format_memory_block(memories: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _is_local_agent_name(agent_name: str) -> bool:
+    return agent_name in LOCAL_AGENT_NAMES
+
+
 class Agents(commands.Cog):
     """Agent interaction: direct chat, handoffs, webhook identity."""
 
@@ -66,21 +74,169 @@ class Agents(commands.Cog):
 
     # Matches both legacy !bang and new @Agent handoff lines in agent responses
     _HANDOFF_RE = re.compile(
-        r"^(?:!(?:local-agent|m|claude|c|codex|g)|@(?:local-agent|claude|codex))\b\s*(.*)",
+        r"^(?:!(?:mac-openclaw|local-agent|m|小龙虾|openclaw|龙虾|claude|c|codex|g)|@\S+)\s*(.*)",
         re.IGNORECASE | re.MULTILINE,
     )
 
     # Maps @AgentName text to internal agent name
     _MENTION_AGENT_MAP = {
-        "local-agent": "local-agent",
+        "mac-openclaw": LOCAL_AGENT_NAME,
+        "local-agent": LOCAL_AGENT_NAME,
+        "小龙虾": LOCAL_AGENT_NAME,
+        "openclaw": LOCAL_AGENT_NAME,
+        "龙虾": LOCAL_AGENT_NAME,
         "claude": "claude",
         "codex": "codex",
     }
+
+    def _strip_history_timestamps(self, rows: list[dict]) -> list[dict]:
+        return [{"role": row["role"], "content": row["content"]} for row in rows]
+
+    def _history_chars(self, rows: list[dict]) -> int:
+        return sum(len(row.get("content", "")) for row in rows)
+
+    def _trim_history_to_budget(self, rows: list[dict], budget_chars: int) -> list[dict]:
+        trimmed = []
+        total = 0
+        for row in reversed(rows):
+            content = row.get("content", "")
+            msg_chars = len(content)
+            if trimmed and total + msg_chars > budget_chars:
+                break
+            trimmed.append(row)
+            total += msg_chars
+        trimmed.reverse()
+        return self._strip_history_timestamps(trimmed)
+
+    def _format_history_block(self, history: list[dict]) -> str:
+        parts = ["[Discord Conversation Context]"]
+        for msg in history:
+            parts.append(f"{msg['role'].upper()}: {msg['content']}")
+        return "\n".join(parts)
+
+    async def _compact_history(
+        self,
+        thread_id: str,
+        existing_summary: str,
+        old_rows: list[dict],
+        summary_budget_chars: int,
+    ) -> str | None:
+        """Use the local OpenClaw agent to compact older Discord history."""
+        summary_agent = self.bot.agents.get(LOCAL_AGENT_NAME)
+        if summary_agent is None:
+            return None
+
+        old_text = self._format_history_block(self._strip_history_timestamps(old_rows))
+        prompt = (
+            "Summarize this Discord multi-agent conversation context for future "
+            "Claude, Codex, and local agents.\n\n"
+            "Keep durable facts, decisions, open tasks, user preferences, names, IDs, "
+            "important constraints, and unresolved questions. Drop greetings, filler, "
+            "duplicate logs, and step-by-step tool chatter. Do not answer the user. "
+            f"Return a compact summary under {summary_budget_chars} characters.\n\n"
+        )
+        if existing_summary:
+            prompt += f"Existing summary to update:\n{existing_summary}\n\n"
+        prompt += f"Messages to compact:\n{old_text}"
+
+        try:
+            try:
+                result = await summary_agent.call(
+                    [{"role": "user", "content": prompt}],
+                    "You are a precise conversation context compactor.",
+                    session_id=f"discord-nexus-context:{thread_id}",
+                )
+            except TypeError:
+                result = await summary_agent.call(
+                    [{"role": "user", "content": prompt}],
+                    "You are a precise conversation context compactor.",
+                )
+        except Exception:
+            log.warning("context: compaction failed for thread=%s", thread_id, exc_info=True)
+            return None
+
+        summary_text = result[0] if isinstance(result, tuple) else result
+        summary_text = (summary_text or "").strip()
+        if not summary_text:
+            return None
+        if len(summary_text) > summary_budget_chars:
+            summary_text = summary_text[:summary_budget_chars].rstrip()
+        return summary_text
+
+    async def _get_managed_history(self, thread_id: str, budget_chars: int) -> list[dict]:
+        conv_cfg = self.bot.conv_config or {}
+        if not conv_cfg.get("managed_context_enabled", False):
+            return await self.bot.db.get_history(thread_id, budget_chars)
+
+        ttl_hours = float(conv_cfg.get("context_ttl_hours", 24))
+        ttl_seconds = max(ttl_hours, 0.1) * 3600
+        summary_budget_chars = int(conv_cfg.get("summary_budget_chars", 4000))
+        recent_budget_chars = int(conv_cfg.get("recent_budget_chars", budget_chars))
+        compact_threshold_chars = int(conv_cfg.get("compact_threshold_chars", budget_chars))
+
+        since_ts = time.time() - ttl_seconds
+        rows = await self.bot.db.get_history_since(thread_id, since_ts)
+        stored_summary = await self.bot.db.get_conversation_summary(thread_id)
+        summary_text = (stored_summary or {}).get("content", "") or ""
+        covered_until = float((stored_summary or {}).get("covered_until", 0) or 0)
+
+        uncompacted_rows = [row for row in rows if row["timestamp"] > covered_until]
+        summary_row = (
+            {
+                "role": "assistant",
+                "content": "[Compacted Discord conversation summary]\n" + summary_text,
+                "timestamp": covered_until,
+            }
+            if summary_text
+            else None
+        )
+        candidate_rows = ([summary_row] if summary_row else []) + uncompacted_rows
+
+        if self._history_chars(candidate_rows) <= min(budget_chars, compact_threshold_chars):
+            return self._trim_history_to_budget(candidate_rows, budget_chars)
+
+        recent_rows = []
+        recent_chars = 0
+        for row in reversed(uncompacted_rows):
+            msg_chars = len(row.get("content", ""))
+            if recent_rows and recent_chars + msg_chars > recent_budget_chars:
+                break
+            recent_rows.append(row)
+            recent_chars += msg_chars
+        recent_rows.reverse()
+
+        old_count = max(len(uncompacted_rows) - len(recent_rows), 0)
+        old_rows = uncompacted_rows[:old_count]
+        if old_rows:
+            new_summary = await self._compact_history(
+                thread_id, summary_text, old_rows, summary_budget_chars
+            )
+            if new_summary:
+                summary_text = new_summary
+                covered_until = old_rows[-1]["timestamp"]
+                await self.bot.db.upsert_conversation_summary(
+                    thread_id, summary_text, covered_until
+                )
+                summary_row = {
+                    "role": "assistant",
+                    "content": "[Compacted Discord conversation summary]\n" + summary_text,
+                    "timestamp": covered_until,
+                }
+            else:
+                return await self.bot.db.get_history(thread_id, budget_chars)
+
+        final_rows = ([summary_row] if summary_row else []) + recent_rows
+        return self._trim_history_to_budget(final_rows, budget_chars)
 
     def __init__(self, bot):
         self.bot = bot
         # channel_id (str) → agent currently running in that channel
         self._active_agents: dict[str, object] = {}
+
+    def _agent_label(self, agent_name: str) -> str:
+        return self.bot.agent_configs.get(agent_name, {}).get(
+            "display_name", agent_name.capitalize()
+        )
 
     # --- list-reference expansion ---
 
@@ -245,8 +401,10 @@ class Agents(commands.Cog):
                         role_stages.append(sections)
 
                 if not role_stages:
-                    names = " / ".join(f"@{a.capitalize()}" for a in mention_to_agent.values())
-                    await message.channel.send(f"Usage: @{names} <your question>")
+                    names = " / ".join(
+                        f"@{self._agent_label(a)}" for a in mention_to_agent.values()
+                    )
+                    await message.channel.send(f"Usage: {names} <your question>")
                     return True
 
                 channel_id = resolve_channel_id(message.channel)
@@ -280,7 +438,7 @@ class Agents(commands.Cog):
                         else:
                             inactive.append(agent_name)
                     if inactive:
-                        names = ", ".join(a.capitalize() for a in inactive)
+                        names = ", ".join(self._agent_label(a) for a in inactive)
                         await message.channel.send(f"{names} isn't active in this channel.")
                     if dispatch_list:
                         await asyncio.gather(*[
@@ -344,7 +502,7 @@ class Agents(commands.Cog):
                     inactive_agents.append(agent_name)
 
             if inactive_agents:
-                names = ", ".join(a.capitalize() for a in inactive_agents)
+                names = ", ".join(self._agent_label(a) for a in inactive_agents)
                 await message.channel.send(f"{names} isn't active in this channel.")
 
             if not dispatch_list:
@@ -445,7 +603,9 @@ class Agents(commands.Cog):
             return
 
         if not self.bot.allowlist.is_allowed(user_id):
-            await channel.send(f"You're not authorized to use {agent_name.capitalize()}.")
+            await channel.send(
+                f"You're not authorized to use {self._agent_label(agent_name)}."
+            )
             return
 
         agent = self.bot.agents.get(agent_name)
@@ -472,7 +632,7 @@ class Agents(commands.Cog):
                 )
 
             budget = self.bot.conv_config.get("history_budget_chars", 12000)
-            history = await self.bot.db.get_history(thread_id, budget)
+            history = await self._get_managed_history(thread_id, budget)
             if ephemeral_context:
                 if not history or history[-1]["role"] != "user":
                     raise RuntimeError(
@@ -481,7 +641,9 @@ class Agents(commands.Cog):
                 history[-1]["content"] = ephemeral_context + "\n\n" + history[-1]["content"]
 
             # Memory injection — shared always; private only for local-inference agents
-            _is_local = agent_config.get("inference_backend") == "local"
+            _is_local = _is_local_agent_name(agent_name) or (
+                agent_config.get("inference_backend") in {"local", "openclaw"}
+            )
             memory_block = ""
             if agent_name != "researcher":
                 shared_memories = await self.bot.db.get_memories(limit=10)
@@ -554,7 +716,7 @@ class Agents(commands.Cog):
 
                     # --- Agent call ---
 
-                    if agent_name == "local-agent":
+                    if agent_name == LOCAL_AGENT_NAME:
                         # Local agent relay path — system prompt is owned by the backend.
                         # Discord context (mission, wiki, memory) is appended to the last user message.
                         relay_messages = [dict(m) for m in history]
@@ -615,7 +777,7 @@ class Agents(commands.Cog):
                             try:
                                 # Prepend wiki context to resumed prompt — resume()
                                 # doesn't take a system_prompt param.
-                                resume_prompt = history[-1]["content"]
+                                resume_prompt = self._format_history_block(history)
                                 if wiki_context:
                                     resume_prompt = (
                                         f"[Wiki Context]\n{wiki_context}\n\n---\n\n{resume_prompt}"
@@ -760,7 +922,7 @@ class Agents(commands.Cog):
                             )
 
                 # WIKI-PRIVATE — writes to private wiki tier (local agent only)
-                if agent_name == "local-agent":
+                if agent_name == LOCAL_AGENT_NAME:
                     private_wiki_blocks = list(re.finditer(
                         r"<!--\s*WIKI-PRIVATE:\s*(\S+)\s*-->(.*?)<!--\s*/WIKI-PRIVATE\s*-->",
                         response_text,
@@ -801,7 +963,7 @@ class Agents(commands.Cog):
                                     await self.bot.wiki.write_private_draft(
                                         pw_page_name,
                                         pw_content,
-                                        author="local-agent",
+                                        author=LOCAL_AGENT_NAME,
                                         aliases=pw_aliases,
                                     )
                                     private_wiki_pages.append(pw_page_name)
@@ -846,7 +1008,7 @@ class Agents(commands.Cog):
                 # Extract handoff commands from the response
                 handoff_agents, clean_response = self._extract_handoffs(response_text, agent_name)
 
-                await self.bot.db.save_message(thread_id, "assistant", clean_response)
+                await self.bot.db.save_message(thread_id, "assistant", f"[{agent_name}]: {clean_response}")
                 await self._finish_with_placeholder(
                     channel, agent_name, placeholder_msg, clean_response
                 )
@@ -863,8 +1025,10 @@ class Agents(commands.Cog):
                     )
 
                 if handoff_agents:
-                    targets = ", ".join(t.capitalize() for t, _ in handoff_agents)
-                    await channel.send(f"*{agent_name.capitalize()} → {targets}*")
+                    targets = ", ".join(self._agent_label(t) for t, _ in handoff_agents)
+                    await channel.send(
+                        f"*{self._agent_label(agent_name)} → {targets}*"
+                    )
 
                 await self.bot.db.update_job(
                     job_id,
@@ -876,8 +1040,10 @@ class Agents(commands.Cog):
                 )
 
                 # Context window warning for local agents
-                if agent_name == "local-agent":
-                    ctx_window = self.bot.agent_configs.get("local-agent", {}).get("context_window", 32768)
+                if agent_name == LOCAL_AGENT_NAME:
+                    ctx_window = self.bot.agent_configs.get(
+                        LOCAL_AGENT_NAME, {}
+                    ).get("context_window", 32768)
                     prompt_tokens = metadata.get("tokens_input") or 0
                     if prompt_tokens and (prompt_tokens / ctx_window) > 0.85:
                         await self.bot._post_to_alerts(
@@ -893,20 +1059,23 @@ class Agents(commands.Cog):
             except AgentRateLimitError as e:
                 await self.bot.db.update_job(job_id, "failed")
                 log.warning("%s rate/usage limit hit: %s", agent_name, e)
-                # Fallback chain: claude → codex → local-agent; codex → local-agent
-                fallback_chain = {"claude": ["codex", "local-agent"], "codex": ["local-agent"]}
+                # Fallback chain: claude → codex → mac-openclaw; codex → mac-openclaw
+                fallback_chain = {
+                    "claude": ["codex", LOCAL_AGENT_NAME],
+                    "codex": [LOCAL_AGENT_NAME],
+                }
                 for fallback in fallback_chain.get(agent_name, []):
                     if self.bot._agent_status.get(fallback, True):
                         rate_limit_fallback = fallback
                         break
                 if rate_limit_fallback:
                     await self.bot._post_to_alerts(
-                        f"{agent_name.capitalize()} usage/rate limit hit — "
-                        f"falling back to {rate_limit_fallback.capitalize()}."
+                        f"{self._agent_label(agent_name)} usage/rate limit hit — "
+                        f"falling back to {self._agent_label(rate_limit_fallback)}."
                     )
                     switch_msg = (
-                        f"*{agent_name.capitalize()} limit reached — "
-                        f"switching to {rate_limit_fallback.capitalize()}...*"
+                        f"*{self._agent_label(agent_name)} limit reached — "
+                        f"switching to {self._agent_label(rate_limit_fallback)}...*"
                     )
                     if placeholder_msg:
                         try:
@@ -918,7 +1087,7 @@ class Agents(commands.Cog):
                         await channel.send(switch_msg)
                 else:
                     err_msg = (
-                        f"{agent_name.capitalize()} hit its usage limit "
+                        f"{self._agent_label(agent_name)} hit its usage limit "
                         "and no fallback is available."
                     )
                     if placeholder_msg:
@@ -932,7 +1101,7 @@ class Agents(commands.Cog):
 
             except AgentOfflineError as e:
                 await self.bot.db.update_job(job_id, "failed")
-                msg = f"{agent_name.capitalize()} is offline: {e}"
+                msg = f"{self._agent_label(agent_name)} is offline: {e}"
                 log.error(msg)
                 if placeholder_msg:
                     try:
@@ -945,7 +1114,7 @@ class Agents(commands.Cog):
 
             except AgentTimeoutError as e:
                 await self.bot.db.update_job(job_id, "failed")
-                msg = f"{agent_name.capitalize()} timed out: {e}"
+                msg = f"{self._agent_label(agent_name)} timed out: {e}"
                 log.error(msg)
                 # Save partial streamed response so it appears in future history.
                 if last_streamed_text:
@@ -995,7 +1164,7 @@ class Agents(commands.Cog):
                             else handoff_prompt
                         )
                         await handoffs_channel.send(
-                            f"**{agent_name.capitalize()} → {target_agent.capitalize()}**"
+                            f"**{self._agent_label(agent_name)} → {self._agent_label(target_agent)}**"
                             f" (depth {depth + 1})\n> {preview}"
                         )
                 await self.handle_agent_request(
@@ -1027,9 +1196,7 @@ class Agents(commands.Cog):
         lines = response.split("\n")
         clean_lines = []
 
-        _at_mention_re = re.compile(
-            r"^@(local-agent|claude|codex)\b\s*(.*)", re.IGNORECASE
-        )
+        _at_mention_re = re.compile(r"^@([^\s]+)\s*(.*)")
 
         for line in lines:
             stripped = line.strip()
@@ -1037,9 +1204,10 @@ class Agents(commands.Cog):
             if match:
                 at_match = _at_mention_re.match(stripped)
                 if at_match:
-                    agent_name = at_match.group(1).lower()
+                    mention_name = at_match.group(1).lower()
+                    agent_name = self._MENTION_AGENT_MAP.get(mention_name)
                     prompt = at_match.group(2).strip()
-                    if agent_name != source_agent and prompt:
+                    if agent_name and agent_name != source_agent and prompt:
                         handoffs.append((agent_name, prompt))
                         continue
                     clean_lines.append(line)

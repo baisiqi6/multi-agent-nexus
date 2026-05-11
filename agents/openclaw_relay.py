@@ -47,7 +47,7 @@ class OpenClawRelayAgent(BaseAgent):
         self.agent_id = agent_id
         self.auth_token = auth_token
         self._circuit = circuit_breaker
-        self._gateway_url = self.base_url.removesuffix("/v1")
+        self._gateway_url = self.base_url.removesuffix("/v1").removesuffix("/api")
         self._session: aiohttp.ClientSession | None = None
 
     async def _get_session(self) -> aiohttp.ClientSession:

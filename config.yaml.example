@@ -30,7 +30,7 @@ openclaw:
 # This agent routes through the OpenClaw relay (above) or LocalLLMAgent.
 # Configure the system_prompt to match your use case.
 
-local-agent:
+mac-openclaw:
   context_window: 32768          # Token context window for your model
   inference_backend: local       # "local" = LM Studio/Ollama via OpenClaw relay
   display_name: Local Agent           # Name shown in Discord via webhook
@@ -209,7 +209,7 @@ channels:
 # Channels where each agent responds to !bang commands and @role mentions.
 # Add any channel ID where you want the agent to be active.
 
-local-agent_channels:
+mac-openclaw_channels:
   - YOUR_GENERAL_CHANNEL_ID
   - YOUR_LOCAL_AGENT_CHANNEL_ID
   - YOUR_CODING_CHANNEL_ID
@@ -236,7 +236,7 @@ researcher_channels:
 agent_capabilities:
   claude: [planning, synthesis, review, architecture, code_gen]
   codex: [code_gen, targeted_edits, file_ops]
-  local-agent: [agent_chat, bulk_work, fallback, code_review]
+  mac-openclaw: [agent_chat, bulk_work, fallback, code_review]
   researcher: [web_research, fact_finding]
 
 # ── Discord role IDs for @mention routing ─────────────────────────────────────
@@ -246,7 +246,7 @@ agent_capabilities:
 agent_roles:
   claude: YOUR_CLAUDE_ROLE_ID
   codex: YOUR_CODEX_ROLE_ID
-  local-agent: YOUR_LOCAL_AGENT_ROLE_ID
+  mac-openclaw: YOUR_LOCAL_AGENT_ROLE_ID
 
 # ── @team role — mentions this role to call all agents in parallel ─────────────
 # Create a role called "team" (or any name) in your Discord server, make it mentionable,
@@ -265,6 +265,11 @@ logging:
 conversation:
   history_budget_chars: 12000  # Max chars of history to include in each prompt
   headroom_chars: 1000         # Reserved for system prompt + current message
+  managed_context_enabled: true # TTL + compaction + recent raw history
+  context_ttl_hours: 24         # Raw messages older than this are summarized or dropped
+  compact_threshold_chars: 12000 # Trigger compaction when managed context exceeds this
+  summary_budget_chars: 4000    # Max chars for the durable compacted summary
+  recent_budget_chars: 8000     # Raw recent-message budget after summary
 
 # ── Retention ────────────────────────────────────────────────────────────────
 
@@ -286,8 +291,8 @@ channel_missions: {}
 # ── Orchestration ─────────────────────────────────────────────────────────────
 
 orchestration:
-  local-agent_review_model: ""          # Model to use for Local Agent review pass (optional)
-  local-agent_review_fallback: ""       # Fallback model if primary unavailable
+  mac-openclaw_review_model: ""         # Model to use for Mac OpenClaw review pass (optional)
+  mac-openclaw_review_fallback: ""      # Fallback model if primary unavailable
   max_retries: 2                   # Max retries for orchestration tasks
   diff_max_lines: 500              # Max diff lines to include in review
   orchestration_channels: []       # Channels where orchestration commands are active

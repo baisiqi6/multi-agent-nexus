@@ -1,5 +1,7 @@
 # discord-nexus
 
+> 本仓库基于 [baisiqi6/discord-nexus](https://github.com/baisiqi6/discord-nexus) 继续维护，原项目 README 标注为 MIT License。本分支保留原始 Git 历史，并在此基础上加入 OpenClaw CLI、managed context、KOOK 接入规划和多主机 agent routing 等定制能力。来源与维护说明见 [docs/provenance.md](docs/provenance.md)。
+
 A modular Discord bot framework for connecting AI agents — Claude Code CLI, Codex CLI, and local LLMs (LM Studio, Ollama, vLLM) — to Discord as a collaborative multi-agent system.
 
 ---

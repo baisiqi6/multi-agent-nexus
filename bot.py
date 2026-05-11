@@ -38,6 +38,9 @@ from security.allowlist import Allowlist
 from security.filter import load_secret_literals
 from utils.log import setup_logging
 
+LOCAL_AGENT_NAME = "mac-openclaw"
+LEGACY_LOCAL_AGENT_NAME = "local-agent"
+
 # --- Setup ---
 
 load_dotenv(get_repo_root() / ".env")
@@ -93,12 +96,15 @@ class NexusBot(discord_commands.Bot):
         _uid = config["bot"]["allowed_users"][0] if config["bot"]["allowed_users"] else None
         self.alert_mention = f"<@{_uid}>" if _uid else ""
 
+        local_agent_config = config.get(LOCAL_AGENT_NAME) or config.get(
+            LEGACY_LOCAL_AGENT_NAME, {}
+        )
+
         # Agent configuration blocks from config.yaml
         self.agent_configs = {
-            "local-agent": config.get("local-agent", {}),
+            LOCAL_AGENT_NAME: local_agent_config,
             "claude": config.get("claude", {}),
             "codex": config.get("codex", {}),
-            "researcher": config.get("researcher", {}),
         }
 
         # --- Agent backends ---
@@ -117,36 +123,36 @@ class NexusBot(discord_commands.Bot):
             activity_timeout=config.get("codex", {}).get("activity_timeout", 300),
         )
 
-        # Local LLM agent — choose your backend:
-        # Option A: OpenClaw relay (if you run an OpenClaw gateway)
-        if config.get("openclaw") and OPENCLAW_GATEWAY_TOKEN:
-            from agents.openclaw_relay import OpenClawRelayAgent
-            self.agents["local-agent"] = OpenClawRelayAgent(
-                base_url=config["openclaw"]["base_url"],
-                agent_id=config["openclaw"]["agent_id"],
+        # Local LLM agent — OpenClaw via CLI subprocess (like Claude/Codex)
+        if config.get("openclaw"):
+            from agents.openclaw_cli import OpenClawCLIAgent
+            self.agents[LOCAL_AGENT_NAME] = OpenClawCLIAgent(
+                agent_id=config["openclaw"].get("agent_id", "main"),
                 timeout=config["openclaw"]["timeout"],
-                auth_token=OPENCLAW_GATEWAY_TOKEN,
+                model=local_agent_config.get("model"),
             )
         # Option B: Direct LocalLLMAgent (LM Studio, Ollama, etc.)
         elif config.get("lmstudio"):
             from agents.local_llm import LocalLLMAgent
-            self.agents["local-agent"] = LocalLLMAgent(
+            self.agents[LOCAL_AGENT_NAME] = LocalLLMAgent(
                 base_url=config["lmstudio"]["base_url"],
-                model=config.get("local-agent", {}).get("model", ""),
+                model=local_agent_config.get("model", ""),
                 timeout=config["lmstudio"]["timeout"],
                 api_key=LMSTUDIO_API_KEY,
             )
             # Override the default agent name to match the config display name
-            self.agents["local-agent"].name = config.get("local-agent", {}).get("display_name", "Local Agent")
-
-        # Researcher agent (optional — requires OpenClaw with researcher workspace)
-        if config.get("openclaw") and OPENCLAW_GATEWAY_TOKEN:
-            from agents.researcher import ResearcherAgent
-            self.agents["researcher"] = ResearcherAgent(
-                base_url=config["openclaw"]["base_url"],
-                timeout=config.get("researcher", {}).get("timeout", 120),
-                auth_token=OPENCLAW_GATEWAY_TOKEN,
+            self.agents[LOCAL_AGENT_NAME].name = local_agent_config.get(
+                "display_name", "Local Agent"
             )
+
+        # Researcher agent disabled — agents search on their own via built-in tools
+        # if config.get("openclaw") and OPENCLAW_GATEWAY_TOKEN:
+        #     from agents.researcher import ResearcherAgent
+        #     self.agents["researcher"] = ResearcherAgent(
+        #         base_url=config["openclaw"]["base_url"],
+        #         timeout=config.get("researcher", {}).get("timeout", 120),
+        #         auth_token=OPENCLAW_GATEWAY_TOKEN,
+        #     )
 
         # Hook point: add more custom agents here
         # Example:
@@ -155,15 +161,25 @@ class NexusBot(discord_commands.Bot):
 
         # Per-agent active channels (populated from config.yaml *_channels lists)
         self.agent_channels = {
-            "local-agent": set(config.get("local-agent_channels", [])),
+            LOCAL_AGENT_NAME: set(
+                config.get(f"{LOCAL_AGENT_NAME}_channels")
+                or config.get(f"{LEGACY_LOCAL_AGENT_NAME}_channels", [])
+            ),
             "claude": set(config.get("claude_channels", [])),
             "codex": set(config.get("codex_channels", [])),
             "researcher": set(config.get("researcher_channels", [])),
         }
 
         # Agent role IDs for @mention routing
+        raw_role_ids = dict(config.get("agent_roles", {}))
+        if (
+            LEGACY_LOCAL_AGENT_NAME in raw_role_ids
+            and LOCAL_AGENT_NAME not in raw_role_ids
+        ):
+            raw_role_ids[LOCAL_AGENT_NAME] = raw_role_ids[LEGACY_LOCAL_AGENT_NAME]
+        raw_role_ids.pop(LEGACY_LOCAL_AGENT_NAME, None)
         self._agent_role_ids: dict[str, int] = {
-            k: int(v) for k, v in config.get("agent_roles", {}).items()
+            k: int(v) for k, v in raw_role_ids.items()
         }
         # @team role → all agents in parallel
         _team_role_raw = config.get("team_role")
@@ -220,6 +236,11 @@ class NexusBot(discord_commands.Bot):
         """Return the mission string for an agent in a channel (from config.yaml)."""
         missions = config.get("channel_missions", {})
         channel_missions = missions.get(str(channel_id), {})
+        if agent_name == LOCAL_AGENT_NAME:
+            return channel_missions.get(
+                LOCAL_AGENT_NAME,
+                channel_missions.get(LEGACY_LOCAL_AGENT_NAME, ""),
+            )
         return channel_missions.get(agent_name, "")
 
     async def _post_to_alerts(self, message: str):
@@ -251,8 +272,8 @@ class NexusBot(discord_commands.Bot):
         """!new-channel [agents] — register current channel with specified agents.
 
         Usage:
-          !new-channel             — all agents (local-agent, claude, codex)
-          !new-channel local-agent      — local-agent only
+          !new-channel             — all agents (mac-openclaw, claude, codex)
+          !new-channel mac-openclaw     — Mac OpenClaw only
           !new-channel claude codex — specific agents
         """
         if not self.allowlist.is_allowed(message.author.id):
@@ -262,8 +283,14 @@ class NexusBot(discord_commands.Bot):
 
         content = message.content.strip()
         args = content[len("!new-channel"):].strip().lower().split()
-        valid = {"local-agent", "claude", "codex"}
-        targets = [a for a in args if a in valid] or list(valid)
+        alias_map = {
+            LOCAL_AGENT_NAME: LOCAL_AGENT_NAME,
+            LEGACY_LOCAL_AGENT_NAME: LOCAL_AGENT_NAME,
+            "claude": "claude",
+            "codex": "codex",
+        }
+        valid = set(alias_map.values())
+        targets = [alias_map[a] for a in args if a in alias_map] or list(valid)
 
         # Update live sets immediately
         for agent in targets:
@@ -374,12 +401,13 @@ class NexusBot(discord_commands.Bot):
         # Health check all configured agents
         for name, agent in self.agents.items():
             health = await agent.health_check()
+            display = self.agent_configs.get(name, {}).get("display_name", name.capitalize())
             if health["status"] == "ok":
-                log.info("%s online — %s", name.capitalize(), health.get("model", ""))
+                log.info("%s online — %s", display, health.get("model", ""))
                 self._agent_status[name] = True
             else:
                 log.warning(
-                    "%s OFFLINE — %s", name.capitalize(), health.get("error", "unknown")
+                    "%s OFFLINE — %s", display, health.get("error", "unknown")
                 )
                 self._agent_status[name] = False
 
@@ -411,7 +439,8 @@ class NexusBot(discord_commands.Bot):
         log.info("Serving %d guilds", len(self.guilds))
         status_parts = []
         for name, online in self._agent_status.items():
-            status_parts.append(f"{name.capitalize()}: {'online' if online else 'OFFLINE'}")
+            display = self.agent_configs.get(name, {}).get("display_name", name.capitalize())
+            status_parts.append(f"{display}: {'online' if online else 'OFFLINE'}")
         await self._log_to_channel(f"Bot started. {', '.join(status_parts)}")
 
         # Post restart confirmation if this was triggered by !restart
@@ -457,6 +486,12 @@ class NexusBot(discord_commands.Bot):
         # !restart is handled here because it exits the process
         if message.content.strip().lower() == "!restart":
             await message.channel.send("Restarting...")
+
+        # !clear — clear conversation history for this channel
+        if message.content.strip().lower() == "!clear":
+            deleted = await self.db.clear_history(thread_id)
+            await message.channel.send(f"Cleared {deleted} messages from context. Discord messages remain visible.")
+            return
             flag_path = os.path.join(DATA_DIR, "restart_flag.json")
             with open(flag_path, "w") as f:
                 import json as _json

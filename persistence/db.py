@@ -100,6 +100,15 @@ CREATE INDEX IF NOT EXISTS idx_archive_ts ON conversations_archive(timestamp);
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_audit_ts ON audit_log(timestamp);
 
+CREATE TABLE IF NOT EXISTS conversation_summaries (
+    thread_id      TEXT PRIMARY KEY,
+    content        TEXT NOT NULL,
+    covered_until  REAL NOT NULL,
+    updated_at     REAL NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_conv_summary_updated ON conversation_summaries(updated_at);
+
 CREATE TABLE IF NOT EXISTS agent_workspace (
     thread_id   TEXT NOT NULL,
     agent       TEXT NOT NULL,
@@ -435,6 +444,76 @@ class Database:
         history.reverse()
         return history
 
+    async def get_history_since(
+        self,
+        thread_id: str,
+        since_ts: float,
+    ) -> list[dict]:
+        """Get conversation history newer than since_ts, including timestamps."""
+        cursor = await self._db.execute(
+            "SELECT role, content, timestamp FROM conversations "
+            "WHERE thread_id = ? AND timestamp >= ? ORDER BY timestamp ASC",
+            (thread_id, since_ts),
+        )
+        rows = await cursor.fetchall()
+        return [
+            {
+                "role": row["role"],
+                "content": row["content"],
+                "timestamp": row["timestamp"],
+            }
+            for row in rows
+        ]
+
+    async def get_conversation_summary(self, thread_id: str) -> dict | None:
+        """Return the compacted summary for a thread, if present."""
+        cursor = await self._db.execute(
+            "SELECT content, covered_until, updated_at FROM conversation_summaries "
+            "WHERE thread_id = ?",
+            (thread_id,),
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def upsert_conversation_summary(
+        self,
+        thread_id: str,
+        content: str,
+        covered_until: float,
+    ) -> None:
+        """Store or replace the compacted summary for a thread."""
+        now = time.time()
+        await self._db.execute(
+            "INSERT INTO conversation_summaries "
+            "(thread_id, content, covered_until, updated_at) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(thread_id) DO UPDATE SET "
+            "content = excluded.content, "
+            "covered_until = excluded.covered_until, "
+            "updated_at = excluded.updated_at",
+            (thread_id, content, covered_until, now),
+        )
+        await self._db.commit()
+
+    async def clear_history(self, thread_id: str) -> int:
+        """Delete all conversation history for a thread. Returns number of deleted rows."""
+        cursor = await self._db.execute(
+            "SELECT COUNT(*) FROM conversations WHERE thread_id = ?",
+            (thread_id,),
+        )
+        row = await cursor.fetchone()
+        count = row[0] if row else 0
+        await self._db.execute(
+            "DELETE FROM conversations WHERE thread_id = ?",
+            (thread_id,),
+        )
+        await self._db.execute(
+            "DELETE FROM conversation_summaries WHERE thread_id = ?",
+            (thread_id,),
+        )
+        await self._db.commit()
+        return count
+
     async def search_history(self, thread_id: str, query: str, limit: int = 20) -> list[dict]:
         """Search archived + active conversations for a thread."""
         results = []
@@ -564,7 +643,7 @@ class Database:
             "cost_usd": row[3] or 0.0,
         }
 
-    async def get_last_local_prompt_tokens(self, agent: str = "local-agent") -> int | None:
+    async def get_last_local_prompt_tokens(self, agent: str = "mac-openclaw") -> int | None:
         """Return the most recent prompt token count for a local agent."""
         cursor = await self._db.execute(
             "SELECT tokens_input FROM jobs WHERE agent = ? AND tokens_input IS NOT NULL "

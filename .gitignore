@@ -1,6 +1,7 @@
 # Environment & secrets
 .env
 .env.*
+config.yaml
 
 # Runtime data
 data/

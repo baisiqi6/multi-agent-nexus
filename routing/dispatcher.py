@@ -10,21 +10,20 @@ import re
 log = logging.getLogger(__name__)
 
 # Map agent names to their bang command regex patterns.
-# Add aliases here if you want shorthand commands (e.g. !m for local-agent).
+# Add aliases here if you want shorthand commands (e.g. !m for mac-openclaw).
 BANG_ALIASES = {
-    "local-agent": r"!(?:local-agent|m)",
+    "mac-openclaw": r"!(?:mac-openclaw|local-agent|m|小龙虾|openclaw|龙虾)",
     "claude": r"!(?:claude|c)",
     "codex": r"!(?:codex|g)",
-    "researcher": r"!(?:researcher|research|r)",
 }
 
 # Agents included in !all/!a broadcasts.
 # The researcher is a tool agent and is excluded from broadcasts.
-ALL_AGENTS = ["local-agent", "claude", "codex"]
+ALL_AGENTS = ["mac-openclaw", "claude", "codex"]
 
 # Pattern to find any bang command (used to strip them from the prompt text)
 _ALL_BANGS = re.compile(
-    r"!(?:local-agent|m|claude|c|codex|g|researcher|research|r|all|a)\b",
+    r"!(?:mac-openclaw|local-agent|m|小龙虾|openclaw|龙虾|claude|c|codex|g|researcher|research|r|all|a)\b",
     re.IGNORECASE,
 )
 
@@ -50,7 +49,7 @@ def parse_commands(content: str) -> tuple[list[str], str | None]:
       !all or !a     → broadcasts to all agents in ALL_AGENTS
       !claude or !c  → routes to claude
       !codex or !g   → routes to codex
-      !local-agent or !m  → routes to local-agent (local agent)
+      !mac-openclaw / !local-agent / !m  → routes to mac-openclaw
       !research or !r → routes to researcher
 
     Returns:

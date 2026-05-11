@@ -486,7 +486,7 @@ class WikiStore:
         aliases: list[str] | None = None,
     ) -> None:
         """Write a private draft. Does NOT appear in the general wiki or agent context
-        (unless include_private=True / agent_name='local-agent')."""
+        (unless include_private=True / agent_name='mac-openclaw')."""
         await self.write_page(
             name, content,
             author=author, source="inline", status="draft",
@@ -671,7 +671,7 @@ class WikiStore:
         """Search index summaries + aliases; fall back to grepping page content.
 
         Returns concatenated matching page content within budget_chars.
-        Pass agent_name='local-agent' (or another agent with private access) to include
+        Pass agent_name='mac-openclaw' (or another agent with private access) to include
         the private tier in search results.
         """
         index_text = await self.read_index()
@@ -680,7 +680,7 @@ class WikiStore:
             matches = await self._grep_pages(query)
         general = await self._load_pages_within_budget(matches, budget_chars)
 
-        if agent_name == "local-agent":
+        if agent_name in {"mac-openclaw", "local-agent"}:
             private_index = await self._read_private_index()
             private_matches = _match_index(private_index, query)
             if not private_matches:
@@ -705,7 +705,7 @@ class WikiStore:
         """Return wiki context relevant to query, fail-closed (returns '' on no match).
 
         Pinned pages are always prepended regardless of query match.
-        Pass include_private=True or agent_name='local-agent' for private-tier context.
+        Pass include_private=True or agent_name='mac-openclaw' for private-tier context.
         """
         pinned = await self._load_pinned_pages(budget_chars)
         remaining = budget_chars - len(pinned)
@@ -718,7 +718,10 @@ class WikiStore:
             else ""
         )
 
-        should_include_private = include_private or agent_name == "local-agent"
+        should_include_private = include_private or agent_name in {
+            "mac-openclaw",
+            "local-agent",
+        }
         if should_include_private:
             private_index = await self._read_private_index()
             private_matches = _match_index(private_index, query)
