@@ -95,7 +95,8 @@ class CodexAdapter(AgentAdapter):
         on_progress=None,
     ) -> AdapterResult:
         full_prompt = self._with_system_prompt(prompt)
-        primary = await self._run_once(full_prompt, model=self.config.model)
+        effective_work_dir = work_dir or self.config.work_dir
+        primary = await self._run_once(full_prompt, model=self.config.model, work_dir=effective_work_dir)
         if not primary.capacity_error:
             return AdapterResult(
                 text=primary.text, session_id=primary.session_id
@@ -108,7 +109,7 @@ class CodexAdapter(AgentAdapter):
                 self.config.model or "default",
                 fallback_model,
             )
-            fallback = await self._run_once(full_prompt, model=fallback_model)
+            fallback = await self._run_once(full_prompt, model=fallback_model, work_dir=effective_work_dir)
             if not fallback.capacity_error:
                 return AdapterResult(
                     text=fallback.text, session_id=fallback.session_id
@@ -131,6 +132,8 @@ class CodexAdapter(AgentAdapter):
         on_progress=None,
     ) -> AdapterResult:
         full_prompt = self._with_system_prompt(prompt)
+        effective_timeout = timeout or self.config.timeout
+        effective_work_dir = work_dir or self.config.work_dir
         cmd = [
             self.config.codex_bin,
             "exec",
@@ -138,14 +141,15 @@ class CodexAdapter(AgentAdapter):
             session_id,
             "--json",
             "--skip-git-repo-check",
-            "--sandbox",
-            self.config.codex_sandbox,
-            "-",
         ]
+        # Sandbox config via -c override (exec resume doesn't accept --sandbox)
+        if self.config.codex_sandbox:
+            cmd += ["-c", f"sandbox_permissions=[\"{self.config.codex_sandbox}\"]"]
         if self.config.model:
             cmd += ["--model", self.config.model]
+        cmd.append("-")
 
-        result = await self._exec_cmd(cmd, full_prompt)
+        result = await self._exec_cmd(cmd, full_prompt, timeout=effective_timeout, work_dir=effective_work_dir)
         result.resumed = True
         return result
 
@@ -175,9 +179,10 @@ class CodexAdapter(AgentAdapter):
             "Configure codex_fallback_model to auto-retry."
         )
 
-    async def _run_once(self, full_prompt: str, model: str | None) -> CodexRunResult:
+    async def _run_once(self, full_prompt: str, model: str | None, *, work_dir: str | None = None) -> CodexRunResult:
         cmd = self._build_cmd(model)
         timeout = self.config.timeout
+        effective_cwd = work_dir or self.config.work_dir
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -185,8 +190,8 @@ class CodexAdapter(AgentAdapter):
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.config.work_dir,
-                env=filtered_env(cwd=self.config.work_dir),
+                cwd=effective_cwd,
+                env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
                 **NO_WINDOW,
             )
@@ -199,16 +204,20 @@ class CodexAdapter(AgentAdapter):
         self,
         cmd: list[str],
         full_prompt: str,
+        *,
+        timeout: int | None = None,
+        work_dir: str | None = None,
     ) -> AdapterResult:
-        timeout = self.config.timeout
+        timeout = timeout or self.config.timeout
+        effective_cwd = work_dir or self.config.work_dir
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=self.config.work_dir,
-                env=filtered_env(cwd=self.config.work_dir),
+                cwd=effective_cwd,
+                env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
                 **NO_WINDOW,
             )
@@ -221,6 +230,7 @@ class CodexAdapter(AgentAdapter):
         proc.stdin.close()
 
         response_text = ""
+        error_text = ""
         session_id: str | None = None
         loop = asyncio.get_event_loop()
         deadline = loop.time() + timeout
@@ -255,11 +265,24 @@ class CodexAdapter(AgentAdapter):
                 continue
             if event.get("type") == "thread.started" and event.get("thread_id"):
                 session_id = event["thread_id"]
+            error_text = extract_codex_error(event) or error_text
             partial = extract_codex_text(event)
             if partial:
                 response_text = partial
 
         await proc.wait()
+
+        # Check for resume failure
+        if proc.returncode != 0:
+            assert proc.stderr is not None
+            stderr = (await proc.stderr.read()).decode("utf-8", errors="replace").strip()
+            detail = stderr or error_text or f"exit code {proc.returncode}"
+            return AdapterResult(
+                text=f"Codex resume failed ({proc.returncode}): {detail[:500]}",
+                session_id=session_id,
+                resumed=True,
+            )
+
         return AdapterResult(
             text=response_text.strip() or "(no response)",
             session_id=session_id,

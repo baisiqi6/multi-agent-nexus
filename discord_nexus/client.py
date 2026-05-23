@@ -216,7 +216,10 @@ class DiscordClient(discord.Client):
     async def _handle_request(self, message: discord.Message):
         """Process an addressed message: call adapter, send response."""
         channel = message.channel
-        scope_id = str(self._resolve_channel_id(message))
+        # Session scope: thread uses its own id, regular channel uses channel id
+        session_scope_id = str(channel.id)
+        # Context scope: always use resolved channel id (parent for threads)
+        context_channel_id = str(self._resolve_channel_id(message))
 
         # 1. Send placeholder
         placeholder = None
@@ -231,7 +234,7 @@ class DiscordClient(discord.Client):
             context_store=self.context_store,
             config=self.agent_config,
             bot_id=self.user.id,
-            channel_id=scope_id,
+            channel_id=context_channel_id,
             message_id=str(message.id),
             current_text=prompt_text,
         )
@@ -239,13 +242,24 @@ class DiscordClient(discord.Client):
         # 3. Check for existing session and call adapter
         progress_state: dict = {"partial": ""}
         progress_cb = self._make_progress_callback(progress_state)
-        existing = self.session_store.get(scope_id=scope_id, agent_id=self.agent_config.id)
+        existing = self.session_store.get(scope_id=session_scope_id, agent_id=self.agent_config.id)
 
         try:
             if existing:
+                # Check work_dir mismatch — stale if project changed
+                current_work_dir = self.agent_config.work_dir
+                if current_work_dir and existing.get("work_dir") and current_work_dir != existing["work_dir"]:
+                    log.info(
+                        "Session work_dir mismatch (had=%s now=%s), marking stale for agent=%s scope=%s",
+                        existing["work_dir"], current_work_dir, self.agent_config.id, session_scope_id,
+                    )
+                    self.session_store.mark_stale(scope_id=session_scope_id, agent_id=self.agent_config.id)
+                    existing = None
+
+            if existing:
                 log.info(
                     "Resuming session %s for agent=%s scope=%s",
-                    existing["session_id"], self.agent_config.id, scope_id,
+                    existing["session_id"], self.agent_config.id, session_scope_id,
                 )
                 result: AdapterResult = await self._run_with_heartbeat(
                     placeholder,
@@ -261,7 +275,7 @@ class DiscordClient(discord.Client):
                         "Resume failed for session %s, falling back to fresh call",
                         existing["session_id"],
                     )
-                    self.session_store.mark_stale(scope_id=scope_id, agent_id=self.agent_config.id)
+                    self.session_store.mark_stale(scope_id=session_scope_id, agent_id=self.agent_config.id)
                     progress_state["partial"] = ""
                     result = await self._run_with_heartbeat(
                         placeholder,
@@ -289,7 +303,7 @@ class DiscordClient(discord.Client):
         # 4. Save session ID if we got one
         if result.session_id:
             self.session_store.upsert(
-                scope_id=scope_id,
+                scope_id=session_scope_id,
                 agent_id=self.agent_config.id,
                 adapter=self.agent_config.adapter,
                 session_id=result.session_id,
@@ -329,7 +343,7 @@ class DiscordClient(discord.Client):
         if not self._is_error_response(result.text):
             self.context_store.record_message(
                 message_id=f"response:{int(time.time() * 1000)}:{self.agent_config.id}",
-                channel_id=scope_id,
+                channel_id=context_channel_id,
                 author_id=str(self.user.id),
                 author_name=self.agent_config.display_name or self.agent_config.id,
                 author_is_bot=True,
@@ -342,7 +356,7 @@ class DiscordClient(discord.Client):
     _ERROR_PREFIXES = (
         "Agent error:",
         "OpenCode CLI failed", "OpenCode timed out",
-        "Codex CLI failed", "Codex timed out", "Codex stopped responding",
+        "Codex CLI failed", "Codex timed out", "Codex stopped responding", "Codex resume failed",
         "Hermes CLI failed", "Hermes timed out",
         "Claude CLI failed", "Claude error:", "Claude timeout",
     )
