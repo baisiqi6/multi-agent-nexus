@@ -93,7 +93,7 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 3. **无 wiki/scratch/discoveries** — Phase 3 功能
 4. **无 streaming placeholder 增强** — 当前只有心跳计时，无真正的 partial output 展示
 5. **nexus.py 日志级别** — 仍为 DEBUG，应改为 INFO
-6. **OpenCode `--dangerously-skip-permissions`** — 该 flag 在 opencode CLI 不存在，配置值被忽略但未报错
+6. ~~**OpenCode `--dangerously-skip-permissions` 不存在**~~ — 实际 `opencode run` 支持该 flag，adapter 代码使用正确
 7. **无自动启动** — 所有 bot 需手动 `python nexus.py --agent <id>` 启动
 
 ## Phase 3 前置条件
