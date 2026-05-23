@@ -197,6 +197,7 @@ At least one agent must be configured and online. See [`docs/agents.md`](docs/ag
 ## Documentation
 
 - [Architecture](docs/architecture.md) — system diagram, data flow, component overview
+- [Multi-Agent Collaboration](docs/multi-agent-collaboration.md) — Discord/KOOK as visible message bus, harness-backed workflow, coordinator design
 - [Agents](docs/agents.md) — configuring each agent type, adding custom agents
 - [Wiki System](docs/wiki-system.md) — wiki structure, tags, private tier, curation
 - [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, PM2

@@ -1,0 +1,71 @@
+# Discord Nexus agents.toml
+# [[agents]] = managed coding agents (discord-nexus starts adapter process)
+# [[external_agents]] = agents with their own native Gateway (only for handoff routing)
+
+[defaults]
+timeout = 360
+activity_timeout = 120
+first_byte_timeout = 120
+respond_to_bots = true
+context_db_path = "data/discord_context.sqlite3"
+context_recent_messages = 40
+context_budget_chars = 12000
+context_max_message_chars = 500
+context_ttl_seconds = 86400
+handoff_dedupe_seconds = 600
+wiki_enabled = false
+wiki_path = "wiki"
+# Only these Discord user IDs can trigger agents. Empty = allow all.
+# allowed_user_ids = [YOUR_DISCORD_USER_ID]
+
+# ── Managed coding agents ──────────────────────────────────────────────────────
+
+[[agents]]
+id = "mac-claude"
+adapter = "claude"
+token_env = "DISCORD_MAC_CLAUDE_TOKEN"
+display_name = "Mac Claude"
+aliases = ["Mac Claude", "Claude"]
+channels = [YOUR_CHANNEL_ID]
+work_dir = "~/projects"
+# discord_user_id = 0  # Fill in after bot joins server
+
+system_prompt = """
+You are Claude, running on Mac via Discord.
+Be concise; format for Discord markdown.
+"""
+
+[[agents]]
+id = "mac-codex"
+adapter = "codex"
+token_env = "DISCORD_MAC_CODEX_TOKEN"
+display_name = "Mac Codex"
+aliases = ["Mac Codex", "Codex"]
+channels = [YOUR_CHANNEL_ID]
+work_dir = "~/projects"
+# discord_user_id = 0
+
+[[agents]]
+id = "mac-opencode"
+adapter = "opencode"
+token_env = "DISCORD_MAC_OPENCODE_TOKEN"
+display_name = "Mac OpenCode"
+aliases = ["Mac OpenCode", "opencode"]
+channels = [YOUR_CHANNEL_ID]
+# discord_user_id = 0
+
+# ── External gateway agents (native Gateway, no adapter) ────────────────────────
+# These agents maintain their own Discord Gateway connection.
+# Only used for mention/handoff routing — no token, no adapter, no process.
+
+[[external_agents]]
+id = "mac-openclaw"
+display_name = "小龙虾"
+aliases = ["小龙虾", "OpenClaw"]
+# discord_user_id = 0  # Fill in with bot's user ID
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+aliases = ["Hermes", "爱马仕"]
+# discord_user_id = 0

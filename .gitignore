@@ -2,6 +2,7 @@
 .env
 .env.*
 config.yaml
+agents.toml
 
 # Runtime data
 data/
