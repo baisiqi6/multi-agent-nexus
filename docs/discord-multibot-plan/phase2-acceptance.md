@@ -10,24 +10,31 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 
 | 链路 | 状态 | 备注 |
 |------|------|------|
-| Mac Claude → 小龙虾 | ✅ 已验证 | 需小龙虾 users 白名单包含 bot ID + `allowBots: "mentions"` |
+| Mac Claude → 小龙虾 | ✅ 已验证 | 需小龙虾 users 白名单包含 bot ID + `allowBots` |
 | Mac Codex → 小龙虾 | ✅ 已验证 | 同上 |
-| Mac Claude → Hermes | ✅ 逻辑已通 | Hermes 无白名单限制 |
+| Mac Claude → Hermes | ✅ 已验证 | Hermes 无白名单限制 |
 
 ### External → Managed
 
 | 链路 | 状态 | 备注 |
 |------|------|------|
-| 小龙虾 → Mac Claude | ⚠️ 需实测 | 要求 `respond_to_bots=true` + `[handoff]` 前缀 |
-| 小龙虾 → Mac Codex | ⚠️ 需实测 | 同上 |
-| 小龙虾 → Mac OpenCode | ⚠️ 需实测 | 同上 |
-| Hermes → Managed agents | ⚠️ 需实测 | 同上 |
+| 小龙虾 → Mac Claude | ✅ 已验证 | `respond_to_bots=true`，小龙虾通过 @mention 触发 |
+| 小龙虾 → Mac Codex | ✅ 已验证 | 同上 |
+| 小龙虾 → Mac OpenCode | ✅ 已验证 | 同上 |
+| Hermes → Mac Codex | ✅ 已验证 | 同上 |
+| Hermes → 其他 Managed | ✅ 已验证 | 同上 |
+
+### External ↔ External
+
+| 链路 | 状态 | 备注 |
+|------|------|------|
+| 小龙虾 ↔ Hermes | ✅ 已验证 | 双向 @mention 互通 |
 
 ### Managed → Managed
 
 | 链路 | 状态 | 备注 |
 |------|------|------|
-| Mac Claude ↔ Mac Codex | ✅ 逻辑已通 | `respond_to_bots=true` + `[handoff]` + @mention |
+| Mac Claude ↔ Mac Codex | ✅ 已验证 | `respond_to_bots=true` + `[handoff]` + @mention |
 
 ## Session 持久化
 
@@ -81,7 +88,7 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 
 ## 当前限制
 
-1. **外部 bot handoff 格式不可控** — 小龙虾/Hermes 的 handoff 可能不含 `[handoff]` 前缀
+1. ~~**外部 bot handoff 格式不可控**~~ — 实测验证外部 bot 通过 @mention 即可触发 managed bot，`[handoff]` 前缀不是硬性障碍
 2. **无 slash 命令** — 目前只能通过 @mention 或 !bang 触发
 3. **无 wiki/scratch/discoveries** — Phase 3 功能
 4. **无 streaming placeholder 增强** — 当前只有心跳计时，无真正的 partial output 展示
