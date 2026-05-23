@@ -21,6 +21,9 @@ log = logging.getLogger(__name__)
 _MAX_DISCORD_MSG_LEN = 1900
 
 
+from .handoff import split_handoff_lines
+
+
 def _chunk_message(text: str) -> list[str]:
     """Split text into Discord-sized chunks."""
     if len(text) <= _MAX_DISCORD_MSG_LEN:
@@ -313,9 +316,12 @@ class DiscordClient(discord.Client):
         # 5. Resolve handoff mentions in response
         response_text = self.mention_router.resolve_handoff_mentions(response_text)
 
-        # 6. Send response
-        chunks = _chunk_message(response_text)
-        if not chunks:
+        # 6. Split handoff lines from response text
+        handoff_lines, display_text = split_handoff_lines(response_text)
+
+        # 7. Send response (edit placeholder)
+        chunks = _chunk_message(display_text) if display_text else []
+        if not chunks and not handoff_lines:
             if placeholder:
                 try:
                     await placeholder.edit(content="(no response)")
@@ -323,23 +329,34 @@ class DiscordClient(discord.Client):
                     pass
             return
 
-        # Edit placeholder with first chunk
-        if placeholder:
-            try:
-                await placeholder.edit(content=chunks[0])
-            except discord.HTTPException:
+        if chunks:
+            if placeholder:
+                try:
+                    await placeholder.edit(content=chunks[0])
+                except discord.HTTPException:
+                    await channel.send(chunks[0])
+            else:
                 await channel.send(chunks[0])
-        else:
-            await channel.send(chunks[0])
 
-        # Send remaining chunks
-        for chunk in chunks[1:]:
+            for chunk in chunks[1:]:
+                try:
+                    await channel.send(chunk)
+                except discord.HTTPException:
+                    break
+        elif placeholder:
             try:
-                await channel.send(chunk)
+                await placeholder.edit(content="✅ done")
             except discord.HTTPException:
-                break
+                pass
 
-        # 7. Record our response to context (skip adapter errors)
+        # 8. Send each handoff as a separate new message (MESSAGE_CREATE)
+        for handoff in handoff_lines:
+            try:
+                await channel.send(handoff)
+            except discord.HTTPException:
+                pass
+
+        # 9. Record our response to context (skip adapter errors)
         if not self._is_error_response(result.text):
             self.context_store.record_message(
                 message_id=f"response:{int(time.time() * 1000)}:{self.agent_config.id}",
