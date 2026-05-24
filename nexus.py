@@ -16,7 +16,7 @@ from discord_nexus.client import DiscordClient
 from discord_nexus.config import load_config
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s %(levelname)-5s [%(name)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
