@@ -816,6 +816,27 @@ discord_user_id = <Hermes_user_id>
 9. Channel missions
 10. 移植 opencode / codex adapter（hermes adapter 已在 Phase 1.8 完成，保留为非 gateway worker/CLI 调用能力）
 
+#### Phase 3.x：Harness 启发增强（借鉴 Anthropic harness 设计）
+
+来源：Anthropic 工程博客 [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)（2025.11）和 [Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)（2026.3）。
+
+虽然这两篇文章面向单 agent 长时间自主编码场景（数小时到数天），与我们的多 agent Discord 协作不同，但以下设计思路值得借鉴：
+
+**上下文交接摘要（Session Summary）**
+- 当前：SQLite context store 只存消息记录，resume 后 agent 需要从完整历史中理解上下文
+- 改进：session 标记 stale 或 rotate 时，生成一份结构化摘要（已完成什么、当前卡在哪、下一步做什么），写入 context store。resume 后作为 prompt 前缀注入，让 agent 快速进入状态
+- 类比文章中的 `claude-progress.txt`，但适配我们的多 session 并发场景
+
+**Handoff Sprint Contract**
+- 当前：handoff 只说"帮我做 X"，目标 agent 可能理解偏差，导致来回确认
+- 改进：handoff 消息包含明确的完成标准（"做完的标志是 Y 通过测试"），减少来回。可以在 `[handoff]` 协议中扩展格式：`[handoff] <@bot_id> task: X | done_when: Y`
+- 类比文章中的 sprint contract（generator 和 evaluator 先对齐"做完的标准"再写代码）
+
+**Evaluator / QA Agent 角色**
+- 当前：agent 做完后直接回复，没有独立验证环节
+- 改进：引入一个可选的 QA agent 角色，其他 agent 完成后触发 review。可以是一个专门的 bot（如 Mac QA），也可以是复用现有 agent 的 review 模式
+- 类比文章中的 generator-evaluator 循环（GAN 思路：generator 产出、evaluator 打分、迭代改进）
+
 ### Phase 4：Coordinator 集成
 
 1. coordinator `bus.py` 添加 `WebhookBus`
@@ -856,3 +877,7 @@ discord_user_id = <Hermes_user_id>
 - discord-nexus 现有功能：wiki、scratch、discoveries、streaming
 - coordinator Discord delivery：`/Users/yinxin/projects/multi-agent-coordinator/src/multi_agent_coordinator/bus.py`
 - Discord API 事实：Bot 能收到其他 bot 消息（`author.bot=True`）和 webhook 消息（`webhook_id` 有值），代码层面控制过滤
+- Anthropic harness 设计：[Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)（initializer + coding agent，init.sh，feature list，progress 交接）
+- Anthropic harness 设计 v2：[Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)（planner + generator + evaluator 三 agent 架构，sprint contract，GAN 思路）
+- Hermes agent skills：`/Users/yinxin/projects/HermesSkills/`（Claude Code / Codex / OpenCode 三个 CLI 编排 skill）
+- Claude Code multi-agent：subagents（Agent tool）、Agent View（后台 session）、Agent Teams（实验性 mailbox 协作）
