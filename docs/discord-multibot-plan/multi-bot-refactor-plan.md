@@ -816,11 +816,11 @@ discord_user_id = <Hermes_user_id>
 9. Channel missions
 10. 移植 opencode / codex adapter（hermes adapter 已在 Phase 1.8 完成，保留为非 gateway worker/CLI 调用能力）
 
-#### Phase 3.x：Harness 启发增强（借鉴 Anthropic harness 设计）
+#### Phase 3.x：Harness 启发增强（可选，借鉴 Anthropic harness 设计）
 
 来源：Anthropic 工程博客 [Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)（2025.11）和 [Harness design for long-running application development](https://www.anthropic.com/engineering/harness-design-long-running-apps)（2026.3）。
 
-虽然这两篇文章面向单 agent 长时间自主编码场景（数小时到数天），与我们的多 agent Discord 协作不同，但以下设计思路值得借鉴：
+这些是可选增强，不影响核心功能。按需取用，不做硬性要求：
 
 **上下文交接摘要（Session Summary）**
 - 当前：SQLite context store 只存消息记录，resume 后 agent 需要从完整历史中理解上下文
