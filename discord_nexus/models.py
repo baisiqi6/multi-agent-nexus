@@ -13,6 +13,7 @@ class KnownAgentMention:
     names: set[str] = field(default_factory=set)
     role_ids: set[str] = field(default_factory=set)
     discord_user_id: int | None = None
+    kind: str = "managed"
 
 
 @dataclass

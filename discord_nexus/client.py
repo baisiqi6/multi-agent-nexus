@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 _MAX_DISCORD_MSG_LEN = 1900
 
 
+from .commands import handle_operator_command, is_dangerous_command, parse_operator_command
 from .handoff import split_handoff_lines
 
 
@@ -132,6 +133,23 @@ class DiscordClient(discord.Client):
         if self.agent_config.allowed_user_ids and message.author.id not in self.agent_config.allowed_user_ids:
             return
         if self._is_addressed_to_me(message):
+            # Operator command interception
+            prompt_text = self._get_prompt_text(message)
+            op_cmd = parse_operator_command(prompt_text)
+            if op_cmd:
+                if is_dangerous_command(op_cmd):
+                    if not self.agent_config.allowed_user_ids or message.author.id not in self.agent_config.allowed_user_ids:
+                        await message.channel.send("Unauthorized: this command requires explicit operator permission.")
+                        return
+                self._record_message(message)
+                response = await handle_operator_command(op_cmd, self, message)
+                chunks = _chunk_message(response)
+                for chunk in chunks:
+                    try:
+                        await message.channel.send(chunk)
+                    except discord.HTTPException:
+                        break
+                return
             self._record_message(message)
             await self._handle_request(message)
         else:

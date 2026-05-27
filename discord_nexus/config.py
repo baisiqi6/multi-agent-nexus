@@ -48,7 +48,7 @@ def _first_existing_command(*candidates: str | None) -> str:
     return candidates[-1] or ""
 
 
-def _build_known_agent(agent_id: str, values: dict[str, Any]) -> KnownAgentMention:
+def _build_known_agent(agent_id: str, values: dict[str, Any], *, kind: str = "managed") -> KnownAgentMention:
     aliases = _as_list(values.get("aliases"))
     names = set(aliases)
     display_name = str(values.get("display_name", "")).strip()
@@ -65,6 +65,7 @@ def _build_known_agent(agent_id: str, values: dict[str, Any]) -> KnownAgentMenti
         names=names,
         role_ids=set(_as_list(values.get("role_ids"))),
         discord_user_id=discord_user_id,
+        kind=kind,
     )
 
 
@@ -89,7 +90,7 @@ def _build_external_agents(
         agent_id = str(ext.get("id", "")).strip()
         if not agent_id:
             continue
-        roster.append(_build_known_agent(agent_id, ext))
+        roster.append(_build_known_agent(agent_id, ext, kind="external"))
     return roster
 
 

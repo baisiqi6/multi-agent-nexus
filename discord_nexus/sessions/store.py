@@ -3,6 +3,20 @@ import time
 from pathlib import Path
 
 
+def _row_to_dict(row: tuple) -> dict:
+    return {
+        "scope_id": row[0],
+        "agent_id": row[1],
+        "adapter": row[2],
+        "session_id": row[3],
+        "work_dir": row[4],
+        "status": row[5],
+        "turn_count": row[6],
+        "created_at": row[7],
+        "updated_at": row[8],
+    }
+
+
 class SessionStore:
     """Persist CLI session IDs scoped to channel + agent."""
 
@@ -53,17 +67,23 @@ class SessionStore:
             ).fetchone()
         if not row:
             return None
-        return {
-            "scope_id": row[0],
-            "agent_id": row[1],
-            "adapter": row[2],
-            "session_id": row[3],
-            "work_dir": row[4],
-            "status": row[5],
-            "turn_count": row[6],
-            "created_at": row[7],
-            "updated_at": row[8],
-        }
+        return _row_to_dict(row)
+
+    def list_by_agent(
+        self, *, agent_id: str, include_stale: bool = False
+    ) -> list[dict]:
+        sql = (
+            "SELECT scope_id, agent_id, adapter, session_id, work_dir, "
+            "status, turn_count, created_at, updated_at "
+            "FROM sessions WHERE agent_id = ?"
+        )
+        params: list[str] = [agent_id]
+        if not include_stale:
+            sql += " AND status = 'active'"
+        sql += " ORDER BY updated_at DESC"
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [_row_to_dict(row) for row in rows]
 
     def upsert(
         self,
