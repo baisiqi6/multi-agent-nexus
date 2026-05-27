@@ -19,8 +19,8 @@ Phase 3.1 目标：补齐最小运行时排障能力，不碰 wiki/scratch/embed
 
 触发条件：
 - 必须是**人类消息**（`message.author.bot == False`）
-- 必须 **@mention 了 bot**
-- 消息内容（去掉 mention 后）匹配命令关键词
+- 必须 **addressed to bot**：@mention 或 !bang（`_is_addressed_to_me` 判断）
+- 消息内容（去掉 mention/bang 后）匹配命令关键词
 - `session reset` 额外要求 `allowed_user_ids` 非空且命中
 
 不触发条件：
@@ -176,7 +176,7 @@ def is_dangerous_command(cmd: str) -> bool:
   timeout: 360s
   ```
 
-输出全部控制在 Discord 消息长度内（1900 字符），必要时复用 `_chunk_message`。
+输出控制在 Discord 消息长度内（1900 字符）。`handle_operator_command()` 返回字符串，由 client.py 负责发送和分片。不直接 import client.py 的 `_chunk_message`，避免循环依赖。
 
 ### Step 4：修改 client.py on_message
 
