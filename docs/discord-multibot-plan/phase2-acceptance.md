@@ -70,7 +70,7 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
   1. `guilds.users` 白名单必须包含所有 managed bot 的 user ID
   2. `allowBots` 设置为 `"mentions"` 或 `true`
   3. 小龙虾的 `mentionPatterns` 需要配置 managed bot 的 mention 格式
-- **潜在问题**：如果小龙虾回复里 @了我们的 bot 但没写 `[handoff]` 前缀，会被过滤掉。这可能需要放宽约束（对已知外部 bot 只要求 @mention，不要求 `[handoff]`）
+- **触发边界**：小龙虾这类 external gateway agent 自己可以被普通 @mention 触发；但它要触发 managed adapter agent 时，目标 managed bot 仍应要求 `[handoff] + @mention`。
 
 ### Hermes
 
@@ -88,7 +88,7 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 
 ## 当前限制
 
-1. ~~**外部 bot handoff 格式不可控**~~ — 实测验证外部 bot 通过 @mention 即可触发 managed bot，`[handoff]` 前缀不是硬性障碍
+1. **Handoff 触发边界待测试固化** — adapter/managed agents 被 bot 触发时必须 `[handoff] + @mention`；external gateway agents 被触发时可按自身 Gateway 规则接受普通 @mention
 2. **无 slash 命令** — 目前只能通过 @mention 或 !bang 触发
 3. **无 wiki/scratch/discoveries** — Phase 3 功能
 4. **无 streaming placeholder 增强** — 当前只有心跳计时，无真正的 partial output 展示
@@ -101,5 +101,5 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 Phase 3（slash commands、wiki、embeds 等）建立在本阶段的基础上。进入 Phase 3 前建议：
 
 1. ✅ 完成外部 bot → managed bot 的真实 handoff 验证
-2. 考虑放宽 managed bot 对外部 bot 消息的 `[handoff]` 前缀要求
+2. 完成 Phase 2.1：固化目标类型触发边界，managed adapter agent 要求 `[handoff] + @mention`，external gateway agent 可由普通 @mention 触发
 3. 将 nexus.py 日志级别改为 INFO

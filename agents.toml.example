@@ -57,6 +57,9 @@ channels = [YOUR_CHANNEL_ID]
 # ── External gateway agents (native Gateway, no adapter) ────────────────────────
 # These agents maintain their own Discord Gateway connection.
 # Only used for mention/handoff routing — no token, no adapter, no process.
+# Trigger boundary: managed adapter agents require [handoff] when triggered by
+# bot messages. External gateway agents may accept plain Discord @mentions
+# according to their own Gateway configuration.
 
 [[external_agents]]
 id = "mac-openclaw"
