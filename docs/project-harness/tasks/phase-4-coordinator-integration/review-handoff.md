@@ -1,0 +1,78 @@
+# Review Handoff: Phase 4 Coordinator Integration
+
+## Review Target
+
+- **Workspace**: discord-nexus
+- **Task ID**: phase-4-coordinator-integration
+- **Title**: Phase 4: Coordinator Integration (WebhookBus + system prompt)
+- **Plan doc**: `docs/project-harness/tasks/phase-4-coordinator-integration/plan.md` (in discord-nexus project)
+
+## What Changed
+
+Phase 4.1-4.4 scope only. Two projects involved:
+
+### coordinator (multi-agent-coordinator)
+
+1. **`src/multi_agent_coordinator/bus.py`** — 新增 `WebhookBus` 类
+   - `from_env()` 读取 `DISCORD_WEBHOOK_URL`
+   - `send()` POST webhook_url?wait=true, username="coordinator", allowed_mentions={"parse":[]}
+   - `bus_for_platform("discord_webhook")` 返回 WebhookBus 实例
+
+2. **`src/multi_agent_coordinator/policy.py`** — `SUPPORTED_PLATFORMS` 加入 `"discord_webhook"`
+
+3. **`tests/test_bus.py`** — 7 个新测试用例（mock HttpPost）
+
+### discord-nexus
+
+4. **`agents.toml`** — mac-claude、mac-codex、mac-opencode 的 system_prompt 追加 coordinator CLI 使用说明
+
+## Design Decisions
+
+1. **WebhookBus 忽略 destination 参数**：webhook URL 已绑定 channel，destination 无意义但保留 Protocol 接口一致
+2. **只做状态广播，不做 agent 触发**：WebhookBus 只发 `[ASSIGN]`、`[BLOCKER]`、`[DONE]` 等通知，不发 `[handoff] @Bot`。Agent 触发是 Phase 4.5+ 范围
+3. **system_prompt 静态注入而非动态**：coordinator CLI 路径和 workspace 名写死在 agents.toml 里，不改 prompt.py 代码。简单且够用
+4. **不改 db schema**：workspace.default_bus 已经是 TEXT，直接存 `"discord_webhook"`
+
+## Files to Review
+
+Read these files in order:
+
+1. `/Users/yinxin/projects/discord-nexus/docs/project-harness/tasks/phase-4-coordinator-integration/plan.md` — implementation plan
+2. `/Users/yinxin/projects/multi-agent-coordinator/src/multi_agent_coordinator/bus.py` — existing bus code (WebhookBus will be added here)
+3. `/Users/yinxin/projects/multi-agent-coordinator/src/multi_agent_coordinator/policy.py` — existing policy (SUPPORTED_PLATFORMS will be extended)
+4. `/Users/yinxin/projects/multi-agent-coordinator/tests/test_bus.py` — existing bus tests (new tests will be added)
+5. `/Users/yinxin/projects/discord-nexus/agents.toml` — current agent config (system_prompt will be extended)
+
+## What to Check
+
+- WebhookBus 是否复用了现有 DiscordBus 的模式（HttpPost 注入、from_env 工厂、错误处理）
+- bus_for_platform 是否正确路由
+- SUPPORTED_PLATFORMS 是否一致
+- system_prompt 内容是否准确（CLI 路径、workspace 名、命令列表）
+- 测试覆盖是否充分（send、from_env、bus_for_platform、destination 忽略）
+- 没有引入安全风险（token 泄露、未限制的 mentions）
+
+## Decision Command
+
+After review, call exactly one of:
+
+```bash
+# Approve
+cd /Users/yinxin/projects/multi-agent-coordinator
+PYTHONPATH=src python3 -m multi_agent_coordinator \
+  --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
+  plan approve discord-nexus \
+  --task-id phase-4-coordinator-integration \
+  --scope "implementation plan" \
+  --reviewer "<your-reviewer-id>" \
+  --notes "<one-line summary of your finding>"
+
+# Or reject
+PYTHONPATH=src python3 -m multi_agent_coordinator \
+  --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
+  plan reject discord-nexus \
+  --task-id phase-4-coordinator-integration \
+  --scope "implementation plan" \
+  --reviewer "<your-reviewer-id>" \
+  --reason "<what needs to change>"
+```
