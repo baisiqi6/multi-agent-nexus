@@ -29,7 +29,20 @@ class TestSessionStore(unittest.TestCase):
         self.assertEqual(result["status"], "active")
         self.assertEqual(result["turn_count"], 1)
 
-    def test_upsert_increments_turn_count(self):
+    def test_upsert_increments_turn_count_for_same_session(self):
+        self.store.upsert(
+            scope_id="ch1", agent_id="claude",
+            adapter="claude", session_id="sess-1",
+        )
+        self.store.upsert(
+            scope_id="ch1", agent_id="claude",
+            adapter="claude", session_id="sess-1",
+        )
+        result = self.store.get(scope_id="ch1", agent_id="claude")
+        self.assertEqual(result["session_id"], "sess-1")
+        self.assertEqual(result["turn_count"], 2)
+
+    def test_upsert_resets_turn_count_for_new_session(self):
         self.store.upsert(
             scope_id="ch1", agent_id="claude",
             adapter="claude", session_id="sess-1",
@@ -40,7 +53,7 @@ class TestSessionStore(unittest.TestCase):
         )
         result = self.store.get(scope_id="ch1", agent_id="claude")
         self.assertEqual(result["session_id"], "sess-2")
-        self.assertEqual(result["turn_count"], 2)
+        self.assertEqual(result["turn_count"], 1)
 
     def test_scope_isolation(self):
         self.store.upsert(
@@ -93,6 +106,26 @@ class TestSessionStore(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result["session_id"], "sess-2")
         self.assertEqual(result["status"], "active")
+        self.assertEqual(result["turn_count"], 1)
+
+    def test_upsert_same_session_after_stale_resets_turn_count(self):
+        self.store.upsert(
+            scope_id="ch1", agent_id="claude",
+            adapter="claude", session_id="sess-1",
+        )
+        self.store.upsert(
+            scope_id="ch1", agent_id="claude",
+            adapter="claude", session_id="sess-1",
+        )
+        self.store.mark_stale(scope_id="ch1", agent_id="claude")
+        self.store.upsert(
+            scope_id="ch1", agent_id="claude",
+            adapter="claude", session_id="sess-1",
+        )
+        result = self.store.get(scope_id="ch1", agent_id="claude")
+        self.assertEqual(result["session_id"], "sess-1")
+        self.assertEqual(result["status"], "active")
+        self.assertEqual(result["turn_count"], 1)
 
 
 if __name__ == "__main__":

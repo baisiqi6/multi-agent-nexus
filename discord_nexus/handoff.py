@@ -1,6 +1,9 @@
 """Split response text into handoff lines and display text."""
 
+import re
+
 _MAX_DISCORD_MSG_LEN = 1900
+_FORMAL_HANDOFF_RE = re.compile(r"^\[handoff\]\s+<@!?\d+>(?:\s+.*)?$")
 
 
 def split_handoff_lines(text: str) -> tuple[list[str], str]:
@@ -10,9 +13,14 @@ def split_handoff_lines(text: str) -> tuple[list[str], str]:
     """
     handoff_lines: list[str] = []
     clean_lines: list[str] = []
+    in_code_fence = False
     for line in text.split("\n"):
-        if line.strip().startswith("[handoff]"):
-            handoff_lines.append(line.strip()[:_MAX_DISCORD_MSG_LEN])
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code_fence = not in_code_fence
+            clean_lines.append(line)
+        elif not in_code_fence and _FORMAL_HANDOFF_RE.match(stripped):
+            handoff_lines.append(stripped[:_MAX_DISCORD_MSG_LEN])
         else:
             clean_lines.append(line)
     return handoff_lines, "\n".join(clean_lines).strip()

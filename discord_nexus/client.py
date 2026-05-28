@@ -139,14 +139,20 @@ class DiscordClient(discord.Client):
             if op_cmd:
                 if is_dangerous_command(op_cmd):
                     if not self.agent_config.allowed_user_ids or message.author.id not in self.agent_config.allowed_user_ids:
-                        await message.channel.send("Unauthorized: this command requires explicit operator permission.")
+                        await message.channel.send(
+                            "Unauthorized: this command requires explicit operator permission.",
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
                         return
                 self._record_message(message)
                 response = await handle_operator_command(op_cmd, self, message)
                 chunks = _chunk_message(response)
                 for chunk in chunks:
                     try:
-                        await message.channel.send(chunk)
+                        await message.channel.send(
+                            chunk,
+                            allowed_mentions=discord.AllowedMentions.none(),
+                        )
                     except discord.HTTPException:
                         break
                 return

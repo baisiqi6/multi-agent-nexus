@@ -76,13 +76,13 @@ def _cmd_agents(client) -> str:
     if managed:
         lines.append("**Managed:**")
         for a in managed:
-            mention = f"<@{a.discord_user_id}>" if a.discord_user_id else "(no Discord ID)"
-            lines.append(f"  {a.id} ({a.primary_name}) — {mention}")
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            lines.append(f"  {a.id} ({a.primary_name}) — {ident}")
     if external:
         lines.append("\n**External:**")
         for a in external:
-            mention = f"<@{a.discord_user_id}>" if a.discord_user_id else "(no Discord ID)"
-            lines.append(f"  {a.id} ({a.primary_name}) — {mention}")
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            lines.append(f"  {a.id} ({a.primary_name}) — {ident}")
     return "\n".join(lines)
 
 

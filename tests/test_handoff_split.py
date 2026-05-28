@@ -60,6 +60,29 @@ class TestSplitHandoffLines(unittest.TestCase):
         self.assertIn("Analysis complete.", text)
         self.assertIn("Summary: all good.", text)
 
+    def test_handoff_example_inside_code_fence_is_not_split(self):
+        response = (
+            "转交格式:\n"
+            "```text\n"
+            "[handoff] <@123> 任务描述\n"
+            "```"
+        )
+        handoffs, text = split_handoff_lines(response)
+        self.assertEqual(handoffs, [])
+        self.assertIn("[handoff] <@123> 任务描述", text)
+
+    def test_text_mention_handoff_example_is_not_split(self):
+        response = "[handoff] @AgentName 任务描述"
+        handoffs, text = split_handoff_lines(response)
+        self.assertEqual(handoffs, [])
+        self.assertEqual(text, "[handoff] @AgentName 任务描述")
+
+    def test_missing_space_after_handoff_is_not_split(self):
+        response = "[handoff]<@123> 任务描述"
+        handoffs, text = split_handoff_lines(response)
+        self.assertEqual(handoffs, [])
+        self.assertEqual(text, "[handoff]<@123> 任务描述")
+
 
 if __name__ == "__main__":
     unittest.main()

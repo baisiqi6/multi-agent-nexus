@@ -106,7 +106,12 @@ class SessionStore:
                     session_id = excluded.session_id,
                     adapter = excluded.adapter,
                     work_dir = excluded.work_dir,
-                    turn_count = turn_count + 1,
+                    turn_count = CASE
+                        WHEN sessions.status = 'active'
+                         AND sessions.session_id = excluded.session_id
+                        THEN sessions.turn_count + 1
+                        ELSE 1
+                    END,
                     updated_at = excluded.updated_at,
                     status = 'active'
                 """,

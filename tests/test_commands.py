@@ -166,8 +166,10 @@ class TestCmdAgents(unittest.TestCase):
         self.assertIn("test-agent", result)
         self.assertIn("External", result)
         self.assertIn("ext-agent", result)
-        self.assertIn("<@111>", result)
-        self.assertIn("<@222>", result)
+        self.assertIn("discord_id: `111`", result)
+        self.assertIn("discord_id: `222`", result)
+        self.assertNotIn("<@111>", result)
+        self.assertNotIn("<@222>", result)
 
 
 class TestCmdHealth(unittest.TestCase):
