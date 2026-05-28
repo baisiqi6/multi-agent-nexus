@@ -49,6 +49,7 @@ class WebhookBus:
 - destination 参数忽略（webhook URL 已绑定 channel）
 - `?wait=true` 确保返回 message ID
 - `allowed_mentions: {"parse": []}` 防止意外 ping
+- **webhook URL 只从 `DISCORD_WEBHOOK_URL` 环境变量读取，不存入 workspace 配置**
 
 ### `bus_for_platform()` 新增分支
 
@@ -76,11 +77,15 @@ SUPPORTED_PLATFORMS = {"discord", "discord_webhook", "kook", "stdout"}
 
 ## Phase 4.2: Workspace 配置
 
-无改动。`workspace add --default-bus discord_webhook` 已被 CLI 支持。
+`workspace add --default-bus discord_webhook --default-destination discord-nexus-status`
+
+- **`default_bus`**: `"discord_webhook"`
+- **`default_destination`**: 非敏感标签（如 `"discord-nexus-status"`），不是 webhook URL。仅用于 message_key 去重和日志标识
+- **webhook URL**: 只在运行时从 `DISCORD_WEBHOOK_URL` 环境变量获取
 
 ## Phase 4.3: System Prompt 注入
 
-### discord-nexus `agents.toml`
+### discord-nexus `agents.toml`（本地文件，.gitignore'd）
 
 mac-claude、mac-codex、mac-opencode 的 system_prompt 追加：
 
@@ -89,32 +94,44 @@ mac-claude、mac-codex、mac-opencode 的 system_prompt 追加：
 
 你可以调用 multi-agent-coordinator CLI 来跟踪任务状态：
 
-cd /Users/yinxin/projects/multi-agent-coordinator
+cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
   skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
 
 常用命令：
-- assignment accept --task-id <id> --owner <agent> --session <sid>
-- branch allocate --task-id <id> --owner <agent>
-- pr link --task-id <id> --pr-url <url>
-- ci check --task-id <id>
-- merge gate --task-id <id>
-- assignment closeout --task-id <id> --reviewer <name>
-- assignment mark-done --task-id <id>
+- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
+- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
+- mac.sh ci check discord-nexus --task-id <id>
+- mac.sh merge gate discord-nexus --task-id <id>
+- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done discord-nexus --task-id <id>
 
-不要直接修改 harness JSON 文件。所有状态变更通过 coordinator CLI 或 harnessctl。
+所有状态变更必须通过 coordinator CLI。不要直接调用 harnessctl 或修改 harness JSON 文件。
+harnessctl 仅限 operator 在 harness repair 场景下使用。
 ```
 
-无代码改动。`build_agent_prompt()` 已会传 system_prompt 给 adapter。
+### `docs/project-harness/templates/agent-coordinator-prompt.md`（已创建，tracked）
+
+将 coordinator system_prompt 片段作为模板存入 tracked 文件，供 agent 配置参考。文件已创建，内容见 `docs/project-harness/templates/agent-coordinator-prompt.md`。
+
+关键内容：
+- coordinator CLI 使用说明（完整路径）
+- 所有命令示例带 `discord-nexus` workspace_id
+- 明确：所有状态变更通过 coordinator CLI，harnessctl 仅限 operator/harness repair
+- placeholder 注释供其他项目复用
+
+无 discord-nexus 代码改动。`build_agent_prompt()` 已会传 system_prompt 给 adapter。
 
 ## Phase 4.4: 端到端测试 A
 
 操作验证步骤（手动）：
 
-1. Discord 频道创建 webhook
-2. 更新 workspace: `mac.sh workspace add discord-nexus --default-bus discord_webhook --default-destination <url>`
-3. 创建测试 task，触发事件，pump deliveries
-4. 验证 Discord 频道出现 webhook 消息
+1. Discord 频道创建 webhook，获取 URL
+2. 设置环境变量：`export DISCORD_WEBHOOK_URL="<webhook-url>"`
+3. 更新 workspace: `mac.sh workspace add discord-nexus --default-bus discord_webhook --default-destination discord-nexus-status`（不含 URL）
+4. 创建测试 task，触发事件，pump deliveries
+5. 验证 Discord 频道出现 webhook 消息
 
 ## 文件变更
 
@@ -123,7 +140,8 @@ MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
 | 修改 | coordinator | `src/multi_agent_coordinator/bus.py` |
 | 修改 | coordinator | `src/multi_agent_coordinator/policy.py` |
 | 修改 | coordinator | `tests/test_bus.py` |
-| 修改 | discord-nexus | `agents.toml` |
+| 修改 | discord-nexus | `agents.toml`（本地，untracked） |
+| 新增 | discord-nexus | `docs/project-harness/templates/agent-coordinator-prompt.md` |
 
 ## Verification
 
