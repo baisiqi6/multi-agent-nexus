@@ -1,48 +1,33 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-05-28T16:21:04Z",
-  "current_status": "Phase 3.3 validated: static checks pass, launchd start/stop/uninstall confirmed, Discord health check confirmed by human.",
-  "current_item": {
-    "id": "phase-3.3-runtime-launchd",
-    "title": "Phase 3.3 Managed Bots runtime launchd",
-    "status": "done",
-    "owner": "worker",
-    "human_gate_required": true,
-    "workflow": {
-      "status": "done",
-      "branch": "agents/worker/phase-3.3-runtime-launchd",
-      "updated_at": "2026-05-29T01:12:00Z"
-    },
-    "artifacts": {
-      "plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md",
-      "source_plan": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
-    },
-    "review": {
-      "decision": "approved",
-      "human_gate_required": false
-    },
-    "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
-  },
+  "generated_at": "2026-05-28T18:42:23Z",
+  "current_status": "",
+  "current_item": null,
   "checklist_summary": {
-    "ready": 0,
-    "planned": 0,
+    "todo": 0,
     "doing": 0,
     "done": 1,
-    "blocked": 0,
-    "review": 0
+    "blocked": 0
   },
   "workflow_summary": {
-    "done": 1
+    "closed": 1
   },
   "paths": {
+    "scope": "docs/project-harness/scope.md",
+    "architecture": "docs/project-harness/architecture.md",
+    "domain_model": "docs/project-harness/domain-model.md",
     "checklist": "docs/project-harness/mvp-checklist.json",
     "progress": "docs/project-harness/progress.md",
+    "runbook": "docs/project-harness/runbook.md",
     "config": "docs/project-harness/harness-config.json",
     "events": "docs/project-harness/events.jsonl",
-    "current_task_plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md"
+    "current_task_plan": "docs/project-harness/current/task_plan.md"
   },
   "commands": {
+    "state": "scripts/harness/harnessctl state",
+    "session_init": "scripts/harness/harnessctl session-init",
+    "validate_checklist": "python3 scripts/harness/validate_checklist.py docs/project-harness/mvp-checklist.json",
     "plist_lint": "plutil -lint launchd/*.plist",
     "shell_syntax": "bash -n scripts/*.sh scripts/lib/*.sh",
     "test": ".venv/bin/python -m unittest discover tests/"
@@ -63,16 +48,65 @@
     "event_log": "docs/project-harness/events.jsonl",
     "visible_bus": "coordinator"
   },
-  "open_risks": [
-    "No harnessctl runtime is present yet, so coordinator assignment mutation commands cannot update the file-backed harness directly."
-  ],
+  "open_risks": [],
   "recent_events": [
     {
       "id": "evt-20260528T162104Z-harness-initialized",
       "type": "harness.initialized",
-      "task": "phase-3.3-runtime-launchd",
+      "project": "discord-nexus",
+      "task_id": "phase-3.3-runtime-launchd",
       "actor": "coordinator-operator",
-      "status": "initialized"
+      "created_at": "2026-05-28T16:21:04Z",
+      "harness_root": "docs/project-harness",
+      "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md",
+      "human_gate_required": true
+    },
+    {
+      "id": "evt-20260529T120000Z-worker-review-r2-addressed",
+      "type": "worker.changes_addressed",
+      "project": "discord-nexus",
+      "task_id": "phase-3.3-runtime-launchd",
+      "actor": "worker",
+      "created_at": "2026-05-29T12:00:00Z",
+      "harness_root": "docs/project-harness",
+      "findings_addressed": [
+        "launchd.sh:check_manual_process pgrep pattern widened to match --agent/--agent= anywhere in argv",
+        "closeout file list corrected to include all 9 Phase 3.3 artifacts"
+      ],
+      "validation": {
+        "plutil": "3/3 OK",
+        "bash_n": "all pass",
+        "tests": "106 OK"
+      },
+      "human_gate_required": true
+    },
+    {
+      "id": "evt-20260529T011200Z-human-validation-passed",
+      "type": "human.validation_passed",
+      "project": "discord-nexus",
+      "task_id": "phase-3.3-runtime-launchd",
+      "actor": "human",
+      "created_at": "2026-05-29T01:12:00Z",
+      "harness_root": "docs/project-harness",
+      "validated": [
+        "start.sh mac-claude: loaded, Gateway connected",
+        "status.sh: pid visible",
+        "stop.sh: stopped",
+        "uninstall.sh: plist removed",
+        "start.sh (all 3): loaded",
+        "Discord health check: mac-codex responded with adapter/bin/available fields"
+      ],
+      "human_gate_required": false
+    },
+    {
+      "id": "evt-20260529T011524Z-retroactive-commit",
+      "type": "harness.retroactive_correction",
+      "project": "discord-nexus",
+      "task_id": "phase-3.3-runtime-launchd",
+      "actor": "coordinator-operator",
+      "created_at": "2026-05-29T01:15:24Z",
+      "harness_root": "docs/project-harness",
+      "note": "Work was committed directly to feature/multi-bot (4a92912) without coordinator branch flow. Harness branch field corrected from agents/worker/phase-3.3-runtime-launchd to feature/multi-bot. No coordinator review or merge gate was used."
     }
   ]
 }

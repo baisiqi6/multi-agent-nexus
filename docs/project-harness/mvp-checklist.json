@@ -2,35 +2,37 @@
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
   "version": 1,
+  "updated_at": "2026-05-29T18:34:00Z",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
       "title": "Phase 3.3 Managed Bots runtime launchd",
       "status": "done",
+      "priority": "p1",
       "owner": "worker",
       "human_gate_required": true,
       "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md",
-      "acceptance": {
-        "source": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验收标准",
-        "summary": "Use the Phase 3.3 plan's acceptance criteria as the source of truth."
+      "acceptance": "Use the Phase 3.3 plan acceptance criteria as the source of truth (docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验收标准)",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
       },
+      "selected_in_session": null,
+      "updated_at": "2026-05-29T01:12:00Z",
       "workflow": {
-        "status": "done",
-        "branch": "agents/worker/phase-3.3-runtime-launchd",
-        "updated_at": "2026-05-29T01:12:00Z"
+        "status": "closed",
+        "branch": "feature/multi-bot",
+        "updated_at": "2026-05-29T01:15:24Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md",
         "source_plan": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
       },
-      "verification": {
-        "required_commands": [
-          "plutil -lint launchd/*.plist",
-          "bash -n scripts/*.sh scripts/lib/*.sh",
-          ".venv/bin/python -m unittest discover tests/"
-        ],
-        "manual_checks_source": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验证"
-      },
+      "verification": "plutil 3/3 OK, bash -n all pass, 106 tests OK, manual runtime check: start/stop/status/uninstall all 3 bots + Discord health check passed",
       "review": {
         "decision": "approved",
         "human_gate_required": false
