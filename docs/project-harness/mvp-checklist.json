@@ -1,0 +1,40 @@
+{
+  "project": "discord-nexus",
+  "harness_root": "docs/project-harness",
+  "version": 1,
+  "items": [
+    {
+      "id": "phase-3.3-runtime-launchd",
+      "title": "Phase 3.3 Managed Bots runtime launchd",
+      "status": "done",
+      "owner": "worker",
+      "human_gate_required": true,
+      "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md",
+      "acceptance": {
+        "source": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验收标准",
+        "summary": "Use the Phase 3.3 plan's acceptance criteria as the source of truth."
+      },
+      "workflow": {
+        "status": "done",
+        "branch": "agents/worker/phase-3.3-runtime-launchd",
+        "updated_at": "2026-05-29T01:12:00Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md",
+        "source_plan": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
+      },
+      "verification": {
+        "required_commands": [
+          "plutil -lint launchd/*.plist",
+          "bash -n scripts/*.sh scripts/lib/*.sh",
+          ".venv/bin/python -m unittest discover tests/"
+        ],
+        "manual_checks_source": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验证"
+      },
+      "review": {
+        "decision": "approved",
+        "human_gate_required": false
+      }
+    }
+  ]
+}

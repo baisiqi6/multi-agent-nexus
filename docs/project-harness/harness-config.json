@@ -1,0 +1,26 @@
+{
+  "commands": {
+    "plist_lint": "plutil -lint launchd/*.plist",
+    "shell_syntax": "bash -n scripts/*.sh scripts/lib/*.sh",
+    "test": ".venv/bin/python -m unittest discover tests/",
+    "typecheck": null,
+    "build": null
+  },
+  "runtime": {
+    "session_init_commands": [
+      "plist_lint",
+      "shell_syntax",
+      "test"
+    ],
+    "lease_ttl_minutes": 120
+  },
+  "git": {
+    "base_branch": "feature/multi-bot",
+    "branch_namespace": "agents/{owner}/{item_id}"
+  },
+  "message_bus": {
+    "event_log": "docs/project-harness/events.jsonl",
+    "visible_bus": "coordinator"
+  },
+  "human_gate_required": true
+}

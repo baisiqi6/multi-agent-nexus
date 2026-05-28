@@ -198,6 +198,66 @@ and relies on PM2 to relaunch it automatically.
 
 ---
 
+## Persistent Operation with launchd (new multi-bot nexus.py)
+
+The legacy single-bot `bot.py` uses PM2 (see above). The new multi-bot architecture uses `nexus.py --agent <id>` with launchd for Mac persistence.
+
+### Prerequisites
+
+1. Create `agents.toml` from `agents.toml.example` (fill in real channel IDs, Discord user IDs, and CLI binary paths using absolute paths).
+2. Create `.env` from `.env.example` (fill in real bot tokens).
+3. Ensure `.venv` is set up with dependencies installed.
+
+### Start all managed bots
+
+```bash
+scripts/start.sh
+```
+
+### Start a single bot
+
+```bash
+scripts/start.sh mac-claude
+```
+
+### Check status
+
+```bash
+scripts/status.sh
+scripts/status.sh mac-claude
+```
+
+### Stop (temporary — will restart on next login)
+
+```bash
+scripts/stop.sh
+scripts/stop.sh mac-codex
+```
+
+### Uninstall (permanent — removes LaunchAgent plist)
+
+```bash
+scripts/uninstall.sh
+scripts/uninstall.sh mac-codex
+```
+
+### Logs
+
+Logs are written to `logs/<agent>.log` (stdout) and `logs/<agent>.err.log` (stderr).
+
+```bash
+tail -f logs/mac-claude.log
+```
+
+### How it works
+
+- Each managed bot (mac-claude, mac-codex, mac-opencode) gets a user-level LaunchAgent plist installed to `~/Library/LaunchAgents/`.
+- `RunAtLoad` and `KeepAlive` ensure bots start on login and restart on crash.
+- `ThrottleInterval` prevents rapid crash loops (30-second minimum between restarts).
+- The plist sets `HOME`, `PYTHONUNBUFFERED`, and a conservative `PATH`. Use absolute paths for CLI binaries in `agents.toml` rather than relying on PATH.
+
+---
+
 ## Slash Command Sync
 
 Slash commands are registered globally on startup. Discord can take up to 1 hour to propagate them.

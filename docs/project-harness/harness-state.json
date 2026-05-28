@@ -1,0 +1,78 @@
+{
+  "project": "discord-nexus",
+  "harness_root": "docs/project-harness",
+  "generated_at": "2026-05-28T16:21:04Z",
+  "current_status": "Phase 3.3 validated: static checks pass, launchd start/stop/uninstall confirmed, Discord health check confirmed by human.",
+  "current_item": {
+    "id": "phase-3.3-runtime-launchd",
+    "title": "Phase 3.3 Managed Bots runtime launchd",
+    "status": "done",
+    "owner": "worker",
+    "human_gate_required": true,
+    "workflow": {
+      "status": "done",
+      "branch": "agents/worker/phase-3.3-runtime-launchd",
+      "updated_at": "2026-05-29T01:12:00Z"
+    },
+    "artifacts": {
+      "plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md",
+      "source_plan": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
+    },
+    "review": {
+      "decision": "approved",
+      "human_gate_required": false
+    },
+    "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
+  },
+  "checklist_summary": {
+    "ready": 0,
+    "planned": 0,
+    "doing": 0,
+    "done": 1,
+    "blocked": 0,
+    "review": 0
+  },
+  "workflow_summary": {
+    "done": 1
+  },
+  "paths": {
+    "checklist": "docs/project-harness/mvp-checklist.json",
+    "progress": "docs/project-harness/progress.md",
+    "config": "docs/project-harness/harness-config.json",
+    "events": "docs/project-harness/events.jsonl",
+    "current_task_plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md"
+  },
+  "commands": {
+    "plist_lint": "plutil -lint launchd/*.plist",
+    "shell_syntax": "bash -n scripts/*.sh scripts/lib/*.sh",
+    "test": ".venv/bin/python -m unittest discover tests/"
+  },
+  "runtime": {
+    "session_init_commands": [
+      "plist_lint",
+      "shell_syntax",
+      "test"
+    ],
+    "lease_ttl_minutes": 120
+  },
+  "git": {
+    "base_branch": "feature/multi-bot",
+    "branch_namespace": "agents/{owner}/{item_id}"
+  },
+  "message_bus": {
+    "event_log": "docs/project-harness/events.jsonl",
+    "visible_bus": "coordinator"
+  },
+  "open_risks": [
+    "No harnessctl runtime is present yet, so coordinator assignment mutation commands cannot update the file-backed harness directly."
+  ],
+  "recent_events": [
+    {
+      "id": "evt-20260528T162104Z-harness-initialized",
+      "type": "harness.initialized",
+      "task": "phase-3.3-runtime-launchd",
+      "actor": "coordinator-operator",
+      "status": "initialized"
+    }
+  ]
+}

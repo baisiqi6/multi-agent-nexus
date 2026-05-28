@@ -191,3 +191,12 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
 4. **频道即总线**：所有 agent 间通信走 Discord/KOOK 频道，天然可追溯
 5. **Adapter 解耦**：Agent 只需要是一个 CLI 工具，不需要 SDK 集成
 6. **混合架构**：coding agent 由 MultiNexus 管理，personal assistant 保留原生 Gateway
+
+## 操作入口规则
+
+后续 phase 执行默认通过 Coordinator 推进，不让普通 worker agent 直接操作 Harness 文件或直接使用 HarnessCLI。
+
+- 日常任务流转：使用 coordinator workspace、assignment、job、event、delivery、CI/review/gate 等命令。
+- HarnessCLI / harness skill：只作为底层维修和补缺口工具，用于 coordinator 尚未封装的操作、coordinator-harness 同步排障，或维护 harness 本身。
+- 禁止普通 agent 直接编辑 harness JSON。需要改变 harness 状态时，应由 coordinator service 通过 harness adapter 调用 `harnessctl`。
+- 人类仍保留最终 human gate：coordinator 的 ready/done 只表示本地事实和流程状态，不等于自动 merge 或自动进入下一阶段。

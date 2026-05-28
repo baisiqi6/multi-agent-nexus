@@ -27,6 +27,7 @@ from .commands import (
     handle_operator_command,
     parse_operator_command,
 )
+from .embeds import build_agents_embed, build_health_embed, build_session_status_embed
 from .handoff import split_handoff_lines
 
 
@@ -281,9 +282,10 @@ class DiscordClient(discord.Client):
             if deny:
                 await interaction.response.send_message(deny, ephemeral=True)
                 return
-            response = await handle_operator_command("agents", self, interaction.channel_id)
-            await interaction.response.send_message(
-                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            await interaction.response.defer(ephemeral=True)
+            embed = build_agents_embed(cfg)
+            await interaction.followup.send(
+                embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
         @self.tree.command(name="health", description="Check adapter health")
@@ -295,9 +297,17 @@ class DiscordClient(discord.Client):
             if deny:
                 await interaction.response.send_message(deny, ephemeral=True)
                 return
-            response = await handle_operator_command("health", self, interaction.channel_id)
-            await interaction.response.send_message(
-                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            await interaction.response.defer(ephemeral=True)
+            try:
+                health = await self.adapter.health_check()
+            except Exception as exc:
+                health = {
+                    "adapter": cfg.adapter, "bin": "?",
+                    "available": False, "error": str(exc),
+                }
+            embed = build_health_embed(cfg, health)
+            await interaction.followup.send(
+                embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
         session_group = app_commands.Group(name="session", description="Session management")
@@ -311,9 +321,10 @@ class DiscordClient(discord.Client):
             if deny:
                 await interaction.response.send_message(deny, ephemeral=True)
                 return
-            response = await handle_operator_command("session status", self, interaction.channel_id)
-            await interaction.response.send_message(
-                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            await interaction.response.defer(ephemeral=True)
+            embed = build_session_status_embed(self, interaction.channel_id)
+            await interaction.followup.send(
+                embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
         @session_group.command(name="reset", description="Reset current session")
@@ -325,8 +336,9 @@ class DiscordClient(discord.Client):
             if deny:
                 await interaction.response.send_message(deny, ephemeral=True)
                 return
+            await interaction.response.defer(ephemeral=True)
             response = await handle_operator_command("session reset", self, interaction.channel_id)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
