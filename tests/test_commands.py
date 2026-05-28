@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from discord_nexus.commands import (
     OPERATOR_COMMANDS,
+    can_run_operator_command,
     handle_operator_command,
     is_dangerous_command,
     parse_operator_command,
@@ -112,7 +113,7 @@ class TestCmdSessionStatus(unittest.TestCase):
         )
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("session status", client, msg)
+            handle_operator_command("session status", client, msg.channel.id)
         )
         self.assertIn("test-agent", result)
         self.assertIn("sess-abc123", result)
@@ -124,7 +125,7 @@ class TestCmdSessionStatus(unittest.TestCase):
         client = _make_client()
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("session status", client, msg)
+            handle_operator_command("session status", client, msg.channel.id)
         )
         self.assertIn("No active session", result)
         self.assertIn("999", result)
@@ -139,7 +140,7 @@ class TestCmdSessionReset(unittest.TestCase):
         )
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("session reset", client, msg)
+            handle_operator_command("session reset", client, msg.channel.id)
         )
         self.assertIn("stale", result)
         self.assertIn("999", result)
@@ -150,7 +151,7 @@ class TestCmdSessionReset(unittest.TestCase):
         client = _make_client()
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("session reset", client, msg)
+            handle_operator_command("session reset", client, msg.channel.id)
         )
         self.assertIn("No active session", result)
 
@@ -160,7 +161,7 @@ class TestCmdAgents(unittest.TestCase):
         client = _make_client()
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("agents", client, msg)
+            handle_operator_command("agents", client, msg.channel.id)
         )
         self.assertIn("Managed", result)
         self.assertIn("test-agent", result)
@@ -177,7 +178,7 @@ class TestCmdHealth(unittest.TestCase):
         client = _make_client()
         msg = _make_message()
         result = asyncio.get_event_loop().run_until_complete(
-            handle_operator_command("health", client, msg)
+            handle_operator_command("health", client, msg.channel.id)
         )
         self.assertIn("claude", result)
         self.assertIn("available: yes", result)
@@ -216,6 +217,34 @@ class TestClientInterception(unittest.TestCase):
         # Config with allowed_user_ids
         config2 = _make_config(allowed_user_ids=[100])
         self.assertIn(100, config2.allowed_user_ids)
+
+
+class TestCanRunOperatorCommand(unittest.TestCase):
+    def test_empty_allowed_user_ids_allows_non_dangerous(self):
+        """When allowed_user_ids is empty, non-dangerous commands are allowed."""
+        config = _make_config(allowed_user_ids=[])
+        self.assertIsNone(can_run_operator_command(config, 999, "agents"))
+        self.assertIsNone(can_run_operator_command(config, 999, "health"))
+        self.assertIsNone(can_run_operator_command(config, 999, "session status"))
+
+    def test_empty_allowed_user_ids_blocks_dangerous(self):
+        """session reset is blocked when allowed_user_ids is empty (no explicit permission)."""
+        config = _make_config(allowed_user_ids=[])
+        self.assertIsNotNone(can_run_operator_command(config, 999, "session reset"))
+
+    def test_authorized_user_allowed(self):
+        config = _make_config(allowed_user_ids=[100])
+        self.assertIsNone(can_run_operator_command(config, 100, "agents"))
+        self.assertIsNone(can_run_operator_command(config, 100, "health"))
+        self.assertIsNone(can_run_operator_command(config, 100, "session status"))
+        self.assertIsNone(can_run_operator_command(config, 100, "session reset"))
+
+    def test_unauthorized_user_blocked_for_all_commands(self):
+        config = _make_config(allowed_user_ids=[100])
+        self.assertIsNotNone(can_run_operator_command(config, 200, "agents"))
+        self.assertIsNotNone(can_run_operator_command(config, 200, "health"))
+        self.assertIsNotNone(can_run_operator_command(config, 200, "session status"))
+        self.assertIsNotNone(can_run_operator_command(config, 200, "session reset"))
 
 
 if __name__ == "__main__":

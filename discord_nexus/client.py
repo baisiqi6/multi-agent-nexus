@@ -6,6 +6,7 @@ import logging
 import time
 
 import discord
+from discord import app_commands
 
 from .adapters.base import AdapterResult
 from .adapters.factory import make_adapter
@@ -21,7 +22,11 @@ log = logging.getLogger(__name__)
 _MAX_DISCORD_MSG_LEN = 1900
 
 
-from .commands import handle_operator_command, is_dangerous_command, parse_operator_command
+from .commands import (
+    can_run_operator_command,
+    handle_operator_command,
+    parse_operator_command,
+)
 from .handoff import split_handoff_lines
 
 
@@ -58,6 +63,11 @@ class DiscordClient(discord.Client):
         self.session_store = SessionStore(config.context_db_path)
         self.mention_router = MentionRouter(config)
         self._bot_user_id_map: dict[str, int] = {}
+        self.tree = app_commands.CommandTree(self)
+        self._commands_synced = False
+
+    async def setup_hook(self):
+        self._register_slash_commands()
 
     async def on_ready(self):
         log.info(
@@ -69,6 +79,24 @@ class DiscordClient(discord.Client):
         # Register our own user ID
         self._bot_user_id_map[self.agent_config.id] = self.user.id
         self.mention_router.update_discord_user_ids(self._bot_user_id_map)
+
+        # One-time guild-scoped slash command sync
+        if not self._commands_synced:
+            guild = None
+            if self.agent_config.channels:
+                ch = self.get_channel(self.agent_config.channels[0])
+                if ch:
+                    guild = ch.guild
+            if not guild and self.guilds:
+                guild = self.guilds[0]
+            if guild:
+                try:
+                    self.tree.copy_global_to(guild=discord.Object(id=guild.id))
+                    await self.tree.sync(guild=discord.Object(id=guild.id))
+                    self._commands_synced = True
+                    log.info("Synced slash commands to guild %s", guild.id)
+                except Exception:
+                    log.warning("Slash command sync failed", exc_info=True)
 
     def register_peer_bot(self, agent_id: str, user_id: int) -> None:
         """Called when another agent's bot comes online to build the mention map."""
@@ -137,15 +165,15 @@ class DiscordClient(discord.Client):
             prompt_text = self._get_prompt_text(message)
             op_cmd = parse_operator_command(prompt_text)
             if op_cmd:
-                if is_dangerous_command(op_cmd):
-                    if not self.agent_config.allowed_user_ids or message.author.id not in self.agent_config.allowed_user_ids:
-                        await message.channel.send(
-                            "Unauthorized: this command requires explicit operator permission.",
-                            allowed_mentions=discord.AllowedMentions.none(),
-                        )
-                        return
+                deny = can_run_operator_command(self.agent_config, message.author.id, op_cmd)
+                if deny:
+                    await message.channel.send(
+                        deny,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+                    return
                 self._record_message(message)
-                response = await handle_operator_command(op_cmd, self, message)
+                response = await handle_operator_command(op_cmd, self, message.channel.id)
                 chunks = _chunk_message(response)
                 for chunk in chunks:
                     try:
@@ -232,6 +260,77 @@ class DiscordClient(discord.Client):
         except Exception:
             task.cancel()
             raise
+
+    def _register_slash_commands(self):
+        """Register /agents, /health, /session status, /session reset."""
+        cfg = self.agent_config
+
+        def _is_channel_allowed(interaction: discord.Interaction) -> bool:
+            if not cfg.channels:
+                return True
+            ch = interaction.channel
+            ch_id = ch.parent_id if isinstance(ch, discord.Thread) else ch.id
+            return ch_id in cfg.channels
+
+        @self.tree.command(name="agents", description="List all known agents")
+        async def slash_agents(interaction: discord.Interaction):
+            if not _is_channel_allowed(interaction):
+                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                return
+            deny = can_run_operator_command(cfg, interaction.user.id, "agents")
+            if deny:
+                await interaction.response.send_message(deny, ephemeral=True)
+                return
+            response = await handle_operator_command("agents", self, interaction.channel_id)
+            await interaction.response.send_message(
+                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            )
+
+        @self.tree.command(name="health", description="Check adapter health")
+        async def slash_health(interaction: discord.Interaction):
+            if not _is_channel_allowed(interaction):
+                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                return
+            deny = can_run_operator_command(cfg, interaction.user.id, "health")
+            if deny:
+                await interaction.response.send_message(deny, ephemeral=True)
+                return
+            response = await handle_operator_command("health", self, interaction.channel_id)
+            await interaction.response.send_message(
+                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            )
+
+        session_group = app_commands.Group(name="session", description="Session management")
+
+        @session_group.command(name="status", description="Show session status")
+        async def slash_session_status(interaction: discord.Interaction):
+            if not _is_channel_allowed(interaction):
+                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                return
+            deny = can_run_operator_command(cfg, interaction.user.id, "session status")
+            if deny:
+                await interaction.response.send_message(deny, ephemeral=True)
+                return
+            response = await handle_operator_command("session status", self, interaction.channel_id)
+            await interaction.response.send_message(
+                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            )
+
+        @session_group.command(name="reset", description="Reset current session")
+        async def slash_session_reset(interaction: discord.Interaction):
+            if not _is_channel_allowed(interaction):
+                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                return
+            deny = can_run_operator_command(cfg, interaction.user.id, "session reset")
+            if deny:
+                await interaction.response.send_message(deny, ephemeral=True)
+                return
+            response = await handle_operator_command("session reset", self, interaction.channel_id)
+            await interaction.response.send_message(
+                response, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
+            )
+
+        self.tree.add_command(session_group)
 
     def _make_progress_callback(self, progress_state: dict) -> collections.abc.Callable:
         """Create an on_progress callback that writes partial output to a shared dict."""

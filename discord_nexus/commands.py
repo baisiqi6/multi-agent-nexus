@@ -17,11 +17,21 @@ def is_dangerous_command(cmd: str) -> bool:
     return cmd == "session reset"
 
 
-async def handle_operator_command(cmd: str, client, message) -> str:
+def can_run_operator_command(config, user_id: int, cmd: str) -> str | None:
+    """Return None if allowed, otherwise a denial reason string."""
+    if config.allowed_user_ids and user_id not in config.allowed_user_ids:
+        return "Unauthorized: this command requires operator permission."
+    if is_dangerous_command(cmd):
+        if not config.allowed_user_ids or user_id not in config.allowed_user_ids:
+            return "Unauthorized: this command requires explicit operator permission."
+    return None
+
+
+async def handle_operator_command(cmd: str, client, channel_id: int) -> str:
     if cmd == "session status":
-        return _cmd_session_status(client, message)
+        return _cmd_session_status(client, channel_id)
     if cmd == "session reset":
-        return _cmd_session_reset(client, message)
+        return _cmd_session_reset(client, channel_id)
     if cmd == "agents":
         return _cmd_agents(client)
     if cmd == "health":
@@ -29,8 +39,8 @@ async def handle_operator_command(cmd: str, client, message) -> str:
     return "Unknown command."
 
 
-def _cmd_session_status(client, message) -> str:
-    scope_id = str(message.channel.id)
+def _cmd_session_status(client, channel_id: int) -> str:
+    scope_id = str(channel_id)
     agent_id = client.agent_config.id
     current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
     all_sessions = client.session_store.list_by_agent(agent_id=agent_id)
@@ -52,8 +62,8 @@ def _cmd_session_status(client, message) -> str:
     return "\n".join(lines)
 
 
-def _cmd_session_reset(client, message) -> str:
-    scope_id = str(message.channel.id)
+def _cmd_session_reset(client, channel_id: int) -> str:
+    scope_id = str(channel_id)
     agent_id = client.agent_config.id
     current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
     if not current:
