@@ -2,7 +2,7 @@
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-05-29T18:34:00Z",
+  "updated_at": "2026-05-29",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -36,6 +36,46 @@
       "review": {
         "decision": "approved",
         "human_gate_required": false
+      }
+    },
+    {
+      "id": "phase-4-coordinator-integration",
+      "title": "Phase 4: Coordinator Integration (WebhookBus + system prompt + agent handoff)",
+      "status": "doing",
+      "priority": "p0",
+      "owner": "mac-codex",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
+      "acceptance": "WebhookBus sends to Discord channel, worker bootstrap generated on handoff, agent handoff delivery with targeted mention, 597+ tests OK",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-3.3-runtime-launchd"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "retry-002",
+      "updated_at": "2026-05-29",
+      "workflow": {
+        "status": "running",
+        "branch": "feature/multi-bot",
+        "updated_at": "2026-05-29"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
+        "branch": "feature/multi-bot"
+      },
+      "verification": "",
+      "review": {},
+      "lease": {
+        "owner": "mac-codex",
+        "session": "retry-002",
+        "acquired_at": "2026-05-29T11:48:59Z",
+        "expires_at": "2026-05-29T13:48:59Z",
+        "ttl_minutes": 120
       }
     }
   ]
