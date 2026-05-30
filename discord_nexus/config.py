@@ -199,6 +199,16 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
             else None
         ),
         allowed_user_ids=_as_int_list(merged.get("allowed_user_ids")),
+        coordinator_bot_id=(
+            int(merged["coordinator_bot_id"])
+            if merged.get("coordinator_bot_id")
+            else None
+        ),
+        coordinator_cli_path=str(merged.get("coordinator_cli_path", "")),
+        coordinator_db_path=str(merged.get("coordinator_db_path", "")),
+        coordinator_workspace_path=str(
+            Path(str(merged["coordinator_workspace_path"])).expanduser()
+        ) if merged.get("coordinator_workspace_path") else "",
     )
 
 

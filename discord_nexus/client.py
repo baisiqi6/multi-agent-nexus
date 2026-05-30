@@ -29,6 +29,13 @@ from .commands import (
 )
 from .embeds import build_agents_embed, build_health_embed, build_session_status_embed
 from .handoff import split_handoff_lines
+from .handoff_handler import (
+    build_agent_report,
+    build_handoff_prompt,
+    execute_assignment_accept,
+    parse_coordinator_handoff,
+    read_bootstrap,
+)
 
 
 def _chunk_message(text: str) -> list[str]:
@@ -155,6 +162,16 @@ class DiscordClient(discord.Client):
                 return
             # Valid handoff: persist and handle
             self._record_message(message)
+
+            # Coordinator handoff auto-accept
+            if (
+                self.agent_config.coordinator_bot_id
+                and message.author.id == self.agent_config.coordinator_bot_id
+            ):
+                handled = await self._try_coordinator_handoff(message)
+                if handled:
+                    return
+
             await self._handle_request(message)
             return
 
@@ -217,6 +234,144 @@ class DiscordClient(discord.Client):
             source="discord",
             ttl_seconds=self.agent_config.context_ttl_seconds,
         )
+
+    async def _try_coordinator_handoff(self, message: discord.Message) -> bool:
+        """Auto-accept a coordinator handoff. Returns True if handled."""
+        cfg = self.agent_config
+        handoff = parse_coordinator_handoff(
+            message.content,
+            my_discord_user_id=self.user.id,
+        )
+        if handoff is None:
+            return False
+
+        log.info("Coordinator handoff: task=%s agent=%s", handoff.task_id, cfg.id)
+        context_channel_id = str(self._resolve_channel_id(message))
+
+        # Execute assignment accept
+        success, output = await asyncio.to_thread(
+            execute_assignment_accept,
+            cli_path=cfg.coordinator_cli_path,
+            db_path=cfg.coordinator_db_path,
+            workspace_id=handoff.workspace_id,
+            task_id=handoff.task_id,
+            agent_name=cfg.id,
+        )
+
+        if not success:
+            error_msg = build_agent_report(
+                "blocker",
+                handoff,
+                reason=f"assignment accept failed: {output[:500]}",
+            )
+            await message.channel.send(
+                error_msg,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            log.error("Assignment accept failed: %s", output)
+            return True
+
+        # Read bootstrap
+        bootstrap_content = None
+        if handoff.bootstrap_path and cfg.coordinator_workspace_path:
+            bootstrap_content = await asyncio.to_thread(
+                read_bootstrap, cfg.coordinator_workspace_path, handoff.bootstrap_path,
+            )
+
+        # Build prompt and call adapter
+        prompt = build_handoff_prompt(handoff, bootstrap_content)
+
+        # Confirm acceptance
+        await message.channel.send(
+            build_agent_report(
+                "accept",
+                handoff,
+                summary=f"auto accepted by {cfg.id}",
+            ),
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+        # Call adapter with bootstrap prompt
+        channel = message.channel
+        session_scope_id = str(channel.id)
+
+        placeholder = None
+        try:
+            placeholder = await channel.send("\U0001f504 working on task...")
+        except discord.HTTPException:
+            pass
+
+        progress_state: dict = {"partial": ""}
+        progress_cb = self._make_progress_callback(progress_state)
+
+        try:
+            result: AdapterResult = await self._run_with_heartbeat(
+                placeholder,
+                self.adapter.call(
+                    prompt,
+                    work_dir=cfg.work_dir,
+                    on_progress=progress_cb,
+                ),
+                progress_state=progress_state,
+            )
+        except Exception as exc:
+            log.exception("Adapter call failed for coordinator handoff")
+            result = AdapterResult(text=f"Agent error: {exc}")
+
+        # Save session
+        if result.session_id:
+            self.session_store.upsert(
+                scope_id=session_scope_id,
+                agent_id=cfg.id,
+                adapter=cfg.adapter,
+                session_id=result.session_id,
+                work_dir=cfg.work_dir,
+            )
+
+        # Send response
+        response_text = self.mention_router.resolve_handoff_mentions(result.text)
+        handoff_lines, display_text = split_handoff_lines(response_text)
+
+        chunks = _chunk_message(display_text) if display_text else []
+        if chunks:
+            if placeholder:
+                try:
+                    await placeholder.edit(content=chunks[0])
+                except discord.HTTPException:
+                    await channel.send(chunks[0])
+            else:
+                await channel.send(chunks[0])
+            for chunk in chunks[1:]:
+                try:
+                    await channel.send(chunk)
+                except discord.HTTPException:
+                    break
+        elif placeholder:
+            try:
+                await placeholder.edit(content="✅ done")
+            except discord.HTTPException:
+                pass
+
+        for hl in handoff_lines:
+            try:
+                await channel.send(hl)
+            except discord.HTTPException:
+                pass
+
+        if not self._is_error_response(result.text):
+            self.context_store.record_message(
+                message_id=f"response:{int(time.time() * 1000)}:{cfg.id}",
+                channel_id=context_channel_id,
+                author_id=str(self.user.id),
+                author_name=cfg.display_name or cfg.id,
+                author_is_bot=True,
+                content=response_text[:2000],
+                created_at_ms=int(time.time() * 1000),
+                source="discord",
+                ttl_seconds=cfg.context_ttl_seconds,
+            )
+
+        return True
 
     def _get_prompt_text(self, message: discord.Message) -> str:
         """Extract the actual prompt text, stripping @mentions and !bang prefix."""

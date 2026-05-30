@@ -57,3 +57,7 @@ class AgentConfig:
     wiki_enabled: bool = False
     wiki_path: str = "wiki"
     discoveries_channel_id: int | None = None
+    coordinator_bot_id: int | None = None
+    coordinator_cli_path: str = ""
+    coordinator_db_path: str = ""
+    coordinator_workspace_path: str = ""
