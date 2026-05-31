@@ -279,7 +279,12 @@ class DiscordClient(discord.Client):
             )
 
         # Build prompt and call adapter
-        prompt = build_handoff_prompt(handoff, bootstrap_content)
+        prompt = build_handoff_prompt(
+            handoff,
+            bootstrap_content,
+            agent_name=cfg.id,
+            accept_output=output,
+        )
 
         # Confirm acceptance
         await message.channel.send(

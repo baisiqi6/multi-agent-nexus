@@ -209,6 +209,26 @@ class TestAgentReport(unittest.TestCase):
         self.assertIn("Workspace: discord-nexus", prompt)
         self.assertIn("Step 1", prompt)
 
+    def test_handoff_prompt_prevents_duplicate_accept(self):
+        handoff = CoordinatorHandoff(
+            workspace_id="discord-nexus",
+            task_id="phase-4",
+            bootstrap_path="",
+            action="assignment.accept",
+        )
+
+        prompt = build_handoff_prompt(
+            handoff,
+            "Step 1",
+            agent_name="mac-codex",
+            accept_output="accepted",
+        )
+
+        self.assertIn("already completed `assignment accept`", prompt)
+        self.assertIn("Do NOT run `assignment accept` again", prompt)
+        self.assertIn("mac-codex", prompt)
+        self.assertIn("Accept result: accepted", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

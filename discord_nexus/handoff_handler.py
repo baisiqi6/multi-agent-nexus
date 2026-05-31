@@ -212,13 +212,41 @@ def build_agent_report(
     return " ".join(fields)
 
 
-def build_handoff_prompt(handoff: CoordinatorHandoff, bootstrap_content: str | None) -> str:
+def build_handoff_prompt(
+    handoff: CoordinatorHandoff,
+    bootstrap_content: str | None,
+    *,
+    agent_name: str | None = None,
+    accept_output: str | None = None,
+) -> str:
     """Build the agent prompt for a coordinator handoff."""
     parts = [
         "[Coordinator Handoff Accepted]\n",
         f"Task: {handoff.task_id}",
         f"Workspace: {handoff.workspace_id}",
     ]
+
+    if agent_name:
+        parts.extend(
+            [
+                "\nAssignment state:",
+                (
+                    "- The discord-nexus runtime has already completed "
+                    f"`assignment accept` for this task as `{agent_name}`."
+                ),
+                (
+                    "- Do NOT run `assignment accept` again. The active lease "
+                    "is already held by this agent."
+                ),
+                (
+                    "- Use coordinator CLI only for later lifecycle updates, "
+                    "such as branch, PR, CI, blocker, closeout, or mark-done."
+                ),
+            ]
+        )
+        if accept_output:
+            sanitized_output = " ".join(accept_output.split())
+            parts.append(f"- Accept result: {sanitized_output[:500]}")
 
     if bootstrap_content:
         parts.append("\nYour bootstrap instructions:\n")
