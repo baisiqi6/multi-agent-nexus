@@ -1,230 +1,230 @@
-# Phase 5 Hardening Roadmap
+# Phase 5 硬化路线图
 
-## Context
+## 背景
 
-Phase 4 proved that coordinator can drive a real Discord task flow:
+Phase 4 已经证明 coordinator 可以驱动一条真实的 Discord 任务流：
 
-1. coordinator bot sends a targeted handoff.
-2. discord-nexus managed agent auto-accepts the assignment.
-3. the agent reads task-scoped `worker-bootstrap.md`.
-4. the agent reports back through structured `[agent-report]` messages.
-5. coordinator records events, pumps visible Discord updates, and mirrors harness state.
+1. coordinator bot 发送定向 handoff。
+2. discord-nexus managed agent 自动接受 assignment。
+3. agent 读取 task-scoped `worker-bootstrap.md`。
+4. agent 通过结构化 `[agent-report]` 消息回报进展。
+5. coordinator 记录事件、推送 Discord 可见状态，并镜像 harness state。
 
-The next work should harden this path before adding broader platform/deployment features.
+下一阶段不应急着扩展更多平台和部署能力，而应先把这条已经在使用的核心链路打牢。
 
-## Goal
+## 目标
 
-Make the coordinator + discord-nexus collaboration loop reliable enough for long-running multi-agent engineering work.
+让 coordinator + discord-nexus 的协作闭环足够可靠，可以支撑长程、多 agent 的工程开发。
 
-Prioritize the runtime path that is already in use:
+优先加固已经投入使用的 runtime 路径：
 
-- coordinator targeted handoff
-- managed agent auto-accept
-- task-scoped bootstrap and session state
-- structured progress/blocker/done/review reports
-- operator observability and new-project onboarding
+- coordinator 定向 handoff
+- managed agent 自动 accept
+- task-scoped bootstrap 和 session state
+- 结构化 progress / blocker / done / review report
+- operator 可观测性和新项目接入体验
 
-## Execution Model
+## 执行模型
 
-Default execution model for these phases:
+这些 phase 默认按下面方式推进：
 
-- Worker implementation can be delegated to a coding agent such as Claude Code.
-- Codex/operator reviews plans, diffs, tests, and protocol boundaries before accepting.
-- Each phase should be a small, separately reviewable slice.
-- Do not merge, deploy, or start long-running services without explicit human approval.
-- Do not edit harness JSON directly. Use coordinator or harnessctl only through the appropriate service/tooling path.
-- Keep protocol tokens stable: `[handoff]`, `[agent-report]`, `workspace_id=`, `task_id=`, `action=...`, `bootstrap=...`.
+- Worker implementation 可以交给 Claude Code 这类 coding agent。
+- Codex/operator 负责审核计划、diff、测试结果和协议边界。
+- 每个 phase 都应切成小块，便于单独 review。
+- 没有人类明确批准时，不 merge、不 deploy、不启动长驻服务。
+- 不直接编辑 harness JSON。状态变更应通过 coordinator 或合适的 harness tooling 路径完成。
+- 协议 token 必须保持稳定：`[handoff]`、`[agent-report]`、`workspace_id=`、`task_id=`、`action=...`、`bootstrap=...`。
 
 ## Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol
 
-### Objective
+### 目标
 
-Make the existing coordinator handoff runtime path testable and documented.
+让现有 coordinator handoff runtime 路径可测试、可复现、可文档化。
 
-### Scope
+### 范围
 
-`discord-nexus`:
+`discord-nexus`：
 
-- Add runtime unit tests around `DiscordClient._try_coordinator_handoff`.
-- Verify accept failure sends `[agent-report] action=blocker` and does not call the adapter.
-- Verify accept success sends an accept report, reads bootstrap, and calls the adapter with bootstrap prompt.
-- Verify missing bootstrap still calls the adapter with the explicit missing-bootstrap prompt.
-- Assert report sends use `AllowedMentions.none()`.
-- Keep auto-action scope limited to `assignment.accept`.
+- 为 `DiscordClient._try_coordinator_handoff` 补 runtime 单元测试。
+- 验证 accept 失败时会发送 `[agent-report] action=blocker`，并且不会调用 adapter。
+- 验证 accept 成功时会发送 accept report、读取 bootstrap，并用 bootstrap prompt 调用 adapter。
+- 验证 bootstrap 缺失时仍会调用 adapter，但 prompt 必须明确说明 bootstrap missing。
+- 断言 report 发送使用 `AllowedMentions.none()`，避免误触发其他 bot。
+- 自动动作范围继续只允许 `assignment.accept`。
 
-`multi-agent-coordinator`:
+`multi-agent-coordinator`：
 
-- Document accepted `[agent-report]` formats.
-- Verify daemon ingest for `progress`, `blocker`, `done`, and review-related reports where supported.
-- Keep `progress.reported` visible but non-lifecycle-changing.
+- 文档化 coordinator 接受的 `[agent-report]` 格式。
+- 验证 daemon ingest 支持 `progress`、`blocker`、`done` 以及当前支持的 review 类 report。
+- 保持 `progress.reported` 可见，但不改变 lifecycle 状态。
 
-Docs:
+Docs：
 
-- Add or update an agent-report protocol document.
-- Document that runtime auto-accept has already happened before the worker prompt starts.
-- Document when to use Discord report vs coordinator CLI.
+- 新增或更新 agent-report protocol 文档。
+- 明确 runtime auto-accept 已经发生在 worker prompt 开始之前。
+- 明确什么时候用 Discord report，什么时候用 coordinator CLI。
 
-### Non-Goals
+### 非目标
 
-- Do not auto-run `mark-done`, `closeout`, merge, deploy, or PR operations from Discord text.
-- Do not change session persistence design.
-- Do not change plan gate or merge gate semantics.
-- Do not add new production dependencies.
+- 不从 Discord 文本自动执行 `mark-done`、`closeout`、merge、deploy 或 PR 操作。
+- 不改变 session persistence 设计。
+- 不改变 plan gate 或 merge gate 语义。
+- 不增加新的生产依赖。
 
-### Acceptance
+### 验收标准
 
-- `discord-nexus` tests cover handoff success/failure/missing-bootstrap runtime behavior.
-- `multi-agent-coordinator` tests cover supported report ingestion and visible progress rendering.
-- Agent-report format is documented in tracked docs.
-- Full tests pass in both repos.
+- `discord-nexus` 测试覆盖 handoff 成功、失败、bootstrap 缺失等 runtime 行为。
+- `multi-agent-coordinator` 测试覆盖已支持 report 的 ingest 和可见 progress 渲染。
+- Agent-report 格式写入 tracked docs。
+- 两个 repo 的相关测试全部通过。
 
 ## Phase 5.2: Task-Scoped Session Lifecycle
 
-### Objective
+### 目标
 
-Prevent long-running task sessions from growing indefinitely or leaking context across completed tasks.
+防止长期 task session 无限增长，或在任务完成后继续污染后续上下文。
 
-### Scope
+### 范围
 
-`discord-nexus`:
+`discord-nexus`：
 
-- Define task scope rules:
-  - channel/thread scope remains useful for normal chat.
-  - coordinator handoff should prefer task scope when `workspace_id` + `task_id` are present.
-  - task-scoped sessions are archived/staled when task reaches closeout/done.
-- Add task-scoped session status/reset support where practical.
-- Update session status output to distinguish channel/thread scope vs task scope.
-- Add tests for task closeout/done session archive/stale behavior.
+- 定义 task scope 规则：
+  - channel/thread scope 继续用于普通聊天。
+  - coordinator handoff 在存在 `workspace_id` + `task_id` 时优先使用 task scope。
+  - task 到达 closeout / done 后，task-scoped session 应 archive 或 stale。
+- 在可行范围内增加 task-scoped session status/reset。
+- 更新 session status 输出，区分 channel/thread scope 和 task scope。
+- 为 task closeout/done 后 session archive/stale 行为补测试。
 
-`multi-agent-coordinator`:
+`multi-agent-coordinator`：
 
-- Ensure task lifecycle events are observable enough for discord-nexus to know when to stale/archive sessions.
-- Prefer explicit event-driven behavior over polling when possible.
+- 确保 task lifecycle 事件足够可观测，使 discord-nexus 能判断何时 stale/archive session。
+- 能事件驱动就优先事件驱动，避免不必要轮询。
 
-Docs:
+Docs：
 
-- Update `docs/agent-session-persistence-design.md`.
-- Document when task scope, thread scope, and channel scope are used.
+- 更新 `docs/agent-session-persistence-design.md`。
+- 文档化 task scope、thread scope、channel scope 的使用场景。
 
-### Non-Goals
+### 非目标
 
-- Do not delete CLI-native session history from Claude/Codex/OpenCode.
-- Do not change adapter resume flags unless a bug is found.
-- Do not introduce a remote session service.
+- 不删除 Claude/Codex/OpenCode 的 CLI 原生 session 历史。
+- 不修改 adapter resume 参数，除非发现明确 bug。
+- 不引入远程 session service。
 
-### Acceptance
+### 验收标准
 
-- Closing/done task sessions no longer get reused accidentally.
-- Operator can inspect/reset task-scoped sessions.
-- Existing channel/thread session behavior remains compatible.
-- Tests cover stale/archive behavior.
+- closeout/done 后的 task session 不会被意外复用。
+- operator 可以查看和 reset task-scoped session。
+- 现有 channel/thread session 行为保持兼容。
+- 测试覆盖 stale/archive 行为。
 
 ## Phase 5.3: Agent Registry Auto-Sync
 
-### Objective
+### 目标
 
-Reduce drift between discord-nexus `agents.toml` / `external_agents` and coordinator workspace agent registry.
+减少 discord-nexus `agents.toml` / `external_agents` 与 coordinator workspace agent registry 之间的配置漂移。
 
-### Scope
+### 范围
 
-`multi-agent-coordinator`:
+`multi-agent-coordinator`：
 
-- Add a command or service to sync workspace agent registry from a discord-nexus TOML file.
-- Preserve manual overrides unless explicitly replaced.
-- Validate missing/duplicate `discord_user_id` values.
-- Report what changed without printing tokens or ignored config secrets.
+- 增加命令或服务，从 discord-nexus TOML 文件同步 workspace agent registry。
+- 默认保留手工 override，除非显式要求替换。
+- 校验缺失或重复的 `discord_user_id`。
+- 输出变更摘要，但不打印 token 或被忽略的敏感配置。
 
-`discord-nexus`:
+`discord-nexus`：
 
-- Ensure `agents.toml.example` documents the fields needed for coordinator sync.
-- Avoid committing real `agents.toml`.
+- 确保 `agents.toml.example` 文档化 coordinator sync 需要的字段。
+- 继续避免提交真实 `agents.toml`。
 
-Docs:
+Docs：
 
-- Add runbook steps for syncing registry before targeted handoff tests.
+- 在 runbook 中加入 targeted handoff 测试前的 registry sync 步骤。
 
-### Non-Goals
+### 非目标
 
-- Do not require coordinator to import discord-nexus runtime modules.
-- Do not store Discord bot tokens in coordinator DB.
-- Do not auto-sync continuously in the background for this phase.
+- 不要求 coordinator import discord-nexus runtime modules。
+- 不把 Discord bot token 存进 coordinator DB。
+- 本 phase 不做后台连续自动同步。
 
-### Acceptance
+### 验收标准
 
-- One command can sync managed and external agent IDs into coordinator.
-- Handoff fails closed if a target agent is not registered.
-- Tests cover add/update/no-op and invalid config cases.
+- 一个命令可以把 managed 和 external agent ID 同步到 coordinator。
+- target agent 未注册时 handoff fail closed。
+- 测试覆盖 add、update、no-op 和 invalid config。
 
 ## Phase 5.4: Workspace Doctor And Full Harness Init
 
-### Objective
+### 目标
 
-Make new project onboarding less error-prone.
+降低新项目接入 coordinator/harness 的出错率。
 
-### Scope
+### 范围
 
-`multi-agent-coordinator`:
+`multi-agent-coordinator`：
 
-- Improve `workspace add` or `workspace doctor` output to show:
-  - harness root exists
-  - `harnessctl` exists and is executable
-  - checklist/state files are valid
-  - mutation lifecycle is available
-  - default bus/destination is configured
-- Add a full harness initialization path that can instantiate `scripts/harness/` runtime from the known harness template.
-- Keep the existing minimal file-backed harness path as a fallback.
+- 改进 `workspace add` 或 `workspace doctor` 输出，至少显示：
+  - harness root 是否存在
+  - `harnessctl` 是否存在且可执行
+  - checklist/state 文件是否有效
+  - mutation lifecycle 是否可用
+  - default bus/destination 是否已配置
+- 增加完整 harness 初始化路径，可以从已知 harness template 实例化 `scripts/harness/` runtime。
+- 保留现有 minimal file-backed harness 路径作为 fallback。
 
-Docs:
+Docs：
 
-- Update coordinator operator docs and discord-nexus runbook with the recommended onboarding sequence.
+- 更新 coordinator operator 文档和 discord-nexus runbook，写明推荐 onboarding 顺序。
 
-### Non-Goals
+### 非目标
 
-- Do not silently rewrite existing harness state.
-- Do not hide validation failures behind green status.
-- Do not require Discord config for non-Discord workspaces.
+- 不静默重写已有 harness state。
+- 不把 validation failure 包装成绿色状态。
+- 不强制非 Discord workspace 配 Discord 配置。
 
-### Acceptance
+### 验收标准
 
-- A new workspace can be initialized and diagnosed without hand-copying harness runtime files.
-- Doctor output makes missing capabilities obvious.
-- Tests cover missing harnessctl, invalid checklist, and healthy workspace.
+- 新 workspace 可以在不手工复制 harness runtime 文件的情况下完成初始化和诊断。
+- Doctor output 能清楚暴露缺失能力。
+- 测试覆盖 missing harnessctl、invalid checklist、healthy workspace。
 
-## Maintenance Sweep
+## 维护小切片
 
-These are valuable small slices to run between major Phase 5 work:
+这些任务有价值，但建议穿插在 Phase 5 大块之间做，避免长期积累。
 
 ### SQLite ResourceWarning Cleanup
 
-- Fix unclosed sqlite connection warnings in the coordinator full test suite.
-- Keep this as a separate small commit.
-- Acceptance: full tests pass without ResourceWarning noise.
+- 修复 coordinator full test suite 中 unclosed sqlite connection warning。
+- 作为独立小 commit 处理。
+- 验收：full tests 通过，且没有 `ResourceWarning` 噪声。
 
 ### Operator Backlog Triage
 
-- Review `/Users/yinxin/projects/multi-agent-coordinator/docs/operator-needs-backlog.md`.
-- Mark entries as `done`, `partial`, `superseded`, or `open`.
-- Link completed entries to commits or docs when known.
+- 审查 `/Users/yinxin/projects/multi-agent-coordinator/docs/operator-needs-backlog.md`。
+- 将条目标成 `done`、`partial`、`superseded` 或 `open`。
+- 已完成项尽量链接到对应 commit 或文档。
 
 ### Documentation Sync
 
-- Update stale docs that still describe coordinator integration as future work.
-- Especially review:
+- 更新仍把 coordinator integration 描述为未来工作的过时文档。
+- 重点检查：
   - `docs/discord-multibot-plan/multi-bot-refactor-plan.md`
   - `docs/multi-agent-harness-overview.md`
   - `docs/project-harness/runbook.md`
-  - coordinator operator skill docs if workflow changed
+  - coordinator operator skill docs，如果 workflow 有变化
 
-## Deferred Until Needed
+## 暂缓到确实需要时再做
 
-These are real needs, but should wait until the core loop is stable:
+这些需求是真实的，但应等核心闭环稳定后再投入：
 
-- systemd cloud deployment
+- systemd 云服务器部署
 - Windows service/startup scripts
-- logs rotation and richer status scripts
+- 日志轮转和更丰富的 status scripts
 - long-running coordinator job worker
 
-## Suggested Order
+## 建议执行顺序
 
 1. Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol
 2. Maintenance: SQLite ResourceWarning cleanup
@@ -233,16 +233,15 @@ These are real needs, but should wait until the core loop is stable:
 5. Phase 5.3: Agent Registry Auto-Sync
 6. Maintenance: Documentation sync
 7. Phase 5.4: Workspace Doctor And Full Harness Init
-8. Re-evaluate systemd / Windows / long-running job worker
+8. 重新评估 systemd / Windows / long-running job worker
 
 ## Review Gates
 
-Each phase should have:
+每个 phase 都应包含：
 
-- plan review before worker implementation
-- code review after implementation
-- full relevant tests
-- no secrets in diff
-- no direct harness JSON mutation unless explicitly scoped as harness maintenance
-- Discord runtime behavior validated manually only when the user approves live testing
-
+- worker implementation 前先做 plan review
+- implementation 后做 code review
+- 跑完整相关测试
+- diff 中不能包含 secrets
+- 除非明确声明为 harness maintenance，否则不直接改 harness JSON
+- Discord runtime 行为只在人类批准 live testing 后手动验证
