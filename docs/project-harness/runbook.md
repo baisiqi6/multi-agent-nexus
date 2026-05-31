@@ -72,25 +72,42 @@ bash scripts/harness/harnessctl validate
 # Run full diagnostic
 bash scripts/harness/harnessctl doctor
 
-# Regenerate harness-state.json
+# Regenerate harness-state.json (operator/repair only)
 bash scripts/harness/harnessctl state
 ```
+
+Ordinary worker agents should not use `harnessctl` for lifecycle transitions and should never edit harness JSON directly. Task state changes go through the coordinator CLI, which calls harnessctl through its mutation service.
 
 ## Coordinator Operations
 
 ```bash
 MAC_SH=~/projects/multi-agent-coordinator/skills/multi-agent-coordinator-operator/scripts/mac.sh
-DB=~/.multi-agent-coordinator/coordinator.sqlite3
+export MAC_DB=~/projects/multi-agent-coordinator/data/coordinator.sqlite3
 
 # Sync coordinator with harness state
-$MAC_SH --db $DB reconcile discord-nexus
+$MAC_SH reconcile discord-nexus
 
 # Check for drifts
-$MAC_SH --db $DB workspace audit discord-nexus
+$MAC_SH workspace audit discord-nexus
 
 # View current state
-$MAC_SH --db $DB state discord-nexus
+$MAC_SH state discord-nexus
+
+# Generate a worker bootstrap and targeted agent handoff
+$MAC_SH task handoff discord-nexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
+
+# Create visible deliveries for supported events
+$MAC_SH policy pump-events --workspace-id discord-nexus --platform discord_webhook --destination discord-nexus-status
+
+# Send queued Discord deliveries when not using the daemon
+DISCORD_WEBHOOK_URL=<webhook-url> $MAC_SH delivery pump --platform discord_webhook
+
+# Run the coordinator Discord bot daemon
+COORDINATOR_BOT_TOKEN=<token> COORDINATOR_CHANNEL_ID=<channel-id> \
+  COORDINATOR_ALLOWED_USER_IDS=<user-id> $MAC_SH serve
 ```
+
+The daemon can also be mentioned in Discord for `status`, `task list`, `task show <workspace> <task-id>`, `handoff <workspace> <task-id> <agent>`, and `pump`. Handoff deliveries mention only the target bot; status deliveries do not trigger managed agents.
 
 ## Troubleshooting
 

@@ -37,3 +37,18 @@ Human performed terminal and Discord validation:
 - Task status: **done** — all static, terminal, and Discord validation passed.
 - Human gate: **passed**.
 - Ready for commit and merge at human's discretion.
+
+## 2026-05-31
+
+### Dogfood doc sync — coordinator integration docs
+
+- Read harness state, progress, scope, architecture, domain model, and `dogfood-doc-sync` plan before editing.
+- Confirmed the task already had an active coordinator lease for `mac-codex` / `auto-mac-codex-1780240587`; a duplicate `assignment accept` attempt through coordinator CLI failed because of that active lease.
+- Updated current-state docs for Phase 4 coordinator integration:
+  - `docs/discord-multibot-plan/multi-bot-refactor-plan.md`
+  - `docs/multi-agent-harness-overview.md`
+  - `docs/project-harness/runbook.md`
+  - `docs/project-harness/scope.md`
+- Synced wording around coordinator Discord daemon, targeted agent handoff delivery, discord-nexus coordinator handoff auto-accept, and the rule that task lifecycle state changes go through coordinator CLI rather than direct harness JSON edits.
+- Sanity-checked documented coordinator commands against current `mac.sh --help` output.
+- Validation: `git diff --check` passed; `scripts/harness/harnessctl validate` passed; `scripts/harness/harnessctl doctor` exited 0 with existing optional/current file misses (`current/task_plan.md`, `init.sh`).
