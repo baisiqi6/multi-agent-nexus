@@ -75,6 +75,36 @@
         "reviewer": "operator"
       },
       "lease": null
+    },
+    {
+      "id": "dogfood-doc-sync",
+      "title": "Dogfood: sync coordinator integration docs",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/dogfood-doc-sync/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/dogfood-doc-sync/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-05-31T15:09:45Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-05-31T15:06:16Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/dogfood-doc-sync/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
