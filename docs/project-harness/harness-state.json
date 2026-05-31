@@ -1,54 +1,17 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-05-31T15:23:25Z",
+  "generated_at": "2026-05-31T15:24:55Z",
   "current_status": "",
-  "current_item": {
-    "id": "dogfood-doc-sync",
-    "title": "Dogfood: sync coordinator integration docs",
-    "status": "doing",
-    "owner": "mac-codex",
-    "selected_in_session": "auto-mac-codex-1780240587",
-    "updated_at": "2026-05-31",
-    "workflow": {
-      "status": "closeout_requested",
-      "branch": "agents/mac-codex/dogfood-doc-sync",
-      "updated_at": "2026-05-31"
-    },
-    "lease": {
-      "owner": "mac-codex",
-      "session": "auto-mac-codex-1780240587",
-      "acquired_at": "2026-05-31T15:16:28Z",
-      "expires_at": "2026-05-31T17:16:28Z",
-      "ttl_minutes": 120
-    },
-    "active_lease": {
-      "owner": "mac-codex",
-      "session": "auto-mac-codex-1780240587",
-      "acquired_at": "2026-05-31T15:16:28Z",
-      "expires_at": "2026-05-31T17:16:28Z",
-      "ttl_minutes": 120
-    },
-    "artifacts": {
-      "plan": "docs/project-harness/tasks/dogfood-doc-sync/plan.md",
-      "branch": "agents/mac-codex/dogfood-doc-sync",
-      "closeout_packet": "docs/project-harness/current/closeout-packet.md"
-    },
-    "review": {
-      "decision": null,
-      "reviewer": "operator"
-    },
-    "plan_path": "docs/project-harness/tasks/dogfood-doc-sync/plan.md"
-  },
+  "current_item": null,
   "checklist_summary": {
     "todo": 0,
-    "doing": 1,
-    "done": 2,
+    "doing": 0,
+    "done": 3,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 2,
-    "closeout_requested": 1
+    "closed": 3
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -87,43 +50,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "id": "evt-20260529T120000Z-worker-review-r2-addressed",
-      "type": "worker.changes_addressed",
-      "project": "discord-nexus",
-      "task_id": "phase-3.3-runtime-launchd",
-      "actor": "worker",
-      "created_at": "2026-05-29T12:00:00Z",
-      "harness_root": "docs/project-harness",
-      "findings_addressed": [
-        "launchd.sh:check_manual_process pgrep pattern widened to match --agent/--agent= anywhere in argv",
-        "closeout file list corrected to include all 9 Phase 3.3 artifacts"
-      ],
-      "validation": {
-        "plutil": "3/3 OK",
-        "bash_n": "all pass",
-        "tests": "106 OK"
-      },
-      "human_gate_required": true
-    },
-    {
-      "id": "evt-20260529T011200Z-human-validation-passed",
-      "type": "human.validation_passed",
-      "project": "discord-nexus",
-      "task_id": "phase-3.3-runtime-launchd",
-      "actor": "human",
-      "created_at": "2026-05-29T01:12:00Z",
-      "harness_root": "docs/project-harness",
-      "validated": [
-        "start.sh mac-claude: loaded, Gateway connected",
-        "status.sh: pid visible",
-        "stop.sh: stopped",
-        "uninstall.sh: plist removed",
-        "start.sh (all 3): loaded",
-        "Discord health check: mac-codex responded with adapter/bin/available fields"
-      ],
-      "human_gate_required": false
-    },
     {
       "id": "evt-20260529T011524Z-retroactive-commit",
       "type": "harness.retroactive_correction",
@@ -246,6 +172,48 @@
       "task": "dogfood-doc-sync",
       "type": "RESULT",
       "visible_header": "[RESULT] id=evt-20260531T152325Z-4655340d task=dogfood-doc-sync actor=mac-codex target=operator status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-05-31T15:24:54Z",
+      "id": "evt-20260531T152454Z-d8c33396",
+      "idempotency_key": "REVIEW:dogfood-doc-sync:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "Documentation sync reviewed: current coordinator bot daemon, targeted handoff, auto-accept, and coordinator-owned lifecycle boundaries are reflected. Validation passed.",
+      "target": "mac-codex",
+      "task": "dogfood-doc-sync",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260531T152454Z-d8c33396 task=dogfood-doc-sync actor=codex target=mac-codex status=approved"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-05-31T15:24:55Z",
+      "id": "evt-20260531T152455Z-fcadf895",
+      "idempotency_key": "CLOSE:dogfood-doc-sync:done:codex",
+      "metadata": {
+        "force_reason": null
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "done",
+      "summary": "codex closed dogfood-doc-sync",
+      "target": null,
+      "task": "dogfood-doc-sync",
+      "type": "CLOSE",
+      "visible_header": "[CLOSE] id=evt-20260531T152455Z-fcadf895 task=dogfood-doc-sync actor=codex status=done"
     }
   ]
 }
