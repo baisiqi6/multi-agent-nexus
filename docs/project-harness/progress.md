@@ -2,6 +2,19 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-01
+
+### Phase 5.1: Handoff Runtime Hardening — runtime tests and protocol docs
+
+- Added 12 runtime tests in `tests/test_coordinator_handoff_runtime.py` covering:
+  - Accept failure: sends `[agent-report] action=blocker`, adapter NOT called.
+  - Accept success: sends accept report, reads bootstrap, calls adapter with bootstrap prompt.
+  - Bootstrap missing: adapter still called, prompt notes bootstrap missing.
+  - All report sends use `AllowedMentions.none()`.
+  - Action scope: only `assignment.accept` auto-executed; `mark-done`, `closeout`, `merge`, `deploy`, `pr` all rejected.
+- Created `docs/agent-report-protocol.md`: documents report format, supported actions, auto-accept behavior, and when to use Discord report vs coordinator CLI.
+- Full test suite: 134 pass (122 existing + 12 new).
+
 ## 2026-05-29
 
 ### Round 1 — Initial implementation
