@@ -2,7 +2,7 @@
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-05-29",
+  "updated_at": "2026-05-31",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -41,10 +41,10 @@
     {
       "id": "phase-4-coordinator-integration",
       "title": "Phase 4: Coordinator Integration (WebhookBus + system prompt + agent handoff)",
-      "status": "doing",
+      "status": "done",
       "priority": "p0",
       "owner": "mac-codex",
-      "human_gate_required": true,
+      "human_gate_required": false,
       "plan_path": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
       "acceptance": "WebhookBus sends to Discord channel, worker bootstrap generated on handoff, agent handoff delivery with targeted mention, 597+ tests OK",
       "blocked_by": [],
@@ -57,26 +57,24 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": "retry-002",
-      "updated_at": "2026-05-29",
+      "selected_in_session": "mac-codex-20260530-001",
+      "updated_at": "2026-05-31",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "feature/multi-bot",
-        "updated_at": "2026-05-29"
+        "updated_at": "2026-05-31"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
-        "branch": "feature/multi-bot"
+        "branch": "feature/multi-bot",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {},
-      "lease": {
-        "owner": "mac-codex",
-        "session": "retry-002",
-        "acquired_at": "2026-05-29T11:48:59Z",
-        "expires_at": "2026-05-29T13:48:59Z",
-        "ttl_minutes": 120
-      }
+      "verification": "605+ coordinator tests OK, 120 nexus tests OK, E2E: coordinator daemon → Discord handoff → mac-claude auto-accept → agent.reported event ingested",
+      "review": {
+        "decision": "approved",
+        "reviewer": "operator"
+      },
+      "lease": null
     }
   ]
 }

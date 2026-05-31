@@ -57,7 +57,7 @@ harnessctl is only for operator/harness repair.
 
 ```bash
 cd /Users/yinxin/projects/multi-agent-coordinator
-PYTHONPATH=src python3 -m multi_agent_coordinator --db /Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 <command> discord-nexus [options]
+PYTHONPATH=src python3 -m multi_agent_coordinator --db data/coordinator.sqlite3 <command> discord-nexus [options]
 ```
 
 Commands:
