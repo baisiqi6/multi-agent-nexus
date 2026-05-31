@@ -222,36 +222,36 @@ def build_handoff_prompt(
     """Build the agent prompt for a coordinator handoff."""
     parts = [
         "[Coordinator Handoff Accepted]\n",
-        f"Task: {handoff.task_id}",
+        f"任务: {handoff.task_id}",
         f"Workspace: {handoff.workspace_id}",
     ]
 
     if agent_name:
         parts.extend(
             [
-                "\nAssignment state:",
+                "\n任务接收状态:",
                 (
-                    "- The discord-nexus runtime has already completed "
-                    f"`assignment accept` for this task as `{agent_name}`."
+                    "- discord-nexus runtime 已经以 "
+                    f"`{agent_name}` 身份完成本任务的 `assignment accept`。"
                 ),
                 (
-                    "- Do NOT run `assignment accept` again. The active lease "
-                    "is already held by this agent."
+                    "- 不要再次运行 `assignment accept`。当前 active lease "
+                    "已经由该 agent 持有。"
                 ),
                 (
-                    "- Use coordinator CLI only for later lifecycle updates, "
-                    "such as branch, PR, CI, blocker, closeout, or mark-done."
+                    "- 后续只在需要更新生命周期状态时使用 coordinator CLI，"
+                    "例如 branch、PR、CI、blocker、closeout 或 mark-done。"
                 ),
             ]
         )
         if accept_output:
             sanitized_output = " ".join(accept_output.split())
-            parts.append(f"- Accept result: {sanitized_output[:500]}")
+            parts.append(f"- 接收结果: {sanitized_output[:500]}")
 
     if bootstrap_content:
-        parts.append("\nYour bootstrap instructions:\n")
+        parts.append("\n你的任务启动说明:\n")
         parts.append(bootstrap_content)
     else:
-        parts.append("\nBootstrap file not found. Check with operator.")
+        parts.append("\n未找到 bootstrap 文件，请联系 operator。")
 
     return "\n".join(parts)

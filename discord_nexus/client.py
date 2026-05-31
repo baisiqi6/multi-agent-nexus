@@ -433,10 +433,10 @@ class DiscordClient(discord.Client):
             ch_id = ch.parent_id if isinstance(ch, discord.Thread) else ch.id
             return ch_id in cfg.channels
 
-        @self.tree.command(name="agents", description="List all known agents")
+        @self.tree.command(name="agents", description="列出所有已知 agent")
         async def slash_agents(interaction: discord.Interaction):
             if not _is_channel_allowed(interaction):
-                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                await interaction.response.send_message("此频道不可用。", ephemeral=True)
                 return
             deny = can_run_operator_command(cfg, interaction.user.id, "agents")
             if deny:
@@ -448,10 +448,10 @@ class DiscordClient(discord.Client):
                 embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
-        @self.tree.command(name="health", description="Check adapter health")
+        @self.tree.command(name="health", description="检查 adapter 健康状态")
         async def slash_health(interaction: discord.Interaction):
             if not _is_channel_allowed(interaction):
-                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                await interaction.response.send_message("此频道不可用。", ephemeral=True)
                 return
             deny = can_run_operator_command(cfg, interaction.user.id, "health")
             if deny:
@@ -470,12 +470,12 @@ class DiscordClient(discord.Client):
                 embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
-        session_group = app_commands.Group(name="session", description="Session management")
+        session_group = app_commands.Group(name="session", description="会话管理")
 
-        @session_group.command(name="status", description="Show session status")
+        @session_group.command(name="status", description="显示会话状态")
         async def slash_session_status(interaction: discord.Interaction):
             if not _is_channel_allowed(interaction):
-                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                await interaction.response.send_message("此频道不可用。", ephemeral=True)
                 return
             deny = can_run_operator_command(cfg, interaction.user.id, "session status")
             if deny:
@@ -487,10 +487,10 @@ class DiscordClient(discord.Client):
                 embed=embed, allowed_mentions=discord.AllowedMentions.none(), ephemeral=True,
             )
 
-        @session_group.command(name="reset", description="Reset current session")
+        @session_group.command(name="reset", description="重置当前会话")
         async def slash_session_reset(interaction: discord.Interaction):
             if not _is_channel_allowed(interaction):
-                await interaction.response.send_message("Not available in this channel.", ephemeral=True)
+                await interaction.response.send_message("此频道不可用。", ephemeral=True)
                 return
             deny = can_run_operator_command(cfg, interaction.user.id, "session reset")
             if deny:

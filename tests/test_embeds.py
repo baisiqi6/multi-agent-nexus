@@ -50,8 +50,8 @@ class TestBuildAgentsEmbed(unittest.TestCase):
         config = _make_config()
         embed = build_agents_embed(config)
         names = [f.name for f in embed.fields]
-        self.assertIn("Managed", names)
-        self.assertIn("External", names)
+        self.assertIn("托管 Agent", names)
+        self.assertIn("外部 Gateway Agent", names)
 
     def test_contains_discord_id(self):
         config = _make_config()
@@ -99,14 +99,14 @@ class TestBuildHealthEmbed(unittest.TestCase):
         health = {"adapter": "claude", "bin": "claude", "available": True, "path": "/usr/bin/claude"}
         embed = build_health_embed(config, health)
         avail_field = next(f for f in embed.fields if f.name == "available")
-        self.assertEqual(avail_field.value, "yes")
+        self.assertEqual(avail_field.value, "是")
 
     def test_unavailable_shows_no(self):
         config = _make_config()
         health = {"adapter": "claude", "bin": "claude", "available": False, "path": "/usr/bin/claude"}
         embed = build_health_embed(config, health)
         avail_field = next(f for f in embed.fields if f.name == "available")
-        self.assertEqual(avail_field.value, "no")
+        self.assertEqual(avail_field.value, "否")
 
     def test_title_contains_agent_id(self):
         config = _make_config()
@@ -142,7 +142,7 @@ class TestBuildSessionStatusEmbed(unittest.TestCase):
         )
         embed = build_session_status_embed(client, 999)
         names = [f.name for f in embed.fields]
-        for expected in ["scope", "session_id", "adapter", "work_dir", "turns", "active sessions"]:
+        for expected in ["scope", "session_id", "adapter", "work_dir", "轮次", "活跃会话"]:
             self.assertIn(expected, names)
 
     def test_session_id_truncated(self):
@@ -163,13 +163,13 @@ class TestBuildSessionStatusEmbed(unittest.TestCase):
     def test_no_session_description(self):
         client = _make_client()
         embed = build_session_status_embed(client, 999)
-        self.assertIn("No active session", embed.description)
+        self.assertIn("没有活跃会话", embed.description)
 
     def test_no_session_shows_active_count(self):
         client = _make_client()
         embed = build_session_status_embed(client, 999)
         names = [f.name for f in embed.fields]
-        self.assertIn("active sessions", names)
+        self.assertIn("活跃会话", names)
 
     def test_title_contains_agent_id(self):
         client = _make_client()

@@ -20,10 +20,10 @@ def is_dangerous_command(cmd: str) -> bool:
 def can_run_operator_command(config, user_id: int, cmd: str) -> str | None:
     """Return None if allowed, otherwise a denial reason string."""
     if config.allowed_user_ids and user_id not in config.allowed_user_ids:
-        return "Unauthorized: this command requires operator permission."
+        return "无权限：此命令需要 operator 权限。"
     if is_dangerous_command(cmd):
         if not config.allowed_user_ids or user_id not in config.allowed_user_ids:
-            return "Unauthorized: this command requires explicit operator permission."
+            return "无权限：此命令需要显式 operator 权限。"
     return None
 
 
@@ -36,7 +36,7 @@ async def handle_operator_command(cmd: str, client, channel_id: int) -> str:
         return _cmd_agents(client)
     if cmd == "health":
         return await _cmd_health(client)
-    return "Unknown command."
+    return "未知命令。"
 
 
 def _cmd_session_status(client, channel_id: int) -> str:
@@ -45,20 +45,20 @@ def _cmd_session_status(client, channel_id: int) -> str:
     current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
     all_sessions = client.session_store.list_by_agent(agent_id=agent_id)
 
-    lines = [f"**Session Status** — {agent_id}\n"]
+    lines = [f"**会话状态** — {agent_id}\n"]
     if current:
         sid = current["session_id"]
-        lines.append(f"**Current scope** (channel {scope_id}):")
+        lines.append(f"**当前 scope**（频道 {scope_id}）：")
         lines.append(f"  session_id: `{sid[:16]}...`" if len(sid) > 16 else f"  session_id: `{sid}`")
         lines.append(f"  adapter: {current['adapter']}")
         lines.append(f"  work_dir: {current['work_dir'] or '(none)'}")
         lines.append(f"  status: {current['status']}")
-        lines.append(f"  turns: {current['turn_count']}")
-        lines.append(f"  updated: {_fmt_time(current['updated_at'])}")
+        lines.append(f"  轮次: {current['turn_count']}")
+        lines.append(f"  更新时间: {_fmt_time(current['updated_at'])}")
     else:
-        lines.append(f"No active session in this scope (channel {scope_id}).")
+        lines.append(f"当前 scope 没有活跃会话（频道 {scope_id}）。")
 
-    lines.append(f"\nActive sessions: {len(all_sessions)} total")
+    lines.append(f"\n活跃会话：共 {len(all_sessions)} 个")
     return "\n".join(lines)
 
 
@@ -67,13 +67,13 @@ def _cmd_session_reset(client, channel_id: int) -> str:
     agent_id = client.agent_config.id
     current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
     if not current:
-        return f"No active session in this scope (channel {scope_id})."
+        return f"当前 scope 没有活跃会话（频道 {scope_id}）。"
 
     client.session_store.mark_stale(scope_id=scope_id, agent_id=agent_id)
     return (
-        f"**Session reset** — {agent_id}\n\n"
-        f"Marked session in scope {scope_id} as stale.\n"
-        f"Next call will start fresh."
+        f"**会话已重置** — {agent_id}\n\n"
+        f"已将 scope {scope_id} 的会话标记为 stale。\n"
+        f"下一次调用会启动新会话。"
     )
 
 
@@ -82,16 +82,16 @@ def _cmd_agents(client) -> str:
     managed = [a for a in known if a.kind == "managed"]
     external = [a for a in known if a.kind == "external"]
 
-    lines = ["**Known Agents**\n"]
+    lines = ["**可用 Agent**\n"]
     if managed:
-        lines.append("**Managed:**")
+        lines.append("**托管 Agent：**")
         for a in managed:
-            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "无 Discord ID"
             lines.append(f"  {a.id} ({a.primary_name}) — {ident}")
     if external:
-        lines.append("\n**External:**")
+        lines.append("\n**外部 Gateway Agent：**")
         for a in external:
-            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "无 Discord ID"
             lines.append(f"  {a.id} ({a.primary_name}) — {ident}")
     return "\n".join(lines)
 
@@ -100,10 +100,10 @@ async def _cmd_health(client) -> str:
     health = await client.adapter.health_check()
     cfg = client.agent_config
     available = health.get("available", False)
-    status = "yes" if available else "no"
+    status = "是" if available else "否"
     path = health.get("path") or health.get("bin", "?")
     lines = [
-        f"**Health Check** — {cfg.id}\n",
+        f"**健康检查** — {cfg.id}\n",
         f"adapter: {health.get('adapter', '?')}",
         f"bin: {health.get('bin', '?')}",
         f"available: {status} (`{path}`)",
@@ -116,5 +116,5 @@ async def _cmd_health(client) -> str:
 
 def _fmt_time(ts: float) -> str:
     if not ts:
-        return "(unknown)"
+        return "(未知)"
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))

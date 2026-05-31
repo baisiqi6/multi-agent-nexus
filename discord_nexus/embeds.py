@@ -6,21 +6,21 @@ import discord
 
 
 def build_agents_embed(config) -> discord.Embed:
-    embed = discord.Embed(title="Known Agents", color=discord.Color.blurple())
+    embed = discord.Embed(title="可用 Agent", color=discord.Color.blurple())
     managed = [a for a in config.known_agents if a.kind == "managed"]
     external = [a for a in config.known_agents if a.kind == "external"]
     if managed:
         lines = []
         for a in managed:
-            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "无 Discord ID"
             lines.append(f"{a.id} ({a.primary_name}) — {ident}")
-        embed.add_field(name="Managed", value="\n".join(lines), inline=False)
+        embed.add_field(name="托管 Agent", value="\n".join(lines), inline=False)
     if external:
         lines = []
         for a in external:
-            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "no Discord ID"
+            ident = f"discord_id: `{a.discord_user_id}`" if a.discord_user_id else "无 Discord ID"
             lines.append(f"{a.id} ({a.primary_name}) — {ident}")
-        embed.add_field(name="External", value="\n".join(lines), inline=False)
+        embed.add_field(name="外部 Gateway Agent", value="\n".join(lines), inline=False)
     return embed
 
 
@@ -31,12 +31,12 @@ def build_health_embed(config, health: dict) -> discord.Embed:
     else:
         color = discord.Color.red()
     embed = discord.Embed(
-        title=f"Health Check — {config.id}",
+        title=f"健康检查 — {config.id}",
         color=color,
     )
     embed.add_field(name="adapter", value=health.get("adapter", "?"), inline=True)
     embed.add_field(name="bin", value=health.get("bin", "?"), inline=True)
-    embed.add_field(name="available", value="yes" if available else "no", inline=True)
+    embed.add_field(name="available", value="是" if available else "否", inline=True)
     embed.add_field(name="work_dir", value=config.work_dir or "(none)", inline=True)
     embed.add_field(name="model", value=config.model or "(default)", inline=True)
     embed.add_field(name="timeout", value=f"{config.timeout}s", inline=True)
@@ -55,7 +55,7 @@ def build_session_status_embed(client, channel_id: int) -> discord.Embed:
 
     if current:
         embed = discord.Embed(
-            title=f"Session Status — {agent_id}",
+            title=f"会话状态 — {agent_id}",
             color=discord.Color.green(),
         )
         sid = current["session_id"]
@@ -68,26 +68,26 @@ def build_session_status_embed(client, channel_id: int) -> discord.Embed:
         embed.add_field(name="adapter", value=current["adapter"], inline=True)
         embed.add_field(name="work_dir", value=current["work_dir"] or "(none)", inline=True)
         embed.add_field(name="status", value=current["status"], inline=True)
-        embed.add_field(name="turns", value=str(current["turn_count"]), inline=True)
+        embed.add_field(name="轮次", value=str(current["turn_count"]), inline=True)
         embed.add_field(
-            name="updated",
+            name="更新时间",
             value=_fmt_time(current["updated_at"]),
             inline=False,
         )
-        embed.add_field(name="active sessions", value=f"{len(all_sessions)} total", inline=False)
+        embed.add_field(name="活跃会话", value=f"共 {len(all_sessions)} 个", inline=False)
     else:
         embed = discord.Embed(
-            title=f"Session Status — {agent_id}",
-            description="No active session in this scope.",
+            title=f"会话状态 — {agent_id}",
+            description="当前 scope 没有活跃会话。",
             color=discord.Color.gold(),
         )
         embed.add_field(name="scope", value=scope_id, inline=True)
-        embed.add_field(name="active sessions", value=f"{len(all_sessions)} total", inline=True)
+        embed.add_field(name="活跃会话", value=f"共 {len(all_sessions)} 个", inline=True)
 
     return embed
 
 
 def _fmt_time(ts: float) -> str:
     if not ts:
-        return "(unknown)"
+        return "(未知)"
     return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))

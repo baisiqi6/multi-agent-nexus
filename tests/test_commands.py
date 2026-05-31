@@ -119,7 +119,7 @@ class TestCmdSessionStatus(unittest.TestCase):
         self.assertIn("sess-abc123", result)
         self.assertIn("999", result)
         self.assertIn("claude", result)
-        self.assertIn("turns: 1", result)
+        self.assertIn("轮次: 1", result)
 
     def test_without_active_session(self):
         client = _make_client()
@@ -127,7 +127,7 @@ class TestCmdSessionStatus(unittest.TestCase):
         result = asyncio.get_event_loop().run_until_complete(
             handle_operator_command("session status", client, msg.channel.id)
         )
-        self.assertIn("No active session", result)
+        self.assertIn("没有活跃会话", result)
         self.assertIn("999", result)
 
 
@@ -153,7 +153,7 @@ class TestCmdSessionReset(unittest.TestCase):
         result = asyncio.get_event_loop().run_until_complete(
             handle_operator_command("session reset", client, msg.channel.id)
         )
-        self.assertIn("No active session", result)
+        self.assertIn("没有活跃会话", result)
 
 
 class TestCmdAgents(unittest.TestCase):
@@ -163,9 +163,9 @@ class TestCmdAgents(unittest.TestCase):
         result = asyncio.get_event_loop().run_until_complete(
             handle_operator_command("agents", client, msg.channel.id)
         )
-        self.assertIn("Managed", result)
+        self.assertIn("托管 Agent", result)
         self.assertIn("test-agent", result)
-        self.assertIn("External", result)
+        self.assertIn("外部 Gateway Agent", result)
         self.assertIn("ext-agent", result)
         self.assertIn("discord_id: `111`", result)
         self.assertIn("discord_id: `222`", result)
@@ -181,7 +181,7 @@ class TestCmdHealth(unittest.TestCase):
             handle_operator_command("health", client, msg.channel.id)
         )
         self.assertIn("claude", result)
-        self.assertIn("available: yes", result)
+        self.assertIn("available: 是", result)
         self.assertIn("/tmp/test", result)
         self.assertIn("sonnet", result)
         self.assertIn("360s", result)

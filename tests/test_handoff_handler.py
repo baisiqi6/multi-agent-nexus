@@ -205,7 +205,7 @@ class TestAgentReport(unittest.TestCase):
 
         prompt = build_handoff_prompt(handoff, "Step 1")
 
-        self.assertIn("Task: phase-4", prompt)
+        self.assertIn("任务: phase-4", prompt)
         self.assertIn("Workspace: discord-nexus", prompt)
         self.assertIn("Step 1", prompt)
 
@@ -224,10 +224,10 @@ class TestAgentReport(unittest.TestCase):
             accept_output="accepted",
         )
 
-        self.assertIn("already completed `assignment accept`", prompt)
-        self.assertIn("Do NOT run `assignment accept` again", prompt)
+        self.assertIn("完成本任务的 `assignment accept`", prompt)
+        self.assertIn("不要再次运行 `assignment accept`", prompt)
         self.assertIn("mac-codex", prompt)
-        self.assertIn("Accept result: accepted", prompt)
+        self.assertIn("接收结果: accepted", prompt)
 
 
 if __name__ == "__main__":
