@@ -1,17 +1,50 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-05-31T15:27:17Z",
+  "generated_at": "2026-05-31T16:57:48Z",
   "current_status": "",
-  "current_item": null,
+  "current_item": {
+    "id": "phase-5.1-handoff-runtime-hardening",
+    "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
+    "status": "doing",
+    "owner": "mac-claude",
+    "selected_in_session": "auto-mac-claude-1780246205",
+    "updated_at": "2026-05-31",
+    "workflow": {
+      "status": "running",
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+      "updated_at": "2026-05-31"
+    },
+    "lease": {
+      "owner": "mac-claude",
+      "session": "auto-mac-claude-1780246205",
+      "acquired_at": "2026-05-31T16:50:05Z",
+      "expires_at": "2026-05-31T18:50:05Z",
+      "ttl_minutes": 120
+    },
+    "active_lease": {
+      "owner": "mac-claude",
+      "session": "auto-mac-claude-1780246205",
+      "acquired_at": "2026-05-31T16:50:05Z",
+      "expires_at": "2026-05-31T18:50:05Z",
+      "ttl_minutes": 120
+    },
+    "artifacts": {
+      "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening"
+    },
+    "review": {},
+    "plan_path": "docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/plan.md"
+  },
   "checklist_summary": {
     "todo": 0,
-    "doing": 0,
+    "doing": 1,
     "done": 3,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 3
+    "closed": 3,
+    "running": 1
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -50,39 +83,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "id": "evt-20260529T011524Z-retroactive-commit",
-      "type": "harness.retroactive_correction",
-      "project": "discord-nexus",
-      "task_id": "phase-3.3-runtime-launchd",
-      "actor": "coordinator-operator",
-      "created_at": "2026-05-29T01:15:24Z",
-      "harness_root": "docs/project-harness",
-      "note": "Work was committed directly to feature/multi-bot (4a92912) without coordinator branch flow. Harness branch field corrected from agents/worker/phase-3.3-runtime-launchd to feature/multi-bot. No coordinator review or merge gate was used."
-    },
-    {
-      "actor": "mac-codex",
-      "artifacts": [],
-      "branch": "feature/multi-bot",
-      "causation_id": null,
-      "created_at": "2026-05-29T11:48:59Z",
-      "id": "evt-20260529T114859Z-31cac613",
-      "idempotency_key": "ACCEPT:phase-4-coordinator-integration:running:mac-codex",
-      "metadata": {
-        "force_reason": null,
-        "session": "retry-002"
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "running",
-      "summary": "mac-codex accepted phase-4-coordinator-integration",
-      "target": "mac-codex",
-      "task": "phase-4-coordinator-integration",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260529T114859Z-31cac613 task=phase-4-coordinator-integration actor=mac-codex target=mac-codex status=running branch=feature/multi-bot"
-    },
     {
       "actor": "mac-codex",
       "artifacts": [],
@@ -214,6 +214,52 @@
       "task": "dogfood-doc-sync",
       "type": "CLOSE",
       "visible_header": "[CLOSE] id=evt-20260531T152455Z-fcadf895 task=dogfood-doc-sync actor=codex status=done"
+    },
+    {
+      "actor": "mac-claude",
+      "artifacts": [],
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+      "causation_id": null,
+      "created_at": "2026-05-31T16:31:50Z",
+      "id": "evt-20260531T163150Z-51cb3353",
+      "idempotency_key": "ACCEPT:phase-5.1-handoff-runtime-hardening:running:mac-claude",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-claude-1780245110"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-claude accepted phase-5.1-handoff-runtime-hardening",
+      "target": "mac-claude",
+      "task": "phase-5.1-handoff-runtime-hardening",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260531T163150Z-51cb3353 task=phase-5.1-handoff-runtime-hardening actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.1-handoff-runtime-hardening"
+    },
+    {
+      "actor": "mac-claude",
+      "artifacts": [],
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+      "causation_id": null,
+      "created_at": "2026-05-31T16:50:05Z",
+      "id": "evt-20260531T165005Z-d4dc4f1d",
+      "idempotency_key": "ACCEPT:phase-5.1-handoff-runtime-hardening:running:mac-claude",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-claude-1780246205"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-claude accepted phase-5.1-handoff-runtime-hardening",
+      "target": "mac-claude",
+      "task": "phase-5.1-handoff-runtime-hardening",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260531T165005Z-d4dc4f1d task=phase-5.1-handoff-runtime-hardening actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.1-handoff-runtime-hardening"
     }
   ]
 }

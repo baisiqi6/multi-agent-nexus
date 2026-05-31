@@ -5,15 +5,12 @@ accept success (with/without bootstrap), and adapter invocation.
 """
 
 import asyncio
-import os
-import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
 from discord_nexus.adapters.base import AdapterResult
-from discord_nexus.handoff_handler import CoordinatorHandoff
 from discord_nexus.models import AgentConfig, KnownAgentMention
 
 

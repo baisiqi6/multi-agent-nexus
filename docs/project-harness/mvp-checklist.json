@@ -121,6 +121,44 @@
         "ttl_minutes": 120,
         "released_at": "2026-05-31T15:24:55Z"
       }
+    },
+    {
+      "id": "phase-5.1-handoff-runtime-hardening",
+      "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
+      "status": "doing",
+      "priority": "p1",
+      "owner": "mac-claude",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "auto-mac-claude-1780246205",
+      "updated_at": "2026-05-31",
+      "workflow": {
+        "status": "running",
+        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+        "updated_at": "2026-05-31"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening"
+      },
+      "verification": "",
+      "review": {},
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780246205",
+        "acquired_at": "2026-05-31T16:50:05Z",
+        "expires_at": "2026-05-31T18:50:05Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
