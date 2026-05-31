@@ -43,6 +43,17 @@ def assert_not_done(item: dict) -> None:
         fail(f"item '{item['id']}' is already done")
 
 
+def mark_done_verification(item: dict, args: argparse.Namespace) -> str:
+    review = ensure_review(item)
+    return (
+        args.verification
+        or item.get("verification")
+        or review.get("summary")
+        or args.summary
+        or f"Closed by {args.actor} after approved review."
+    )
+
+
 def assert_claimable(
     checklist: dict,
     item: dict,
@@ -327,8 +338,13 @@ def do_mark_done(args: argparse.Namespace) -> int:
     checklist = load_checklist()
     item = require_item(checklist, args.item)
     require_force_reason(args.force, args.reason)
+    verification = mark_done_verification(item, args)
 
     if item.get("status") == "done":
+        if not item.get("verification") and verification:
+            item["verification"] = verification
+            item["updated_at"] = today()
+            save_checklist(checklist)
         print(f"Item already done: {args.item}")
         return 0
 
@@ -341,6 +357,7 @@ def do_mark_done(args: argparse.Namespace) -> int:
             fail("mark-done requires approved review of a closeout request; use --force --reason only for explicit human override")
 
     item["status"] = "done"
+    item["verification"] = verification
     item["updated_at"] = today()
     workflow["status"] = "closed"
     workflow["updated_at"] = today()
@@ -437,6 +454,7 @@ def build_parser() -> argparse.ArgumentParser:
     done.add_argument("--actor", default="coordinator")
     done.add_argument("--summary", default=None)
     done.add_argument("--artifact", default=None)
+    done.add_argument("--verification", default=None)
     done.add_argument("--force", action="store_true")
     done.add_argument("--reason", default=None)
     done.set_defaults(func=do_mark_done)

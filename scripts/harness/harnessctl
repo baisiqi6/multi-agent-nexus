@@ -35,7 +35,7 @@ Workflow commands:
                                Generate current/handoff-packet.md and event
   review-result <item-id> <reviewer> <approved|changes_requested|blocked> [--summary TEXT]
                                Record reviewer decision
-  mark-done <item-id> [actor] [--force --reason TEXT]
+  mark-done <item-id> [actor] [--verification TEXT] [--force --reason TEXT]
                                Mark done only after approved review, unless forced
 
 Packet and state commands:

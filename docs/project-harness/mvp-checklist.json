@@ -125,9 +125,9 @@
     {
       "id": "phase-5.1-handoff-runtime-hardening",
       "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
-      "owner": "mac-claude",
+      "owner": null,
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
@@ -139,25 +139,33 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": "auto-mac-claude-1780246205",
+      "selected_in_session": null,
       "updated_at": "2026-05-31",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
         "updated_at": "2026-05-31"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
-        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening"
+        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {},
+      "verification": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-05-31",
+        "summary": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK."
+      },
       "lease": {
         "owner": "mac-claude",
         "session": "auto-mac-claude-1780246205",
         "acquired_at": "2026-05-31T16:50:05Z",
         "expires_at": "2026-05-31T18:50:05Z",
-        "ttl_minutes": 120
+        "ttl_minutes": 120,
+        "released_at": "2026-05-31T17:11:28Z"
       }
     }
   ]

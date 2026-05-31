@@ -2,24 +2,24 @@
 
 ## Subject
 
-- Checklist item: `dogfood-doc-sync`
-- Reviewer: `operator`
+- Checklist item: `phase-5.1-handoff-runtime-hardening`
+- Reviewer: `codex`
 - Updated at: `2026-05-31`
-- Canonical plan path: `docs/project-harness/tasks/dogfood-doc-sync/plan.md`
+- Canonical plan path: `docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/plan.md`
 
 ## Item Snapshot
 
-- Title: Dogfood: sync coordinator integration docs
+- Title: Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol
 - Status: doing
 - Workflow status: closeout_requested
 - Priority: p1
-- Owner: mac-codex
-- Session: auto-mac-codex-1780240587
+- Owner: mac-claude
+- Session: auto-mac-claude-1780246205
 - Dependencies: None
 
 ## Acceptance
 
-Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/dogfood-doc-sync/plan.md
+Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md
 
 ## Verification
 
@@ -40,59 +40,26 @@ Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/
 ## Canonical Plan Content
 
 ```md
-# Dogfood Task: Coordinator Integration Documentation Sync
+# Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol
 
-## Context
+This task implements the Phase 5.1 slice from the Phase 5 hardening roadmap.
 
-Phase 4 coordinator integration is now implemented and closed, but some long-form planning docs still describe coordinator integration as future work or webhook-only. This task is intentionally small so the next worker can validate the coordinator-driven task lifecycle without risking runtime behavior.
+Canonical roadmap:
 
-## Goal
+- `docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md`
 
-Update documentation so it reflects the current state:
+Scope for this task:
 
-- coordinator has a Discord bot daemon for visible delivery and command ingestion.
-- coordinator can generate targeted agent handoff deliveries.
-- discord-nexus can auto-accept coordinator handoffs for managed agents.
-- harness state is managed through coordinator/harnessctl, not by direct JSON edits.
+- Add discord-nexus runtime regression tests for coordinator handoff auto-accept.
+- Document the `[agent-report]` protocol and the boundary between Discord-visible reports and coordinator CLI lifecycle mutations.
+- Use the task-scoped bootstrap:
+  `docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/worker-bootstrap.md`
 
-## Scope
+Non-goals:
 
-Primary files to inspect:
-
-- `docs/discord-multibot-plan/multi-bot-refactor-plan.md`
-- `docs/multi-agent-collaboration.md`
-- `docs/multi-agent-harness-overview.md`
-- `docs/project-harness/runbook.md`
-- `docs/project-harness/scope.md`
-
-Update only documentation. Do not change runtime code, tokens, local config, launchd scripts, adapter behavior, or coordinator DB state.
-
-## Non-Goals
-
-- No code changes.
-- No Discord bot restart.
-- No live Discord message send.
-- No schema changes.
-- No rewrite of old historical acceptance docs unless they are actively misleading as current-state docs.
-
-## Validation
-
-Run:
-
-```bash
-git diff --check
-scripts/harness/harnessctl validate
-scripts/harness/harnessctl doctor
-```
-
-If documentation references commands, sanity-check command names against current source or `--help` output where practical.
-
-## Done Criteria
-
-- Stale “coordinator integration is future work” wording is either updated or clearly marked as historical.
-- Current coordinator/discord-nexus boundary is documented consistently.
-- No generated state noise remains in git status.
-- Worker reports changed files, validation output, and any remaining documentation drift.
+- Do not implement task-scoped session lifecycle.
+- Do not implement agent registry auto-sync.
+- Do not change merge, deploy, or mark-done gates.
 ```
 
 ## Recent Progress Context
