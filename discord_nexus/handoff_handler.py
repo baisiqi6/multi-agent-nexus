@@ -31,7 +31,7 @@ class CoordinatorHandoff:
 _HANDOFF_PREFIX_RE = re.compile(r"\[handoff\]\s*<@!?(\d+)>", re.IGNORECASE)
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _ALLOWED_ACTIONS = frozenset({"assignment.accept"})
-_REPORT_ACTIONS = frozenset({"accept", "blocker", "done"})
+_REPORT_ACTIONS = frozenset({"accept", "blocker", "done", "progress"})
 
 
 def parse_coordinator_handoff(

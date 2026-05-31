@@ -195,6 +195,26 @@ class TestAgentReport(unittest.TestCase):
         self.assertIn("task_id=phase-4", report)
         self.assertIn("summary='auto accepted by mac-codex'", report)
 
+    def test_builds_structured_progress_report(self):
+        handoff = CoordinatorHandoff(
+            workspace_id="discord-nexus",
+            task_id="phase-4",
+            bootstrap_path="",
+            action="assignment.accept",
+        )
+
+        report = build_agent_report(
+            "progress",
+            handoff,
+            summary="launchd scripts done; tests OK",
+        )
+
+        self.assertIn("[agent-report]", report)
+        self.assertIn("action=progress", report)
+        self.assertIn("workspace_id=discord-nexus", report)
+        self.assertIn("task_id=phase-4", report)
+        self.assertIn("summary='launchd scripts done; tests OK'", report)
+
     def test_builds_handoff_prompt_with_bootstrap(self):
         handoff = CoordinatorHandoff(
             workspace_id="discord-nexus",
