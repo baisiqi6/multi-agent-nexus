@@ -105,7 +105,7 @@
         "branch": "agents/mac-codex/dogfood-doc-sync",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "git diff --check passed; scripts/harness/harnessctl validate passed before closeout; scripts/harness/harnessctl doctor exited 0 with only existing optional/current file misses; reviewer rechecked docs and approved coordinator bot daemon, targeted handoff, auto-accept, and coordinator-owned lifecycle wording.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
