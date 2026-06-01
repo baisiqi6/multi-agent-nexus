@@ -2,6 +2,12 @@
 
 import time
 
+from .sessions.scope import (
+    describe_scope,
+    legacy_scope_for_channel_id,
+    scope_for_channel_id,
+)
+
 OPERATOR_COMMANDS = {"session status", "session reset", "agents", "health"}
 
 
@@ -27,11 +33,13 @@ def can_run_operator_command(config, user_id: int, cmd: str) -> str | None:
     return None
 
 
-async def handle_operator_command(cmd: str, client, channel_id: int) -> str:
+async def handle_operator_command(
+    cmd: str, client, channel_id: int, *, is_thread: bool = False
+) -> str:
     if cmd == "session status":
-        return _cmd_session_status(client, channel_id)
+        return _cmd_session_status(client, channel_id, is_thread=is_thread)
     if cmd == "session reset":
-        return _cmd_session_reset(client, channel_id)
+        return _cmd_session_reset(client, channel_id, is_thread=is_thread)
     if cmd == "agents":
         return _cmd_agents(client)
     if cmd == "health":
@@ -39,16 +47,23 @@ async def handle_operator_command(cmd: str, client, channel_id: int) -> str:
     return "未知命令。"
 
 
-def _cmd_session_status(client, channel_id: int) -> str:
-    scope_id = str(channel_id)
+def _cmd_session_status(client, channel_id: int, *, is_thread: bool = False) -> str:
+    scope_id = scope_for_channel_id(channel_id, is_thread=is_thread)
+    legacy_scope_id = legacy_scope_for_channel_id(channel_id)
     agent_id = client.agent_config.id
-    current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
+    current = client.session_store.get_first_active(
+        scope_ids=(scope_id, legacy_scope_id),
+        agent_id=agent_id,
+    )
     all_sessions = client.session_store.list_by_agent(agent_id=agent_id)
+    scope_desc = describe_scope(current["scope_id"] if current else scope_id)
 
     lines = [f"**会话状态** — {agent_id}\n"]
     if current:
         sid = current["session_id"]
-        lines.append(f"**当前 scope**（频道 {scope_id}）：")
+        lines.append(f"**当前 scope**（{scope_desc.label} `{scope_desc.detail}`）：")
+        lines.append(f"  scope: `{current['scope_id']}`")
+        lines.append(f"  scope_type: {scope_desc.label}")
         lines.append(f"  session_id: `{sid[:16]}...`" if len(sid) > 16 else f"  session_id: `{sid}`")
         lines.append(f"  adapter: {current['adapter']}")
         lines.append(f"  work_dir: {current['work_dir'] or '(none)'}")
@@ -56,23 +71,30 @@ def _cmd_session_status(client, channel_id: int) -> str:
         lines.append(f"  轮次: {current['turn_count']}")
         lines.append(f"  更新时间: {_fmt_time(current['updated_at'])}")
     else:
-        lines.append(f"当前 scope 没有活跃会话（频道 {scope_id}）。")
+        lines.append(
+            f"当前 scope 没有活跃会话（{scope_desc.label} `{scope_id}`）。"
+        )
 
     lines.append(f"\n活跃会话：共 {len(all_sessions)} 个")
     return "\n".join(lines)
 
 
-def _cmd_session_reset(client, channel_id: int) -> str:
-    scope_id = str(channel_id)
+def _cmd_session_reset(client, channel_id: int, *, is_thread: bool = False) -> str:
+    scope_id = scope_for_channel_id(channel_id, is_thread=is_thread)
+    legacy_scope_id = legacy_scope_for_channel_id(channel_id)
     agent_id = client.agent_config.id
-    current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
+    current = client.session_store.get_first_active(
+        scope_ids=(scope_id, legacy_scope_id),
+        agent_id=agent_id,
+    )
+    scope_desc = describe_scope(current["scope_id"] if current else scope_id)
     if not current:
-        return f"当前 scope 没有活跃会话（频道 {scope_id}）。"
+        return f"当前 scope 没有活跃会话（{scope_desc.label} `{scope_id}`）。"
 
-    client.session_store.mark_stale(scope_id=scope_id, agent_id=agent_id)
+    client.session_store.mark_stale(scope_id=current["scope_id"], agent_id=agent_id)
     return (
         f"**会话已重置** — {agent_id}\n\n"
-        f"已将 scope {scope_id} 的会话标记为 stale。\n"
+        f"已将 {scope_desc.label} `{current['scope_id']}` 的会话标记为 stale。\n"
         f"下一次调用会启动新会话。"
     )
 

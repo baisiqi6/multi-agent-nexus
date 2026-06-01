@@ -63,6 +63,13 @@ All plists: RunAtLoad=true, KeepAlive=true, ThrottleInterval=30.
 
 All gated by `allowed_user_ids` from `agents.toml`.
 
+Session status output includes the current scope type:
+
+- `channel scope`: regular channel messages, stored as `channel:<channel_id>`.
+- `thread scope`: Discord thread messages, stored as `thread:<thread_id>`.
+- `task scope`: coordinator handoffs, stored as `task:<workspace_id>:<task_id>`.
+- `legacy channel scope`: pre-Phase 5.2 numeric scope retained only for compatibility.
+
 ## Harness Operations
 
 ```bash
@@ -116,5 +123,18 @@ The daemon can also be mentioned in Discord for `status`, `task list`, `task sho
 **Dual process conflict**: `start.sh` refuses if a manual process exists. Run `scripts/stop.sh` first, or kill the manual process: `pgrep -f "nexus.py.*--agent <id>"`.
 
 **Session stuck**: Use `/session reset` or `session reset` text command in Discord to mark the session stale.
+
+**Task session contamination**:
+
+1. In Discord, run `/session status` in the current channel/thread and confirm whether the scope type is `channel scope`, `thread scope`, or `task scope`.
+2. Inspect `data/discord_context.sqlite3` if needed:
+
+```bash
+sqlite3 data/discord_context.sqlite3 \
+  "SELECT scope_id, agent_id, session_id, status, turn_count, datetime(updated_at, 'unixepoch') FROM sessions ORDER BY updated_at DESC LIMIT 20;"
+```
+
+3. Coordinator handoffs should use `task:<workspace_id>:<task_id>`. If two coordinator tasks share one session, check for legacy numeric scopes and stale them with `/session reset` from the affected visible scope.
+4. After coordinator `assignment.closeout`, `assignment.mark-done`, or `task.done` notices, the matching local task session should become `archived`; archived sessions are not resumed.
 
 **Harness drift**: Run `$MAC_SH reconcile discord-nexus` then `$MAC_SH workspace audit discord-nexus`.

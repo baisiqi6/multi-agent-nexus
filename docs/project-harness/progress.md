@@ -4,6 +4,15 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-01
 
+### Phase 5.2: Task-Scoped Session Lifecycle — implementation
+
+- Added canonical session scope helpers for `channel:<channel_id>`, `thread:<thread_id>`, and `task:<workspace_id>:<task_id>`, with legacy numeric scope fallback for existing sessions.
+- Extended `SessionStore` with active lookup fallback, scope-prefix/task queries, and task stale/archive lifecycle operations.
+- Updated coordinator handoff runtime so accepted task handoffs use task scope, resume the same task session, isolate different tasks, and archive local task sessions on coordinator closeout/done lifecycle notices without executing coordinator mutations from Discord text.
+- Updated text and slash session status/reset output to show scope type.
+- Updated session persistence design and runbook with task scope priority, archive semantics, and contamination troubleshooting.
+- Validation: targeted session/command/handoff tests passed; full suite `.venv/bin/python -m unittest discover tests/` passed with 161 tests.
+
 ### Phase 5.1: Handoff Runtime Hardening — runtime tests and protocol docs
 
 - Added 12 runtime tests in `tests/test_coordinator_handoff_runtime.py` covering:

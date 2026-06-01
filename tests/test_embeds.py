@@ -142,8 +142,28 @@ class TestBuildSessionStatusEmbed(unittest.TestCase):
         )
         embed = build_session_status_embed(client, 999)
         names = [f.name for f in embed.fields]
-        for expected in ["scope", "session_id", "adapter", "work_dir", "轮次", "活跃会话"]:
+        for expected in ["scope", "scope_type", "session_id", "adapter", "work_dir", "轮次", "活跃会话"]:
             self.assertIn(expected, names)
+
+    def test_scope_type_field_for_channel(self):
+        client = _make_client()
+        client.session_store.upsert(
+            scope_id="channel:999", agent_id="test-agent",
+            adapter="claude", session_id="sess-abc123456789", work_dir="/tmp/test",
+        )
+        embed = build_session_status_embed(client, 999)
+        scope_type = next(f for f in embed.fields if f.name == "scope_type")
+        self.assertEqual(scope_type.value, "channel scope")
+
+    def test_scope_type_field_for_thread(self):
+        client = _make_client()
+        client.session_store.upsert(
+            scope_id="thread:888", agent_id="test-agent",
+            adapter="claude", session_id="sess-abc123456789", work_dir="/tmp/test",
+        )
+        embed = build_session_status_embed(client, 888, is_thread=True)
+        scope_type = next(f for f in embed.fields if f.name == "scope_type")
+        self.assertEqual(scope_type.value, "thread scope")
 
     def test_session_id_truncated(self):
         client = _make_client()

@@ -127,6 +127,103 @@ class TestSessionStore(unittest.TestCase):
         self.assertEqual(result["status"], "active")
         self.assertEqual(result["turn_count"], 1)
 
+    def test_get_first_active_prefers_canonical_scope(self):
+        self.store.upsert(
+            scope_id="999", agent_id="claude",
+            adapter="claude", session_id="sess-legacy",
+        )
+        self.store.upsert(
+            scope_id="channel:999", agent_id="claude",
+            adapter="claude", session_id="sess-canonical",
+        )
+        result = self.store.get_first_active(
+            scope_ids=("channel:999", "999"),
+            agent_id="claude",
+        )
+        self.assertEqual(result["session_id"], "sess-canonical")
+
+    def test_get_first_active_falls_back_to_legacy_scope(self):
+        self.store.upsert(
+            scope_id="999", agent_id="claude",
+            adapter="claude", session_id="sess-legacy",
+        )
+        result = self.store.get_first_active(
+            scope_ids=("channel:999", "999"),
+            agent_id="claude",
+        )
+        self.assertEqual(result["session_id"], "sess-legacy")
+
+    def test_list_by_scope_prefix_can_include_stale(self):
+        self.store.upsert(
+            scope_id="task:discord-nexus:phase-a", agent_id="claude",
+            adapter="claude", session_id="sess-active",
+        )
+        self.store.upsert(
+            scope_id="task:discord-nexus:phase-b", agent_id="claude",
+            adapter="claude", session_id="sess-stale",
+        )
+        self.store.mark_stale(
+            scope_id="task:discord-nexus:phase-b", agent_id="claude",
+        )
+
+        active = self.store.list_by_scope_prefix(
+            scope_prefix="task:discord-nexus:",
+            agent_id="claude",
+        )
+        all_rows = self.store.list_by_scope_prefix(
+            scope_prefix="task:discord-nexus:",
+            agent_id="claude",
+            include_stale=True,
+        )
+
+        self.assertEqual(len(active), 1)
+        self.assertEqual(len(all_rows), 2)
+
+    def test_list_by_scope_prefix_treats_underscore_literally(self):
+        self.store.upsert(
+            scope_id="task:discord-nexus:phase_1", agent_id="claude",
+            adapter="claude", session_id="sess-underscore",
+        )
+        self.store.upsert(
+            scope_id="task:discord-nexus:phaseA1", agent_id="claude",
+            adapter="claude", session_id="sess-other",
+        )
+
+        rows = self.store.list_by_scope_prefix(
+            scope_prefix="task:discord-nexus:phase_",
+            agent_id="claude",
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["session_id"], "sess-underscore")
+
+    def test_mark_task_archived_makes_task_session_inactive(self):
+        self.store.upsert(
+            scope_id="task:discord-nexus:phase-a", agent_id="claude",
+            adapter="claude", session_id="sess-task",
+        )
+
+        changed = self.store.mark_task_archived(
+            workspace_id="discord-nexus",
+            task_id="phase-a",
+            agent_id="claude",
+        )
+
+        self.assertEqual(changed, 1)
+        self.assertIsNone(
+            self.store.get(
+                scope_id="task:discord-nexus:phase-a",
+                agent_id="claude",
+            )
+        )
+        rows = self.store.list_task_scope(
+            workspace_id="discord-nexus",
+            task_id="phase-a",
+            agent_id="claude",
+            include_stale=True,
+        )
+        self.assertEqual(rows[0]["status"], "archived")
+
 
 if __name__ == "__main__":
     unittest.main()
