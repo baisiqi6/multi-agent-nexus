@@ -4,6 +4,17 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-01
 
+### Phase 5.3: Agent Registry Auto-Sync — implementation
+
+- Created `src/multi_agent_coordinator/agent_registry.py`: TOML parser for `[[agents]]` and `[[external_agents]]` that extracts `id`, `display_name`, `discord_user_id`, and `agent_type`. Skips entries missing `discord_user_id`, fails closed on duplicate IDs or Discord user IDs.
+- Added `sync_workspace_agents` batch helper to `db.py` with merge (default, preserves manual overrides) and `--replace` (replaces entire registry) semantics.
+- Added `workspace agent sync` CLI subcommand with `--source` and `--replace` flags. Outputs JSON summary: `added`, `updated`, `unchanged`, `skipped`, `removed` (replace only).
+- 16 new tests: 6 TOML parsing, 6 DB sync, 4 CLI integration (including token leak prevention).
+- Coordinator test suite: 640/640 pass. discord-nexus test suite: 165/165 pass.
+- End-to-end verified: synced 8 agents from real `agents.toml` to coordinator DB.
+- Updated `agents.toml.example` to mark `discord_user_id` as required for registry sync.
+- Updated runbook with `workspace agent sync` commands.
+
 ### Phase 5.2: Task-Scoped Session Lifecycle — implementation
 
 - Added canonical session scope helpers for `channel:<channel_id>`, `thread:<thread_id>`, and `task:<workspace_id>:<task_id>`, with legacy numeric scope fallback for existing sessions.
