@@ -144,3 +144,87 @@ sqlite3 data/discord_context.sqlite3 \
 4. After coordinator `assignment.closeout`, `assignment.mark-done`, or `task.done` notices, the matching local task session should become `archived`; archived sessions are not resumed.
 
 **Harness drift**: Run `$MAC_SH reconcile discord-nexus` then `$MAC_SH workspace audit discord-nexus`.
+
+## New Workspace Onboarding
+
+To connect a new workspace to the coordinator harness:
+
+### 1. Register workspace
+
+```bash
+$MAC_SH workspace add <workspace-id> \
+  --path /path/to/project \
+  --harness-root docs/project-harness \
+  --base-branch main \
+  --branch-namespace agents
+```
+
+### 2. Diagnose current state
+
+```bash
+$MAC_SH workspace doctor <workspace-id>
+```
+
+This shows whether the workspace has `none`, `minimal_file_backed`, or `full_harness_runtime` capability. A fresh workspace will show `none`.
+
+### 3. Initialize full harness runtime
+
+```bash
+# From an existing reference workspace (e.g. discord-nexus)
+$MAC_SH workspace init-harness <workspace-id> \
+  --mode full \
+  --source /path/to/discord-nexus/scripts/harness
+
+# Dry-run first to see what would be created
+$MAC_SH workspace init-harness <workspace-id> \
+  --mode full \
+  --source /path/to/discord-nexus/scripts/harness \
+  --dry-run
+```
+
+This copies `scripts/harness/` runtime from the source and creates protocol files (`scope.md`, `architecture.md`, `domain-model.md`, `runbook.md`) under the harness root. Existing files are never overwritten.
+
+### 4. Verify full harness status
+
+```bash
+$MAC_SH workspace doctor <workspace-id>
+```
+
+Should now report `full_harness_runtime` with `harnessctl_available: true`.
+
+### 5. Create and assign first task
+
+```bash
+# Write plan to docs/project-harness/tasks/<task-id>/plan.md
+$MAC_SH task create <workspace-id> \
+  --task-id <task-id> \
+  --plan-doc docs/project-harness/tasks/<task-id>/plan.md \
+  --title "Task title"
+
+# Generate worker bootstrap and targeted agent handoff
+$MAC_SH task handoff <workspace-id> \
+  --task-id <task-id> \
+  --role worker \
+  --target-agent mac-claude \
+  --write-bootstrap
+```
+
+### 6. Verify no drift
+
+```bash
+$MAC_SH workspace audit <workspace-id>
+```
+
+### Minimal init (alternative)
+
+If you only need file-backed state without harnessctl runtime:
+
+```bash
+$MAC_SH workspace init-harness <workspace-id> \
+  --mode minimal \
+  --root docs/project-harness \
+  --task-id <task-id> \
+  --plan-doc docs/project-harness/tasks/<task-id>/plan.md
+```
+
+This creates a minimal harness structure but cannot support mutation lifecycle (assignment accept, handoff, closeout, mark-done).
