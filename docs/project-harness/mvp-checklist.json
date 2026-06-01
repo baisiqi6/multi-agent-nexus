@@ -261,6 +261,36 @@
         "ttl_minutes": 120,
         "released_at": "2026-06-01T12:02:04Z"
       }
+    },
+    {
+      "id": "phase-5.4-workspace-doctor-harness-init",
+      "title": "Phase 5.4 Workspace Doctor And Full Harness Init",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01T12:08:38Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-01T12:08:38Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
