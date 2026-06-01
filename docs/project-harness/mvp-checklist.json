@@ -140,11 +140,11 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-05-31",
+      "updated_at": "2026-06-01",
       "workflow": {
-        "status": "closed",
+        "status": "closeout_requested",
         "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
-        "updated_at": "2026-05-31"
+        "updated_at": "2026-06-01"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
@@ -153,7 +153,7 @@
       },
       "verification": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
       "review": {
-        "decision": "approved",
+        "decision": null,
         "reviewer": "codex",
         "phase": "closeout_requested",
         "updated_at": "2026-05-31",
@@ -171,7 +171,7 @@
     {
       "id": "phase-5.2-task-scoped-session-lifecycle",
       "title": "Phase 5.2: Task-Scoped Session Lifecycle",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -186,17 +186,33 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-01T11:02:32Z",
+      "updated_at": "2026-06-01",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-06-01T11:02:32Z"
+        "status": "closed",
+        "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
+        "updated_at": "2026-06-01"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md"
+        "plan": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+        "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK."
+      },
+      "lease": {
+        "owner": "mac-codex",
+        "session": "auto-mac-codex-1780311828",
+        "acquired_at": "2026-06-01T11:03:48Z",
+        "expires_at": "2026-06-01T13:03:48Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-01T11:28:21Z"
+      }
     }
   ]
 }

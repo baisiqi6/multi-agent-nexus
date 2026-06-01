@@ -1,17 +1,52 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-05-31T17:13:16Z",
+  "generated_at": "2026-06-01T11:31:21Z",
   "current_status": "",
-  "current_item": null,
+  "current_item": {
+    "id": "phase-5.1-handoff-runtime-hardening",
+    "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
+    "status": "done",
+    "owner": null,
+    "selected_in_session": null,
+    "updated_at": "2026-06-01",
+    "workflow": {
+      "status": "closeout_requested",
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+      "updated_at": "2026-06-01"
+    },
+    "lease": {
+      "owner": "mac-claude",
+      "session": "auto-mac-claude-1780246205",
+      "acquired_at": "2026-05-31T16:50:05Z",
+      "expires_at": "2026-05-31T18:50:05Z",
+      "ttl_minutes": 120,
+      "released_at": "2026-05-31T17:11:28Z"
+    },
+    "active_lease": null,
+    "artifacts": {
+      "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+      "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+    },
+    "review": {
+      "decision": null,
+      "reviewer": "codex",
+      "phase": "closeout_requested",
+      "updated_at": "2026-05-31",
+      "summary": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK."
+    },
+    "plan_path": "docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/plan.md"
+  },
   "checklist_summary": {
     "todo": 0,
     "doing": 0,
-    "done": 4,
+    "done": 5,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 4
+    "closed": 4,
+    "closeout_requested": 1
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -50,116 +85,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "mac-codex",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T15:23:25Z",
-      "id": "evt-20260531T152325Z-4655340d",
-      "idempotency_key": "RESULT:dogfood-doc-sync:closeout_requested:mac-codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for dogfood-doc-sync",
-      "target": "operator",
-      "task": "dogfood-doc-sync",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260531T152325Z-4655340d task=dogfood-doc-sync actor=mac-codex target=operator status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
-    {
-      "actor": "codex",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T15:24:54Z",
-      "id": "evt-20260531T152454Z-d8c33396",
-      "idempotency_key": "REVIEW:dogfood-doc-sync:approved:codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "approved",
-      "summary": "Documentation sync reviewed: current coordinator bot daemon, targeted handoff, auto-accept, and coordinator-owned lifecycle boundaries are reflected. Validation passed.",
-      "target": "mac-codex",
-      "task": "dogfood-doc-sync",
-      "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260531T152454Z-d8c33396 task=dogfood-doc-sync actor=codex target=mac-codex status=approved"
-    },
-    {
-      "actor": "codex",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T15:24:55Z",
-      "id": "evt-20260531T152455Z-fcadf895",
-      "idempotency_key": "CLOSE:dogfood-doc-sync:done:codex",
-      "metadata": {
-        "force_reason": null
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "done",
-      "summary": "codex closed dogfood-doc-sync",
-      "target": null,
-      "task": "dogfood-doc-sync",
-      "type": "CLOSE",
-      "visible_header": "[CLOSE] id=evt-20260531T152455Z-fcadf895 task=dogfood-doc-sync actor=codex status=done"
-    },
-    {
-      "actor": "mac-claude",
-      "artifacts": [],
-      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
-      "causation_id": null,
-      "created_at": "2026-05-31T16:31:50Z",
-      "id": "evt-20260531T163150Z-51cb3353",
-      "idempotency_key": "ACCEPT:phase-5.1-handoff-runtime-hardening:running:mac-claude",
-      "metadata": {
-        "force_reason": null,
-        "session": "auto-mac-claude-1780245110"
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "running",
-      "summary": "mac-claude accepted phase-5.1-handoff-runtime-hardening",
-      "target": "mac-claude",
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260531T163150Z-51cb3353 task=phase-5.1-handoff-runtime-hardening actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.1-handoff-runtime-hardening"
-    },
-    {
-      "actor": "mac-claude",
-      "artifacts": [],
-      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
-      "causation_id": null,
-      "created_at": "2026-05-31T16:50:05Z",
-      "id": "evt-20260531T165005Z-d4dc4f1d",
-      "idempotency_key": "ACCEPT:phase-5.1-handoff-runtime-hardening:running:mac-claude",
-      "metadata": {
-        "force_reason": null,
-        "session": "auto-mac-claude-1780246205"
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "running",
-      "summary": "mac-claude accepted phase-5.1-handoff-runtime-hardening",
-      "target": "mac-claude",
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260531T165005Z-d4dc4f1d task=phase-5.1-handoff-runtime-hardening actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.1-handoff-runtime-hardening"
-    },
     {
       "actor": "mac-claude",
       "artifacts": [
@@ -223,6 +148,115 @@
       "task": "phase-5.1-handoff-runtime-hardening",
       "type": "CLOSE",
       "visible_header": "[CLOSE] id=evt-20260531T171128Z-4f8a4559 task=phase-5.1-handoff-runtime-hardening actor=codex-operator status=done"
+    },
+    {
+      "actor": "mac-codex",
+      "artifacts": [],
+      "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
+      "causation_id": null,
+      "created_at": "2026-06-01T11:03:48Z",
+      "id": "evt-20260601T110348Z-4224c412",
+      "idempotency_key": "ACCEPT:phase-5.2-task-scoped-session-lifecycle:running:mac-codex",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-codex-1780311828"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-codex accepted phase-5.2-task-scoped-session-lifecycle",
+      "target": "mac-codex",
+      "task": "phase-5.2-task-scoped-session-lifecycle",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260601T110348Z-4224c412 task=phase-5.2-task-scoped-session-lifecycle actor=mac-codex target=mac-codex status=running branch=agents/mac-codex/phase-5.2-task-scoped-session-lifecycle"
+    },
+    {
+      "actor": "mac-codex",
+      "artifacts": [
+        "docs/project-harness/current/closeout-packet.md"
+      ],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:27:52Z",
+      "id": "evt-20260601T112752Z-8f4f4094",
+      "idempotency_key": "RESULT:phase-5.2-task-scoped-session-lifecycle:closeout_requested:mac-codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "closeout_requested",
+      "summary": "Closeout requested for phase-5.2-task-scoped-session-lifecycle",
+      "target": "codex",
+      "task": "phase-5.2-task-scoped-session-lifecycle",
+      "type": "RESULT",
+      "visible_header": "[RESULT] id=evt-20260601T112752Z-8f4f4094 task=phase-5.2-task-scoped-session-lifecycle actor=mac-codex target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:28:11Z",
+      "id": "evt-20260601T112811Z-4b0d9375",
+      "idempotency_key": "REVIEW:phase-5.2-task-scoped-session-lifecycle:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
+      "target": "mac-codex",
+      "task": "phase-5.2-task-scoped-session-lifecycle",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260601T112811Z-4b0d9375 task=phase-5.2-task-scoped-session-lifecycle actor=codex target=mac-codex status=approved"
+    },
+    {
+      "actor": "codex-operator",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:28:21Z",
+      "id": "evt-20260601T112821Z-20b59e75",
+      "idempotency_key": "CLOSE:phase-5.2-task-scoped-session-lifecycle:done:codex-operator",
+      "metadata": {
+        "force_reason": null
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "done",
+      "summary": "codex-operator closed phase-5.2-task-scoped-session-lifecycle",
+      "target": null,
+      "task": "phase-5.2-task-scoped-session-lifecycle",
+      "type": "CLOSE",
+      "visible_header": "[CLOSE] id=evt-20260601T112821Z-20b59e75 task=phase-5.2-task-scoped-session-lifecycle actor=codex-operator status=done"
+    },
+    {
+      "actor": "coordinator",
+      "artifacts": [
+        "docs/project-harness/current/closeout-packet.md"
+      ],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:31:21Z",
+      "id": "evt-20260601T113121Z-1152af0e",
+      "idempotency_key": "RESULT:phase-5.1-handoff-runtime-hardening:closeout_requested:coordinator",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "closeout_requested",
+      "summary": "Closeout requested for phase-5.1-handoff-runtime-hardening",
+      "target": "codex",
+      "task": "phase-5.1-handoff-runtime-hardening",
+      "type": "RESULT",
+      "visible_header": "[RESULT] id=evt-20260601T113121Z-1152af0e task=phase-5.1-handoff-runtime-hardening actor=coordinator target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
     }
   ]
 }
