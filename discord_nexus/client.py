@@ -160,14 +160,27 @@ class DiscordClient(discord.Client):
             # respond_to_bots=true: only accept formal handoff to this agent
             addressed = self._is_addressed_to_me(message)
             handoff = self.mention_router.is_handoff_message(message.content)
+            coordinator_lifecycle = False
+            if (
+                self.agent_config.coordinator_bot_id
+                and message.author.id == self.agent_config.coordinator_bot_id
+            ):
+                coordinator_lifecycle = (
+                    parse_coordinator_lifecycle(
+                        message.content,
+                        my_discord_user_id=self.user.id,
+                    )
+                    is not None
+                )
             log.debug(
-                "[handoff-check] agent=%s from=%s addressed=%s handoff=%s mentions=%s content=%.200s",
+                "[handoff-check] agent=%s from=%s addressed=%s handoff=%s lifecycle=%s mentions=%s content=%.200s",
                 self.agent_config.id, message.author, addressed, handoff,
+                coordinator_lifecycle,
                 [u.id for u in message.mentions], message.content,
             )
             if not addressed:
                 return
-            if not handoff:
+            if not handoff and not coordinator_lifecycle:
                 return
             # Valid handoff: persist and handle
             self._record_message(message)

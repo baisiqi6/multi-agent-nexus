@@ -70,7 +70,7 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
 class TestParseCoordinatorLifecycle(unittest.TestCase):
     def test_parses_closeout_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=discord-nexus "
             "task_id=phase-5.2 action=assignment.closeout",
             my_discord_user_id=123,
         )
@@ -82,7 +82,7 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
     def test_parses_task_done_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=discord-nexus "
             "task_id=phase-5.2 action=task.done",
             my_discord_user_id=123,
         )
@@ -92,12 +92,31 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
     def test_rejects_assignment_accept_as_lifecycle(self):
         event = parse_coordinator_lifecycle(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=discord-nexus "
             "task_id=phase-5.2 action=assignment.accept",
             my_discord_user_id=123,
         )
 
         self.assertIsNone(event)
+
+    def test_parses_legacy_handoff_lifecycle_notice(self):
+        event = parse_coordinator_lifecycle(
+            "[handoff] <@123> workspace_id=discord-nexus "
+            "task_id=phase-5.2 action=task.done",
+            my_discord_user_id=123,
+        )
+
+        self.assertIsNotNone(event)
+        self.assertEqual(event.action, "task.done")
+
+    def test_handoff_parser_rejects_lifecycle_prefix(self):
+        handoff = parse_coordinator_handoff(
+            "[lifecycle] <@123> workspace_id=discord-nexus "
+            "task_id=phase-5.2 action=assignment.accept",
+            my_discord_user_id=123,
+        )
+
+        self.assertIsNone(handoff)
 
 
 class TestBootstrapRead(unittest.TestCase):

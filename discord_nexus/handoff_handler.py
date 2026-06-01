@@ -36,6 +36,10 @@ class CoordinatorLifecycleEvent:
 
 
 _HANDOFF_PREFIX_RE = re.compile(r"\[handoff\]\s*<@!?(\d+)>", re.IGNORECASE)
+_LIFECYCLE_PREFIX_RE = re.compile(
+    r"\[(?:lifecycle|handoff)\]\s*<@!?(\d+)>",
+    re.IGNORECASE,
+)
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _ALLOWED_ACTIONS = frozenset({"assignment.accept"})
 _LIFECYCLE_ACTIONS = frozenset(
@@ -96,7 +100,7 @@ def parse_coordinator_lifecycle(
     lets the runtime archive its own task-scoped CLI session after the coordinator
     has already emitted a closeout/done event.
     """
-    prefix = _HANDOFF_PREFIX_RE.search(content)
+    prefix = _LIFECYCLE_PREFIX_RE.search(content)
     if prefix is None:
         return None
     if int(prefix.group(1)) != my_discord_user_id:
