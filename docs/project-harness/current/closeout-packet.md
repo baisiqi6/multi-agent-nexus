@@ -2,24 +2,24 @@
 
 ## Subject
 
-- Checklist item: `phase-5.3-agent-registry-auto-sync`
+- Checklist item: `phase-5.4-workspace-doctor-harness-init`
 - Reviewer: `codex`
 - Updated at: `2026-06-01`
-- Canonical plan path: `docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md`
+- Canonical plan path: `docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md`
 
 ## Item Snapshot
 
-- Title: Phase 5.3 Agent Registry Auto-Sync
+- Title: Phase 5.4 Workspace Doctor And Full Harness Init
 - Status: doing
 - Workflow status: closeout_requested
 - Priority: p1
 - Owner: mac-claude
-- Session: auto-mac-claude-1780314531
+- Session: auto-mac-claude-1780315772
 - Dependencies: None
 
 ## Acceptance
 
-Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md
+Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md
 
 ## Verification
 
@@ -40,85 +40,121 @@ Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/
 ## Canonical Plan Content
 
 ```md
-# Phase 5.3 Agent Registry Auto-Sync
+# Phase 5.4 Workspace Doctor And Full Harness Init
 
 ## 背景
 
-Phase 4.5 后，coordinator 可以通过 `workspace agent add` 维护 workspace agent registry，并用 `task handoff --target-agent ...` 精准发送 Discord handoff。
+Phase 4 和 Phase 5.1-5.3 已经把 `discord-nexus` 接入 coordinator，并实际跑通了：
 
-当前问题是 registry 仍然靠人工维护。`discord-nexus/agents.toml` 里已经有 managed agents 和 external agents 的 `discord_user_id`，coordinator DB 里也有一份 agent registry。两边一旦漂移，handoff 会出现两类问题：
+- coordinator 创建 task、记录 plan approval、生成 worker bootstrap。
+- coordinator bot 通过 Discord 定向 handoff 给 managed agent。
+- `discord-nexus` managed agent 自动 accept，并按 task-scoped bootstrap 执行。
+- worker 通过 `[agent-report]` 回报 progress/blocker/done。
+- coordinator 将事件同步回 harness state。
 
-- target agent 未注册，handoff fail closed。
-- target agent 注册了旧 ID，handoff 发错人或无人响应。
+现在的问题是，新 workspace 接入这条链路仍然依赖人工判断和手工复制文件。之前 `discord-nexus` 接入时就出现过：
 
-本 phase 要把同步动作变成显式、可测试、可审计的 coordinator 命令。
+- workspace 指向了普通 docs 目录，而不是有效 harness root。
+- 缺少 `harnessctl` 时 audit/state 的提示不够直观。
+- minimal file-backed harness 能临时恢复状态，但不能完整支持 mutation lifecycle。
+- `scripts/harness/` runtime 需要从 skill 模板手工复制。
+
+本 phase 要把这部分 onboarding 和诊断能力做成 coordinator 的一等能力。
 
 ## 目标
 
-增加一个从 `discord-nexus` TOML 配置同步 agent registry 到 coordinator workspace 的能力，降低手工 `workspace agent add` 的维护成本。
+让 operator 能用 coordinator 明确判断一个 workspace 的 harness 能力，并能一键初始化完整 harness runtime，而不是靠人工拼接文件。
 
 ## 实施范围
 
 ### multi-agent-coordinator
 
-新增 workspace agent sync 能力：
+新增或增强以下能力：
 
-```bash
-skills/multi-agent-coordinator-operator/scripts/mac.sh \
-  workspace agent sync discord-nexus \
-  --source /Users/yinxin/projects/discord-nexus/agents.toml
-```
+1. Workspace doctor 输出增强
 
-行为要求：
+   `workspace doctor <workspace_id>` 或现有等价命令应清楚显示：
 
-- 只读取 agent 元数据，不读取、不输出 token、token env 实际值、`.env` 或 webhook URL。
-- 支持 `[[agents]]` 和 `[[external_agents]]`。
-- 从每个 agent 读取：
-  - `id`
-  - `display_name`
-  - `discord_user_id`
-  - agent 类型：`managed` 或 `external`
-- 缺少 `discord_user_id` 的条目默认跳过，并在 summary 中列出 skipped。
-- 重复 `id` 或重复 `discord_user_id` 默认 fail closed。
-- 默认 merge 到现有 registry，不删除手工 override。
-- 增加 `--replace` 时才允许用 TOML 结果替换整个 registry。
-- 输出 JSON summary：
-  - `added`
-  - `updated`
-  - `unchanged`
-  - `skipped`
-  - `errors`
-- 保持现有 `workspace agent add` 可用。
+   - workspace path 是否存在。
+   - harness root 是否存在。
+   - `harnessctl` 是否配置、存在、可执行。
+   - `harness-config.json`、`mvp-checklist.json`、`events.jsonl`、`harness-state.json`、`progress.md` 是否存在。
+   - checklist/state 是否能通过 harness validator。
+   - mutation lifecycle 是否可用，也就是是否能通过 harnessctl 执行 state/validate/doctor，并且 coordinator HarnessAdapter 能读写。
+   - default bus / destination 是否配置；未配置时应明确说明只是影响 visible delivery，不影响 file-backed state。
 
-建议实现：
+2. Full harness init
 
-- 在 `src/multi_agent_coordinator/db.py` 增加批量 registry 更新 helper。
-- 新增 `src/multi_agent_coordinator/agent_registry.py`，使用标准库 `tomllib` 解析 TOML。
-- 在 `src/multi_agent_coordinator/cli.py` 增加 `workspace agent sync` 子命令。
-- 为 DB helper、TOML 解析、CLI sync 各补单元测试。
+   增加一个显式初始化命令，例如：
+
+   ```bash
+   PYTHONPATH=src python3 -m multi_agent_coordinator \
+     --db data/coordinator.sqlite3 \
+     workspace init-harness <workspace_id> \
+     --mode full
+   ```
+
+   行为要求：
+
+   - 使用已知 `long-running-project-harness` skill/template 作为来源，实例化 `scripts/harness/` runtime。
+   - 创建或补齐 `docs/project-harness/` 下的协议文件：
+     - `harness-config.json`
+     - `mvp-checklist.json`
+     - `events.jsonl`
+     - `progress.md`
+     - `scope.md`
+     - `architecture.md`
+     - `domain-model.md`
+     - `runbook.md`
+   - 如果文件已存在，默认不覆盖；输出 `created`、`existing`、`skipped`、`warnings` 摘要。
+   - 支持 dry-run，便于 operator 先看会写什么。
+   - 初始化后可以自动更新 workspace 的 `harnessctl_path`，但必须在输出中明确说明。
+
+3. 保留 minimal fallback
+
+   现有 minimal file-backed harness 逻辑不删除。它适合作为救援路径，但 doctor 输出必须区分：
+
+   - `minimal_file_backed`: 只能读静态状态或有限同步。
+   - `full_harness_runtime`: 支持 assignment accept / handoff / closeout / mark-done 等 mutation lifecycle。
+
+4. 测试
+
+   新增测试覆盖：
+
+   - missing harness root。
+   - missing harnessctl。
+   - harnessctl 不可执行。
+   - checklist invalid。
+   - healthy full harness。
+   - init-harness dry-run 不写文件。
+   - init-harness full 创建缺失文件且不覆盖已有文件。
+   - init-harness 后 workspace 配置能指向正确 `harnessctl_path`。
 
 ### discord-nexus
 
-只做文档和示例补充：
+只做文档和 dogfood 更新：
 
-- `agents.toml.example` 标明 `discord_user_id` 是 coordinator registry sync 的输入字段。
-- `docs/project-harness/runbook.md` 加入 targeted handoff 前的 sync 步骤。
+- 在 `docs/project-harness/runbook.md` 增加新 workspace 接入推荐顺序。
+- 在 `docs/project-harness/progress.md` 记录本 phase dogfood 结果。
+- 不改 `discord_nexus/` runtime 代码，除非 dogfood 发现必须阻塞修复的问题。
 
 ## 非目标
 
-- 不让 coordinator import `discord_nexus.config` 或其他 discord-nexus runtime module。
-- 不把 Discord bot token、`.env`、webhook URL 或真实 `agents.toml` 提交到仓库。
-- 不做后台自动同步 daemon。
-- 不改变 handoff、lifecycle、agent-report 协议。
-- 不改变现有 workspace schema 以外的 task/harness lifecycle 语义。
+- 不静默重写已有 harness state。
+- 不把 validation failure 包装成成功。
+- 不强制非 Discord workspace 配置 Discord bus/destination。
+- 不实现 systemd / Windows 部署。
+- 不实现 long-running job worker。
+- 不改变 task/handoff/agent-report 协议。
 
 ## 安全边界
 
-- 命令输出必须避免泄露 secrets。
-- 真实 `agents.toml` 是 ignored 文件，只可本地读取，不可提交。
-- 如果 TOML 里发现重复 ID 或重复 Discord user ID，应返回非零退出码，避免写入不可信 registry。
+- 不读取、不打印 `.env`、`agents.toml`、token、webhook URL。
+- 初始化命令默认不覆盖已有文件。
+- 如果模板来源不存在或不可信，应 fail closed，并输出 operator 可执行的下一步。
+- 所有路径必须限制在目标 workspace root 内，不能把 harness 文件写到 workspace 外。
 
-## 测试计划
+## 验证计划
 
 在 `multi-agent-coordinator`：
 
@@ -126,34 +162,31 @@ skills/multi-agent-coordinator-operator/scripts/mac.sh \
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-新增/覆盖：
+手动验证：
 
-- sync managed + external agents 成功。
-- 缺少 `discord_user_id` 被 skipped，不报错。
-- 重复 `id` fail closed。
-- 重复 `discord_user_id` fail closed。
-- 默认 merge 不删除已有 override。
-- `--replace` 删除 TOML 中不存在的旧 registry entry。
-- CLI 输出不包含 token 字段或环境变量实际值。
+```bash
+skills/multi-agent-coordinator-operator/scripts/mac.sh workspace doctor discord-nexus
+skills/multi-agent-coordinator-operator/scripts/mac.sh workspace init-harness discord-nexus --mode full --dry-run
+```
 
 在 `discord-nexus`：
 
 ```bash
-.venv/bin/python -m unittest discover tests
 scripts/harness/harnessctl validate
+.venv/bin/python -m unittest discover tests
 ```
 
 ## 验收标准
 
-- 可以用一个 coordinator 命令从本地 `agents.toml` 同步 coordinator registry。
-- `task handoff --target-agent mac-codex` 仍然只向目标 agent 发送定向 handoff。
-- target agent 未注册时仍然 fail closed。
-- 文档写清楚 registry sync 是 targeted handoff 前的推荐步骤。
-- 两个 repo 的相关测试通过。
+- Doctor 能明确区分 missing/minimal/full harness 状态。
+- Full init 可以从缺失状态创建完整 harness runtime，并且默认不覆盖已有文件。
+- 对已接入的 `discord-nexus` 运行 dry-run 不会产生破坏性变更。
+- coordinator 和 discord-nexus 相关测试通过。
+- runbook 写清楚新 workspace 的推荐 onboarding 顺序。
 
 ## 建议 worker
 
-优先交给 `mac-codex` 实现。该任务需要改 coordinator CLI 和测试，同时补 discord-nexus 文档。
+优先交给 `mac-claude` 或 `mac-opencode`。该任务主要是 coordinator CLI、template copy、安全路径和测试，适合让 worker 实现后由 Codex 做协议/安全边界 review。
 ```
 
 ## Recent Progress Context
