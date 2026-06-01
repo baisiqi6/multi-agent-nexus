@@ -12,6 +12,7 @@ from discord_nexus.handoff_handler import (
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
     read_bootstrap,
+    split_agent_report_lines,
 )
 
 
@@ -267,6 +268,28 @@ class TestAgentReport(unittest.TestCase):
         self.assertIn("workspace_id=discord-nexus", report)
         self.assertIn("task_id=phase-4", report)
         self.assertIn("summary='launchd scripts done; tests OK'", report)
+
+    def test_splits_strict_agent_report_lines_from_display_text(self):
+        report_lines, display_text = split_agent_report_lines(
+            "Done.\n"
+            "[agent-report] action=done workspace_id=discord-nexus task_id=phase-5.1 summary='ok'\n"
+            "See commit abc123."
+        )
+
+        self.assertEqual(
+            report_lines,
+            ["[agent-report] action=done workspace_id=discord-nexus task_id=phase-5.1 summary='ok'"],
+        )
+        self.assertEqual(display_text, "Done.\nSee commit abc123.")
+
+    def test_split_ignores_non_strict_report_examples(self):
+        report_lines, display_text = split_agent_report_lines(
+            "Example:\n"
+            "[progress] this is not the machine-readable report format"
+        )
+
+        self.assertEqual(report_lines, [])
+        self.assertIn("[progress]", display_text)
 
     def test_builds_handoff_prompt_with_bootstrap(self):
         handoff = CoordinatorHandoff(

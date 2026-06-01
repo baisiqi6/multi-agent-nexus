@@ -217,7 +217,7 @@
     {
       "id": "phase-5.3-agent-registry-auto-sync",
       "title": "Phase 5.3 Agent Registry Auto-Sync",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -232,17 +232,35 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-01T11:43:20Z",
+      "updated_at": "2026-06-01",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-06-01T11:43:20Z"
+        "status": "closed",
+        "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+        "updated_at": "2026-06-01",
+        "handoff_from": "mac-codex"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md"
+        "plan": "docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md",
+        "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780314531",
+        "acquired_at": "2026-06-01T11:48:51Z",
+        "expires_at": "2026-06-01T13:48:51Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-01T12:02:04Z"
+      }
     }
   ]
 }

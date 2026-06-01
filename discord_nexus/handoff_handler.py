@@ -50,6 +50,10 @@ _AGENT_REPORT_LINE_RE = re.compile(
     r"^\s*\[(agent-report|accept|accepted|handoff-received|done|blocker|progress)\](?=\s|$)",
     re.IGNORECASE | re.MULTILINE,
 )
+_STRICT_AGENT_REPORT_LINE_RE = re.compile(
+    r"^\s*\[agent-report\]\s+action=",
+    re.IGNORECASE,
+)
 
 
 def parse_coordinator_handoff(
@@ -268,6 +272,23 @@ def build_agent_report(
 def contains_agent_report(text: str) -> bool:
     """Return True when text contains a machine-readable agent report line."""
     return bool(_AGENT_REPORT_LINE_RE.search(text or ""))
+
+
+def split_agent_report_lines(text: str) -> tuple[list[str], str]:
+    """Extract strict ``[agent-report] action=...`` lines from an agent response.
+
+    Coordinator watches message-create events. Runtime responses may edit a
+    placeholder message, so report lines must be sent separately as new
+    messages to be ingested reliably.
+    """
+    report_lines: list[str] = []
+    display_lines: list[str] = []
+    for line in (text or "").splitlines():
+        if _STRICT_AGENT_REPORT_LINE_RE.match(line):
+            report_lines.append(line.strip())
+        else:
+            display_lines.append(line)
+    return report_lines, "\n".join(display_lines).strip()
 
 
 def build_handoff_prompt(

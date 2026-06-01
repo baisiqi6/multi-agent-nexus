@@ -1,41 +1,31 @@
-# Closeout Packet
+# Handoff Packet
 
 ## Subject
 
 - Checklist item: `phase-5.3-agent-registry-auto-sync`
-- Reviewer: `codex`
+- From: `mac-codex`
+- To: `mac-claude`
+- Requested by: `codex-operator`
 - Updated at: `2026-06-01`
+- Reason: mac-codex Codex CLI usage limit until 23:27; rerouting implementation to mac-claude
 - Canonical plan path: `docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md`
 
 ## Item Snapshot
 
 - Title: Phase 5.3 Agent Registry Auto-Sync
 - Status: doing
-- Workflow status: closeout_requested
+- Workflow status: running
 - Priority: p1
-- Owner: mac-claude
-- Session: auto-mac-claude-1780314531
-- Dependencies: None
+- Current owner: mac-codex
+- Current session: auto-mac-codex-1780314286
 
 ## Acceptance
 
 Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md
 
-## Verification
-
-
-
-## Handoff
+## Current Handoff
 
 {'from': None, 'to': None, 'reason': None}
-
-## Review Inputs
-
-- Scope: `docs/project-harness/scope.md`
-- Architecture: `docs/project-harness/architecture.md`
-- Domain model: `docs/project-harness/domain-model.md`
-- Progress: `docs/project-harness/progress.md`
-- Review output target: `docs/project-harness/current/review.md`
 
 ## Canonical Plan Content
 
@@ -156,9 +146,30 @@ scripts/harness/harnessctl validate
 优先交给 `mac-codex` 实现。该任务需要改 coordinator CLI 和测试，同时补 discord-nexus 文档。
 ```
 
-## Recent Progress Context
+## Recent Progress
 
 ```md
+uite: 134 pass (122 existing + 12 new).
+
+## 2026-05-29
+
+### Round 1 — Initial implementation
+
+- Worker implemented all Phase 3.3 launchd artifacts:
+  - 3 plist templates (`launchd/com.discord-nexus.mac-{claude,codex,opencode}.plist`)
+  - Shared lib (`scripts/lib/launchd.sh`)
+  - 4 management scripts (`scripts/{start,stop,status,uninstall}.sh`)
+- Fixed `start.sh` plist update semantics: `bootout` + `bootstrap` cycle replaces `kickstart -k` so launchd reloads changed plists.
+- Added launchd documentation section to `docs/platform-setup.md`.
+- Static validation passed: `plutil` 3/3, `bash -n` all pass, 106 tests OK.
+- Submitted for review.
+
+### Round 2 — Review findings addressed
+
+- **Finding 1**: `check_manual_process` in `scripts/lib/launchd.sh` used a narrow `pgrep -f "nexus.py --agent $agent"` pattern that missed invocations with intervening flags (e.g. `python nexus.py --config agents.toml --agent mac-claude`). Fixed to `nexus\.py.*--agent[= ]${agent}\>` which matches `--agent X` and `--agent=X` regardless of flag order.
+- **Finding 2**: Closeout file list was incomplete (omitted 5 of 9 artifacts). Corrected.
+- Re-validated: `bash -n` all pass. (plutil and tests unchanged from round 1.)
+
 ### Manual validation
 
 Human performed terminal and Discord validation:
@@ -192,16 +203,14 @@ Human performed terminal and Discord validation:
 - Validation: `git diff --check` passed; `scripts/harness/harnessctl validate` passed; `scripts/harness/harnessctl doctor` exited 0 with existing optional/current file misses (`current/task_plan.md`, `init.sh`).
 ```
 
-## Current Review Content
+## Current Blocker
 
 ```md
 
 ```
 
-## Closeout Questions
+## Expected Next Action
 
-1. 当前实现是否已经覆盖 acceptance
-2. verification 是否足以支持从 `doing` 进入 `done`
-3. 还有没有阻止 closeout 的高优先级问题
-4. 如果不能 done，最关键的剩余工作是什么
+- Target agent should accept, decline, or raise a blocker explicitly.
+- If accepted, target agent should run `scripts/harness/harnessctl accept phase-5.3-agent-registry-auto-sync mac-claude <session-id>`.
 
