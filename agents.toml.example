@@ -44,6 +44,9 @@ aliases = ["Mac Codex", "Codex"]
 channels = [YOUR_CHANNEL_ID]
 work_dir = "~/projects"
 # discord_user_id = 0
+# Skip Codex confirmation prompts for unattended managed-bot runs.
+# Only enable when this machine is externally trusted/sandboxed.
+# codex_dangerously_bypass_approvals_and_sandbox = true
 
 [[agents]]
 id = "mac-opencode"

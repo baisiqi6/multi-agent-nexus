@@ -177,6 +177,9 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
             str(merged.get("codex_bin", CODEX_CMD)), CODEX_CMD
         ),
         codex_sandbox=str(merged.get("codex_sandbox", "danger-full-access")),
+        codex_dangerously_bypass_approvals_and_sandbox=_as_bool(
+            merged.get("codex_dangerously_bypass_approvals_and_sandbox"), False
+        ),
         codex_fallback_model=(
             str(merged["codex_fallback_model"])
             if merged.get("codex_fallback_model")

@@ -49,6 +49,7 @@ class AgentConfig:
     claude_dangerously_skip_permissions: bool = False
     codex_bin: str = CODEX_CMD
     codex_sandbox: str = "danger-full-access"
+    codex_dangerously_bypass_approvals_and_sandbox: bool = False
     codex_fallback_model: str | None = None
     opencode_bin: str = "opencode"
     opencode_dangerously_skip_permissions: bool = False

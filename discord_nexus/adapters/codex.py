@@ -142,9 +142,7 @@ class CodexAdapter(AgentAdapter):
             "--json",
             "--skip-git-repo-check",
         ]
-        # Sandbox config via -c override (exec resume doesn't accept --sandbox)
-        if self.config.codex_sandbox:
-            cmd += ["-c", f"sandbox_permissions=[\"{self.config.codex_sandbox}\"]"]
+        self._append_permission_flags(cmd, for_resume=True)
         if self.config.model:
             cmd += ["--model", self.config.model]
         cmd.append("-")
@@ -158,11 +156,25 @@ class CodexAdapter(AgentAdapter):
         cwd = self.config.work_dir
         if cwd:
             cmd += ["-C", cwd]
-        cmd += ["--skip-git-repo-check", "--sandbox", self.config.codex_sandbox, "--json"]
+        cmd.append("--skip-git-repo-check")
+        self._append_permission_flags(cmd, for_resume=False)
+        cmd.append("--json")
         if model:
             cmd += ["--model", model]
         cmd.append("-")
         return cmd
+
+    def _append_permission_flags(self, cmd: list[str], *, for_resume: bool) -> None:
+        if self.config.codex_dangerously_bypass_approvals_and_sandbox:
+            cmd.append("--dangerously-bypass-approvals-and-sandbox")
+            return
+        if not self.config.codex_sandbox:
+            return
+        if for_resume:
+            # exec resume does not accept --sandbox, so use a config override.
+            cmd += ["-c", f"sandbox_permissions=[\"{self.config.codex_sandbox}\"]"]
+        else:
+            cmd += ["--sandbox", self.config.codex_sandbox]
 
     @staticmethod
     def _capacity_failure_message(
