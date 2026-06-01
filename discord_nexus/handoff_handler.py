@@ -248,6 +248,18 @@ def build_handoff_prompt(
             sanitized_output = " ".join(accept_output.split())
             parts.append(f"- 接收结果: {sanitized_output[:500]}")
 
+    parts.extend(
+        [
+            "\nDiscord 可见协作规则:",
+            "- 你是承接任务的 agent；执行进展应由你在群里直接说明，不要只依赖 coordinator 复述事件。",
+            "- 开始时先发一句人类可读说明：已接收任务、准备先做哪 2-3 件事。",
+            "- 完成一个有意义的小阶段时，发一句进度说明，并在同一条消息最后单独一行附上 `[agent-report] action=progress ...`。",
+            "- 如果卡住或需要决策，明确 @Coordinator、@Codex 或可见的 reviewer/operator，并在最后单独一行附上 `[agent-report] action=blocker ...`。",
+            "- 认为实现完成时，明确 @Coordinator 和 @Codex 请求 review，说明改动文件、测试结果、剩余风险，并在最后单独一行附上 `[agent-report] action=done ...`。",
+            "- `[agent-report]` 行必须从新的一行行首开始；不要把它埋在普通句子中。",
+        ]
+    )
+
     if bootstrap_content:
         parts.append("\n你的任务启动说明:\n")
         parts.append(bootstrap_content)

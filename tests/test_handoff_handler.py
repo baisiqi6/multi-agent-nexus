@@ -249,6 +249,28 @@ class TestAgentReport(unittest.TestCase):
         self.assertIn("mac-codex", prompt)
         self.assertIn("接收结果: accepted", prompt)
 
+    def test_handoff_prompt_requires_visible_worker_updates(self):
+        handoff = CoordinatorHandoff(
+            workspace_id="discord-nexus",
+            task_id="phase-5.2",
+            bootstrap_path="",
+            action="assignment.accept",
+        )
+
+        prompt = build_handoff_prompt(
+            handoff,
+            "Step 1",
+            agent_name="mac-codex",
+        )
+
+        self.assertIn("Discord 可见协作规则", prompt)
+        self.assertIn("@Coordinator", prompt)
+        self.assertIn("@Codex", prompt)
+        self.assertIn("[agent-report] action=progress", prompt)
+        self.assertIn("[agent-report] action=blocker", prompt)
+        self.assertIn("[agent-report] action=done", prompt)
+        self.assertIn("单独一行", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

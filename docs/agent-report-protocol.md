@@ -19,12 +19,32 @@
 
 coordinator daemon 会扫描消息中的结构化 report 行。agent 可以先输出人类摘要，再单独换行输出 `[agent-report] ...`。
 
+## 群聊可见性规则
+
+承接任务的 agent 应该负责执行面沟通；coordinator 只负责控制面事件、handoff、review/closeout/done 汇总。不要让频道只剩 coordinator 在复述状态。
+
+推荐格式：
+
+```text
+@Coordinator @Codex Phase 5.2 已完成第一阶段：新增 task scope 查询和 reset 测试，134 tests OK。下一步处理 closeout 后 archive。
+[agent-report] action=progress workspace_id=discord-nexus task_id=phase-5.2-task-session summary="task scope status/reset tests done; tests OK; next archive on closeout"
+```
+
+规则：
+
+- **开始任务时**：agent 发一句“我已接收任务，准备先做 A/B/C”。
+- **阶段完成时**：agent 说明完成了什么、跑了什么测试、下一步是什么。
+- **阻塞时**：agent 明确 `@Coordinator`、`@Codex` 或可见 reviewer/operator，并说明需要什么决策。
+- **完成实现时**：agent 明确 `@Coordinator` 和 reviewer/operator，请求 review，并说明改动文件、测试结果、剩余风险。
+- `[agent-report]` 行必须单独成行，且从行首开始。
+- 自动 runtime 发送的 `accept` report 可以是纯结构化消息；worker 后续的 `progress` / `blocker` / `done` 应优先包含人类可读摘要。
+
 ## 支持的 Action
 
 | Action | 何时使用 | 生命周期影响 |
 |--------|----------|--------------|
 | `accept` | runtime auto-accept 成功 | 记录接收事实；真正的 assignment 状态已由 runtime 先调用 coordinator CLI 改掉 |
-| `progress` | worker 完成一个小阶段 | 可见进度事件，不改变任务生命周期 |
+| `progress` | worker 完成一个小阶段 | coordinator 摄取进度；来自 Discord 的原始 agent 消息已经可见，coordinator 不应再重复广播 |
 | `blocker` | worker 无法继续 | 记录阻塞报告，通常需要 operator 或 reviewer 决策 |
 | `done` | worker 认为实现完成 | 只记录完成报告；不会自动 closeout 或 mark-done |
 
