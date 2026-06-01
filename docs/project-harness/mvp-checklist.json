@@ -142,7 +142,7 @@
       "selected_in_session": null,
       "updated_at": "2026-06-01",
       "workflow": {
-        "status": "closeout_requested",
+        "status": "closed",
         "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
         "updated_at": "2026-06-01"
       },
@@ -153,11 +153,11 @@
       },
       "verification": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
       "review": {
-        "decision": null,
+        "decision": "approved",
         "reviewer": "codex",
         "phase": "closeout_requested",
-        "updated_at": "2026-05-31",
-        "summary": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK."
+        "updated_at": "2026-06-01",
+        "summary": "Restored approval after lifecycle-prefix dogfood cleanup; original Phase 5.1 review remains approved."
       },
       "lease": {
         "owner": "mac-claude",

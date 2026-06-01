@@ -1,43 +1,9 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-01T11:31:21Z",
+  "generated_at": "2026-06-01T11:37:49Z",
   "current_status": "",
-  "current_item": {
-    "id": "phase-5.1-handoff-runtime-hardening",
-    "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
-    "status": "done",
-    "owner": null,
-    "selected_in_session": null,
-    "updated_at": "2026-06-01",
-    "workflow": {
-      "status": "closeout_requested",
-      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
-      "updated_at": "2026-06-01"
-    },
-    "lease": {
-      "owner": "mac-claude",
-      "session": "auto-mac-claude-1780246205",
-      "acquired_at": "2026-05-31T16:50:05Z",
-      "expires_at": "2026-05-31T18:50:05Z",
-      "ttl_minutes": 120,
-      "released_at": "2026-05-31T17:11:28Z"
-    },
-    "active_lease": null,
-    "artifacts": {
-      "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
-      "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
-      "closeout_packet": "docs/project-harness/current/closeout-packet.md"
-    },
-    "review": {
-      "decision": null,
-      "reviewer": "codex",
-      "phase": "closeout_requested",
-      "updated_at": "2026-05-31",
-      "summary": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK."
-    },
-    "plan_path": "docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/plan.md"
-  },
+  "current_item": null,
   "checklist_summary": {
     "todo": 0,
     "doing": 0,
@@ -45,8 +11,7 @@
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 4,
-    "closeout_requested": 1
+    "closed": 5
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -85,28 +50,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "mac-claude",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T17:08:46Z",
-      "id": "evt-20260531T170846Z-fb6aa8c6",
-      "idempotency_key": "RESULT:phase-5.1-handoff-runtime-hardening:closeout_requested:mac-claude",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for phase-5.1-handoff-runtime-hardening",
-      "target": "codex",
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260531T170846Z-fb6aa8c6 task=phase-5.1-handoff-runtime-hardening actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
     {
       "actor": "codex",
       "artifacts": [],
@@ -257,6 +200,26 @@
       "task": "phase-5.1-handoff-runtime-hardening",
       "type": "RESULT",
       "visible_header": "[RESULT] id=evt-20260601T113121Z-1152af0e task=phase-5.1-handoff-runtime-hardening actor=coordinator target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:35:18Z",
+      "id": "evt-20260601T113518Z-83d796a2",
+      "idempotency_key": "REVIEW:phase-5.1-handoff-runtime-hardening:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "Restored approval after lifecycle-prefix dogfood cleanup; original Phase 5.1 review remains approved.",
+      "target": null,
+      "task": "phase-5.1-handoff-runtime-hardening",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260601T113518Z-83d796a2 task=phase-5.1-handoff-runtime-hardening actor=codex status=approved"
     }
   ]
 }
