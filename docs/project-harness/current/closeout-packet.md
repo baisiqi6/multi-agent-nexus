@@ -4,17 +4,17 @@
 
 - Checklist item: `phase-5.1-handoff-runtime-hardening`
 - Reviewer: `codex`
-- Updated at: `2026-05-31`
+- Updated at: `2026-06-01`
 - Canonical plan path: `docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/plan.md`
 
 ## Item Snapshot
 
 - Title: Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol
-- Status: doing
+- Status: done
 - Workflow status: closeout_requested
 - Priority: p1
-- Owner: mac-claude
-- Session: auto-mac-claude-1780246205
+- Owner: None
+- Session: None
 - Dependencies: None
 
 ## Acceptance
@@ -23,7 +23,7 @@ Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/
 
 ## Verification
 
-
+Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.
 
 ## Handoff
 

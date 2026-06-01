@@ -4,6 +4,12 @@ import time
 
 import discord
 
+from .sessions.scope import (
+    describe_scope,
+    legacy_scope_for_channel_id,
+    scope_for_channel_id,
+)
+
 
 def build_agents_embed(config) -> discord.Embed:
     embed = discord.Embed(title="可用 Agent", color=discord.Color.blurple())
@@ -47,11 +53,18 @@ def build_health_embed(config, health: dict) -> discord.Embed:
     return embed
 
 
-def build_session_status_embed(client, channel_id: int) -> discord.Embed:
-    scope_id = str(channel_id)
+def build_session_status_embed(
+    client, channel_id: int, *, is_thread: bool = False
+) -> discord.Embed:
+    scope_id = scope_for_channel_id(channel_id, is_thread=is_thread)
+    legacy_scope_id = legacy_scope_for_channel_id(channel_id)
     agent_id = client.agent_config.id
-    current = client.session_store.get(scope_id=scope_id, agent_id=agent_id)
+    current = client.session_store.get_first_active(
+        scope_ids=(scope_id, legacy_scope_id),
+        agent_id=agent_id,
+    )
     all_sessions = client.session_store.list_by_agent(agent_id=agent_id)
+    scope_desc = describe_scope(current["scope_id"] if current else scope_id)
 
     if current:
         embed = discord.Embed(
@@ -59,7 +72,8 @@ def build_session_status_embed(client, channel_id: int) -> discord.Embed:
             color=discord.Color.green(),
         )
         sid = current["session_id"]
-        embed.add_field(name="scope", value=scope_id, inline=True)
+        embed.add_field(name="scope", value=current["scope_id"], inline=True)
+        embed.add_field(name="scope_type", value=scope_desc.label, inline=True)
         embed.add_field(
             name="session_id",
             value=f"`{sid[:16]}...`" if len(sid) > 16 else f"`{sid}`",
@@ -82,6 +96,7 @@ def build_session_status_embed(client, channel_id: int) -> discord.Embed:
             color=discord.Color.gold(),
         )
         embed.add_field(name="scope", value=scope_id, inline=True)
+        embed.add_field(name="scope_type", value=scope_desc.label, inline=True)
         embed.add_field(name="活跃会话", value=f"共 {len(all_sessions)} 个", inline=True)
 
     return embed

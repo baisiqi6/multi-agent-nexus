@@ -5,6 +5,8 @@ accept success (with/without bootstrap), and adapter invocation.
 """
 
 import asyncio
+import os
+import tempfile
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,6 +14,8 @@ import discord
 
 from discord_nexus.adapters.base import AdapterResult
 from discord_nexus.models import AgentConfig, KnownAgentMention
+from discord_nexus.sessions.scope import task_scope
+from discord_nexus.sessions.store import SessionStore
 
 
 def _make_config(**overrides):
@@ -71,6 +75,9 @@ def _make_runtime_client(config=None):
     instance.adapter.call = AsyncMock(
         return_value=AdapterResult(text="ok", session_id=None)
     )
+    instance.adapter.resume = AsyncMock(
+        return_value=AdapterResult(text="resumed", session_id=None)
+    )
     # discord.Client.user reads from _connection.user
     mock_user = MagicMock()
     mock_user.id = 111
@@ -80,7 +87,8 @@ def _make_runtime_client(config=None):
     instance.mention_router = MagicMock()
     instance.mention_router.resolve_handoff_mentions = lambda t: t
     instance.context_store = MagicMock()
-    instance.session_store = MagicMock()
+    tmpdir = tempfile.mkdtemp()
+    instance.session_store = SessionStore(os.path.join(tmpdir, "sessions.sqlite3"))
 
     return instance
 
@@ -240,6 +248,70 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
                 return
         self.fail("No accept report found")
 
+    def test_sends_progress_fallback_when_adapter_omits_agent_report(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(text="Implementation finished.", session_id=None)
+        )
+
+        with (
+            patch(
+                "discord_nexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        fallback = [
+            text for text in sent_texts
+            if "[agent-report]" in text and "action=progress" in text
+        ]
+        self.assertEqual(len(fallback), 1)
+        self.assertIn("without a structured agent-report", fallback[0])
+
+    def test_does_not_send_progress_fallback_when_adapter_reports_done(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(
+                text=(
+                    "Done.\n"
+                    "[agent-report] action=done workspace_id=discord-nexus "
+                    "task_id=phase-5.1 summary='tests OK'"
+                ),
+                session_id=None,
+            )
+        )
+
+        with (
+            patch(
+                "discord_nexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        fallback = [
+            text for text in sent_texts
+            if "[agent-report]" in text and "action=progress" in text
+        ]
+        self.assertEqual(fallback, [])
+
 
 class TestCoordinatorHandoffBootstrapMissing(unittest.TestCase):
     """When bootstrap is missing, adapter is still called with a prompt noting bootstrap is missing."""
@@ -273,6 +345,157 @@ class TestCoordinatorHandoffBootstrapMissing(unittest.TestCase):
         prompt = instance.adapter.call.call_args[0][0]
         # Prompt must indicate bootstrap is missing
         self.assertIn("未找到 bootstrap", prompt)
+
+
+class TestCoordinatorHandoffTaskScope(unittest.TestCase):
+    """Coordinator handoffs use task-scoped sessions instead of channel sessions."""
+
+    def _run_handoff(self, instance, msg):
+        with (
+            patch(
+                "discord_nexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                return loop.run_until_complete(
+                    instance._try_coordinator_handoff(msg)
+                )
+            finally:
+                loop.close()
+
+    def test_handoff_saves_task_scope_not_channel_scope(self):
+        config = _make_config()
+        msg = _make_handoff_message(channel_id=500)
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(text="ok", session_id="sess-task")
+        )
+
+        result = self._run_handoff(instance, msg)
+
+        self.assertTrue(result)
+        scoped = instance.session_store.get(
+            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            agent_id="mac-claude",
+        )
+        self.assertIsNotNone(scoped)
+        self.assertEqual(scoped["session_id"], "sess-task")
+        self.assertIsNone(
+            instance.session_store.get(scope_id="channel:500", agent_id="mac-claude")
+        )
+        self.assertIsNone(
+            instance.session_store.get(scope_id="500", agent_id="mac-claude")
+        )
+
+    def test_same_task_resumes_existing_session(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(text="first", session_id="sess-task")
+        )
+        instance.adapter.resume = AsyncMock(
+            return_value=AdapterResult(text="second", session_id="sess-task")
+        )
+
+        self._run_handoff(instance, msg)
+        self._run_handoff(instance, msg)
+
+        instance.adapter.call.assert_called_once()
+        instance.adapter.resume.assert_called_once()
+        self.assertEqual(instance.adapter.resume.call_args.args[0], "sess-task")
+        scoped = instance.session_store.get(
+            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            agent_id="mac-claude",
+        )
+        self.assertEqual(scoped["turn_count"], 2)
+
+    def test_different_tasks_do_not_reuse_session(self):
+        config = _make_config()
+        first = _make_handoff_message()
+        second = _make_handoff_message(
+            content=(
+                "[handoff] <@111> workspace_id=discord-nexus "
+                "task_id=phase-5.2 action=assignment.accept "
+                "bootstrap=docs/project-harness/tasks/phase-5.2/worker-bootstrap.md"
+            )
+        )
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            side_effect=[
+                AdapterResult(text="first", session_id="sess-5.1"),
+                AdapterResult(text="second", session_id="sess-5.2"),
+            ]
+        )
+
+        self._run_handoff(instance, first)
+        self._run_handoff(instance, second)
+
+        self.assertEqual(instance.adapter.call.call_count, 2)
+        instance.adapter.resume.assert_not_called()
+        self.assertEqual(
+            instance.session_store.get(
+                scope_id=task_scope("discord-nexus", "phase-5.1"),
+                agent_id="mac-claude",
+            )["session_id"],
+            "sess-5.1",
+        )
+        self.assertEqual(
+            instance.session_store.get(
+                scope_id=task_scope("discord-nexus", "phase-5.2"),
+                agent_id="mac-claude",
+            )["session_id"],
+            "sess-5.2",
+        )
+
+    def test_closeout_archives_task_session_before_next_handoff(self):
+        config = _make_config()
+        handoff_msg = _make_handoff_message()
+        closeout_msg = _make_handoff_message(
+            content=(
+                "[handoff] <@111> workspace_id=discord-nexus "
+                "task_id=phase-5.1 action=assignment.closeout"
+            )
+        )
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            side_effect=[
+                AdapterResult(text="first", session_id="sess-old"),
+                AdapterResult(text="fresh", session_id="sess-new"),
+            ]
+        )
+        instance.adapter.resume = AsyncMock(
+            return_value=AdapterResult(text="should not resume", session_id="sess-old")
+        )
+
+        self._run_handoff(instance, handoff_msg)
+        loop = asyncio.new_event_loop()
+        try:
+            handled = loop.run_until_complete(
+                instance._try_coordinator_lifecycle(closeout_msg)
+            )
+        finally:
+            loop.close()
+        self.assertTrue(handled)
+        self.assertIsNone(
+            instance.session_store.get(
+                scope_id=task_scope("discord-nexus", "phase-5.1"),
+                agent_id="mac-claude",
+            )
+        )
+
+        self._run_handoff(instance, handoff_msg)
+
+        self.assertEqual(instance.adapter.call.call_count, 2)
+        instance.adapter.resume.assert_not_called()
+        scoped = instance.session_store.get(
+            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            agent_id="mac-claude",
+        )
+        self.assertEqual(scoped["session_id"], "sess-new")
 
 
 class TestCoordinatorHandoffNotCoordinatorMessage(unittest.TestCase):

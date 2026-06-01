@@ -2,6 +2,14 @@ import sqlite3
 import time
 from pathlib import Path
 
+from .scope import task_scope
+
+
+_ACTIVE_STATUS = "active"
+_STALE_STATUS = "stale"
+_ARCHIVED_STATUS = "archived"
+_VALID_STATUSES = frozenset({_ACTIVE_STATUS, _STALE_STATUS, _ARCHIVED_STATUS})
+
 
 def _row_to_dict(row: tuple) -> dict:
     return {
@@ -17,8 +25,12 @@ def _row_to_dict(row: tuple) -> dict:
     }
 
 
+def _escape_like(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 class SessionStore:
-    """Persist CLI session IDs scoped to channel + agent."""
+    """Persist CLI session IDs scoped to channel/thread/task + agent."""
 
     def __init__(self, db_path: str):
         self.path = Path(db_path).expanduser()
@@ -69,6 +81,15 @@ class SessionStore:
             return None
         return _row_to_dict(row)
 
+    def get_first_active(
+        self, *, scope_ids: list[str] | tuple[str, ...], agent_id: str
+    ) -> dict | None:
+        for scope_id in scope_ids:
+            session = self.get(scope_id=scope_id, agent_id=agent_id)
+            if session:
+                return session
+        return None
+
     def list_by_agent(
         self, *, agent_id: str, include_stale: bool = False
     ) -> list[dict]:
@@ -84,6 +105,43 @@ class SessionStore:
         with self._connect() as conn:
             rows = conn.execute(sql, params).fetchall()
         return [_row_to_dict(row) for row in rows]
+
+    def list_by_scope_prefix(
+        self,
+        *,
+        scope_prefix: str,
+        agent_id: str | None = None,
+        include_stale: bool = False,
+    ) -> list[dict]:
+        sql = (
+            "SELECT scope_id, agent_id, adapter, session_id, work_dir, "
+            "status, turn_count, created_at, updated_at "
+            "FROM sessions WHERE scope_id LIKE ? ESCAPE '\\'"
+        )
+        params: list[str] = [f"{_escape_like(scope_prefix)}%"]
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params.append(agent_id)
+        if not include_stale:
+            sql += " AND status = 'active'"
+        sql += " ORDER BY updated_at DESC"
+        with self._connect() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [_row_to_dict(row) for row in rows]
+
+    def list_task_scope(
+        self,
+        *,
+        workspace_id: str,
+        task_id: str,
+        agent_id: str | None = None,
+        include_stale: bool = False,
+    ) -> list[dict]:
+        return self.list_by_scope_prefix(
+            scope_prefix=task_scope(workspace_id, task_id),
+            agent_id=agent_id,
+            include_stale=include_stale,
+        )
 
     def upsert(
         self,
@@ -119,11 +177,51 @@ class SessionStore:
             )
 
     def mark_stale(self, *, scope_id: str, agent_id: str) -> None:
+        self._mark_status(scope_id=scope_id, agent_id=agent_id, status=_STALE_STATUS)
+
+    def mark_archived(self, *, scope_id: str, agent_id: str) -> None:
+        self._mark_status(scope_id=scope_id, agent_id=agent_id, status=_ARCHIVED_STATUS)
+
+    def mark_task_stale(
+        self, *, workspace_id: str, task_id: str, agent_id: str | None = None
+    ) -> int:
+        return self._mark_scope_status(
+            scope_id=task_scope(workspace_id, task_id),
+            status=_STALE_STATUS,
+            agent_id=agent_id,
+        )
+
+    def mark_task_archived(
+        self, *, workspace_id: str, task_id: str, agent_id: str | None = None
+    ) -> int:
+        return self._mark_scope_status(
+            scope_id=task_scope(workspace_id, task_id),
+            status=_ARCHIVED_STATUS,
+            agent_id=agent_id,
+        )
+
+    def _mark_status(self, *, scope_id: str, agent_id: str, status: str) -> None:
+        if status not in _VALID_STATUSES:
+            raise ValueError(f"unsupported session status: {status}")
         with self._connect() as conn:
             conn.execute(
                 """
-                UPDATE sessions SET status = 'stale', updated_at = ?
+                UPDATE sessions SET status = ?, updated_at = ?
                 WHERE scope_id = ? AND agent_id = ?
                 """,
-                (time.time(), scope_id, agent_id),
+                (status, time.time(), scope_id, agent_id),
             )
+
+    def _mark_scope_status(
+        self, *, scope_id: str, status: str, agent_id: str | None = None
+    ) -> int:
+        if status not in _VALID_STATUSES:
+            raise ValueError(f"unsupported session status: {status}")
+        sql = "UPDATE sessions SET status = ?, updated_at = ? WHERE scope_id = ?"
+        params: list[str | float] = [status, time.time(), scope_id]
+        if agent_id is not None:
+            sql += " AND agent_id = ?"
+            params.append(agent_id)
+        with self._connect() as conn:
+            cursor = conn.execute(sql, params)
+            return cursor.rowcount

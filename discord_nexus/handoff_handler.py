@@ -28,10 +28,28 @@ class CoordinatorHandoff:
     action: str
 
 
+@dataclass(frozen=True)
+class CoordinatorLifecycleEvent:
+    workspace_id: str
+    task_id: str
+    action: str
+
+
 _HANDOFF_PREFIX_RE = re.compile(r"\[handoff\]\s*<@!?(\d+)>", re.IGNORECASE)
+_LIFECYCLE_PREFIX_RE = re.compile(
+    r"\[(?:lifecycle|handoff)\]\s*<@!?(\d+)>",
+    re.IGNORECASE,
+)
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _ALLOWED_ACTIONS = frozenset({"assignment.accept"})
+_LIFECYCLE_ACTIONS = frozenset(
+    {"assignment.closeout", "assignment.mark-done", "task.done"}
+)
 _REPORT_ACTIONS = frozenset({"accept", "blocker", "done", "progress"})
+_AGENT_REPORT_LINE_RE = re.compile(
+    r"^\s*\[(agent-report|accept|accepted|handoff-received|done|blocker|progress)\](?=\s|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def parse_coordinator_handoff(
@@ -67,6 +85,41 @@ def parse_coordinator_handoff(
         workspace_id=workspace_id,
         task_id=task_id,
         bootstrap_path=bootstrap_path or "",
+        action=action,
+    )
+
+
+def parse_coordinator_lifecycle(
+    content: str,
+    *,
+    my_discord_user_id: int,
+) -> CoordinatorLifecycleEvent | None:
+    """Parse a coordinator lifecycle notice that closes a local task session.
+
+    This does not execute coordinator lifecycle mutations from Discord text. It only
+    lets the runtime archive its own task-scoped CLI session after the coordinator
+    has already emitted a closeout/done event.
+    """
+    prefix = _LIFECYCLE_PREFIX_RE.search(content)
+    if prefix is None:
+        return None
+    if int(prefix.group(1)) != my_discord_user_id:
+        return None
+
+    fields = _parse_key_values(content[prefix.end():])
+    workspace_id = fields.get("workspace_id")
+    task_id = fields.get("task_id")
+    action = (fields.get("action") or "").lower()
+    if not workspace_id or not task_id or not action:
+        return None
+    if not _SAFE_ID_RE.match(workspace_id) or not _SAFE_ID_RE.match(task_id):
+        return None
+    if action not in _LIFECYCLE_ACTIONS:
+        return None
+
+    return CoordinatorLifecycleEvent(
+        workspace_id=workspace_id,
+        task_id=task_id,
         action=action,
     )
 
@@ -210,6 +263,11 @@ def build_agent_report(
     if reason:
         fields.append(f"reason={shlex.quote(reason)}")
     return " ".join(fields)
+
+
+def contains_agent_report(text: str) -> bool:
+    """Return True when text contains a machine-readable agent report line."""
+    return bool(_AGENT_REPORT_LINE_RE.search(text or ""))
 
 
 def build_handoff_prompt(

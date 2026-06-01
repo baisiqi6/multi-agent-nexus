@@ -121,6 +121,32 @@ class TestCmdSessionStatus(unittest.TestCase):
         self.assertIn("claude", result)
         self.assertIn("轮次: 1", result)
 
+    def test_status_shows_channel_scope_type(self):
+        client = _make_client()
+        client.session_store.upsert(
+            scope_id="channel:999", agent_id="test-agent",
+            adapter="claude", session_id="sess-channel",
+            work_dir="/tmp/test",
+        )
+        result = asyncio.get_event_loop().run_until_complete(
+            handle_operator_command("session status", client, 999)
+        )
+        self.assertIn("channel scope", result)
+        self.assertIn("scope: `channel:999`", result)
+
+    def test_status_shows_thread_scope_type(self):
+        client = _make_client()
+        client.session_store.upsert(
+            scope_id="thread:888", agent_id="test-agent",
+            adapter="claude", session_id="sess-thread",
+            work_dir="/tmp/test",
+        )
+        result = asyncio.get_event_loop().run_until_complete(
+            handle_operator_command("session status", client, 888, is_thread=True)
+        )
+        self.assertIn("thread scope", result)
+        self.assertIn("scope: `thread:888`", result)
+
     def test_without_active_session(self):
         client = _make_client()
         msg = _make_message()

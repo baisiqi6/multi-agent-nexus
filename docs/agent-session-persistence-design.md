@@ -29,6 +29,16 @@ discord_thread_id + agent_id -> cli_session_id
 
 长期设计应以 coordinator task 为主，Discord thread 只是这个 task 的可视化工作区。
 
+当前落地的 SQLite `sessions.scope_id` 采用统一 key：
+
+```text
+channel:<channel_id>
+thread:<thread_id>
+task:<workspace_id>:<task_id>
+```
+
+读取时按当前语义优先使用上述 canonical key；旧版纯数字 channel/thread scope 只作为兼容 fallback，命中后会在下一次成功调用时迁移到 canonical scope。
+
 ## 非目标
 
 - 不把所有 agent 合并成一个共享 session。
@@ -109,6 +119,7 @@ WHERE discord_thread_id IS NOT NULL;
 | active | 当前可恢复 |
 | closed | 任务完成后关闭 |
 | stale | resume 失败或底层 session 不再可用 |
+| archived | coordinator closeout/done 后归档，不再用于 resume |
 | failed | adapter 多次失败，需要人工处理 |
 
 ## Adapter 约定
@@ -198,14 +209,15 @@ OpenCode 还需要特别注意：
 
 用户在主频道直接 `@Agent`：
 
-- 如果没有 task/thread：默认临时 session。
-- 可选择创建临时 thread session，但不进入长期工程状态。
+- 使用 `channel:<channel_id>` scope。
+- 若存在 active session，则 resume。
+- 若不存在，则 fresh call，并保存返回的 `cli_session_id`。
 
 ### Discord thread 内消息
 
 用户在 thread 内 `@Agent`：
 
-- 优先查 `discord_thread_id + agent_id`。
+- 使用 `thread:<thread_id>` scope，不使用 parent channel 作为 session scope。
 - 若存在 active session，则 resume。
 - 若不存在，则 fresh call，并保存返回的 `cli_session_id`。
 
@@ -213,9 +225,10 @@ OpenCode 还需要特别注意：
 
 如果消息关联 coordinator task：
 
-- 优先查 `workspace_id + task_id + agent_id`。
+- 优先使用 `task:<workspace_id>:<task_id>` scope。
 - Discord thread 只作为这个 task 的 UI 容器。
-- task closeout 后关闭对应 sessions。
+- `assignment.closeout`、`assignment.mark-done` 或 `task.done` lifecycle notice 只会让 discord-nexus 归档本地 task session，不会从 Discord 文本执行 coordinator 生命周期变更。
+- task session 归档后不再 resume；同一 task 后续再次 handoff 会 fresh call 并写入新的 active session。
 
 ### Handoff
 
