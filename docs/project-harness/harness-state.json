@@ -1,17 +1,18 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-01T12:28:24Z",
+  "generated_at": "2026-06-01T15:54:45Z",
   "current_status": "",
   "current_item": null,
   "checklist_summary": {
-    "todo": 0,
+    "todo": 1,
     "doing": 0,
     "done": 7,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 7
+    "closed": 7,
+    "todo": 1
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
