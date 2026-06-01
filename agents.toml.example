@@ -28,7 +28,7 @@ display_name = "Mac Claude"
 aliases = ["Mac Claude", "Claude"]
 channels = [YOUR_CHANNEL_ID]
 work_dir = "~/projects"
-# discord_user_id = 0  # Fill in after bot joins server
+# discord_user_id = 0  # Required for coordinator registry sync  # Fill in after bot joins server; required for coordinator registry sync
 
 system_prompt = """
 You are Claude, running on Mac via Discord.
@@ -43,7 +43,7 @@ display_name = "Mac Codex"
 aliases = ["Mac Codex", "Codex"]
 channels = [YOUR_CHANNEL_ID]
 work_dir = "~/projects"
-# discord_user_id = 0
+# discord_user_id = 0  # Required for coordinator registry sync
 # Skip Codex confirmation prompts for unattended managed-bot runs.
 # Only enable when this machine is externally trusted/sandboxed.
 # codex_dangerously_bypass_approvals_and_sandbox = true
@@ -55,7 +55,7 @@ token_env = "DISCORD_MAC_OPENCODE_TOKEN"
 display_name = "Mac OpenCode"
 aliases = ["Mac OpenCode", "opencode"]
 channels = [YOUR_CHANNEL_ID]
-# discord_user_id = 0
+# discord_user_id = 0  # Required for coordinator registry sync
 
 # ── External gateway agents (native Gateway, no adapter) ────────────────────────
 # These agents maintain their own Discord Gateway connection.
@@ -68,10 +68,10 @@ channels = [YOUR_CHANNEL_ID]
 id = "mac-openclaw"
 display_name = "小龙虾"
 aliases = ["小龙虾", "OpenClaw"]
-# discord_user_id = 0  # Fill in with bot's user ID
+# discord_user_id = 0  # Required for coordinator registry sync  # Fill in with bot's user ID
 
 [[external_agents]]
 id = "server-hermes"
 display_name = "Hermes"
 aliases = ["Hermes", "爱马仕"]
-# discord_user_id = 0
+# discord_user_id = 0  # Required for coordinator registry sync

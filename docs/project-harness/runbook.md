@@ -103,6 +103,12 @@ $MAC_SH state discord-nexus
 # Generate a worker bootstrap and targeted agent handoff
 $MAC_SH task handoff discord-nexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
 
+# Sync agent registry from agents.toml before targeted handoff
+$MAC_SH workspace agent sync discord-nexus --source ~/projects/discord-nexus/agents.toml
+
+# Sync and replace entire registry (removes agents not in TOML)
+$MAC_SH workspace agent sync discord-nexus --source ~/projects/discord-nexus/agents.toml --replace
+
 # Create visible deliveries for supported events
 $MAC_SH policy pump-events --workspace-id discord-nexus --platform discord_webhook --destination discord-nexus-status
 
