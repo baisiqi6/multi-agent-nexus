@@ -42,6 +42,10 @@ _LIFECYCLE_ACTIONS = frozenset(
     {"assignment.closeout", "assignment.mark-done", "task.done"}
 )
 _REPORT_ACTIONS = frozenset({"accept", "blocker", "done", "progress"})
+_AGENT_REPORT_LINE_RE = re.compile(
+    r"^\s*\[(agent-report|accept|accepted|handoff-received|done|blocker|progress)\](?=\s|$)",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 def parse_coordinator_handoff(
@@ -255,6 +259,11 @@ def build_agent_report(
     if reason:
         fields.append(f"reason={shlex.quote(reason)}")
     return " ".join(fields)
+
+
+def contains_agent_report(text: str) -> bool:
+    """Return True when text contains a machine-readable agent report line."""
+    return bool(_AGENT_REPORT_LINE_RE.search(text or ""))
 
 
 def build_handoff_prompt(

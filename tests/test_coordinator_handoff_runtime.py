@@ -248,6 +248,70 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
                 return
         self.fail("No accept report found")
 
+    def test_sends_progress_fallback_when_adapter_omits_agent_report(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(text="Implementation finished.", session_id=None)
+        )
+
+        with (
+            patch(
+                "discord_nexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        fallback = [
+            text for text in sent_texts
+            if "[agent-report]" in text and "action=progress" in text
+        ]
+        self.assertEqual(len(fallback), 1)
+        self.assertIn("without a structured agent-report", fallback[0])
+
+    def test_does_not_send_progress_fallback_when_adapter_reports_done(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(
+                text=(
+                    "Done.\n"
+                    "[agent-report] action=done workspace_id=discord-nexus "
+                    "task_id=phase-5.1 summary='tests OK'"
+                ),
+                session_id=None,
+            )
+        )
+
+        with (
+            patch(
+                "discord_nexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        fallback = [
+            text for text in sent_texts
+            if "[agent-report]" in text and "action=progress" in text
+        ]
+        self.assertEqual(fallback, [])
+
 
 class TestCoordinatorHandoffBootstrapMissing(unittest.TestCase):
     """When bootstrap is missing, adapter is still called with a prompt noting bootstrap is missing."""

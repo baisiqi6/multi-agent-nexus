@@ -39,6 +39,7 @@ from .handoff_handler import (
     CoordinatorHandoff,
     build_agent_report,
     build_handoff_prompt,
+    contains_agent_report,
     execute_assignment_accept,
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
@@ -374,7 +375,47 @@ class DiscordClient(discord.Client):
                 ttl_seconds=cfg.context_ttl_seconds,
             )
 
+        await self._send_missing_report_fallback(
+            channel,
+            handoff,
+            response_text=response_text,
+            is_error=self._is_error_response(result.text),
+        )
         return True
+
+    async def _send_missing_report_fallback(
+        self,
+        channel,
+        handoff: CoordinatorHandoff,
+        *,
+        response_text: str,
+        is_error: bool,
+    ) -> None:
+        """Emit a structured report if the adapter forgot to include one."""
+        if contains_agent_report(response_text):
+            return
+        if is_error:
+            report = build_agent_report(
+                "blocker",
+                handoff,
+                reason="adapter returned an error without a structured agent report",
+            )
+        else:
+            report = build_agent_report(
+                "progress",
+                handoff,
+                summary=(
+                    "adapter completed without a structured agent-report; "
+                    "operator should inspect the visible response"
+                ),
+            )
+        try:
+            await channel.send(
+                report,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except discord.HTTPException:
+            log.warning("Failed to send missing agent-report fallback", exc_info=True)
 
     async def _try_coordinator_lifecycle(self, message: discord.Message) -> bool:
         """Archive local task-scoped sessions after coordinator closeout/done notices."""
