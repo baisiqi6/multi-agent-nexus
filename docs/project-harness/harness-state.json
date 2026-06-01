@@ -1,17 +1,50 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-01T12:02:26Z",
+  "generated_at": "2026-06-01T12:09:32Z",
   "current_status": "",
-  "current_item": null,
+  "current_item": {
+    "id": "phase-5.4-workspace-doctor-harness-init",
+    "title": "Phase 5.4 Workspace Doctor And Full Harness Init",
+    "status": "doing",
+    "owner": "mac-claude",
+    "selected_in_session": "auto-mac-claude-1780315772",
+    "updated_at": "2026-06-01",
+    "workflow": {
+      "status": "running",
+      "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
+      "updated_at": "2026-06-01"
+    },
+    "lease": {
+      "owner": "mac-claude",
+      "session": "auto-mac-claude-1780315772",
+      "acquired_at": "2026-06-01T12:09:32Z",
+      "expires_at": "2026-06-01T14:09:32Z",
+      "ttl_minutes": 120
+    },
+    "active_lease": {
+      "owner": "mac-claude",
+      "session": "auto-mac-claude-1780315772",
+      "acquired_at": "2026-06-01T12:09:32Z",
+      "expires_at": "2026-06-01T14:09:32Z",
+      "ttl_minutes": 120
+    },
+    "artifacts": {
+      "plan": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+      "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init"
+    },
+    "review": {},
+    "plan_path": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md"
+  },
   "checklist_summary": {
     "todo": 0,
-    "doing": 0,
+    "doing": 1,
     "done": 6,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 6
+    "closed": 6,
+    "running": 1
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -50,28 +83,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "coordinator",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T11:31:21Z",
-      "id": "evt-20260601T113121Z-1152af0e",
-      "idempotency_key": "RESULT:phase-5.1-handoff-runtime-hardening:closeout_requested:coordinator",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for phase-5.1-handoff-runtime-hardening",
-      "target": "codex",
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260601T113121Z-1152af0e task=phase-5.1-handoff-runtime-hardening actor=coordinator target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
     {
       "actor": "codex",
       "artifacts": [],
@@ -223,6 +234,29 @@
       "task": "phase-5.3-agent-registry-auto-sync",
       "type": "CLOSE",
       "visible_header": "[CLOSE] id=evt-20260601T120204Z-ccf9cf6d task=phase-5.3-agent-registry-auto-sync actor=codex-operator status=done"
+    },
+    {
+      "actor": "mac-claude",
+      "artifacts": [],
+      "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
+      "causation_id": null,
+      "created_at": "2026-06-01T12:09:32Z",
+      "id": "evt-20260601T120932Z-c28a3105",
+      "idempotency_key": "ACCEPT:phase-5.4-workspace-doctor-harness-init:running:mac-claude",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-claude-1780315772"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-claude accepted phase-5.4-workspace-doctor-harness-init",
+      "target": "mac-claude",
+      "task": "phase-5.4-workspace-doctor-harness-init",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260601T120932Z-c28a3105 task=phase-5.4-workspace-doctor-harness-init actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.4-workspace-doctor-harness-init"
     }
   ]
 }
