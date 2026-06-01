@@ -2,7 +2,7 @@
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-05-31",
+  "updated_at": "2026-06-01",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -167,6 +167,36 @@
         "ttl_minutes": 120,
         "released_at": "2026-05-31T17:11:28Z"
       }
+    },
+    {
+      "id": "phase-5.2-task-scoped-session-lifecycle",
+      "title": "Phase 5.2: Task-Scoped Session Lifecycle",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01T11:02:32Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-01T11:02:32Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
