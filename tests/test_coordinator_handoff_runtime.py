@@ -311,6 +311,12 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
             if "[agent-report]" in text and "action=progress" in text
         ]
         self.assertEqual(fallback, [])
+        done_reports = [
+            text for text in sent_texts
+            if text.startswith("[agent-report]") and "action=done" in text
+        ]
+        self.assertEqual(len(done_reports), 1)
+        self.assertIn("summary='tests OK'", done_reports[0])
 
 
 class TestCoordinatorHandoffBootstrapMissing(unittest.TestCase):

@@ -44,6 +44,7 @@ from .handoff_handler import (
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
     read_bootstrap,
+    split_agent_report_lines,
 )
 
 
@@ -347,7 +348,8 @@ class DiscordClient(discord.Client):
 
         # Send response
         response_text = self.mention_router.resolve_handoff_mentions(result.text)
-        handoff_lines, display_text = split_handoff_lines(response_text)
+        report_lines, response_without_reports = split_agent_report_lines(response_text)
+        handoff_lines, display_text = split_handoff_lines(response_without_reports)
 
         chunks = _chunk_message(display_text) if display_text else []
         if chunks:
@@ -372,6 +374,15 @@ class DiscordClient(discord.Client):
         for hl in handoff_lines:
             try:
                 await channel.send(hl)
+            except discord.HTTPException:
+                pass
+
+        for report_line in report_lines:
+            try:
+                await channel.send(
+                    report_line,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
             except discord.HTTPException:
                 pass
 
