@@ -1,17 +1,17 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-01T11:37:49Z",
+  "generated_at": "2026-06-01T12:02:26Z",
   "current_status": "",
   "current_item": null,
   "checklist_summary": {
     "todo": 0,
     "doing": 0,
-    "done": 5,
+    "done": 6,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 5
+    "closed": 6
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -50,135 +50,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "codex",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T17:08:46Z",
-      "id": "evt-20260531T170846Z-4a7b38ba",
-      "idempotency_key": "REVIEW:phase-5.1-handoff-runtime-hardening:approved:codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "approved",
-      "summary": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
-      "target": "mac-claude",
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260531T170846Z-4a7b38ba task=phase-5.1-handoff-runtime-hardening actor=codex target=mac-claude status=approved"
-    },
-    {
-      "actor": "codex-operator",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-05-31T17:11:28Z",
-      "id": "evt-20260531T171128Z-4f8a4559",
-      "idempotency_key": "CLOSE:phase-5.1-handoff-runtime-hardening:done:codex-operator",
-      "metadata": {
-        "force_reason": null
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "done",
-      "summary": "codex-operator closed phase-5.1-handoff-runtime-hardening",
-      "target": null,
-      "task": "phase-5.1-handoff-runtime-hardening",
-      "type": "CLOSE",
-      "visible_header": "[CLOSE] id=evt-20260531T171128Z-4f8a4559 task=phase-5.1-handoff-runtime-hardening actor=codex-operator status=done"
-    },
-    {
-      "actor": "mac-codex",
-      "artifacts": [],
-      "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
-      "causation_id": null,
-      "created_at": "2026-06-01T11:03:48Z",
-      "id": "evt-20260601T110348Z-4224c412",
-      "idempotency_key": "ACCEPT:phase-5.2-task-scoped-session-lifecycle:running:mac-codex",
-      "metadata": {
-        "force_reason": null,
-        "session": "auto-mac-codex-1780311828"
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "running",
-      "summary": "mac-codex accepted phase-5.2-task-scoped-session-lifecycle",
-      "target": "mac-codex",
-      "task": "phase-5.2-task-scoped-session-lifecycle",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260601T110348Z-4224c412 task=phase-5.2-task-scoped-session-lifecycle actor=mac-codex target=mac-codex status=running branch=agents/mac-codex/phase-5.2-task-scoped-session-lifecycle"
-    },
-    {
-      "actor": "mac-codex",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T11:27:52Z",
-      "id": "evt-20260601T112752Z-8f4f4094",
-      "idempotency_key": "RESULT:phase-5.2-task-scoped-session-lifecycle:closeout_requested:mac-codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for phase-5.2-task-scoped-session-lifecycle",
-      "target": "codex",
-      "task": "phase-5.2-task-scoped-session-lifecycle",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260601T112752Z-8f4f4094 task=phase-5.2-task-scoped-session-lifecycle actor=mac-codex target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
-    {
-      "actor": "codex",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T11:28:11Z",
-      "id": "evt-20260601T112811Z-4b0d9375",
-      "idempotency_key": "REVIEW:phase-5.2-task-scoped-session-lifecycle:approved:codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "approved",
-      "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
-      "target": "mac-codex",
-      "task": "phase-5.2-task-scoped-session-lifecycle",
-      "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260601T112811Z-4b0d9375 task=phase-5.2-task-scoped-session-lifecycle actor=codex target=mac-codex status=approved"
-    },
-    {
-      "actor": "codex-operator",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T11:28:21Z",
-      "id": "evt-20260601T112821Z-20b59e75",
-      "idempotency_key": "CLOSE:phase-5.2-task-scoped-session-lifecycle:done:codex-operator",
-      "metadata": {
-        "force_reason": null
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "done",
-      "summary": "codex-operator closed phase-5.2-task-scoped-session-lifecycle",
-      "target": null,
-      "task": "phase-5.2-task-scoped-session-lifecycle",
-      "type": "CLOSE",
-      "visible_header": "[CLOSE] id=evt-20260601T112821Z-20b59e75 task=phase-5.2-task-scoped-session-lifecycle actor=codex-operator status=done"
-    },
     {
       "actor": "coordinator",
       "artifacts": [
@@ -220,6 +91,138 @@
       "task": "phase-5.1-handoff-runtime-hardening",
       "type": "REVIEW",
       "visible_header": "[REVIEW] id=evt-20260601T113518Z-83d796a2 task=phase-5.1-handoff-runtime-hardening actor=codex status=approved"
+    },
+    {
+      "actor": "mac-codex",
+      "artifacts": [],
+      "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+      "causation_id": null,
+      "created_at": "2026-06-01T11:44:46Z",
+      "id": "evt-20260601T114446Z-e42660ba",
+      "idempotency_key": "ACCEPT:phase-5.3-agent-registry-auto-sync:running:mac-codex",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-codex-1780314286"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-codex accepted phase-5.3-agent-registry-auto-sync",
+      "target": "mac-codex",
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260601T114446Z-e42660ba task=phase-5.3-agent-registry-auto-sync actor=mac-codex target=mac-codex status=running branch=agents/mac-codex/phase-5.3-agent-registry-auto-sync"
+    },
+    {
+      "actor": "codex-operator",
+      "artifacts": [
+        "docs/project-harness/current/handoff-packet.md"
+      ],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T11:47:54Z",
+      "id": "evt-20260601T114754Z-475f0cfd",
+      "idempotency_key": "ASSIGN:phase-5.3-agent-registry-auto-sync:handoff_requested:codex-operator",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "handoff_requested",
+      "summary": "mac-codex Codex CLI usage limit until 23:27; rerouting implementation to mac-claude",
+      "target": "mac-claude",
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "ASSIGN",
+      "visible_header": "[ASSIGN] id=evt-20260601T114754Z-475f0cfd task=phase-5.3-agent-registry-auto-sync actor=codex-operator target=mac-claude status=handoff_requested artifacts=docs/project-harness/current/handoff-packet.md"
+    },
+    {
+      "actor": "mac-claude",
+      "artifacts": [],
+      "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+      "causation_id": null,
+      "created_at": "2026-06-01T11:48:51Z",
+      "id": "evt-20260601T114851Z-759ea0b9",
+      "idempotency_key": "ACCEPT:phase-5.3-agent-registry-auto-sync:running:mac-claude",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-claude-1780314531"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-claude accepted phase-5.3-agent-registry-auto-sync",
+      "target": "mac-claude",
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260601T114851Z-759ea0b9 task=phase-5.3-agent-registry-auto-sync actor=mac-claude target=mac-claude status=running branch=agents/mac-codex/phase-5.3-agent-registry-auto-sync"
+    },
+    {
+      "actor": "mac-claude",
+      "artifacts": [
+        "docs/project-harness/current/closeout-packet.md"
+      ],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T12:01:47Z",
+      "id": "evt-20260601T120147Z-6d33d282",
+      "idempotency_key": "RESULT:phase-5.3-agent-registry-auto-sync:closeout_requested:mac-claude",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "closeout_requested",
+      "summary": "Closeout requested for phase-5.3-agent-registry-auto-sync",
+      "target": "codex",
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "RESULT",
+      "visible_header": "[RESULT] id=evt-20260601T120147Z-6d33d282 task=phase-5.3-agent-registry-auto-sync actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T12:01:58Z",
+      "id": "evt-20260601T120158Z-26f01de8",
+      "idempotency_key": "REVIEW:phase-5.3-agent-registry-auto-sync:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK.",
+      "target": "mac-claude",
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260601T120158Z-26f01de8 task=phase-5.3-agent-registry-auto-sync actor=codex target=mac-claude status=approved"
+    },
+    {
+      "actor": "codex-operator",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-01T12:02:04Z",
+      "id": "evt-20260601T120204Z-ccf9cf6d",
+      "idempotency_key": "CLOSE:phase-5.3-agent-registry-auto-sync:done:codex-operator",
+      "metadata": {
+        "force_reason": null
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "done",
+      "summary": "codex-operator closed phase-5.3-agent-registry-auto-sync",
+      "target": null,
+      "task": "phase-5.3-agent-registry-auto-sync",
+      "type": "CLOSE",
+      "visible_header": "[CLOSE] id=evt-20260601T120204Z-ccf9cf6d task=phase-5.3-agent-registry-auto-sync actor=codex-operator status=done"
     }
   ]
 }
