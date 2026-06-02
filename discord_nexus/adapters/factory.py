@@ -3,6 +3,7 @@ from .base import AgentAdapter
 from .claude import ClaudeAdapter
 from .codex import CodexAdapter
 from .hermes import HermesAdapter
+from .omp import OmpAdapter
 from .opencode import OpenCodeAdapter
 
 
@@ -16,6 +17,8 @@ def make_adapter(config: AgentConfig) -> AgentAdapter:
         return HermesAdapter(config)
     if adapter == "opencode":
         return OpenCodeAdapter(config)
+    if adapter == "omp":
+        return OmpAdapter(config)
     raise SystemExit(
-        f"Unsupported adapter: {config.adapter}. Available: claude, codex, hermes, opencode."
+        f"Unsupported adapter: {config.adapter}. Available: claude, codex, hermes, omp, opencode."
     )

@@ -53,6 +53,10 @@ class AgentConfig:
     codex_fallback_model: str | None = None
     opencode_bin: str = "opencode"
     opencode_dangerously_skip_permissions: bool = False
+    omp_bin: str = "omp"
+    omp_model: str | None = None
+    omp_thinking: str | None = None
+    omp_auto_approve: bool = True
 
     allowed_user_ids: list[int] = field(default_factory=list)
     wiki_enabled: bool = False

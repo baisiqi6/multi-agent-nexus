@@ -194,6 +194,15 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
         opencode_dangerously_skip_permissions=_as_bool(
             merged.get("opencode_dangerously_skip_permissions"), False
         ),
+        omp_bin=_first_existing_command(
+            os.getenv("OMP_BIN"),
+            str(merged.get("omp_bin", "")),
+            shutil.which("omp"),
+            "omp",
+        ),
+        omp_model=str(merged["omp_model"]) if merged.get("omp_model") else None,
+        omp_thinking=str(merged["omp_thinking"]) if merged.get("omp_thinking") else None,
+        omp_auto_approve=_as_bool(merged.get("omp_auto_approve"), True),
         wiki_enabled=_as_bool(merged.get("wiki_enabled"), False),
         wiki_path=str(merged.get("wiki_path", "wiki")),
         discoveries_channel_id=(
