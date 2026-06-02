@@ -2,6 +2,22 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-03
+
+### Phase 6.1: omp Adapter 基础接入 — implementation
+
+- Created `discord_nexus/adapters/omp.py`: `OmpAdapter(AgentAdapter)` with `call()`, `resume()`, `health_check()`.
+  - Uses `omp -p --auto-approve` for non-interactive mode.
+  - `resume()` passes `--resume <session_id>`.
+  - Optional `--model` and `--thinking` flags via `omp_model` / `omp_thinking` config.
+  - Simple subprocess communicate (no streaming), with timeout via `asyncio.wait_for`.
+- Extended `discord_nexus/models.py`: added `omp_bin`, `omp_model`, `omp_thinking`, `omp_auto_approve` fields to `AgentConfig`.
+- Updated `discord_nexus/config.py`: parse omp fields from TOML with `_first_existing_command` for `omp_bin`.
+- Registered in `discord_nexus/adapters/factory.py`: `adapter == "omp"` → `OmpAdapter(config)`.
+- Added mac-omp config block to `agents.toml` (local, gitignored) with `omp_model = "opus"`, `omp_thinking = "high"`.
+- 16 new tests in `tests/test_omp_adapter.py`: CLI arg construction (auto-approve, model, thinking, resume), call/resume/failure/timeout/missing CLI/health check/factory.
+- Full test suite: 183/183 pass (167 existing + 16 new).
+
 ## 2026-06-01
 
 ### Phase 5.4: Workspace Doctor And Full Harness Init — implementation
