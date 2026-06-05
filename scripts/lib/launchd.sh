@@ -1,7 +1,7 @@
 # Shared logic for discord-nexus launchd scripts
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-AGENTS=("mac-claude" "mac-codex" "mac-opencode")
+AGENTS=("mac-claude" "mac-codex" "mac-opencode" "mac-omp")
 LAUNCHD_SRC_DIR="$REPO_ROOT/launchd"
 LAUNCHD_DST_DIR="$HOME/Library/LaunchAgents"
 DOMAIN="gui/$(id -u)"

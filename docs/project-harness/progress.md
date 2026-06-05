@@ -18,6 +18,23 @@ Harness root: `docs/project-harness/`
 - 16 new tests in `tests/test_omp_adapter.py`: CLI arg construction (auto-approve, model, thinking, resume), call/resume/failure/timeout/missing CLI/health check/factory.
 - Full test suite: 183/183 pass (167 existing + 16 new).
 
+### Phase 6.1: mac-omp Smoke Test — verification
+
+- **omp CLI**: `omp/15.7.6` available at `/Users/yinxin/.bun/bin/omp`
+- **Health check**: `{"adapter": "omp", "bin": "omp", "available": true, "path": "/Users/yinxin/.bun/bin/omp"}` — PASS
+- **Real call**: `omp -p --auto-approve "Reply with exactly: OK smoke-test-passed"` returned "OK smoke-test-passed" — PASS
+- **Unit tests**: 16/16 omp adapter tests pass; full suite 183/183 pass
+- **plist**: `com.discord-nexus.mac-omp.plist` validated with `plutil -lint` — OK
+- **Shell scripts**: `bash -n` all pass; `launchd.sh` AGENTS includes `mac-omp`
+- **Known gap**: `session_id` is not captured from `omp -p` output (omp print mode does not output session IDs); resume support is limited without interactive mode
+- All Phase 6.1 acceptance criteria met:
+  1. OmpAdapter constructable via `make_adapter()` ✅
+  2. `--auto-approve` in call/resume CLI args ✅
+  3. `--resume <session_id>` passed correctly ✅
+  4. Health check format correct ✅
+  5. All omp adapter tests pass ✅
+  6. No existing test regression (183/183) ✅
+
 ## 2026-06-01
 
 ### Phase 5.4: Workspace Doctor And Full Harness Init — implementation

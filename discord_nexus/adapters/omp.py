@@ -18,8 +18,10 @@ class OmpAdapter(AgentAdapter):
             return prompt
         return f"{self.config.system_prompt.strip()}\n\nUSER: {prompt}"
 
-    def _build_cmd(self, *, resume_session_id: str | None = None) -> list[str]:
+    def _build_cmd(self, *, resume_session_id: str | None = None, no_session: bool = False) -> list[str]:
         cmd = [self.config.omp_bin, "-p"]
+        if no_session:
+            cmd.append("--no-session")
         if resume_session_id:
             cmd += ["--resume", resume_session_id]
         if self.config.omp_auto_approve:
@@ -38,7 +40,9 @@ class OmpAdapter(AgentAdapter):
         work_dir: str | None = None,
         on_progress=None,
     ) -> AdapterResult:
-        return await self._run(prompt, timeout=timeout, work_dir=work_dir)
+        result = await self._run(prompt, timeout=timeout, work_dir=work_dir, no_session=True)
+        result.session_id = None
+        return result
 
     async def resume(
         self,
@@ -65,10 +69,11 @@ class OmpAdapter(AgentAdapter):
         timeout: int | None = None,
         work_dir: str | None = None,
         resume_session_id: str | None = None,
+        no_session: bool = False,
     ) -> AdapterResult:
         timeout = timeout or self.config.timeout
         full_prompt = self._with_system_prompt(prompt)
-        cmd = self._build_cmd(resume_session_id=resume_session_id)
+        cmd = self._build_cmd(resume_session_id=resume_session_id, no_session=no_session)
         cmd.append(full_prompt)
         cwd = work_dir or self.config.work_dir
 
@@ -101,7 +106,7 @@ class OmpAdapter(AgentAdapter):
         response_text = stdout.decode("utf-8", errors="replace").strip()
         session_id = resume_session_id
 
-        if not response_text and proc.returncode != 0:
+        if proc.returncode != 0:
             stderr_text = stderr.decode("utf-8", errors="replace").strip()
             detail = stderr_text or f"exit code {proc.returncode}"
             return AdapterResult(
@@ -114,10 +119,24 @@ class OmpAdapter(AgentAdapter):
         )
 
     async def health_check(self) -> dict:
-        found = shutil.which(self.config.omp_bin)
+        bin_path = self.config.omp_bin
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                bin_path, "--version",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=filtered_env(),
+                **NO_WINDOW,
+            )
+            await asyncio.wait_for(proc.communicate(), timeout=10)
+            available = proc.returncode == 0
+        except Exception:
+            available = False
+
+        found = shutil.which(bin_path)
         return {
             "adapter": "omp",
-            "bin": self.config.omp_bin,
-            "available": found is not None,
+            "bin": bin_path,
+            "available": available,
             "path": found,
         }

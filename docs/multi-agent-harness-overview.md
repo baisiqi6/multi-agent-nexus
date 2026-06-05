@@ -9,24 +9,26 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     MultiNexus（消息投递层）                      │
-│  Discord / KOOK 频道内的多 agent 通信、handoff、上下文管理        │
-│  每个 agent = 一个独立进程 + 一个 bot 身份                       │
+│  Discord / KOOK 频道内的多 agent 通信、handoff、上下文管理           │
+│  每个 agent = 一个独立进程 + 一个 bot 身份                          │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ Discord / KOOK 消息
                             │ [handoff] @AgentName 任务描述
 ┌───────────────────────────▼─────────────────────────────────────┐
 │                   Coordinator（编排控制面）                       │
-│  SQLite 本地控制面：任务分配、状态流转、策略路由、delivery 投递     │
-│  不嵌入任何 agent SDK——agent 以 subprocess 适配器接入             │
+│  SQLite 本地控制面：任务分配、状态流转、策略路由、delivery 投递         │
+│  不嵌入任何 agent SDK——agent 以 subprocess 适配器接入               │
+│   把多 agent 工程协作的状态机、事件日志、任务分配、delivery、          │
+│   PR/CI/review gate 包成一个可恢复、可审计的控制面                   │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ harnessctl 调用
 ┌───────────────────────────▼─────────────────────────────────────┐
-│                  Harness + HarnessCLI（工程状态层）                │
-│  文件持久化的工程状态：checklist、event log、分支、PR、CI          │
-│  harnessctl 是底层 mutation executor，日常状态入口是 Coordinator    │
+│              Harness协议 + HarnessCLI（工程状态层）                │
+│  文件持久化的工程状态：checklist、event log、分支、PR、CI             │
+│  harnessctl 是唯一合法的状态变更入口                                │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
+/
 ## 各层职责
 
 ### 1. Harness + HarnessCLI — 工程状态层
@@ -39,11 +41,10 @@
 - `harness-state.json` — 当前快照
 
 **HarnessCLI（harnessctl）：**
-- 底层状态变更工具，由 Coordinator 的 harness adapter 调用
+- 唯一合法的状态变更工具
 - 提供 `assign`、`accept`、`handoff`、`blocker`、`unblock`、`closeout`、`mark-done` 等操作
 - 每次调用都追加事件到 `events.jsonl`
 - Coordinator 层通过 `HarnessAdapter` 封装调用，永远不直接写 harness 文件
-- 普通 worker agent 不直接调用 harnessctl，也不直接编辑 harness JSON
 
 **设计原则：** 状态是文件，可以用 git 追踪，可以人肉审查，可以在断电后恢复。
 
@@ -71,8 +72,6 @@ Delivery 层（bus.py）
 Bus 适配器
     ├── StdoutBus   → 本地测试（打印 JSON）
     ├── DiscordBus  → Discord 频道消息
-    ├── WebhookBus  → Discord webhook
-    ├── BotBus      → Coordinator daemon 用 Discord bot API 投递
     └── KookBus     → KOOK 房间消息
 ```
 
@@ -93,14 +92,7 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
 |------|--------|------|
 | stdout | StdoutBus | 本地 dry-run 和测试 |
 | discord | DiscordBus | 投递到 Discord 频道 |
-| discord_webhook | WebhookBus / BotBus | Discord 可见 delivery；有 `mention_users` 时仅 mention 指定目标 |
 | kook | KookBus | 投递到 KOOK 房间 |
-
-**Discord daemon：**
-- `serve` 启动 coordinator Discord bot daemon。
-- daemon 可响应 `status`、`task list`、`task show`、`handoff`、`pump` 等频道命令。
-- daemon 可摄取 agent 的 `[agent-report] action=accept|done|blocker workspace_id=... task_id=...`，写入 `agent.reported` event。
-- daemon 可 pump `discord_webhook` delivery 并用 Bot API 发送；普通状态消息不开放 mention，agent handoff 只开放目标 bot mention。
 
 ### 3. MultiNexus — 消息投递层
 
@@ -142,12 +134,6 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
 - 目标 agent 收到 Discord 消息后开始处理
 - 所有跨 agent 交接通过 Discord 频道可见、可追溯
 
-**Coordinator handoff auto-accept：**
-- Coordinator targeted delivery 使用 `[handoff] <@BOT_ID> workspace_id=... task_id=... bootstrap=... action=assignment.accept`。
-- discord-nexus 只信任配置的 `coordinator_bot_id` 发出的结构化 handoff。
-- 目标 managed agent 收到后，runtime 先调用 coordinator CLI 执行 `assignment accept`，再读取 `worker-bootstrap.md` 并注入 agent prompt。
-- 只自动化 `assignment.accept`；后续 blocker、done、closeout、mark-done 仍由 agent 通过 coordinator CLI 或结构化 report 显式回写。
-
 **上下文管理：**
 - SQLite WAL 模式存储频道历史
 - 每次请求注入最近 N 条消息（可配置）
@@ -166,11 +152,11 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
    - 启动 codex exec 子进程
    - Codex 完成实现
 
-3. Coordinator 层：
+3. Coordinator 层（可选）：
    - 用户通过 coordinator CLI 分配任务
-   - coordinator 调用 harnessctl mutation service 记录状态
-   - coordinator 通过 delivery/policy 生成状态广播和可选 targeted agent handoff
-   - MultiNexus 收到 coordinator bot 的结构化 handoff 后自动 accept 并启动对应 agent
+   - coordinator 调用 harnessctl assign 记录状态
+   - coordinator 通过 DiscordBus 投递分配消息到频道
+   - MultiNexus 将消息路由到对应 agent
 
 4. Codex 输出 handoff：
    [handoff] @Claude 请 review feature-X 的实现
@@ -181,7 +167,7 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
    - Claude 开始 review
 
 6. Claude 完成后，coordinator 可记录 closeout：
-   - worker 调用 coordinator CLI closeout / mark-done
+   - harnessctl closeout task-id
    - 事件追加到 events.jsonl
    - 可见的 [DONE] 消息投递到频道
 ```
@@ -207,12 +193,3 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
 4. **频道即总线**：所有 agent 间通信走 Discord/KOOK 频道，天然可追溯
 5. **Adapter 解耦**：Agent 只需要是一个 CLI 工具，不需要 SDK 集成
 6. **混合架构**：coding agent 由 MultiNexus 管理，personal assistant 保留原生 Gateway
-
-## 操作入口规则
-
-后续 phase 执行默认通过 Coordinator 推进，不让普通 worker agent 直接操作 Harness 文件或直接使用 HarnessCLI。
-
-- 日常任务流转：使用 coordinator workspace、assignment、job、event、delivery、CI/review/gate 等命令。
-- HarnessCLI / harness skill：只作为底层维修和补缺口工具，用于 coordinator 尚未封装的操作、coordinator-harness 同步排障，或维护 harness 本身。
-- 禁止普通 agent 直接编辑 harness JSON。需要改变 harness 状态时，应由 coordinator service 通过 harness adapter 调用 `harnessctl`。
-- 人类仍保留最终 human gate：coordinator 的 ready/done 只表示本地事实和流程状态，不等于自动 merge 或自动进入下一阶段。

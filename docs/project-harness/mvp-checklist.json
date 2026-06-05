@@ -2,7 +2,7 @@
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-01",
+  "updated_at": "2026-06-05",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -337,6 +337,51 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-6.1-omp-smoke",
+      "title": "mac-omp smoke test: 验证 omp agent 端到端链路",
+      "status": "done",
+      "priority": "p1",
+      "owner": "mac-omp",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "auto-mac-omp-1780422963",
+      "updated_at": "2026-06-05",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+        "updated_at": "2026-06-05"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+        "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Closed by codex-operator after approved review.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-05"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "auto-mac-omp-1780422963",
+        "acquired_at": "2026-06-02T17:56:04Z",
+        "expires_at": "2026-06-02T19:56:04Z",
+        "ttl_minutes": 120
+      },
+      "phase": "done"
     }
   ]
 }

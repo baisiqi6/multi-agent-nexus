@@ -124,6 +124,19 @@ class TestOmpCall(unittest.IsolatedAsyncioTestCase):
         self.assertIn("omp CLI failed (2)", result.text)
         self.assertIn("config error", result.text)
 
+    async def test_nonzero_exit_with_stdout_returns_error(self):
+        proc = FakeProcess(returncode=1, stdout=b"partial output\n", stderr=b"fatal error")
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        adapter = OmpAdapter(_make_config())
+        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+            result = await adapter.call("test")
+
+        self.assertIn("omp CLI failed (1)", result.text)
+        self.assertIn("fatal error", result.text)
+
 
 class TestOmpResume(unittest.IsolatedAsyncioTestCase):
     async def test_resume_sets_flag(self):
@@ -178,8 +191,16 @@ class TestOmpTimeout(unittest.IsolatedAsyncioTestCase):
 
 class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):
     async def test_found(self):
+        proc = FakeProcess()
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
         adapter = OmpAdapter(_make_config(omp_bin="omp"))
-        with patch("discord_nexus.adapters.omp.shutil.which", return_value="/usr/local/bin/omp"):
+        with (
+            patch("discord_nexus.adapters.omp.shutil.which", return_value="/usr/local/bin/omp"),
+            patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+        ):
             result = await adapter.health_check()
 
         self.assertEqual(result["adapter"], "omp")
@@ -188,8 +209,14 @@ class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["path"], "/usr/local/bin/omp")
 
     async def test_not_found(self):
+        async def fake_exec(*args, **kwargs):
+            raise FileNotFoundError
+
         adapter = OmpAdapter(_make_config(omp_bin="omp"))
-        with patch("discord_nexus.adapters.omp.shutil.which", return_value=None):
+        with (
+            patch("discord_nexus.adapters.omp.shutil.which", return_value=None),
+            patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+        ):
             result = await adapter.health_check()
 
         self.assertFalse(result["available"])

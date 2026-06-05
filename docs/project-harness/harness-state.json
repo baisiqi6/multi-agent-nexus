@@ -1,17 +1,50 @@
 {
   "project": "discord-nexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-01T15:54:45Z",
+  "generated_at": "2026-06-05T05:59:32Z",
   "current_status": "",
-  "current_item": null,
+  "current_item": {
+    "id": "phase-6.1-omp-smoke",
+    "title": "mac-omp smoke test: 验证 omp agent 端到端链路",
+    "status": "done",
+    "owner": "mac-omp",
+    "selected_in_session": "auto-mac-omp-1780422963",
+    "updated_at": "2026-06-05",
+    "workflow": {
+      "status": "closed",
+      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+      "updated_at": "2026-06-05"
+    },
+    "lease": {
+      "owner": "mac-omp",
+      "session": "auto-mac-omp-1780422963",
+      "acquired_at": "2026-06-02T17:56:04Z",
+      "expires_at": "2026-06-02T19:56:04Z",
+      "ttl_minutes": 120
+    },
+    "active_lease": null,
+    "artifacts": {
+      "plan": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+      "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+    },
+    "review": {
+      "decision": "approved",
+      "reviewer": "codex",
+      "phase": "closeout_requested",
+      "updated_at": "2026-06-05"
+    },
+    "plan_path": "docs/project-harness/tasks/phase-6.1-omp-smoke/plan.md"
+  },
   "checklist_summary": {
     "todo": 1,
     "doing": 0,
-    "done": 7,
+    "done": 8,
     "blocked": 0
   },
   "workflow_summary": {
     "closed": 7,
+    "review_approved": 1,
     "todo": 1
   },
   "paths": {
@@ -51,71 +84,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "mac-claude",
-      "artifacts": [],
-      "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
-      "causation_id": null,
-      "created_at": "2026-06-01T11:48:51Z",
-      "id": "evt-20260601T114851Z-759ea0b9",
-      "idempotency_key": "ACCEPT:phase-5.3-agent-registry-auto-sync:running:mac-claude",
-      "metadata": {
-        "force_reason": null,
-        "session": "auto-mac-claude-1780314531"
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "running",
-      "summary": "mac-claude accepted phase-5.3-agent-registry-auto-sync",
-      "target": "mac-claude",
-      "task": "phase-5.3-agent-registry-auto-sync",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260601T114851Z-759ea0b9 task=phase-5.3-agent-registry-auto-sync actor=mac-claude target=mac-claude status=running branch=agents/mac-codex/phase-5.3-agent-registry-auto-sync"
-    },
-    {
-      "actor": "mac-claude",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T12:01:47Z",
-      "id": "evt-20260601T120147Z-6d33d282",
-      "idempotency_key": "RESULT:phase-5.3-agent-registry-auto-sync:closeout_requested:mac-claude",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for phase-5.3-agent-registry-auto-sync",
-      "target": "codex",
-      "task": "phase-5.3-agent-registry-auto-sync",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260601T120147Z-6d33d282 task=phase-5.3-agent-registry-auto-sync actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
-    {
-      "actor": "codex",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T12:01:58Z",
-      "id": "evt-20260601T120158Z-26f01de8",
-      "idempotency_key": "REVIEW:phase-5.3-agent-registry-auto-sync:approved:codex",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "approved",
-      "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK.",
-      "target": "mac-claude",
-      "task": "phase-5.3-agent-registry-auto-sync",
-      "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260601T120158Z-26f01de8 task=phase-5.3-agent-registry-auto-sync actor=codex target=mac-claude status=approved"
-    },
     {
       "actor": "codex-operator",
       "artifacts": [],
@@ -224,6 +192,71 @@
       "task": "phase-5.4-workspace-doctor-harness-init",
       "type": "CLOSE",
       "visible_header": "[CLOSE] id=evt-20260601T122818Z-abc718fd task=phase-5.4-workspace-doctor-harness-init actor=codex-operator status=done"
+    },
+    {
+      "actor": "mac-omp",
+      "artifacts": [],
+      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+      "causation_id": null,
+      "created_at": "2026-06-02T17:56:04Z",
+      "id": "evt-20260602T175604Z-4af37793",
+      "idempotency_key": "ACCEPT:phase-6.1-omp-smoke:running:mac-omp",
+      "metadata": {
+        "force_reason": null,
+        "session": "auto-mac-omp-1780422963"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "running",
+      "summary": "mac-omp accepted phase-6.1-omp-smoke",
+      "target": "mac-omp",
+      "task": "phase-6.1-omp-smoke",
+      "type": "ACCEPT",
+      "visible_header": "[ACCEPT] id=evt-20260602T175604Z-4af37793 task=phase-6.1-omp-smoke actor=mac-omp target=mac-omp status=running branch=agents/mac-omp/phase-6.1-omp-smoke"
+    },
+    {
+      "actor": "mac-omp",
+      "artifacts": [
+        "docs/project-harness/current/closeout-packet.md"
+      ],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-02T17:59:04Z",
+      "id": "evt-20260602T175904Z-0b6bfe44",
+      "idempotency_key": "RESULT:phase-6.1-omp-smoke:closeout_requested:mac-omp",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "closeout_requested",
+      "summary": "Closeout requested for phase-6.1-omp-smoke",
+      "target": "codex",
+      "task": "phase-6.1-omp-smoke",
+      "type": "RESULT",
+      "visible_header": "[RESULT] id=evt-20260602T175904Z-0b6bfe44 task=phase-6.1-omp-smoke actor=mac-omp target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-05T05:59:32Z",
+      "id": "evt-20260605T055932Z-760f852b",
+      "idempotency_key": "REVIEW:phase-6.1-omp-smoke:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "codex marked phase-6.1-omp-smoke approved",
+      "target": "mac-omp",
+      "task": "phase-6.1-omp-smoke",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260605T055932Z-760f852b task=phase-6.1-omp-smoke actor=codex target=mac-omp status=approved"
     }
   ]
 }
