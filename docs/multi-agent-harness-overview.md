@@ -102,9 +102,9 @@ request → accept → (handoff → accept)* → [blocker → unblock]* → clos
 
 ```
 每台机器：
-  进程1 (nexus.py --agent mac-claude)     → Discord bot "Mac Claude"
-  进程2 (nexus.py --agent mac-codex)      → Discord bot "Mac Codex"
-  进程3 (nexus.py --agent mac-opencode)   → Discord bot "Mac OpenCode"
+  进程1 (multinexus.py --agent mac-claude)     → Discord bot "Mac Claude"
+  进程2 (multinexus.py --agent mac-codex)      → Discord bot "Mac Codex"
+  进程3 (multinexus.py --agent mac-opencode)   → Discord bot "Mac OpenCode"
   ...
 
 外部 agent（原生 Gateway，不受 MultiNexus 管理）：

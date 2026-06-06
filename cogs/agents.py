@@ -36,7 +36,7 @@ from utils.chunker import chunk_message
 from utils.confirm import PrivateWikiPromoteView
 from utils.log import set_correlation, clear_correlation
 
-log = logging.getLogger("discord-nexus")
+log = logging.getLogger("multinexus")
 
 LOCAL_AGENT_NAME = "mac-openclaw"
 LEGACY_LOCAL_AGENT_NAME = "local-agent"
@@ -144,7 +144,7 @@ class Agents(commands.Cog):
                 result = await summary_agent.call(
                     [{"role": "user", "content": prompt}],
                     "You are a precise conversation context compactor.",
-                    session_id=f"discord-nexus-context:{thread_id}",
+                    session_id=f"multinexus-context:{thread_id}",
                 )
             except TypeError:
                 result = await summary_agent.call(

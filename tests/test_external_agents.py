@@ -2,9 +2,9 @@ import os
 import tempfile
 import unittest
 
-from discord_nexus.config import load_config
-from discord_nexus.models import AgentConfig, KnownAgentMention
-from discord_nexus.routing.mentions import MentionRouter
+from multinexus.config import load_config
+from multinexus.models import AgentConfig, KnownAgentMention
+from multinexus.routing.mentions import MentionRouter
 
 
 def _write_toml(content: str) -> str:

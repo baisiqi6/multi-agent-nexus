@@ -2,7 +2,7 @@
 
 ## 概述
 
-Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claude、Codex、OpenCode），小龙虾/OpenClaw 和 Hermes 保留原生 Gateway。所有 agent 通过 Discord 消息自然互联。
+Phase 2 实现了混合架构部署：multinexus 托管 coding agents（Claude、Codex、OpenCode），小龙虾/OpenClaw 和 Hermes 保留原生 Gateway。所有 agent 通过 Discord 消息自然互联。
 
 ## 已验证的 Handoff 链路
 
@@ -92,9 +92,9 @@ Phase 2 实现了混合架构部署：discord-nexus 托管 coding agents（Claud
 2. **无 slash 命令** — 目前只能通过 @mention 或 !bang 触发
 3. **无 wiki/scratch/discoveries** — Phase 3 功能
 4. **无 streaming placeholder 增强** — 当前只有心跳计时，无真正的 partial output 展示
-5. **nexus.py 日志级别** — 仍为 DEBUG，应改为 INFO
+5. **multinexus.py 日志级别** — 仍为 DEBUG，应改为 INFO
 6. ~~**OpenCode `--dangerously-skip-permissions` 不存在**~~ — 实际 `opencode run` 支持该 flag，adapter 代码使用正确
-7. **无自动启动** — 所有 bot 需手动 `python nexus.py --agent <id>` 启动
+7. **无自动启动** — 所有 bot 需手动 `python multinexus.py --agent <id>` 启动
 
 ## Phase 3 前置条件
 
@@ -102,4 +102,4 @@ Phase 3（slash commands、wiki、embeds 等）建立在本阶段的基础上。
 
 1. ✅ 完成外部 bot → managed bot 的真实 handoff 验证
 2. 完成 Phase 2.1：固化目标类型触发边界，managed adapter agent 要求 `[handoff] + @mention`，external gateway agent 可由普通 @mention 触发
-3. 将 nexus.py 日志级别改为 INFO
+3. 将 multinexus.py 日志级别改为 INFO

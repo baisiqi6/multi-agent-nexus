@@ -8,7 +8,7 @@
 pwd
 ```
 
-You should be at `/Users/yinxin/projects/discord-nexus`. If not, `cd /Users/yinxin/projects/discord-nexus`.
+You should be at `/Users/yinxin/projects/multinexus`. If not, `cd /Users/yinxin/projects/multinexus`.
 
 ### Step 2: Check workspace state (read-only)
 
@@ -57,17 +57,17 @@ harnessctl is only for operator/harness repair.
 
 ```bash
 cd /Users/yinxin/projects/multi-agent-coordinator
-PYTHONPATH=src python3 -m multi_agent_coordinator --db /Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 <command> discord-nexus [options]
+PYTHONPATH=src python3 -m multi_agent_coordinator --db /Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 <command> multinexus [options]
 ```
 
 Commands:
-- `assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>`
-- `branch allocate discord-nexus --task-id <id> --owner <agent>`
-- `pr link discord-nexus --task-id <id> --pr-url <url>`
-- `ci check discord-nexus --task-id <id>`
-- `merge gate discord-nexus --task-id <id>`
-- `assignment closeout discord-nexus --task-id <id> --reviewer <name>`
-- `assignment mark-done discord-nexus --task-id <id>`
+- `assignment accept multinexus --task-id <id> --owner <agent> --session <sid>`
+- `branch allocate multinexus --task-id <id> --owner <agent>`
+- `pr link multinexus --task-id <id> --pr-url <url>`
+- `ci check multinexus --task-id <id>`
+- `merge gate multinexus --task-id <id>`
+- `assignment closeout multinexus --task-id <id> --reviewer <name>`
+- `assignment mark-done multinexus --task-id <id>`
 
 ## Implementation Protocol
 
@@ -83,7 +83,7 @@ Do not stream private reasoning or every command.
 When you finish a clear sub-step, send one single-line report in the channel:
 
 ```text
-[agent-report] action=progress workspace_id=discord-nexus task_id=phase-5.1-handoff-runtime-hardening summary="Completed <milestone>; tests: <result>; next: <next step>"
+[agent-report] action=progress workspace_id=multinexus task_id=phase-5.1-handoff-runtime-hardening summary="Completed <milestone>; tests: <result>; next: <next step>"
 ```
 
 If blocked, use `action=blocker` with a short `reason=...` instead of repeating attempts.

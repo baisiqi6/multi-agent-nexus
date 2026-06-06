@@ -194,7 +194,7 @@ Next call will start fresh.
 新增文件：
 
 ```text
-discord_nexus/embeds.py
+multinexus/embeds.py
 ```
 
 建议放纯展示层 builder，避免继续膨胀 `client.py`。

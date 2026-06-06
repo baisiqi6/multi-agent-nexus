@@ -126,8 +126,8 @@ response = await handle_operator_command(op_cmd, self, message.channel.id)
 
 | 文件 | 改动 |
 |------|------|
-| `discord_nexus/commands.py` | handlers 改为 channel_id；新增 can_run_operator_command |
-| `discord_nexus/client.py` | 挂载 CommandTree；setup_hook 注册命令；on_ready guild sync；更新文本命令调用 |
+| `multinexus/commands.py` | handlers 改为 channel_id；新增 can_run_operator_command |
+| `multinexus/client.py` | 挂载 CommandTree；setup_hook 注册命令；on_ready guild sync；更新文本命令调用 |
 | `tests/test_commands.py` | 适配新签名；新增权限和 channel 检查测试 |
 
 ## 注意事项

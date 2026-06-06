@@ -2,7 +2,7 @@
 
 ## Baseline
 
-| metric | discord-nexus | multi-agent-coordinator |
+| metric | multinexus | multi-agent-coordinator |
 |---|---|---|
 | tests | 184/184 | 719/719 |
 | harness validate | 0 warnings | 0 warnings |
@@ -70,18 +70,18 @@ Created `docs/project-harness/tasks/phase-6.1-omp-smoke/plan.md` symlink → `ph
 
 ### Low: launchd plist tracking
 
-`launchd/com.discord-nexus.mac-omp.plist` added to git.
+`launchd/com.multinexus.mac-omp.plist` added to git.
 
 ## Files changed
 
-### discord-nexus
+### multinexus
 | file | change |
 |---|---|
-| `discord_nexus/adapters/omp.py` | returncode handling, health check, --no-session |
+| `multinexus/adapters/omp.py` | returncode handling, health check, --no-session |
 | `tests/test_omp_adapter.py` | nonzero+stdout regression test |
 | `agents.toml` | lifecycle decision rules ×7; win agent prompts |
 | `scripts/lib/launchd.sh` | mac-omp in AGENTS array |
-| `launchd/com.discord-nexus.mac-omp.plist` | new (tracked) |
+| `launchd/com.multinexus.mac-omp.plist` | new (tracked) |
 | `docs/project-harness/harness-state.json` | workflow→closed |
 | `docs/project-harness/mvp-checklist.json` | workflow→closed |
 | `docs/project-harness/tasks/phase-6.1-omp-smoke/plan.md` | new symlink |

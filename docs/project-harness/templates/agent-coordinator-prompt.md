@@ -10,17 +10,17 @@
 ```bash
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 ```
 
 常用命令：
-- `mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>`
-- `mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>`
-- `mac.sh pr link discord-nexus --task-id <id> --pr-url <url>`
-- `mac.sh ci check discord-nexus --task-id <id>`
-- `mac.sh merge gate discord-nexus --task-id <id>`
-- `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
-- `mac.sh assignment mark-done discord-nexus --task-id <id>`
+- `mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>`
+- `mac.sh branch allocate multinexus --task-id <id> --owner <agent>`
+- `mac.sh pr link multinexus --task-id <id> --pr-url <url>`
+- `mac.sh ci check multinexus --task-id <id>`
+- `mac.sh merge gate multinexus --task-id <id>`
+- `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
+- `mac.sh assignment mark-done multinexus --task-id <id>`
 
 ### 规则
 
@@ -28,9 +28,9 @@ MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
 - 不要直接调用 harnessctl 或修改 harness JSON 文件
 - harnessctl 仅限 operator 在明确要求 harness repair/maintain 时使用
 
-<!-- Placeholder values for discord-nexus:
+<!-- Placeholder values for multinexus:
 COORDINATOR_PATH=/Users/yinxin/projects/multi-agent-coordinator
 COORDINATOR_DB=~/.multi-agent-coordinator/coordinator.sqlite3
 MAC_SH=skills/multi-agent-coordinator-operator/scripts/mac.sh
-WORKSPACE_ID=discord-nexus
+WORKSPACE_ID=multinexus
 -->

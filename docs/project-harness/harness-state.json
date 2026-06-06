@@ -1,5 +1,5 @@
 {
-  "project": "discord-nexus",
+  "project": "multinexus",
   "harness_root": "docs/project-harness",
   "generated_at": "2026-06-05T05:59:32Z",
   "current_status": "",
@@ -165,7 +165,7 @@
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "approved",
-      "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus discord-nexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, discord-nexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
+      "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
       "target": "mac-claude",
       "task": "phase-5.4-workspace-doctor-harness-init",
       "type": "REVIEW",

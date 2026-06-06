@@ -228,7 +228,7 @@ def load_config(argv: list[str] | None = None) -> AgentConfig:
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Discord Nexus single-agent bot runner"
+        description="MultiNexus single-agent bot runner"
     )
     parser.add_argument(
         "--config",

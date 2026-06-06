@@ -4,7 +4,7 @@
 
 Phase 4.5 后，coordinator 可以通过 `workspace agent add` 维护 workspace agent registry，并用 `task handoff --target-agent ...` 精准发送 Discord handoff。
 
-当前问题是 registry 仍然靠人工维护。`discord-nexus/agents.toml` 里已经有 managed agents 和 external agents 的 `discord_user_id`，coordinator DB 里也有一份 agent registry。两边一旦漂移，handoff 会出现两类问题：
+当前问题是 registry 仍然靠人工维护。`multinexus/agents.toml` 里已经有 managed agents 和 external agents 的 `discord_user_id`，coordinator DB 里也有一份 agent registry。两边一旦漂移，handoff 会出现两类问题：
 
 - target agent 未注册，handoff fail closed。
 - target agent 注册了旧 ID，handoff 发错人或无人响应。
@@ -13,7 +13,7 @@ Phase 4.5 后，coordinator 可以通过 `workspace agent add` 维护 workspace 
 
 ## 目标
 
-增加一个从 `discord-nexus` TOML 配置同步 agent registry 到 coordinator workspace 的能力，降低手工 `workspace agent add` 的维护成本。
+增加一个从 `multinexus` TOML 配置同步 agent registry 到 coordinator workspace 的能力，降低手工 `workspace agent add` 的维护成本。
 
 ## 实施范围
 
@@ -23,8 +23,8 @@ Phase 4.5 后，coordinator 可以通过 `workspace agent add` 维护 workspace 
 
 ```bash
 skills/multi-agent-coordinator-operator/scripts/mac.sh \
-  workspace agent sync discord-nexus \
-  --source /Users/yinxin/projects/discord-nexus/agents.toml
+  workspace agent sync multinexus \
+  --source /Users/yinxin/projects/multinexus/agents.toml
 ```
 
 行为要求：
@@ -55,7 +55,7 @@ skills/multi-agent-coordinator-operator/scripts/mac.sh \
 - 在 `src/multi_agent_coordinator/cli.py` 增加 `workspace agent sync` 子命令。
 - 为 DB helper、TOML 解析、CLI sync 各补单元测试。
 
-### discord-nexus
+### multinexus
 
 只做文档和示例补充：
 
@@ -64,7 +64,7 @@ skills/multi-agent-coordinator-operator/scripts/mac.sh \
 
 ## 非目标
 
-- 不让 coordinator import `discord_nexus.config` 或其他 discord-nexus runtime module。
+- 不让 coordinator import `multinexus.config` 或其他 multinexus runtime module。
 - 不把 Discord bot token、`.env`、webhook URL 或真实 `agents.toml` 提交到仓库。
 - 不做后台自动同步 daemon。
 - 不改变 handoff、lifecycle、agent-report 协议。
@@ -94,7 +94,7 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 - `--replace` 删除 TOML 中不存在的旧 registry entry。
 - CLI 输出不包含 token 字段或环境变量实际值。
 
-在 `discord-nexus`：
+在 `multinexus`：
 
 ```bash
 .venv/bin/python -m unittest discover tests
@@ -111,4 +111,4 @@ scripts/harness/harnessctl validate
 
 ## 建议 worker
 
-优先交给 `mac-codex` 实现。该任务需要改 coordinator CLI 和测试，同时补 discord-nexus 文档。
+优先交给 `mac-codex` 实现。该任务需要改 coordinator CLI 和测试，同时补 multinexus 文档。

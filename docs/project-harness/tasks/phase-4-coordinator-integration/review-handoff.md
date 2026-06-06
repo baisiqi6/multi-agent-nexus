@@ -2,7 +2,7 @@
 
 ## Review Target
 
-- **Workspace**: discord-nexus
+- **Workspace**: multinexus
 - **Task ID**: phase-4-coordinator-integration
 - **Title**: Phase 4: Coordinator Integration (WebhookBus + system prompt)
 - **Plan doc**: `docs/project-harness/tasks/phase-4-coordinator-integration/plan.md`
@@ -13,7 +13,7 @@
 Addressed reviewer rejection (4 required changes):
 
 1. **Webhook URL 不存入 workspace config** — `default_destination` 改为非敏感标签 `"discord-nexus-status"`，webhook URL 只从 `DISCORD_WEBHOOK_URL` 环境变量获取
-2. **CLI 示例包含 workspace_id** — 所有 coordinator CLI 命令首参为 `discord-nexus`
+2. **CLI 示例包含 workspace_id** — 所有 coordinator CLI 命令首参为 `multinexus`
 3. **禁止普通 agent 直接调 harnessctl** — 默认规则：所有状态变更通过 coordinator CLI；harnessctl 仅限 operator 在 harness repair 场景下使用
 4. **新增 tracked template** — `docs/project-harness/templates/agent-coordinator-prompt.md`（implementation deliverable，不在本 plan 阶段创建）
 
@@ -33,10 +33,10 @@ Phase 4.1-4.4 scope only. Two projects involved:
 
 3. **`tests/test_bus.py`** — 7 个新测试用例（mock HttpPost），含 destination 不泄漏到 HTTP body 的验证
 
-### discord-nexus
+### multinexus
 
 4. **`agents.toml`**（本地，untracked）— mac-claude、mac-codex、mac-opencode 的 system_prompt 追加 coordinator CLI 使用说明
-5. **`docs/project-harness/templates/agent-coordinator-prompt.md`**（已创建，tracked）— coordinator system_prompt 模板，含完整路径、placeholder 和 discord-nexus 具体值
+5. **`docs/project-harness/templates/agent-coordinator-prompt.md`**（已创建，tracked）— coordinator system_prompt 模板，含完整路径、placeholder 和 multinexus 具体值
 
 ## Design Decisions
 
@@ -57,7 +57,7 @@ Read these files in order:
 3. `/Users/yinxin/projects/multi-agent-coordinator/src/multi_agent_coordinator/bus.py` — existing bus code (WebhookBus will be added here)
 4. `/Users/yinxin/projects/multi-agent-coordinator/src/multi_agent_coordinator/policy.py` — existing policy (SUPPORTED_PLATFORMS will be extended)
 5. `/Users/yinxin/projects/multi-agent-coordinator/tests/test_bus.py` — existing bus tests (new tests will be added)
-6. `/Users/yinxin/projects/discord-nexus/agents.toml` — current agent config (system_prompt will be extended, local only)
+6. `/Users/yinxin/projects/multinexus/agents.toml` — current agent config (system_prompt will be extended, local only)
 
 Implementation deliverable (created during Phase 4.3):
 - `docs/project-harness/templates/agent-coordinator-prompt.md` — coordinator system_prompt template
@@ -68,7 +68,7 @@ Implementation deliverable (created during Phase 4.3):
 - WebhookBus 是否复用了现有 DiscordBus 的模式（HttpPost 注入、from_env 工厂、错误处理）
 - bus_for_platform 是否正确路由
 - SUPPORTED_PLATFORMS 是否一致
-- 所有 CLI 示例是否包含 workspace_id `discord-nexus`
+- 所有 CLI 示例是否包含 workspace_id `multinexus`
 - webhook URL 是否只从 `DISCORD_WEBHOOK_URL` 环境变量获取
 - system_prompt 内容是否准确（完整路径、workspace 名、命令列表）
 - harnessctl 访问限制是否明确
@@ -85,7 +85,7 @@ After review, call exactly one of:
 cd /Users/yinxin/projects/multi-agent-coordinator
 PYTHONPATH=src python3 -m multi_agent_coordinator \
   --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
-  plan approve discord-nexus \
+  plan approve multinexus \
   --task-id phase-4-coordinator-integration \
   --scope "implementation plan" \
   --reviewer "<your-reviewer-id>" \
@@ -94,7 +94,7 @@ PYTHONPATH=src python3 -m multi_agent_coordinator \
 # Or reject
 PYTHONPATH=src python3 -m multi_agent_coordinator \
   --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
-  plan reject discord-nexus \
+  plan reject multinexus \
   --task-id phase-4-coordinator-integration \
   --scope "implementation plan" \
   --reviewer "<your-reviewer-id>" \

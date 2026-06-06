@@ -2,13 +2,13 @@
 
 ## Entry Point
 
-`nexus.py --config agents.toml --agent <id>` — one process per managed agent.
+`multinexus.py --config agents.toml --agent <id>` — one process per managed agent.
 
 ## Module Map
 
 ```
-nexus.py                          CLI entry point
-discord_nexus/
+multinexus.py                          CLI entry point
+multinexus/
   client.py                       DiscordClient (discord.Client + CommandTree)
   config.py                       TOML config loading, [defaults] + [[agents]] merge
   models.py                       AgentConfig, KnownAgentMention dataclasses

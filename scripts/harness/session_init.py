@@ -78,7 +78,7 @@ def command_order(config: dict, commands: dict[str, str]) -> list[str]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Deterministic session bootstrap for discord-nexus.")
+    parser = argparse.ArgumentParser(description="Deterministic session bootstrap for multinexus.")
     parser.add_argument("--skip-checklist", action="store_true", help="Skip checklist validation.")
     parser.add_argument("--skip-typecheck", action="store_true", help="Skip configured typecheck command.")
     parser.add_argument("--skip-tests", action="store_true", help="Skip configured test command.")

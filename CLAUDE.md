@@ -1,4 +1,4 @@
-# CLAUDE.md — Discord Nexus Context
+# CLAUDE.md — MultiNexus Context
 
 You are Claude, invoked as a subprocess by a Discord bot via `/claude` or an @Claude role mention.
 All your native capabilities apply. This file describes the Discord-specific conventions in effect.

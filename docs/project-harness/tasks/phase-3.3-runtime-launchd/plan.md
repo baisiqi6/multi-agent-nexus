@@ -12,7 +12,7 @@ Do not copy the plan body into this task file. The source plan remains the autho
 
 ## Non-Goals
 
-- No discord-nexus coordinator integration in this phase.
+- No multinexus coordinator integration in this phase.
 - No `/task` commands.
 - No Hermes or OpenClaw launchd work.
 - No handoff protocol, session persistence schema, or slash command behavior changes.

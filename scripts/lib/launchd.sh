@@ -1,4 +1,4 @@
-# Shared logic for discord-nexus launchd scripts
+# Shared logic for multinexus launchd scripts
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 AGENTS=("mac-claude" "mac-codex" "mac-opencode" "mac-omp")
@@ -6,10 +6,10 @@ LAUNCHD_SRC_DIR="$REPO_ROOT/launchd"
 LAUNCHD_DST_DIR="$HOME/Library/LaunchAgents"
 DOMAIN="gui/$(id -u)"
 
-label_for() { echo "com.discord-nexus.$1"; }
+label_for() { echo "com.multinexus.$1"; }
 
-plist_src_for() { echo "$LAUNCHD_SRC_DIR/com.discord-nexus.$1.plist"; }
-plist_dst_for() { echo "$LAUNCHD_DST_DIR/com.discord-nexus.$1.plist"; }
+plist_src_for() { echo "$LAUNCHD_SRC_DIR/com.multinexus.$1.plist"; }
+plist_dst_for() { echo "$LAUNCHD_DST_DIR/com.multinexus.$1.plist"; }
 
 # Resolve agents to act on: arg or all
 resolve_agents() {
@@ -32,7 +32,7 @@ launchd_pid() {
 
 # Check if a manual (non-launchd) process is running for an agent.
 # Matches any process whose argv contains --agent <agent> or --agent=<agent>
-# anywhere, so invocations like "python nexus.py --config agents.toml --agent mac-claude"
+# anywhere, so invocations like "python multinexus.py --config agents.toml --agent mac-claude"
 # are also detected.
 check_manual_process() {
     local agent=$1 lpid

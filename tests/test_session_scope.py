@@ -1,6 +1,6 @@
 import unittest
 
-from discord_nexus.sessions.scope import (
+from multinexus.sessions.scope import (
     channel_scope,
     describe_scope,
     legacy_scope_for_channel_id,
@@ -21,8 +21,8 @@ class TestSessionScopeHelpers(unittest.TestCase):
 
     def test_task_scope_key(self):
         self.assertEqual(
-            task_scope("discord-nexus", "phase-5.2"),
-            "task:discord-nexus:phase-5.2",
+            task_scope("multinexus", "phase-5.2"),
+            "task:multinexus:phase-5.2",
         )
 
     def test_legacy_scope_key(self):
@@ -32,7 +32,7 @@ class TestSessionScopeHelpers(unittest.TestCase):
         self.assertEqual(describe_scope("channel:123").label, "channel scope")
         self.assertEqual(describe_scope("thread:456").label, "thread scope")
         self.assertEqual(
-            describe_scope("task:discord-nexus:phase-5.2").label,
+            describe_scope("task:multinexus:phase-5.2").label,
             "task scope",
         )
         self.assertEqual(describe_scope("123").label, "legacy channel scope")

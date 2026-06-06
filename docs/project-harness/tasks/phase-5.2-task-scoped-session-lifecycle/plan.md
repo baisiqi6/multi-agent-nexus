@@ -2,7 +2,7 @@
 
 ## 背景
 
-当前 discord-nexus 的 managed agent 已经支持 CLI session resume，但 session scope 仍主要来自 Discord channel/thread id。对于 coordinator 派发的工程任务，这会带来两个问题：
+当前 multinexus 的 managed agent 已经支持 CLI session resume，但 session scope 仍主要来自 Discord channel/thread id。对于 coordinator 派发的工程任务，这会带来两个问题：
 
 - 同一个频道里的不同任务可能复用同一个 agent session，旧上下文会污染新任务。
 - task closeout / done 后，旧 session 仍可能保持 active，后续消息误触发 resume。
@@ -11,7 +11,7 @@ Phase 5.2 的目标是把 coordinator handoff 产生的工程任务切到 task-s
 
 ## 范围
 
-### discord-nexus
+### multinexus
 
 1. 定义统一 scope key 规则：
    - 普通频道消息：`channel:<channel_id>`
@@ -33,7 +33,7 @@ Phase 5.2 的目标是把 coordinator handoff 产生的工程任务切到 task-s
 
 ### multi-agent-coordinator
 
-1. 确认已有 `task.done`、`assignment.closeout` 等 lifecycle event 足够让 discord-nexus 判断 session 结束。
+1. 确认已有 `task.done`、`assignment.closeout` 等 lifecycle event 足够让 multinexus 判断 session 结束。
 2. 如果需要新增 delivery/event 语义，应保持窄范围，只服务 session lifecycle。
 3. 不允许从 Discord 文本直接触发 destructive lifecycle 操作。
 

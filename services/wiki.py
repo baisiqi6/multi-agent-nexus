@@ -1,4 +1,4 @@
-"""Wiki knowledge store — atomic file-backed wiki for discord-nexus.
+"""Wiki knowledge store — atomic file-backed wiki for multinexus.
 
 The wiki is a flat-file system of Markdown pages with a text index.
 Agents can write pages via <!-- WIKI: page-name --> tags in their responses.
@@ -26,7 +26,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 
-log = logging.getLogger("discord-nexus")
+log = logging.getLogger("multinexus")
 
 
 class WikiWriteError(Exception):

@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from discord_nexus.sessions.store import SessionStore
+from multinexus.sessions.store import SessionStore
 
 
 class TestSessionStore(unittest.TestCase):
@@ -155,23 +155,23 @@ class TestSessionStore(unittest.TestCase):
 
     def test_list_by_scope_prefix_can_include_stale(self):
         self.store.upsert(
-            scope_id="task:discord-nexus:phase-a", agent_id="claude",
+            scope_id="task:multinexus:phase-a", agent_id="claude",
             adapter="claude", session_id="sess-active",
         )
         self.store.upsert(
-            scope_id="task:discord-nexus:phase-b", agent_id="claude",
+            scope_id="task:multinexus:phase-b", agent_id="claude",
             adapter="claude", session_id="sess-stale",
         )
         self.store.mark_stale(
-            scope_id="task:discord-nexus:phase-b", agent_id="claude",
+            scope_id="task:multinexus:phase-b", agent_id="claude",
         )
 
         active = self.store.list_by_scope_prefix(
-            scope_prefix="task:discord-nexus:",
+            scope_prefix="task:multinexus:",
             agent_id="claude",
         )
         all_rows = self.store.list_by_scope_prefix(
-            scope_prefix="task:discord-nexus:",
+            scope_prefix="task:multinexus:",
             agent_id="claude",
             include_stale=True,
         )
@@ -181,16 +181,16 @@ class TestSessionStore(unittest.TestCase):
 
     def test_list_by_scope_prefix_treats_underscore_literally(self):
         self.store.upsert(
-            scope_id="task:discord-nexus:phase_1", agent_id="claude",
+            scope_id="task:multinexus:phase_1", agent_id="claude",
             adapter="claude", session_id="sess-underscore",
         )
         self.store.upsert(
-            scope_id="task:discord-nexus:phaseA1", agent_id="claude",
+            scope_id="task:multinexus:phaseA1", agent_id="claude",
             adapter="claude", session_id="sess-other",
         )
 
         rows = self.store.list_by_scope_prefix(
-            scope_prefix="task:discord-nexus:phase_",
+            scope_prefix="task:multinexus:phase_",
             agent_id="claude",
         )
 
@@ -199,12 +199,12 @@ class TestSessionStore(unittest.TestCase):
 
     def test_mark_task_archived_makes_task_session_inactive(self):
         self.store.upsert(
-            scope_id="task:discord-nexus:phase-a", agent_id="claude",
+            scope_id="task:multinexus:phase-a", agent_id="claude",
             adapter="claude", session_id="sess-task",
         )
 
         changed = self.store.mark_task_archived(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-a",
             agent_id="claude",
         )
@@ -212,12 +212,12 @@ class TestSessionStore(unittest.TestCase):
         self.assertEqual(changed, 1)
         self.assertIsNone(
             self.store.get(
-                scope_id="task:discord-nexus:phase-a",
+                scope_id="task:multinexus:phase-a",
                 agent_id="claude",
             )
         )
         rows = self.store.list_task_scope(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-a",
             agent_id="claude",
             include_stale=True,

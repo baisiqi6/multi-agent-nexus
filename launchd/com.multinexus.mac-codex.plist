@@ -3,16 +3,16 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.discord-nexus.mac-opencode</string>
+    <string>com.multinexus.mac-codex</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/yinxin/projects/discord-nexus/.venv/bin/python</string>
-        <string>/Users/yinxin/projects/discord-nexus/nexus.py</string>
+        <string>/Users/yinxin/projects/multinexus/.venv/bin/python</string>
+        <string>/Users/yinxin/projects/multinexus/multimultinexus.py</string>
         <string>--agent</string>
-        <string>mac-opencode</string>
+        <string>mac-codex</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/yinxin/projects/discord-nexus</string>
+    <string>/Users/yinxin/projects/multinexus</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
@@ -20,9 +20,9 @@
     <key>ThrottleInterval</key>
     <integer>30</integer>
     <key>StandardOutPath</key>
-    <string>/Users/yinxin/projects/discord-nexus/logs/mac-opencode.log</string>
+    <string>/Users/yinxin/projects/multinexus/logs/mac-codex.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/yinxin/projects/discord-nexus/logs/mac-opencode.err.log</string>
+    <string>/Users/yinxin/projects/multinexus/logs/mac-codex.err.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>

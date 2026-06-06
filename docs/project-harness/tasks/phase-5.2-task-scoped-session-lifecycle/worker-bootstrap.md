@@ -8,7 +8,7 @@
 pwd
 ```
 
-You should be at `/Users/yinxin/projects/discord-nexus`. If not, `cd /Users/yinxin/projects/discord-nexus`.
+You should be at `/Users/yinxin/projects/multinexus`. If not, `cd /Users/yinxin/projects/multinexus`.
 
 ### Step 2: Check workspace state (read-only)
 
@@ -57,17 +57,17 @@ harnessctl is only for operator/harness repair.
 
 ```bash
 cd /Users/yinxin/projects/multi-agent-coordinator
-PYTHONPATH=src python3 -m multi_agent_coordinator --db /Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 <command> discord-nexus [options]
+PYTHONPATH=src python3 -m multi_agent_coordinator --db /Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 <command> multinexus [options]
 ```
 
 Commands:
-- `assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>`
-- `branch allocate discord-nexus --task-id <id> --owner <agent>`
-- `pr link discord-nexus --task-id <id> --pr-url <url>`
-- `ci check discord-nexus --task-id <id>`
-- `merge gate discord-nexus --task-id <id>`
-- `assignment closeout discord-nexus --task-id <id> --reviewer <name>`
-- `assignment mark-done discord-nexus --task-id <id>`
+- `assignment accept multinexus --task-id <id> --owner <agent> --session <sid>`
+- `branch allocate multinexus --task-id <id> --owner <agent>`
+- `pr link multinexus --task-id <id> --pr-url <url>`
+- `ci check multinexus --task-id <id>`
+- `merge gate multinexus --task-id <id>`
+- `assignment closeout multinexus --task-id <id> --reviewer <name>`
+- `assignment mark-done multinexus --task-id <id>`
 
 ## Implementation Protocol
 
@@ -90,9 +90,9 @@ Keep each visible update short. Do not stream private reasoning or every command
 Each progress/blocker/done update should end with one machine-readable line so coordinator can ingest it:
 
 ```text
-[agent-report] action=progress workspace_id=discord-nexus task_id=phase-5.2-task-scoped-session-lifecycle summary="Completed <milestone>; tests: <result>; next: <next step>"
-[agent-report] action=blocker workspace_id=discord-nexus task_id=phase-5.2-task-scoped-session-lifecycle reason="Need <decision/input>"
-[agent-report] action=done workspace_id=discord-nexus task_id=phase-5.2-task-scoped-session-lifecycle summary="Implemented <scope>; tests: <result>; risks: <risk-or-none>"
+[agent-report] action=progress workspace_id=multinexus task_id=phase-5.2-task-scoped-session-lifecycle summary="Completed <milestone>; tests: <result>; next: <next step>"
+[agent-report] action=blocker workspace_id=multinexus task_id=phase-5.2-task-scoped-session-lifecycle reason="Need <decision/input>"
+[agent-report] action=done workspace_id=multinexus task_id=phase-5.2-task-scoped-session-lifecycle summary="Implemented <scope>; tests: <result>; risks: <risk-or-none>"
 ```
 
 Use exactly one report line per visible update. The report line must start at the beginning of its own line.

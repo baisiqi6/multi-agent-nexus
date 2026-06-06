@@ -32,18 +32,18 @@ Phase 3.1 目标：补齐最小运行时排障能力，不碰 wiki/scratch/embed
 
 | 文件 | 改动 |
 |------|------|
-| `discord_nexus/models.py` | KnownAgentMention 增加 `kind` 字段 |
-| `discord_nexus/config.py` | 加载时正确填充 kind="managed" / "external" |
-| `discord_nexus/sessions/store.py` | 添加 `list_by_agent()` 方法 |
-| `discord_nexus/commands.py` | **新建** — 命令检测 + 执行 |
-| `discord_nexus/client.py` | on_message 人类分支插入拦截 |
+| `multinexus/models.py` | KnownAgentMention 增加 `kind` 字段 |
+| `multinexus/config.py` | 加载时正确填充 kind="managed" / "external" |
+| `multinexus/sessions/store.py` | 添加 `list_by_agent()` 方法 |
+| `multinexus/commands.py` | **新建** — 命令检测 + 执行 |
+| `multinexus/client.py` | on_message 人类分支插入拦截 |
 | `tests/test_commands.py` | **新建** — 命令检测、输出、client 拦截测试 |
 
 ## 实现步骤
 
 ### Step 1：KnownAgentMention 增加 kind 字段
 
-`discord_nexus/models.py`：
+`multinexus/models.py`：
 
 ```python
 @dataclass
@@ -56,7 +56,7 @@ class KnownAgentMention:
     kind: str = "managed"  # "managed" | "external"
 ```
 
-`discord_nexus/config.py`：
+`multinexus/config.py`：
 - `_build_toml_roster()` 构建 managed agents 时设 `kind="managed"`
 - `_build_external_agents()` 构建 external agents 时设 `kind="external"`
 
@@ -64,7 +64,7 @@ class KnownAgentMention:
 
 ### Step 2：SessionStore.list_by_agent
 
-`discord_nexus/sessions/store.py` 新增：
+`multinexus/sessions/store.py` 新增：
 
 ```python
 def list_by_agent(self, *, agent_id: str, include_stale: bool = False) -> list[dict]:
@@ -91,7 +91,7 @@ def list_by_agent(self, *, agent_id: str, include_stale: bool = False) -> list[d
 
 ### Step 3：新建 commands.py
 
-`discord_nexus/commands.py`：
+`multinexus/commands.py`：
 
 ```python
 OPERATOR_COMMANDS = {"session status", "session reset", "agents", "health"}
@@ -180,7 +180,7 @@ def is_dangerous_command(cmd: str) -> bool:
 
 ### Step 4：修改 client.py on_message
 
-在 `discord_nexus/client.py` 的 `on_message` 方法中，人类消息分支（line 131-139）。
+在 `multinexus/client.py` 的 `on_message` 方法中，人类消息分支（line 131-139）。
 
 在 `_is_addressed_to_me` 返回 true 之后、`_handle_request` 之前插入拦截：
 

@@ -5,15 +5,15 @@ import unittest
 from dataclasses import dataclass, field
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from discord_nexus.commands import (
+from multinexus.commands import (
     OPERATOR_COMMANDS,
     can_run_operator_command,
     handle_operator_command,
     is_dangerous_command,
     parse_operator_command,
 )
-from discord_nexus.models import AgentConfig, KnownAgentMention
-from discord_nexus.sessions.store import SessionStore
+from multinexus.models import AgentConfig, KnownAgentMention
+from multinexus.sessions.store import SessionStore
 
 
 def _make_config(**overrides):

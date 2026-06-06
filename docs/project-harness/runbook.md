@@ -36,9 +36,9 @@ scripts/uninstall.sh mac-codex  # Single
 
 | ID | Adapter | launchd label |
 |----|---------|---------------|
-| mac-claude | claude | com.discord-nexus.mac-claude |
-| mac-codex | codex | com.discord-nexus.mac-codex |
-| mac-opencode | opencode | com.discord-nexus.mac-opencode |
+| mac-claude | claude | com.multinexus.mac-claude |
+| mac-codex | codex | com.multinexus.mac-codex |
+| mac-opencode | opencode | com.multinexus.mac-opencode |
 
 All plists: RunAtLoad=true, KeepAlive=true, ThrottleInterval=30.
 
@@ -92,25 +92,25 @@ MAC_SH=~/projects/multi-agent-coordinator/skills/multi-agent-coordinator-operato
 export MAC_DB=~/projects/multi-agent-coordinator/data/coordinator.sqlite3
 
 # Sync coordinator with harness state
-$MAC_SH reconcile discord-nexus
+$MAC_SH reconcile multinexus
 
 # Check for drifts
-$MAC_SH workspace audit discord-nexus
+$MAC_SH workspace audit multinexus
 
 # View current state
-$MAC_SH state discord-nexus
+$MAC_SH state multinexus
 
 # Generate a worker bootstrap and targeted agent handoff
-$MAC_SH task handoff discord-nexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
+$MAC_SH task handoff multinexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
 
 # Sync agent registry from agents.toml before targeted handoff
-$MAC_SH workspace agent sync discord-nexus --source ~/projects/discord-nexus/agents.toml
+$MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.toml
 
 # Sync and replace entire registry (removes agents not in TOML)
-$MAC_SH workspace agent sync discord-nexus --source ~/projects/discord-nexus/agents.toml --replace
+$MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.toml --replace
 
 # Create visible deliveries for supported events
-$MAC_SH policy pump-events --workspace-id discord-nexus --platform discord_webhook --destination discord-nexus-status
+$MAC_SH policy pump-events --workspace-id multinexus --platform discord_webhook --destination discord-nexus-status
 
 # Send queued Discord deliveries when not using the daemon
 DISCORD_WEBHOOK_URL=<webhook-url> $MAC_SH delivery pump --platform discord_webhook
@@ -126,7 +126,7 @@ The daemon can also be mentioned in Discord for `status`, `task list`, `task sho
 
 **Agent won't start**: Check `logs/<agent>.err.log` for import errors or missing env vars. Verify token in `.env` matches `token_env` in `agents.toml`.
 
-**Dual process conflict**: `start.sh` refuses if a manual process exists. Run `scripts/stop.sh` first, or kill the manual process: `pgrep -f "nexus.py.*--agent <id>"`.
+**Dual process conflict**: `start.sh` refuses if a manual process exists. Run `scripts/stop.sh` first, or kill the manual process: `pgrep -f "multinexus.py.*--agent <id>"`.
 
 **Session stuck**: Use `/session reset` or `session reset` text command in Discord to mark the session stale.
 
@@ -143,7 +143,7 @@ sqlite3 data/discord_context.sqlite3 \
 3. Coordinator handoffs should use `task:<workspace_id>:<task_id>`. If two coordinator tasks share one session, check for legacy numeric scopes and stale them with `/session reset` from the affected visible scope.
 4. After coordinator `assignment.closeout`, `assignment.mark-done`, or `task.done` notices, the matching local task session should become `archived`; archived sessions are not resumed.
 
-**Harness drift**: Run `$MAC_SH reconcile discord-nexus` then `$MAC_SH workspace audit discord-nexus`.
+**Harness drift**: Run `$MAC_SH reconcile multinexus` then `$MAC_SH workspace audit multinexus`.
 
 ## New Workspace Onboarding
 
@@ -170,7 +170,7 @@ This shows whether the workspace has `none`, `minimal_file_backed`, or `full_har
 ### 3. Initialize full harness runtime
 
 ```bash
-# From an existing reference workspace (e.g. discord-nexus)
+# From an existing reference workspace (e.g. multinexus)
 $MAC_SH workspace init-harness <workspace-id> \
   --mode full \
   --source /path/to/discord-nexus/scripts/harness

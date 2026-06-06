@@ -8,7 +8,7 @@ Canonical roadmap:
 
 Scope for this task:
 
-- Add discord-nexus runtime regression tests for coordinator handoff auto-accept.
+- Add multinexus runtime regression tests for coordinator handoff auto-accept.
 - Document the `[agent-report]` protocol and the boundary between Discord-visible reports and coordinator CLI lifecycle mutations.
 - Use the task-scoped bootstrap:
   `docs/project-harness/tasks/phase-5.1-handoff-runtime-hardening/worker-bootstrap.md`

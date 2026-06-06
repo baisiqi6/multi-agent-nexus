@@ -6,7 +6,7 @@ Phase 4.1-4.4: agent 主动使用 coordinator 的完整路径。
 
 - 4.1: WebhookBus（coordinator 侧）
 - 4.2: workspace bus 配置（无改动，已支持）
-- 4.3: system prompt 注入（discord-nexus 侧）
+- 4.3: system prompt 注入（multinexus 侧）
 - 4.4: 端到端测试 A（操作验证）
 
 Phase 4.5-4.6（coordinator 主动分配给 agent）留后续 phase。
@@ -85,7 +85,7 @@ SUPPORTED_PLATFORMS = {"discord", "discord_webhook", "kook", "stdout"}
 
 ## Phase 4.3: System Prompt 注入
 
-### discord-nexus `agents.toml`（本地文件，.gitignore'd）
+### multinexus `agents.toml`（本地文件，.gitignore'd）
 
 mac-claude、mac-codex、mac-opencode 的 system_prompt 追加：
 
@@ -96,16 +96,16 @@ mac-claude、mac-codex、mac-opencode 的 system_prompt 追加：
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
-- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
-- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
-- mac.sh ci check discord-nexus --task-id <id>
-- mac.sh merge gate discord-nexus --task-id <id>
-- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
-- mac.sh assignment mark-done discord-nexus --task-id <id>
+- mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate multinexus --task-id <id> --owner <agent>
+- mac.sh pr link multinexus --task-id <id> --pr-url <url>
+- mac.sh ci check multinexus --task-id <id>
+- mac.sh merge gate multinexus --task-id <id>
+- mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done multinexus --task-id <id>
 
 所有状态变更必须通过 coordinator CLI。不要直接调用 harnessctl 或修改 harness JSON 文件。
 harnessctl 仅限 operator 在 harness repair 场景下使用。
@@ -117,11 +117,11 @@ harnessctl 仅限 operator 在 harness repair 场景下使用。
 
 关键内容：
 - coordinator CLI 使用说明（完整路径）
-- 所有命令示例带 `discord-nexus` workspace_id
+- 所有命令示例带 `multinexus` workspace_id
 - 明确：所有状态变更通过 coordinator CLI，harnessctl 仅限 operator/harness repair
 - placeholder 注释供其他项目复用
 
-无 discord-nexus 代码改动。`build_agent_prompt()` 已会传 system_prompt 给 adapter。
+无 multinexus 代码改动。`build_agent_prompt()` 已会传 system_prompt 给 adapter。
 
 ## Phase 4.4: 端到端测试 A
 
@@ -129,7 +129,7 @@ harnessctl 仅限 operator 在 harness repair 场景下使用。
 
 1. Discord 频道创建 webhook，获取 URL
 2. 设置环境变量：`export DISCORD_WEBHOOK_URL="<webhook-url>"`
-3. 更新 workspace: `mac.sh workspace add discord-nexus --default-bus discord_webhook --default-destination discord-nexus-status`（不含 URL）
+3. 更新 workspace: `mac.sh workspace add multinexus --default-bus discord_webhook --default-destination discord-nexus-status`（不含 URL）
 4. 创建测试 task，触发事件，pump deliveries
 5. 验证 Discord 频道出现 webhook 消息
 
@@ -140,8 +140,8 @@ harnessctl 仅限 operator 在 harness repair 场景下使用。
 | 修改 | coordinator | `src/multi_agent_coordinator/bus.py` |
 | 修改 | coordinator | `src/multi_agent_coordinator/policy.py` |
 | 修改 | coordinator | `tests/test_bus.py` |
-| 修改 | discord-nexus | `agents.toml`（本地，untracked） |
-| 新增 | discord-nexus | `docs/project-harness/templates/agent-coordinator-prompt.md` |
+| 修改 | multinexus | `agents.toml`（本地，untracked） |
+| 新增 | multinexus | `docs/project-harness/templates/agent-coordinator-prompt.md` |
 
 ## Verification
 

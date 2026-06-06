@@ -4,7 +4,7 @@
 
 Phase 4.1-4.4 完成：WebhookBus 能发状态广播到 Discord 频道。但这是单向通知——coordinator 不能主动触发 agent 开始工作。
 
-Phase 4.5 的目标：coordinator 通过 Discord webhook 发送 `[handoff] <@BOT_ID>` 消息，触发 discord-nexus bot 启动 adapter 执行任务。
+Phase 4.5 的目标：coordinator 通过 Discord webhook 发送 `[handoff] <@BOT_ID>` 消息，触发 multinexus bot 启动 adapter 执行任务。
 
 **参考**：master plan flow B——assignment.requested → policy 生成两种 delivery（status broadcast + agent handoff）→ Discord webhook 发送 → 目标 bot 收到 `[handoff]` + @self → 开始工作。
 
@@ -89,7 +89,7 @@ idempotency_key = f"{workspace_id}:{task_id}:worker.handoff.prepared:gate_{appro
 **专用 CLI**（修复 #6，避免 `workspace add` 覆盖配置）：
 
 ```bash
-workspace agent add discord-nexus --name mac-claude --discord-user-id 1507329791982833775
+workspace agent add multinexus --name mac-claude --discord-user-id 1507329791982833775
 ```
 
 此命令只操作 `agents_json`，不触碰 `default_bus`/`default_destination` 等字段。
@@ -260,16 +260,16 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 
 # 1. 注册 agent（专用命令，不覆盖 workspace 配置）
 PYTHONPATH=src python3 -m multi_agent_coordinator --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
-  workspace agent add discord-nexus --name mac-codex --discord-user-id 1507330121235697794
+  workspace agent add multinexus --name mac-codex --discord-user-id 1507330121235697794
 
 # 2. 触发 handoff（指定目标 agent）
 PYTHONPATH=src python3 -m multi_agent_coordinator --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
-  task handoff discord-nexus --task-id phase-4-coordinator-integration \
+  task handoff multinexus --task-id phase-4-coordinator-integration \
   --role worker --target-agent mac-codex
 
 # 3. 创建 delivery（应生成两个）
 PYTHONPATH=src python3 -m multi_agent_coordinator --db ~/.multi-agent-coordinator/coordinator.sqlite3 \
-  policy pump-events --workspace-id discord-nexus --platform discord_webhook --destination ""
+  policy pump-events --workspace-id multinexus --platform discord_webhook --destination ""
 
 # 4. 发送
 DISCORD_WEBHOOK_URL="..." PYTHONPATH=src python3 -m multi_agent_coordinator \

@@ -2,9 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from discord_nexus.adapters.codex import CodexAdapter
-from discord_nexus.config import _load_toml_agent
-from discord_nexus.models import AgentConfig
+from multinexus.adapters.codex import CodexAdapter
+from multinexus.config import _load_toml_agent
+from multinexus.models import AgentConfig
 
 
 class TestCodexAdapterPermissions(unittest.TestCase):

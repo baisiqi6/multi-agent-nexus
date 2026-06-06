@@ -69,5 +69,5 @@ Table: `sessions`
 
 | Type | Launch | Session | Examples |
 |------|--------|---------|----------|
-| Managed | `nexus.py --agent <id>` | Yes (resume supported) | mac-claude, mac-codex, mac-opencode |
+| Managed | `multinexus.py --agent <id>` | Yes (resume supported) | mac-claude, mac-codex, mac-opencode |
 | External | Own process | N/A | 小龙虾 (OpenClaw), Hermes |

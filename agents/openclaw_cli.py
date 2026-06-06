@@ -1,7 +1,7 @@
 """OpenClaw CLI agent — runs `openclaw agent` as a subprocess (like Claude/Codex).
 
 Uses the OpenClaw CLI's `agent --json` command to send a message and parse
-the JSON response. This is the correct way to call OpenClaw from discord-nexus
+the JSON response. This is the correct way to call OpenClaw from multinexus
 since the gateway does not expose an OpenAI-compatible HTTP API.
 """
 

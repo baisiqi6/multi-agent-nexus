@@ -2,7 +2,7 @@
 
 ## Overview
 
-discord-nexus supports four agent types. None are required — configure only what you have.
+multinexus supports four agent types. None are required — configure only what you have.
 
 | Agent | Class | Backend | Required |
 |---|---|---|---|

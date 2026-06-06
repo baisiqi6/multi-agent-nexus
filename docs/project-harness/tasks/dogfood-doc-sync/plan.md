@@ -10,7 +10,7 @@ Update documentation so it reflects the current state:
 
 - coordinator has a Discord bot daemon for visible delivery and command ingestion.
 - coordinator can generate targeted agent handoff deliveries.
-- discord-nexus can auto-accept coordinator handoffs for managed agents.
+- multinexus can auto-accept coordinator handoffs for managed agents.
 - harness state is managed through coordinator/harnessctl, not by direct JSON edits.
 
 ## Scope

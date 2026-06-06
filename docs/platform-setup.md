@@ -42,7 +42,7 @@ Right-click any server, channel, or user to copy its ID.
 
 ```bash
 git clone https://github.com/your-org/discord-nexus.git
-cd discord-nexus
+cd multinexus
 python -m venv .venv
 ```
 
@@ -188,9 +188,9 @@ pm2 save
 
 ```bash
 pm2 status                  # check if bot is running
-pm2 logs discord-nexus      # view live logs
-pm2 restart discord-nexus   # restart
-pm2 stop discord-nexus      # stop
+pm2 logs multinexus      # view live logs
+pm2 restart multinexus   # restart
+pm2 stop multinexus      # stop
 ```
 
 The bot also supports `/restart` from Discord (allowlisted users only), which calls `sys.exit(0)`
@@ -198,9 +198,9 @@ and relies on PM2 to relaunch it automatically.
 
 ---
 
-## Persistent Operation with launchd (new multi-bot nexus.py)
+## Persistent Operation with launchd (new multi-bot multinexus.py)
 
-The legacy single-bot `bot.py` uses PM2 (see above). The new multi-bot architecture uses `nexus.py --agent <id>` with launchd for Mac persistence.
+The legacy single-bot `bot.py` uses PM2 (see above). The new multi-bot architecture uses `multinexus.py --agent <id>` with launchd for Mac persistence.
 
 ### Prerequisites
 
@@ -314,7 +314,7 @@ On Windows, the bot applies `icacls` to restrict this file to the current user o
 ### Agent is offline
 
 - Run `/monitor` in Discord to check agent health
-- Check the bot logs: `pm2 logs discord-nexus` or `nexus.log`
+- Check the bot logs: `pm2 logs multinexus` or `nexus.log`
 - For CLI agents: verify `claude --version` or `codex --version` works in the same environment
 - For local LLM: verify the server is running and the model is loaded
 

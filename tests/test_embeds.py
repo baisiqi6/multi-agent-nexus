@@ -3,13 +3,13 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock
 
-from discord_nexus.embeds import (
+from multinexus.embeds import (
     build_agents_embed,
     build_health_embed,
     build_session_status_embed,
 )
-from discord_nexus.models import AgentConfig, KnownAgentMention
-from discord_nexus.sessions.store import SessionStore
+from multinexus.models import AgentConfig, KnownAgentMention
+from multinexus.sessions.store import SessionStore
 
 import discord
 

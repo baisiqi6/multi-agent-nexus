@@ -2,7 +2,7 @@
 
 ## Overview
 
-discord-nexus includes a flat-file Markdown wiki that agents and users can read and write.
+multinexus includes a flat-file Markdown wiki that agents and users can read and write.
 It has two storage tiers:
 
 | Tier | Location | Who can write | Who can read |
@@ -113,7 +113,7 @@ gitignored, so it never leaves your machine.
 PRIVATE_DB_PATH=/path/to/discord-nexus/nexus-private.db
 ```
 
-If unset, the private DB defaults to `discord-nexus-private.db` in the same directory as the
+If unset, the private DB defaults to `multinexus-private.db` in the same directory as the
 main database. On Windows, the DB file is hardened with `icacls` on first run (owner-only access).
 
 ### Usage

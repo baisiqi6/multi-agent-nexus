@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from discord_nexus.handoff_handler import (
+from multinexus.handoff_handler import (
     CoordinatorHandoff,
     build_agent_report,
     build_handoff_prompt,
@@ -19,7 +19,7 @@ from discord_nexus.handoff_handler import (
 class TestParseCoordinatorHandoff(unittest.TestCase):
     def test_parses_assignment_accept_handoff(self):
         handoff = parse_coordinator_handoff(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[handoff] <@123> workspace_id=multinexus "
             "task_id=phase-4-coordinator-integration "
             "bootstrap=docs/project-harness/tasks/phase-4-coordinator-integration/worker-bootstrap.md "
             "action=assignment.accept",
@@ -27,14 +27,14 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
         )
 
         self.assertIsNotNone(handoff)
-        self.assertEqual(handoff.workspace_id, "discord-nexus")
+        self.assertEqual(handoff.workspace_id, "multinexus")
         self.assertEqual(handoff.task_id, "phase-4-coordinator-integration")
         self.assertEqual(handoff.action, "assignment.accept")
 
     def test_parses_nickname_mention_and_unordered_fields(self):
         handoff = parse_coordinator_handoff(
             "[handoff] <@!123> action=assignment.accept "
-            "task_id=phase-4 workspace_id=discord-nexus",
+            "task_id=phase-4 workspace_id=multinexus",
             my_discord_user_id=123,
         )
 
@@ -43,7 +43,7 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
 
     def test_rejects_wrong_target(self):
         handoff = parse_coordinator_handoff(
-            "[handoff] <@456> workspace_id=discord-nexus "
+            "[handoff] <@456> workspace_id=multinexus "
             "task_id=phase-4 action=assignment.accept",
             my_discord_user_id=123,
         )
@@ -52,7 +52,7 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
 
     def test_rejects_unsupported_action(self):
         handoff = parse_coordinator_handoff(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[handoff] <@123> workspace_id=multinexus "
             "task_id=phase-4 action=assignment.mark-done",
             my_discord_user_id=123,
         )
@@ -61,7 +61,7 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
 
     def test_rejects_missing_required_fields(self):
         handoff = parse_coordinator_handoff(
-            "[handoff] <@123> workspace_id=discord-nexus action=assignment.accept",
+            "[handoff] <@123> workspace_id=multinexus action=assignment.accept",
             my_discord_user_id=123,
         )
 
@@ -71,19 +71,19 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
 class TestParseCoordinatorLifecycle(unittest.TestCase):
     def test_parses_closeout_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(
-            "[lifecycle] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=multinexus "
             "task_id=phase-5.2 action=assignment.closeout",
             my_discord_user_id=123,
         )
 
         self.assertIsNotNone(event)
-        self.assertEqual(event.workspace_id, "discord-nexus")
+        self.assertEqual(event.workspace_id, "multinexus")
         self.assertEqual(event.task_id, "phase-5.2")
         self.assertEqual(event.action, "assignment.closeout")
 
     def test_parses_task_done_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(
-            "[lifecycle] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=multinexus "
             "task_id=phase-5.2 action=task.done",
             my_discord_user_id=123,
         )
@@ -93,7 +93,7 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
     def test_rejects_assignment_accept_as_lifecycle(self):
         event = parse_coordinator_lifecycle(
-            "[lifecycle] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=multinexus "
             "task_id=phase-5.2 action=assignment.accept",
             my_discord_user_id=123,
         )
@@ -102,7 +102,7 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
     def test_parses_legacy_handoff_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(
-            "[handoff] <@123> workspace_id=discord-nexus "
+            "[handoff] <@123> workspace_id=multinexus "
             "task_id=phase-5.2 action=task.done",
             my_discord_user_id=123,
         )
@@ -112,7 +112,7 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
     def test_handoff_parser_rejects_lifecycle_prefix(self):
         handoff = parse_coordinator_handoff(
-            "[lifecycle] <@123> workspace_id=discord-nexus "
+            "[lifecycle] <@123> workspace_id=multinexus "
             "task_id=phase-5.2 action=assignment.accept",
             my_discord_user_id=123,
         )
@@ -150,7 +150,7 @@ class TestBootstrapRead(unittest.TestCase):
             outside = Path(tmp).parent / "worker-bootstrap.md"
             outside.write_text("secret", encoding="utf-8")
             try:
-                with self.assertLogs("discord_nexus.handoff_handler", level="WARNING"):
+                with self.assertLogs("multinexus.handoff_handler", level="WARNING"):
                     content = read_bootstrap(tmp, "../worker-bootstrap.md")
             finally:
                 outside.unlink(missing_ok=True)
@@ -163,7 +163,7 @@ class TestBootstrapRead(unittest.TestCase):
             path.parent.mkdir(parents=True)
             path.write_text("bootstrap", encoding="utf-8")
 
-            with self.assertLogs("discord_nexus.handoff_handler", level="WARNING"):
+            with self.assertLogs("multinexus.handoff_handler", level="WARNING"):
                 content = read_bootstrap(tmp, str(path))
 
         self.assertIsNone(content)
@@ -174,7 +174,7 @@ class TestBootstrapRead(unittest.TestCase):
             path.parent.mkdir(parents=True)
             path.write_text("plan", encoding="utf-8")
 
-            with self.assertLogs("discord_nexus.handoff_handler", level="WARNING"):
+            with self.assertLogs("multinexus.handoff_handler", level="WARNING"):
                 content = read_bootstrap(tmp, "docs/project-harness/tasks/phase-4/plan.md")
 
         self.assertIsNone(content)
@@ -185,7 +185,7 @@ class TestAssignmentAccept(unittest.TestCase):
         ok, output = execute_assignment_accept(
             cli_path="",
             db_path="/tmp/coordinator.sqlite3",
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-4",
             agent_name="mac-codex",
         )
@@ -203,11 +203,11 @@ class TestAssignmentAccept(unittest.TestCase):
             cli.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 
             completed = SimpleNamespace(returncode=0, stdout="accepted\n", stderr="")
-            with patch("discord_nexus.handoff_handler.subprocess.run", return_value=completed) as run:
+            with patch("multinexus.handoff_handler.subprocess.run", return_value=completed) as run:
                 ok, output = execute_assignment_accept(
                     cli_path=str(cli),
                     db_path="/tmp/coordinator.sqlite3",
-                    workspace_id="discord-nexus",
+                    workspace_id="multinexus",
                     task_id="phase-4",
                     agent_name="mac-codex",
                 )
@@ -221,7 +221,7 @@ class TestAssignmentAccept(unittest.TestCase):
                 str(cli),
                 "assignment",
                 "accept",
-                "discord-nexus",
+                "multinexus",
                 "--task-id",
                 "phase-4",
             ],
@@ -235,7 +235,7 @@ class TestAssignmentAccept(unittest.TestCase):
 class TestAgentReport(unittest.TestCase):
     def test_builds_structured_accept_report(self):
         handoff = CoordinatorHandoff(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-4",
             bootstrap_path="",
             action="assignment.accept",
@@ -245,13 +245,13 @@ class TestAgentReport(unittest.TestCase):
 
         self.assertIn("[agent-report]", report)
         self.assertIn("action=accept", report)
-        self.assertIn("workspace_id=discord-nexus", report)
+        self.assertIn("workspace_id=multinexus", report)
         self.assertIn("task_id=phase-4", report)
         self.assertIn("summary='auto accepted by mac-codex'", report)
 
     def test_builds_structured_progress_report(self):
         handoff = CoordinatorHandoff(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-4",
             bootstrap_path="",
             action="assignment.accept",
@@ -265,20 +265,20 @@ class TestAgentReport(unittest.TestCase):
 
         self.assertIn("[agent-report]", report)
         self.assertIn("action=progress", report)
-        self.assertIn("workspace_id=discord-nexus", report)
+        self.assertIn("workspace_id=multinexus", report)
         self.assertIn("task_id=phase-4", report)
         self.assertIn("summary='launchd scripts done; tests OK'", report)
 
     def test_splits_strict_agent_report_lines_from_display_text(self):
         report_lines, display_text = split_agent_report_lines(
             "Done.\n"
-            "[agent-report] action=done workspace_id=discord-nexus task_id=phase-5.1 summary='ok'\n"
+            "[agent-report] action=done workspace_id=multinexus task_id=phase-5.1 summary='ok'\n"
             "See commit abc123."
         )
 
         self.assertEqual(
             report_lines,
-            ["[agent-report] action=done workspace_id=discord-nexus task_id=phase-5.1 summary='ok'"],
+            ["[agent-report] action=done workspace_id=multinexus task_id=phase-5.1 summary='ok'"],
         )
         self.assertEqual(display_text, "Done.\nSee commit abc123.")
 
@@ -293,7 +293,7 @@ class TestAgentReport(unittest.TestCase):
 
     def test_builds_handoff_prompt_with_bootstrap(self):
         handoff = CoordinatorHandoff(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-4",
             bootstrap_path="",
             action="assignment.accept",
@@ -302,12 +302,12 @@ class TestAgentReport(unittest.TestCase):
         prompt = build_handoff_prompt(handoff, "Step 1")
 
         self.assertIn("任务: phase-4", prompt)
-        self.assertIn("Workspace: discord-nexus", prompt)
+        self.assertIn("Workspace: multinexus", prompt)
         self.assertIn("Step 1", prompt)
 
     def test_handoff_prompt_prevents_duplicate_accept(self):
         handoff = CoordinatorHandoff(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-4",
             bootstrap_path="",
             action="assignment.accept",
@@ -327,7 +327,7 @@ class TestAgentReport(unittest.TestCase):
 
     def test_handoff_prompt_requires_visible_worker_updates(self):
         handoff = CoordinatorHandoff(
-            workspace_id="discord-nexus",
+            workspace_id="multinexus",
             task_id="phase-5.2",
             bootstrap_path="",
             action="assignment.accept",

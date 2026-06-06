@@ -12,10 +12,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 
-from discord_nexus.adapters.base import AdapterResult
-from discord_nexus.models import AgentConfig, KnownAgentMention
-from discord_nexus.sessions.scope import task_scope
-from discord_nexus.sessions.store import SessionStore
+from multinexus.adapters.base import AdapterResult
+from multinexus.models import AgentConfig, KnownAgentMention
+from multinexus.sessions.scope import task_scope
+from multinexus.sessions.store import SessionStore
 
 
 def _make_config(**overrides):
@@ -44,7 +44,7 @@ def _make_handoff_message(content=None, author_id=999, channel_id=500):
     """Build a mock Discord message that looks like a coordinator handoff."""
     if content is None:
         content = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=assignment.accept "
             "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md"
         )
@@ -63,7 +63,7 @@ def _make_handoff_message(content=None, author_id=999, channel_id=500):
 
 def _make_runtime_client(config=None):
     """Create a DiscordClient-like object with all handoff dependencies mocked."""
-    from discord_nexus.client import DiscordClient
+    from multinexus.client import DiscordClient
 
     config = config or _make_config()
 
@@ -103,10 +103,10 @@ class TestCoordinatorHandoffAcceptFailure(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(False, "lease conflict"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value=None),
+            patch("multinexus.client.read_bootstrap", return_value=None),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -124,7 +124,7 @@ class TestCoordinatorHandoffAcceptFailure(unittest.TestCase):
         sent_text = first_send[0][0]
         self.assertIn("[agent-report]", sent_text)
         self.assertIn("action=blocker", sent_text)
-        self.assertIn("workspace_id=discord-nexus", sent_text)
+        self.assertIn("workspace_id=multinexus", sent_text)
         self.assertIn("task_id=phase-5.1", sent_text)
         self.assertIn("lease conflict", sent_text)
 
@@ -138,10 +138,10 @@ class TestCoordinatorHandoffAcceptFailure(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(False, "error"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value=None),
+            patch("multinexus.client.read_bootstrap", return_value=None),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -173,11 +173,11 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
             patch(
-                "discord_nexus.client.read_bootstrap",
+                "multinexus.client.read_bootstrap",
                 return_value=bootstrap_content,
             ),
         ):
@@ -200,7 +200,7 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
         self.assertIn("Step 1: Read the plan.", prompt)
         # Prompt must contain handoff context
         self.assertIn("phase-5.1", prompt)
-        self.assertIn("discord-nexus", prompt)
+        self.assertIn("multinexus", prompt)
 
         # Verify accept report was sent
         sends = msg.channel.send.call_args_list
@@ -212,7 +212,7 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
                 break
         self.assertIsNotNone(accept_send, "Should have sent an accept report")
         accept_text = accept_send[0][0]
-        self.assertIn("workspace_id=discord-nexus", accept_text)
+        self.assertIn("workspace_id=multinexus", accept_text)
         self.assertIn("task_id=phase-5.1", accept_text)
 
     def test_accept_report_uses_allowed_mentions_none(self):
@@ -222,10 +222,10 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -258,10 +258,10 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -285,7 +285,7 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
             return_value=AdapterResult(
                 text=(
                     "Done.\n"
-                    "[agent-report] action=done workspace_id=discord-nexus "
+                    "[agent-report] action=done workspace_id=multinexus "
                     "task_id=phase-5.1 summary='tests OK'"
                 ),
                 session_id=None,
@@ -294,10 +294,10 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -329,11 +329,11 @@ class TestCoordinatorHandoffBootstrapMissing(unittest.TestCase):
 
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
             patch(
-                "discord_nexus.client.read_bootstrap",
+                "multinexus.client.read_bootstrap",
                 return_value=None,
             ),
         ):
@@ -359,10 +359,10 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
     def _run_handoff(self, instance, msg):
         with (
             patch(
-                "discord_nexus.client.execute_assignment_accept",
+                "multinexus.client.execute_assignment_accept",
                 return_value=(True, "accepted"),
             ),
-            patch("discord_nexus.client.read_bootstrap", return_value="bootstrap"),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
         ):
             loop = asyncio.new_event_loop()
             try:
@@ -384,7 +384,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
 
         self.assertTrue(result)
         scoped = instance.session_store.get(
-            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            scope_id=task_scope("multinexus", "phase-5.1"),
             agent_id="mac-claude",
         )
         self.assertIsNotNone(scoped)
@@ -414,7 +414,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         instance.adapter.resume.assert_called_once()
         self.assertEqual(instance.adapter.resume.call_args.args[0], "sess-task")
         scoped = instance.session_store.get(
-            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            scope_id=task_scope("multinexus", "phase-5.1"),
             agent_id="mac-claude",
         )
         self.assertEqual(scoped["turn_count"], 2)
@@ -424,7 +424,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         first = _make_handoff_message()
         second = _make_handoff_message(
             content=(
-                "[handoff] <@111> workspace_id=discord-nexus "
+                "[handoff] <@111> workspace_id=multinexus "
                 "task_id=phase-5.2 action=assignment.accept "
                 "bootstrap=docs/project-harness/tasks/phase-5.2/worker-bootstrap.md"
             )
@@ -444,14 +444,14 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         instance.adapter.resume.assert_not_called()
         self.assertEqual(
             instance.session_store.get(
-                scope_id=task_scope("discord-nexus", "phase-5.1"),
+                scope_id=task_scope("multinexus", "phase-5.1"),
                 agent_id="mac-claude",
             )["session_id"],
             "sess-5.1",
         )
         self.assertEqual(
             instance.session_store.get(
-                scope_id=task_scope("discord-nexus", "phase-5.2"),
+                scope_id=task_scope("multinexus", "phase-5.2"),
                 agent_id="mac-claude",
             )["session_id"],
             "sess-5.2",
@@ -462,7 +462,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         handoff_msg = _make_handoff_message()
         closeout_msg = _make_handoff_message(
             content=(
-                "[handoff] <@111> workspace_id=discord-nexus "
+                "[handoff] <@111> workspace_id=multinexus "
                 "task_id=phase-5.1 action=assignment.closeout"
             )
         )
@@ -488,7 +488,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         self.assertTrue(handled)
         self.assertIsNone(
             instance.session_store.get(
-                scope_id=task_scope("discord-nexus", "phase-5.1"),
+                scope_id=task_scope("multinexus", "phase-5.1"),
                 agent_id="mac-claude",
             )
         )
@@ -498,7 +498,7 @@ class TestCoordinatorHandoffTaskScope(unittest.TestCase):
         self.assertEqual(instance.adapter.call.call_count, 2)
         instance.adapter.resume.assert_not_called()
         scoped = instance.session_store.get(
-            scope_id=task_scope("discord-nexus", "phase-5.1"),
+            scope_id=task_scope("multinexus", "phase-5.1"),
             agent_id="mac-claude",
         )
         self.assertEqual(scoped["session_id"], "sess-new")
@@ -530,10 +530,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_rejects_mark_done_action(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=assignment.mark-done"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )
@@ -541,10 +541,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_rejects_closeout_action(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=assignment.closeout"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )
@@ -552,10 +552,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_rejects_merge_action(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=merge"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )
@@ -563,10 +563,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_rejects_deploy_action(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=deploy"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )
@@ -574,10 +574,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_rejects_pr_action(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=pr.create"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )
@@ -585,10 +585,10 @@ class TestActionScopeConstraint(unittest.TestCase):
 
     def test_accepts_only_assignment_accept(self):
         handoff_msg = (
-            "[handoff] <@111> workspace_id=discord-nexus "
+            "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=assignment.accept"
         )
-        from discord_nexus.handoff_handler import parse_coordinator_handoff
+        from multinexus.handoff_handler import parse_coordinator_handoff
         result = parse_coordinator_handoff(
             handoff_msg, my_discord_user_id=111
         )

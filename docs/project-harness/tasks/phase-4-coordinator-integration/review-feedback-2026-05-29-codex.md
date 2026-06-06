@@ -13,7 +13,7 @@ The Phase 4 direction is sound: add a coordinator-side Discord webhook delivery 
 
 ### 1. Do not store Discord webhook URLs in coordinator workspace config
 
-The plan says to run `workspace add discord-nexus --default-bus discord_webhook --default-destination <url>`.
+The plan says to run `workspace add multinexus --default-bus discord_webhook --default-destination <url>`.
 
 That stores the webhook URL in coordinator SQLite and may expose it through `workspace list`, delivery rows, logs, debug output, or copied handoff text. A Discord webhook URL is a bearer secret and must not be stored as a destination.
 
@@ -46,13 +46,13 @@ pr link --task-id <id> --pr-url <url>
 Correct:
 
 ```text
-assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-branch allocate discord-nexus --task-id <id> --owner <agent>
-pr link discord-nexus --task-id <id> --pr-url <url>
-ci check discord-nexus --task-id <id>
-merge gate discord-nexus --task-id <id>
-assignment closeout discord-nexus --task-id <id> --reviewer <name>
-assignment mark-done discord-nexus --task-id <id>
+assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+branch allocate multinexus --task-id <id> --owner <agent>
+pr link multinexus --task-id <id> --pr-url <url>
+ci check multinexus --task-id <id>
+merge gate multinexus --task-id <id>
+assignment closeout multinexus --task-id <id> --reviewer <name>
+assignment mark-done multinexus --task-id <id>
 ```
 
 Agents should be able to copy the examples directly without rediscovering CLI argument order.
@@ -92,7 +92,7 @@ That tracked file should contain the coordinator system prompt snippet or a clea
 Before requesting another review:
 
 1. Update `plan.md` and `review-handoff.md` to reflect the required changes above.
-2. Ensure examples include `discord-nexus` as workspace id.
+2. Ensure examples include `multinexus` as workspace id.
 3. Ensure no webhook URL appears in tracked files or coordinator workspace examples.
 4. If `agents.toml` is changed locally, also update a tracked template/doc.
 5. Ask reviewer to approve the implementation plan again through coordinator.

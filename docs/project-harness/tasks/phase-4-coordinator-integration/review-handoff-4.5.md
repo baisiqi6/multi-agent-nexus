@@ -25,7 +25,7 @@ Phase 4.5 在 Phase 4.1-4.4（WebhookBus + worker bootstrap）基础上，实现
 | `tests/test_db.py` | 修改 | 2 个新测试：agents_json CRUD、get_agent_discord_id not found |
 | `tests/test_cli.py` | 修改 | 2 个新测试：workspace agent add CLI、--target-agent flag |
 
-### discord-nexus（本项目）
+### multinexus（本项目）
 
 无代码变更。Phase 4.5 纯粹是 coordinator 侧功能。
 

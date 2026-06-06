@@ -1,5 +1,5 @@
 {
-  "project": "discord-nexus",
+  "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
   "updated_at": "2026-06-05",
@@ -151,7 +151,7 @@
         "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "Phase 5.1 reviewed. discord-nexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: discord-nexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
+      "verification": "Phase 5.1 reviewed. multinexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: multinexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
@@ -197,13 +197,13 @@
         "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
+      "verification": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and multinexus backfills a progress report if an adapter omits structured [agent-report]. Validation: multinexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
         "phase": "closeout_requested",
         "updated_at": "2026-06-01",
-        "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and discord-nexus backfills a progress report if an adapter omits structured [agent-report]. Validation: discord-nexus 163 tests OK, coordinator 623 tests OK, harness validate OK."
+        "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and multinexus backfills a progress report if an adapter omits structured [agent-report]. Validation: multinexus 163 tests OK, coordinator 623 tests OK, harness validate OK."
       },
       "lease": {
         "owner": "mac-codex",
@@ -245,13 +245,13 @@
         "handoff_packet": "docs/project-harness/current/handoff-packet.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK.",
+      "verification": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in multinexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, multinexus 167 tests OK, harness validate OK.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
         "phase": "closeout_requested",
         "updated_at": "2026-06-01",
-        "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in discord-nexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, discord-nexus 167 tests OK, harness validate OK."
+        "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in multinexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, multinexus 167 tests OK, harness validate OK."
       },
       "lease": {
         "owner": "mac-claude",
@@ -291,13 +291,13 @@
         "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus discord-nexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, discord-nexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
+      "verification": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
         "phase": "closeout_requested",
         "updated_at": "2026-06-01",
-        "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus discord-nexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, discord-nexus 167 tests OK, harness validate OK, real workspace doctor rc=0."
+        "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0."
       },
       "lease": {
         "owner": "mac-claude",

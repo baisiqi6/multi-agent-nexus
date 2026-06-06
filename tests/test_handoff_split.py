@@ -1,6 +1,6 @@
 import unittest
 
-from discord_nexus.handoff import split_handoff_lines
+from multinexus.handoff import split_handoff_lines
 
 
 class TestSplitHandoffLines(unittest.TestCase):

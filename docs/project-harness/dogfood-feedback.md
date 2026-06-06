@@ -1,6 +1,6 @@
 # Dogfood Feedback
 
-本文件记录真实使用 coordinator + discord-nexus 多 agent 协作时暴露的 UX、协议和运行体验问题。
+本文件记录真实使用 coordinator + multinexus 多 agent 协作时暴露的 UX、协议和运行体验问题。
 
 记录原则：
 
@@ -44,7 +44,7 @@
 - 状态：fixed
 - 原始现象：如果 agent 的最终回复通过编辑 placeholder 发送，外部 watcher 只监听 `MESSAGE_CREATE` 时看不到 `[agent-report]`。
 - 影响：worker 明明回复了 done/progress，但 coordinator 可能 ingest 不到。
-- 修复：`discord-nexus` 将 `[agent-report]` 行拆出来，用独立 `channel.send()` 发送，避免只出现在 edited message 中。
+- 修复：`multinexus` 将 `[agent-report]` 行拆出来，用独立 `channel.send()` 发送，避免只出现在 edited message 中。
 - 验证：Phase 5.4 中 `mac-claude` 的 `action=done` 已被 coordinator ingest。
 
 ### 5. Workspace doctor 可能把 validation failure 包装成绿色状态

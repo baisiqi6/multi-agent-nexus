@@ -2,8 +2,8 @@
 
 import unittest
 
-from discord_nexus.models import AgentConfig, KnownAgentMention
-from discord_nexus.routing.mentions import MentionRouter
+from multinexus.models import AgentConfig, KnownAgentMention
+from multinexus.routing.mentions import MentionRouter
 
 
 def _make_config(my_id="mac-claude", my_uid=None, peer_uid=None):

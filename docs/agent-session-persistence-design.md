@@ -2,7 +2,7 @@
 
 ## 背景
 
-当前 MultiNexus/Discord Nexus 已经能把 Discord 消息路由到不同 coding agent，并通过 adapter 调用 Claude、Codex、OpenCode 等 CLI。但 agent 会话的生命周期还没有形成稳定设计。
+当前 MultiNexus/MultiNexus 已经能把 Discord 消息路由到不同 coding agent，并通过 adapter 调用 Claude、Codex、OpenCode 等 CLI。但 agent 会话的生命周期还没有形成稳定设计。
 
 两个极端方案都不理想：
 
@@ -59,12 +59,12 @@ task:<workspace_id>:<task_id>
 示例：
 
 ```text
-workspace_id: discord-nexus
+workspace_id: multinexus
 task_id: fix-opencode-handoff-timeout
 discord_thread_id: 1507...
 agent_id: mac-opencode
 adapter: opencode
-work_dir: /Users/yinxin/projects/discord-nexus
+work_dir: /Users/yinxin/projects/multinexus
 cli_session_id: ses_...
 ```
 
@@ -78,7 +78,7 @@ cli_session_id: ses_...
 
 ## 建议数据模型
 
-短期可以放在 `discord-nexus` 的 SQLite。长期建议迁入 `multi-agent-coordinator`，因为 coordinator 才是工程控制面。
+短期可以放在 `multinexus` 的 SQLite。长期建议迁入 `multi-agent-coordinator`，因为 coordinator 才是工程控制面。
 
 ```sql
 CREATE TABLE agent_sessions (
@@ -227,7 +227,7 @@ OpenCode 还需要特别注意：
 
 - 优先使用 `task:<workspace_id>:<task_id>` scope。
 - Discord thread 只作为这个 task 的 UI 容器。
-- `assignment.closeout`、`assignment.mark-done` 或 `task.done` lifecycle notice 只会让 discord-nexus 归档本地 task session，不会从 Discord 文本执行 coordinator 生命周期变更。
+- `assignment.closeout`、`assignment.mark-done` 或 `task.done` lifecycle notice 只会让 multinexus 归档本地 task session，不会从 Discord 文本执行 coordinator 生命周期变更。
 - task session 归档后不再 resume；同一 task 后续再次 handoff 会 fresh call 并写入新的 active session。
 
 ### Handoff
@@ -333,7 +333,7 @@ coordinator.session_close
 
 ## 最小落地计划
 
-### Phase A：discord-nexus thread-scoped session
+### Phase A：multinexus thread-scoped session
 
 1. 在 `ChatContextStore` 或独立 SQLite 中增加 `agent_sessions` 表。
 2. Claude/Codex/OpenCode adapter 返回 `cli_session_id`。

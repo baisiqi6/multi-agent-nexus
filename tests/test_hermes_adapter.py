@@ -3,11 +3,11 @@ import logging
 import unittest
 from unittest.mock import patch, MagicMock
 
-from discord_nexus.adapters.base import AdapterResult
-from discord_nexus.adapters.hermes import HermesAdapter
-from discord_nexus.models import AgentConfig
+from multinexus.adapters.base import AdapterResult
+from multinexus.adapters.hermes import HermesAdapter
+from multinexus.models import AgentConfig
 
-logging.getLogger("discord_nexus.adapters.hermes").setLevel(logging.CRITICAL)
+logging.getLogger("multinexus.adapters.hermes").setLevel(logging.CRITICAL)
 
 
 class FakeProcess:
@@ -53,7 +53,7 @@ class TestHermesSuccess(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"Hello from Hermes\n")
 
         adapter = HermesAdapter(_make_config())
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test prompt")
 
         self.assertIsInstance(result, AdapterResult)
@@ -64,7 +64,7 @@ class TestHermesSuccess(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"   \n")
 
         adapter = HermesAdapter(_make_config())
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIsInstance(result, AdapterResult)
@@ -77,7 +77,7 @@ class TestHermesFailure(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stderr=b"config error", returncode=2)
 
         adapter = HermesAdapter(_make_config())
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("Hermes CLI failed (2)", result.text)
@@ -88,7 +88,7 @@ class TestHermesFailure(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"some output", stderr=b"", returncode=1)
 
         adapter = HermesAdapter(_make_config())
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("Hermes CLI failed (1)", result.text)
@@ -102,7 +102,7 @@ class TestHermesMissingCLI(unittest.IsolatedAsyncioTestCase):
         async def fake_exec(*args, **kwargs):
             raise FileNotFoundError
 
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("Hermes CLI not found", result.text)
@@ -124,7 +124,7 @@ class TestHermesTimeout(unittest.IsolatedAsyncioTestCase):
             return proc
 
         adapter = HermesAdapter(_make_config(timeout=5))
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("timed out after 5s", result.text)
@@ -147,7 +147,7 @@ class TestHermesArgConstruction(unittest.IsolatedAsyncioTestCase):
             work_dir="/home/ubuntu/projects",
         )
         adapter = HermesAdapter(config)
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             await adapter.call("do stuff")
 
         args, kwargs = calls[0]
@@ -170,7 +170,7 @@ class TestHermesArgConstruction(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"ok\n")
 
         adapter = HermesAdapter(_make_config())
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             await adapter.call("hello")
 
         args, _kwargs = calls[0]
@@ -187,7 +187,7 @@ class TestHermesArgConstruction(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"ok\n")
 
         adapter = HermesAdapter(_make_config(work_dir="/default"))
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             await adapter.call("test", work_dir="/override")
 
         _, kwargs = calls[0]
@@ -203,7 +203,7 @@ class TestHermesSystemPrompt(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"ok\n")
 
         adapter = HermesAdapter(_make_config(system_prompt="You are Hermes."))
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             await adapter.call("hello")
 
         args, _kwargs = calls[0]
@@ -221,7 +221,7 @@ class TestHermesSystemPrompt(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"ok\n")
 
         adapter = HermesAdapter(_make_config(system_prompt=""))
-        with patch("discord_nexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
             await adapter.call("just the prompt")
 
         args, _kwargs = calls[0]
@@ -232,7 +232,7 @@ class TestHermesSystemPrompt(unittest.IsolatedAsyncioTestCase):
 class TestHermesHealthCheck(unittest.IsolatedAsyncioTestCase):
     async def test_found(self):
         adapter = HermesAdapter(_make_config(hermes_bin="hermes"))
-        with patch("discord_nexus.adapters.hermes.shutil.which", return_value="/usr/bin/hermes"):
+        with patch("multinexus.adapters.hermes.shutil.which", return_value="/usr/bin/hermes"):
             result = await adapter.health_check()
 
         self.assertEqual(result["adapter"], "hermes")
@@ -241,7 +241,7 @@ class TestHermesHealthCheck(unittest.IsolatedAsyncioTestCase):
 
     async def test_not_found(self):
         adapter = HermesAdapter(_make_config(hermes_bin="hermes"))
-        with patch("discord_nexus.adapters.hermes.shutil.which", return_value=None):
+        with patch("multinexus.adapters.hermes.shutil.which", return_value=None):
             result = await adapter.health_check()
 
         self.assertFalse(result["available"])

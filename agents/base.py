@@ -1,4 +1,4 @@
-"""Base agent abstract class and exceptions for discord-nexus.
+"""Base agent abstract class and exceptions for multinexus.
 
 All agent backends must inherit from BaseAgent and implement call() and health_check().
 """

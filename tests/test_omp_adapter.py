@@ -2,10 +2,10 @@ import asyncio
 import unittest
 from unittest.mock import patch
 
-from discord_nexus.adapters.base import AdapterResult
-from discord_nexus.adapters.factory import make_adapter
-from discord_nexus.adapters.omp import OmpAdapter
-from discord_nexus.models import AgentConfig
+from multinexus.adapters.base import AdapterResult
+from multinexus.adapters.factory import make_adapter
+from multinexus.adapters.omp import OmpAdapter
+from multinexus.models import AgentConfig
 
 
 class FakeProcess:
@@ -96,7 +96,7 @@ class TestOmpCall(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"Hello from omp\n")
 
         adapter = OmpAdapter(_make_config())
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test prompt")
 
         self.assertIsInstance(result, AdapterResult)
@@ -108,7 +108,7 @@ class TestOmpCall(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"   \n")
 
         adapter = OmpAdapter(_make_config())
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertEqual(result.text, "(no response)")
@@ -118,7 +118,7 @@ class TestOmpCall(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"", stderr=b"config error", returncode=2)
 
         adapter = OmpAdapter(_make_config())
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("omp CLI failed (2)", result.text)
@@ -131,7 +131,7 @@ class TestOmpCall(unittest.IsolatedAsyncioTestCase):
             return proc
 
         adapter = OmpAdapter(_make_config())
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("omp CLI failed (1)", result.text)
@@ -147,7 +147,7 @@ class TestOmpResume(unittest.IsolatedAsyncioTestCase):
             return FakeProcess(stdout=b"resumed\n")
 
         adapter = OmpAdapter(_make_config())
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.resume("sess-1", "continue")
 
         self.assertTrue(result.resumed)
@@ -162,7 +162,7 @@ class TestOmpMissingCLI(unittest.IsolatedAsyncioTestCase):
             raise FileNotFoundError
 
         adapter = OmpAdapter(_make_config(omp_bin="/no/such/omp"))
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("omp CLI not found", result.text)
@@ -182,7 +182,7 @@ class TestOmpTimeout(unittest.IsolatedAsyncioTestCase):
             return proc
 
         adapter = OmpAdapter(_make_config(timeout=5))
-        with patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
             result = await adapter.call("test")
 
         self.assertIn("timed out after 5s", result.text)
@@ -198,8 +198,8 @@ class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):
 
         adapter = OmpAdapter(_make_config(omp_bin="omp"))
         with (
-            patch("discord_nexus.adapters.omp.shutil.which", return_value="/usr/local/bin/omp"),
-            patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch("multinexus.adapters.omp.shutil.which", return_value="/usr/local/bin/omp"),
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
         ):
             result = await adapter.health_check()
 
@@ -214,8 +214,8 @@ class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):
 
         adapter = OmpAdapter(_make_config(omp_bin="omp"))
         with (
-            patch("discord_nexus.adapters.omp.shutil.which", return_value=None),
-            patch("discord_nexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch("multinexus.adapters.omp.shutil.which", return_value=None),
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
         ):
             result = await adapter.health_check()
 

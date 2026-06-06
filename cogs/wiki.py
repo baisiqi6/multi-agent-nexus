@@ -24,7 +24,7 @@ from discord.ext import commands, tasks
 
 from services.wiki import parse_curation_output
 
-log = logging.getLogger("discord-nexus")
+log = logging.getLogger("multinexus")
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 LOCAL_AGENT_NAME = "mac-openclaw"
 LEGACY_LOCAL_AGENT_NAME = "local-agent"

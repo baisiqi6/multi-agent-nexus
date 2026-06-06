@@ -1,4 +1,4 @@
-# discord-nexus
+# multinexus
 
 > 本仓库基于 [baisiqi6/discord-nexus](https://github.com/baisiqi6/discord-nexus) 继续维护，原项目 README 标注为 MIT License。本分支保留原始 Git 历史，并在此基础上加入 OpenClaw CLI、managed context、KOOK 接入规划和多主机 agent routing 等定制能力。来源与维护说明见 [docs/provenance.md](docs/provenance.md)。
 
@@ -8,7 +8,7 @@ A modular Discord bot framework for connecting AI agents — Claude Code CLI, Co
 
 ## What It Is
 
-discord-nexus lets you run multiple AI agents in a Discord server where they can:
+multinexus lets you run multiple AI agents in a Discord server where they can:
 
 - Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`) or slash command
 - Respond to `@team <prompt>` to call all agents simultaneously
@@ -81,7 +81,7 @@ before being chunked and posted to Discord.
 
 ```bash
 git clone https://github.com/your-org/discord-nexus.git
-cd discord-nexus
+cd multinexus
 python -m venv .venv
 # Windows:  .venv\Scripts\activate
 # Mac/Linux: source .venv/bin/activate
@@ -244,7 +244,7 @@ If you find this useful, donations are appreciated:
 
 ## Acknowledgements
 
-The optional `OpenClawRelayAgent` is designed to work with [Dream Server](https://github.com/Light-Heart-Labs/DreamServer) by Light Heart Labs — a fully local AI stack (LLM inference, agents, voice, workflows, RAG) deployable on your own hardware with a single command. It's a natural companion to discord-nexus if you want a complete self-hosted setup.
+The optional `OpenClawRelayAgent` is designed to work with [Dream Server](https://github.com/Light-Heart-Labs/DreamServer) by Light Heart Labs — a fully local AI stack (LLM inference, agents, voice, workflows, RAG) deployable on your own hardware with a single command. It's a natural companion to multinexus if you want a complete self-hosted setup.
 
 ---
 

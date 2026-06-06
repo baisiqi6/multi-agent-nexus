@@ -1,5 +1,5 @@
-# Discord Nexus agents.toml
-# [[agents]] = managed coding agents (discord-nexus starts adapter process)
+# MultiNexus agents.toml
+# [[agents]] = managed coding agents (multinexus starts adapter process)
 # [[external_agents]] = agents with their own native Gateway (only for handoff routing)
 
 [defaults]

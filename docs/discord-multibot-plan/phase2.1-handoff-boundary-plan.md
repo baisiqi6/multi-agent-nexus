@@ -2,13 +2,13 @@
 
 ## 背景
 
-Phase 2 已验证混合架构可以跑通：discord-nexus 托管 coding agents，小龙虾/OpenClaw 和 Hermes 保留原生 Gateway。真实 Discord 验收后，触发边界应按**目标 agent 类型**划分，而不是按消息来源简单放宽。
+Phase 2 已验证混合架构可以跑通：multinexus 托管 coding agents，小龙虾/OpenClaw 和 Hermes 保留原生 Gateway。真实 Discord 验收后，触发边界应按**目标 agent 类型**划分，而不是按消息来源简单放宽。
 
 核心结论：
 
 - Adapter/managed agents（Claude、Codex、OpenCode）必须由正式 handoff 触发。
 - External gateway agents（小龙虾/OpenClaw、Hermes）由各自原生 Gateway 决定触发规则，当前可以被普通 Discord @mention 触发。
-- discord-nexus 不应该让任意 bot 的普通 @mention 触发 managed agent，否则容易产生误触发和 bot 循环。
+- multinexus 不应该让任意 bot 的普通 @mention 触发 managed agent，否则容易产生误触发和 bot 循环。
 
 这一步是 Phase 2 到 Phase 3 的收口，不引入 slash command、embed、wiki、scratch 等高级功能。
 
@@ -38,7 +38,7 @@ Bot 消息必须同时满足：
 
 ### 2. 目标是 external gateway agent
 
-由 external agent 自己的 Gateway 和配置决定。discord-nexus 只需要发送 Discord 原生 mention。
+由 external agent 自己的 Gateway 和配置决定。multinexus 只需要发送 Discord 原生 mention。
 
 适用例子：
 
@@ -46,7 +46,7 @@ Bot 消息必须同时满足：
 - Hermes → 小龙虾：`<@小龙虾_uid> ...`
 - 小龙虾 → Hermes：`<@Hermes_uid> ...`
 
-这些 agent 不由 discord-nexus 启动，也不走 discord-nexus adapter，因此是否需要 `[handoff]` 不是由 discord-nexus 强制。
+这些 agent 不由 multinexus 启动，也不走 multinexus adapter，因此是否需要 `[handoff]` 不是由 multinexus 强制。
 
 ### 3. 人类用户
 
@@ -60,15 +60,15 @@ Bot 消息必须同时满足：
 
 | 来源 | 目标 | 条件 | 是否触发 | 执行方 |
 |------|------|------|----------|--------|
-| 人类 | Managed | @managed bot 或 `!bang` | 是 | discord-nexus |
-| Managed bot | Managed | `[handoff]` + @managed bot | 是 | discord-nexus |
-| Managed bot | Managed | 仅 @managed bot，无 `[handoff]` | 否 | discord-nexus |
-| External bot | Managed | `[handoff]` + @managed bot | 是 | discord-nexus |
-| External bot | Managed | 仅 @managed bot，无 `[handoff]` | 否 | discord-nexus |
-| Unknown bot | Managed | @managed bot | 否 | discord-nexus |
+| 人类 | Managed | @managed bot 或 `!bang` | 是 | multinexus |
+| Managed bot | Managed | `[handoff]` + @managed bot | 是 | multinexus |
+| Managed bot | Managed | 仅 @managed bot，无 `[handoff]` | 否 | multinexus |
+| External bot | Managed | `[handoff]` + @managed bot | 是 | multinexus |
+| External bot | Managed | 仅 @managed bot，无 `[handoff]` | 否 | multinexus |
+| Unknown bot | Managed | @managed bot | 否 | multinexus |
 | 任意可见用户/bot | External | @external bot | 取决于 external Gateway | external agent |
-| Coordinator 状态通知 | Managed | 普通状态消息 | 否 | discord-nexus |
-| Coordinator assignment | Managed | 专用 handoff delivery + @managed bot | 是 | discord-nexus |
+| Coordinator 状态通知 | Managed | 普通状态消息 | 否 | multinexus |
+| Coordinator assignment | Managed | 专用 handoff delivery + @managed bot | 是 | multinexus |
 
 ## 当前实现期望
 

@@ -310,7 +310,7 @@ def build_handoff_prompt(
             [
                 "\n任务接收状态:",
                 (
-                    "- discord-nexus runtime 已经以 "
+                    "- multinexus runtime 已经以 "
                     f"`{agent_name}` 身份完成本任务的 `assignment accept`。"
                 ),
                 (

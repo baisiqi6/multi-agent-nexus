@@ -1,5 +1,5 @@
-# Discord Nexus - 混合架构配置
-# [[agents]] = managed coding agents (discord-nexus 启动)
+# MultiNexus - 混合架构配置
+# [[agents]] = managed coding agents (multinexus 启动)
 # [[external_agents]] = 原生 Gateway 的外部 agent（只用于 handoff 路由）
 
 [defaults]
@@ -21,7 +21,7 @@ allowed_user_ids = [1503016766346105008]
 coordinator_bot_id = 1510190318287454258
 coordinator_cli_path = "/Users/yinxin/projects/multi-agent-coordinator/skills/multi-agent-coordinator-operator/scripts/mac.sh"
 coordinator_db_path = "/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3"
-coordinator_workspace_path = "/Users/yinxin/projects/discord-nexus"
+coordinator_workspace_path = "/Users/yinxin/projects/multinexus"
 
 # ── Managed coding agents ──────────────────────────────────────────────────────
 
@@ -51,16 +51,16 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
-- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
-- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
-- mac.sh ci check discord-nexus --task-id <id>
-- mac.sh merge gate discord-nexus --task-id <id>
-- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
-- mac.sh assignment mark-done discord-nexus --task-id <id>
+- mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate multinexus --task-id <id> --owner <agent>
+- mac.sh pr link multinexus --task-id <id> --pr-url <url>
+- mac.sh ci check multinexus --task-id <id>
+- mac.sh merge gate multinexus --task-id <id>
+- mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done multinexus --task-id <id>
 
 ### 规则
 
@@ -73,11 +73,11 @@ MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等待 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -112,16 +112,16 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
-- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
-- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
-- mac.sh ci check discord-nexus --task-id <id>
-- mac.sh merge gate discord-nexus --task-id <id>
-- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
-- mac.sh assignment mark-done discord-nexus --task-id <id>
+- mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate multinexus --task-id <id> --owner <agent>
+- mac.sh pr link multinexus --task-id <id> --pr-url <url>
+- mac.sh ci check multinexus --task-id <id>
+- mac.sh merge gate multinexus --task-id <id>
+- mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done multinexus --task-id <id>
 
 - 所有状态变更必须通过 coordinator CLI
 - 不要直接调用 harnessctl 或修改 harness JSON 文件
@@ -132,11 +132,11 @@ MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等待 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -152,7 +152,7 @@ token_env = "DISCORD_MAC_OPENCODE_TOKEN"
 display_name = "Mac OpenCode"
 aliases = ["Mac OpenCode", "opencode"]
 channels = [1507289970459803738]
-work_dir = "~/projects/discord-nexus"
+work_dir = "~/projects/multinexus"
 discord_user_id = 1507326063745957898
 opencode_dangerously_skip_permissions = true
 activity_timeout = 600
@@ -175,16 +175,16 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
-- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
-- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
-- mac.sh ci check discord-nexus --task-id <id>
-- mac.sh merge gate discord-nexus --task-id <id>
-- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
-- mac.sh assignment mark-done discord-nexus --task-id <id>
+- mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate multinexus --task-id <id> --owner <agent>
+- mac.sh pr link multinexus --task-id <id> --pr-url <url>
+- mac.sh ci check multinexus --task-id <id>
+- mac.sh merge gate multinexus --task-id <id>
+- mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done multinexus --task-id <id>
 
 ### 规则
 
@@ -197,11 +197,11 @@ MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等待 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -237,16 +237,16 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> discord-nexus [options]
+  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
-- mac.sh assignment accept discord-nexus --task-id <id> --owner <agent> --session <sid>
-- mac.sh branch allocate discord-nexus --task-id <id> --owner <agent>
-- mac.sh pr link discord-nexus --task-id <id> --pr-url <url>
-- mac.sh ci check discord-nexus --task-id <id>
-- mac.sh merge gate discord-nexus --task-id <id>
-- mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>
-- mac.sh assignment mark-done discord-nexus --task-id <id>
+- mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
+- mac.sh branch allocate multinexus --task-id <id> --owner <agent>
+- mac.sh pr link multinexus --task-id <id> --pr-url <url>
+- mac.sh ci check multinexus --task-id <id>
+- mac.sh merge gate multinexus --task-id <id>
+- mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>
+- mac.sh assignment mark-done multinexus --task-id <id>
 
 ### 规则
 
@@ -259,11 +259,11 @@ MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等待 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -304,11 +304,11 @@ system_prompt = """
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -344,11 +344,11 @@ system_prompt = """
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 
@@ -395,11 +395,11 @@ system_prompt = """
 判断 task 类型，选择正确的完成命令：
 
 1. **Smoke test / 验证类 task**（标题含 "smoke"、"验证"、"测试"）：
-   → 直接 `mac.sh assignment mark-done discord-nexus --task-id <id>`
+   → 直接 `mac.sh assignment mark-done multinexus --task-id <id>`
    → **不要**跑 closeout
 
 2. **正式实现 task**（有代码改动、功能交付）：
-   → 先 `mac.sh assignment closeout discord-nexus --task-id <id> --reviewer <name>`
+   → 先 `mac.sh assignment closeout multinexus --task-id <id> --reviewer <name>`
    → 等 reviewer 审核通过后由 reviewer mark-done
    → 不要自己 mark-done
 

@@ -6,14 +6,14 @@ Harness root: `docs/project-harness/`
 
 ### Phase 6.1: omp Adapter 基础接入 — implementation
 
-- Created `discord_nexus/adapters/omp.py`: `OmpAdapter(AgentAdapter)` with `call()`, `resume()`, `health_check()`.
+- Created `multinexus/adapters/omp.py`: `OmpAdapter(AgentAdapter)` with `call()`, `resume()`, `health_check()`.
   - Uses `omp -p --auto-approve` for non-interactive mode.
   - `resume()` passes `--resume <session_id>`.
   - Optional `--model` and `--thinking` flags via `omp_model` / `omp_thinking` config.
   - Simple subprocess communicate (no streaming), with timeout via `asyncio.wait_for`.
-- Extended `discord_nexus/models.py`: added `omp_bin`, `omp_model`, `omp_thinking`, `omp_auto_approve` fields to `AgentConfig`.
-- Updated `discord_nexus/config.py`: parse omp fields from TOML with `_first_existing_command` for `omp_bin`.
-- Registered in `discord_nexus/adapters/factory.py`: `adapter == "omp"` → `OmpAdapter(config)`.
+- Extended `multinexus/models.py`: added `omp_bin`, `omp_model`, `omp_thinking`, `omp_auto_approve` fields to `AgentConfig`.
+- Updated `multinexus/config.py`: parse omp fields from TOML with `_first_existing_command` for `omp_bin`.
+- Registered in `multinexus/adapters/factory.py`: `adapter == "omp"` → `OmpAdapter(config)`.
 - Added mac-omp config block to `agents.toml` (local, gitignored) with `omp_model = "opus"`, `omp_thinking = "high"`.
 - 16 new tests in `tests/test_omp_adapter.py`: CLI arg construction (auto-approve, model, thinking, resume), call/resume/failure/timeout/missing CLI/health check/factory.
 - Full test suite: 183/183 pass (167 existing + 16 new).
@@ -24,7 +24,7 @@ Harness root: `docs/project-harness/`
 - **Health check**: `{"adapter": "omp", "bin": "omp", "available": true, "path": "/Users/yinxin/.bun/bin/omp"}` — PASS
 - **Real call**: `omp -p --auto-approve "Reply with exactly: OK smoke-test-passed"` returned "OK smoke-test-passed" — PASS
 - **Unit tests**: 16/16 omp adapter tests pass; full suite 183/183 pass
-- **plist**: `com.discord-nexus.mac-omp.plist` validated with `plutil -lint` — OK
+- **plist**: `com.multinexus.mac-omp.plist` validated with `plutil -lint` — OK
 - **Shell scripts**: `bash -n` all pass; `launchd.sh` AGENTS includes `mac-omp`
 - **Known gap**: `session_id` is not captured from `omp -p` output (omp print mode does not output session IDs); resume support is limited without interactive mode
 - All Phase 6.1 acceptance criteria met:
@@ -53,7 +53,7 @@ Harness root: `docs/project-harness/`
 - Added `sync_workspace_agents` batch helper to `db.py` with merge (default, preserves manual overrides) and `--replace` (replaces entire registry) semantics.
 - Added `workspace agent sync` CLI subcommand with `--source` and `--replace` flags. Outputs JSON summary: `added`, `updated`, `unchanged`, `skipped`, `removed` (replace only).
 - 16 new tests: 6 TOML parsing, 6 DB sync, 4 CLI integration (including token leak prevention).
-- Coordinator test suite: 640/640 pass. discord-nexus test suite: 165/165 pass.
+- Coordinator test suite: 640/640 pass. multinexus test suite: 165/165 pass.
 - End-to-end verified: synced 8 agents from real `agents.toml` to coordinator DB.
 - Updated `agents.toml.example` to mark `discord_user_id` as required for registry sync.
 - Updated runbook with `workspace agent sync` commands.
@@ -83,7 +83,7 @@ Harness root: `docs/project-harness/`
 ### Round 1 — Initial implementation
 
 - Worker implemented all Phase 3.3 launchd artifacts:
-  - 3 plist templates (`launchd/com.discord-nexus.mac-{claude,codex,opencode}.plist`)
+  - 3 plist templates (`launchd/com.multinexus.mac-{claude,codex,opencode}.plist`)
   - Shared lib (`scripts/lib/launchd.sh`)
   - 4 management scripts (`scripts/{start,stop,status,uninstall}.sh`)
 - Fixed `start.sh` plist update semantics: `bootout` + `bootstrap` cycle replaces `kickstart -k` so launchd reloads changed plists.
@@ -93,7 +93,7 @@ Harness root: `docs/project-harness/`
 
 ### Round 2 — Review findings addressed
 
-- **Finding 1**: `check_manual_process` in `scripts/lib/launchd.sh` used a narrow `pgrep -f "nexus.py --agent $agent"` pattern that missed invocations with intervening flags (e.g. `python nexus.py --config agents.toml --agent mac-claude`). Fixed to `nexus\.py.*--agent[= ]${agent}\>` which matches `--agent X` and `--agent=X` regardless of flag order.
+- **Finding 1**: `check_manual_process` in `scripts/lib/launchd.sh` used a narrow `pgrep -f "multinexus.py --agent $agent"` pattern that missed invocations with intervening flags (e.g. `python multinexus.py --config agents.toml --agent mac-claude`). Fixed to `nexus\.py.*--agent[= ]${agent}\>` which matches `--agent X` and `--agent=X` regardless of flag order.
 - **Finding 2**: Closeout file list was incomplete (omitted 5 of 9 artifacts). Corrected.
 - Re-validated: `bash -n` all pass. (plutil and tests unchanged from round 1.)
 
@@ -125,6 +125,6 @@ Human performed terminal and Discord validation:
   - `docs/multi-agent-harness-overview.md`
   - `docs/project-harness/runbook.md`
   - `docs/project-harness/scope.md`
-- Synced wording around coordinator Discord daemon, targeted agent handoff delivery, discord-nexus coordinator handoff auto-accept, and the rule that task lifecycle state changes go through coordinator CLI rather than direct harness JSON edits.
+- Synced wording around coordinator Discord daemon, targeted agent handoff delivery, multinexus coordinator handoff auto-accept, and the rule that task lifecycle state changes go through coordinator CLI rather than direct harness JSON edits.
 - Sanity-checked documented coordinator commands against current `mac.sh --help` output.
 - Validation: `git diff --check` passed; `scripts/harness/harnessctl validate` passed; `scripts/harness/harnessctl doctor` exited 0 with existing optional/current file misses (`current/task_plan.md`, `init.sh`).
