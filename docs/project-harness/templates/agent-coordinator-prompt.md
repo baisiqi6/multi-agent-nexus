@@ -10,7 +10,7 @@
 ```bash
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 ```
 
 常用命令：
@@ -31,6 +31,6 @@ MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
 <!-- Placeholder values for multinexus:
 COORDINATOR_PATH=/Users/yinxin/projects/multi-agent-coordinator
 COORDINATOR_DB=~/.multi-agent-coordinator/coordinator.sqlite3
-MAC_SH=skills/multi-agent-coordinator-operator/scripts/mac.sh
+MAC_SH=skills/coordinate-operator/scripts/mac.sh
 WORKSPACE_ID=multinexus
 -->

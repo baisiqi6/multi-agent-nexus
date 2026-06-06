@@ -12,7 +12,7 @@
 
 Addressed reviewer rejection (4 required changes):
 
-1. **Webhook URL 不存入 workspace config** — `default_destination` 改为非敏感标签 `"discord-nexus-status"`，webhook URL 只从 `DISCORD_WEBHOOK_URL` 环境变量获取
+1. **Webhook URL 不存入 workspace config** — `default_destination` 改为非敏感标签 `"multinexus-status"`，webhook URL 只从 `DISCORD_WEBHOOK_URL` 环境变量获取
 2. **CLI 示例包含 workspace_id** — 所有 coordinator CLI 命令首参为 `multinexus`
 3. **禁止普通 agent 直接调 harnessctl** — 默认规则：所有状态变更通过 coordinator CLI；harnessctl 仅限 operator 在 harness repair 场景下使用
 4. **新增 tracked template** — `docs/project-harness/templates/agent-coordinator-prompt.md`（implementation deliverable，不在本 plan 阶段创建）
@@ -44,7 +44,7 @@ Phase 4.1-4.4 scope only. Two projects involved:
 2. **只做状态广播，不做 agent 触发**：WebhookBus 只发 `[ASSIGN]`、`[BLOCKER]`、`[DONE]` 等通知，不发 `[handoff] @Bot`。Agent 触发是 Phase 4.5+ 范围。
 3. **system_prompt 静态注入而非动态**：coordinator CLI 路径和 workspace 名写死在 agents.toml 里，不改 prompt.py 代码。简单且够用。
 4. **不改 db schema**：workspace.default_bus 已经是 TEXT，直接存 `"discord_webhook"`。
-5. **webhook URL 只从环境变量获取**：不在 workspace config、tracked 文件、日志、delivery rows 中存储 webhook URL。`default_destination` 是非敏感标签（如 `"discord-nexus-status"`），仅用于 message_key 去重和日志标识。
+5. **webhook URL 只从环境变量获取**：不在 workspace config、tracked 文件、日志、delivery rows 中存储 webhook URL。`default_destination` 是非敏感标签（如 `"multinexus-status"`），仅用于 message_key 去重和日志标识。
 6. **harnessctl 访问限制**：普通 agent 不直接调 harnessctl 或修改 harness JSON。所有状态变更通过 coordinator CLI。harnessctl 仅限 operator 在明确要求 repair/maintain 时使用。
 7. **tracked template**：因 agents.toml 是 .gitignore'd，新增 tracked template 文件供 review 和复现。文件已创建于 `docs/project-harness/templates/agent-coordinator-prompt.md`。
 

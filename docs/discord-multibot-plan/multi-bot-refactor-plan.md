@@ -623,11 +623,11 @@ COORDINATOR 集成：
 你可以调用 multi-agent-coordinator CLI 来跟踪任务状态：
   cd /Users/yinxin/projects/multi-agent-coordinator
   MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-    skills/multi-agent-coordinator-operator/scripts/mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <session>
+    skills/coordinate-operator/scripts/mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <session>
   MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-    skills/multi-agent-coordinator-operator/scripts/mac.sh ci check multinexus --task-id <id>
+    skills/coordinate-operator/scripts/mac.sh ci check multinexus --task-id <id>
   MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-    skills/multi-agent-coordinator-operator/scripts/mac.sh merge gate multinexus --task-id <id>
+    skills/coordinate-operator/scripts/mac.sh merge gate multinexus --task-id <id>
 
 不要直接修改 harness JSON。普通 worker 不直接调用 harnessctl；所有状态变更通过 coordinator CLI。
 ```
@@ -648,7 +648,7 @@ COORDINATOR 集成：
 multinexus 的 handoff handler 会先回写 coordinator：
 
 ```bash
-MAC_DB=... skills/multi-agent-coordinator-operator/scripts/mac.sh \
+MAC_DB=... skills/coordinate-operator/scripts/mac.sh \
   assignment accept "$WORKSPACE_ID" --task-id "$TASK_ID" --owner "$OWNER" --session "$SESSION"
 ```
 

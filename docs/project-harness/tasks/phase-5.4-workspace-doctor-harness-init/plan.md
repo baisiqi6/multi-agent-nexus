@@ -123,8 +123,8 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
 手动验证：
 
 ```bash
-skills/multi-agent-coordinator-operator/scripts/mac.sh workspace doctor multinexus
-skills/multi-agent-coordinator-operator/scripts/mac.sh workspace init-harness multinexus --mode full --dry-run
+skills/coordinate-operator/scripts/mac.sh workspace doctor multinexus
+skills/coordinate-operator/scripts/mac.sh workspace init-harness multinexus --mode full --dry-run
 ```
 
 在 `multinexus`：

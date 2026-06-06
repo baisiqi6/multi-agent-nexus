@@ -48,6 +48,6 @@ If documentation references commands, sanity-check command names against current
 ## Done Criteria
 
 - Stale “coordinator integration is future work” wording is either updated or clearly marked as historical.
-- Current coordinator/discord-nexus boundary is documented consistently.
+- Current coordinator/multinexus boundary is documented consistently.
 - No generated state noise remains in git status.
 - Worker reports changed files, validation output, and any remaining documentation drift.

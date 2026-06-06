@@ -198,7 +198,7 @@ class TestAssignmentAccept(unittest.TestCase):
             repo = Path(tmp) / "multi-agent-coordinator"
             (repo / "src/multi_agent_coordinator").mkdir(parents=True)
             (repo / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
-            cli = repo / "skills/multi-agent-coordinator-operator/scripts/mac.sh"
+            cli = repo / "skills/coordinate-operator/scripts/mac.sh"
             cli.parent.mkdir(parents=True)
             cli.write_text("#!/usr/bin/env bash\n", encoding="utf-8")
 

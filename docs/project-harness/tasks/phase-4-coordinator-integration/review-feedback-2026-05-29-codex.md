@@ -20,7 +20,7 @@ That stores the webhook URL in coordinator SQLite and may expose it through `wor
 Use a non-secret label instead, for example:
 
 ```bash
---default-bus discord_webhook --default-destination discord-nexus-status
+--default-bus discord_webhook --default-destination multinexus-status
 ```
 
 The real webhook URL must only come from the environment variable:

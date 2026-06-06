@@ -19,7 +19,7 @@ allowed_user_ids = [1503016766346105008]
 
 # Coordinator integration
 coordinator_bot_id = 1510190318287454258
-coordinator_cli_path = "/Users/yinxin/projects/multi-agent-coordinator/skills/multi-agent-coordinator-operator/scripts/mac.sh"
+coordinator_cli_path = "/Users/yinxin/projects/multi-agent-coordinator/skills/coordinate-operator/scripts/mac.sh"
 coordinator_db_path = "/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3"
 coordinator_workspace_path = "/Users/yinxin/projects/multinexus"
 
@@ -51,7 +51,7 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
 - mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
@@ -112,7 +112,7 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
 - mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
@@ -175,7 +175,7 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
 - mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
@@ -237,7 +237,7 @@ system_prompt = """
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
 - mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>

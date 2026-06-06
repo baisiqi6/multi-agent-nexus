@@ -88,7 +88,7 @@ Ordinary worker agents should not use `harnessctl` for lifecycle transitions and
 ## Coordinator Operations
 
 ```bash
-MAC_SH=~/projects/multi-agent-coordinator/skills/multi-agent-coordinator-operator/scripts/mac.sh
+MAC_SH=~/projects/multi-agent-coordinator/skills/coordinate-operator/scripts/mac.sh
 export MAC_DB=~/projects/multi-agent-coordinator/data/coordinator.sqlite3
 
 # Sync coordinator with harness state
@@ -110,7 +110,7 @@ $MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.to
 $MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.toml --replace
 
 # Create visible deliveries for supported events
-$MAC_SH policy pump-events --workspace-id multinexus --platform discord_webhook --destination discord-nexus-status
+$MAC_SH policy pump-events --workspace-id multinexus --platform discord_webhook --destination multinexus-status
 
 # Send queued Discord deliveries when not using the daemon
 DISCORD_WEBHOOK_URL=<webhook-url> $MAC_SH delivery pump --platform discord_webhook
@@ -173,12 +173,12 @@ This shows whether the workspace has `none`, `minimal_file_backed`, or `full_har
 # From an existing reference workspace (e.g. multinexus)
 $MAC_SH workspace init-harness <workspace-id> \
   --mode full \
-  --source /path/to/discord-nexus/scripts/harness
+  --source /path/to/multinexus/scripts/harness
 
 # Dry-run first to see what would be created
 $MAC_SH workspace init-harness <workspace-id> \
   --mode full \
-  --source /path/to/discord-nexus/scripts/harness \
+  --source /path/to/multinexus/scripts/harness \
   --dry-run
 ```
 

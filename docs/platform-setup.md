@@ -41,7 +41,7 @@ Right-click any server, channel, or user to copy its ID.
 ## Step 2: Clone and Install
 
 ```bash
-git clone https://github.com/your-org/discord-nexus.git
+git clone https://github.com/your-org/multinexus.git
 cd multinexus
 python -m venv .venv
 ```

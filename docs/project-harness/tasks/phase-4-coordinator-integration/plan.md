@@ -77,10 +77,10 @@ SUPPORTED_PLATFORMS = {"discord", "discord_webhook", "kook", "stdout"}
 
 ## Phase 4.2: Workspace 配置
 
-`workspace add --default-bus discord_webhook --default-destination discord-nexus-status`
+`workspace add --default-bus discord_webhook --default-destination multinexus-status`
 
 - **`default_bus`**: `"discord_webhook"`
-- **`default_destination`**: 非敏感标签（如 `"discord-nexus-status"`），不是 webhook URL。仅用于 message_key 去重和日志标识
+- **`default_destination`**: 非敏感标签（如 `"multinexus-status"`），不是 webhook URL。仅用于 message_key 去重和日志标识
 - **webhook URL**: 只在运行时从 `DISCORD_WEBHOOK_URL` 环境变量获取
 
 ## Phase 4.3: System Prompt 注入
@@ -96,7 +96,7 @@ mac-claude、mac-codex、mac-opencode 的 system_prompt 追加：
 
 cd /Users/yinxin/projects/multi-agent-coordinator && \
 MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
-  skills/multi-agent-coordinator-operator/scripts/mac.sh <command> multinexus [options]
+  skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 
 常用命令：
 - mac.sh assignment accept multinexus --task-id <id> --owner <agent> --session <sid>
@@ -129,7 +129,7 @@ harnessctl 仅限 operator 在 harness repair 场景下使用。
 
 1. Discord 频道创建 webhook，获取 URL
 2. 设置环境变量：`export DISCORD_WEBHOOK_URL="<webhook-url>"`
-3. 更新 workspace: `mac.sh workspace add multinexus --default-bus discord_webhook --default-destination discord-nexus-status`（不含 URL）
+3. 更新 workspace: `mac.sh workspace add multinexus --default-bus discord_webhook --default-destination multinexus-status`（不含 URL）
 4. 创建测试 task，触发事件，pump deliveries
 5. 验证 Discord 频道出现 webhook 消息
 

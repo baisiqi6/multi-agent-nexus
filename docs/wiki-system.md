@@ -110,7 +110,7 @@ gitignored, so it never leaves your machine.
 2. Optionally, set `PRIVATE_DB_PATH` in `.env` to control where the private SQLite database is stored:
 
 ```
-PRIVATE_DB_PATH=/path/to/discord-nexus/nexus-private.db
+PRIVATE_DB_PATH=/path/to/multinexus/nexus-private.db
 ```
 
 If unset, the private DB defaults to `multinexus-private.db` in the same directory as the

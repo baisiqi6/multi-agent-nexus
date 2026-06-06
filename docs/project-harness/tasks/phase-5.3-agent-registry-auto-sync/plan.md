@@ -22,7 +22,7 @@ Phase 4.5 后，coordinator 可以通过 `workspace agent add` 维护 workspace 
 新增 workspace agent sync 能力：
 
 ```bash
-skills/multi-agent-coordinator-operator/scripts/mac.sh \
+skills/coordinate-operator/scripts/mac.sh \
   workspace agent sync multinexus \
   --source /Users/yinxin/projects/multinexus/agents.toml
 ```

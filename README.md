@@ -80,7 +80,7 @@ before being chunked and posted to Discord.
 ### 2. Clone and install
 
 ```bash
-git clone https://github.com/your-org/discord-nexus.git
+git clone https://github.com/your-org/multinexus.git
 cd multinexus
 python -m venv .venv
 # Windows:  .venv\Scripts\activate
@@ -173,7 +173,7 @@ E4B_MODEL=gemma-3-4b-it
 python scripts/setup-scheduler.ps1
 
 # Schedule (Linux/macOS — add to crontab)
-# 0 2 * * * cd /path/to/discord-nexus && python washer.py
+# 0 2 * * * cd /path/to/multinexus && python washer.py
 ```
 
 The memory washing machine concept is from **Mark Kashef** — ["I Tried OpenClaw and Hermes. I Kept Claude Code."](https://youtu.be/rVzGu5OYYS0) (timestamp 10:57).
