@@ -7,7 +7,7 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Users/yinxin/projects/multinexus/.venv/bin/python</string>
-        <string>/Users/yinxin/projects/multinexus/multimultinexus.py</string>
+        <string>/Users/yinxin/projects/multinexus/multinexus.py</string>
         <string>--agent</string>
         <string>mac-codex</string>
     </array>
