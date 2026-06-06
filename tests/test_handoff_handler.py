@@ -195,8 +195,8 @@ class TestAssignmentAccept(unittest.TestCase):
 
     def test_runs_fixed_argv_and_infers_repo_root(self):
         with tempfile.TemporaryDirectory() as tmp:
-            repo = Path(tmp) / "multi-agent-coordinator"
-            (repo / "src/multi_agent_coordinator").mkdir(parents=True)
+            repo = Path(tmp) / "coordinate"
+            (repo / "src/coordinate").mkdir(parents=True)
             (repo / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
             cli = repo / "skills/coordinate-operator/scripts/mac.sh"
             cli.parent.mkdir(parents=True)

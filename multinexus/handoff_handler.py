@@ -204,7 +204,10 @@ def _infer_coordinator_repo(cli_path: str) -> Path | None:
     for candidate in candidates:
         if (
             (candidate / "pyproject.toml").is_file()
-            and (candidate / "src" / "multi_agent_coordinator").is_dir()
+            and (
+                (candidate / "src" / "coordinate").is_dir()
+                or (candidate / "src" / "multi_agent_coordinator").is_dir()
+            )
         ):
             return candidate
     return None

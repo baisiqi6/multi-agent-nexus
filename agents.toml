@@ -19,8 +19,8 @@ allowed_user_ids = [1503016766346105008]
 
 # Coordinator integration
 coordinator_bot_id = 1510190318287454258
-coordinator_cli_path = "/Users/yinxin/projects/multi-agent-coordinator/skills/coordinate-operator/scripts/mac.sh"
-coordinator_db_path = "/Users/yinxin/projects/multi-agent-coordinator/data/coordinator.sqlite3"
+coordinator_cli_path = "/Users/yinxin/projects/coordinate/skills/coordinate-operator/scripts/mac.sh"
+coordinator_db_path = "/Users/yinxin/projects/coordinate/data/coordinator.sqlite3"
 coordinator_workspace_path = "/Users/yinxin/projects/multinexus"
 
 # ── Managed coding agents ──────────────────────────────────────────────────────
