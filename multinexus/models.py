@@ -66,3 +66,13 @@ class AgentConfig:
     coordinator_cli_path: str = ""
     coordinator_db_path: str = ""
     coordinator_workspace_path: str = ""
+
+    # Agentd (local daemon mode)
+    agentd_mode: bool = False
+    agentd_port: int = 0  # 0 = auto-assign
+    agentd_host: str = "127.0.0.1"
+
+    # KOOK bridge fields
+    kook_poll_channel_ids: list[int] = field(default_factory=list)
+    kook_poll_interval_seconds: int = 5
+    kook_poll_page_size: int = 50

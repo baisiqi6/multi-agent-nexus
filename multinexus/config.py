@@ -221,6 +221,12 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
         coordinator_workspace_path=str(
             Path(str(merged["coordinator_workspace_path"])).expanduser()
         ) if merged.get("coordinator_workspace_path") else "",
+        agentd_mode=_as_bool(merged.get("agentd_mode"), False),
+        agentd_port=int(merged.get("agentd_port", 0)),
+        agentd_host=str(merged.get("agentd_host", "127.0.0.1")),
+        kook_poll_channel_ids=_as_int_list(merged.get("kook_poll_channel_ids")),
+        kook_poll_interval_seconds=int(merged.get("kook_poll_interval_seconds", 5)),
+        kook_poll_page_size=int(merged.get("kook_poll_page_size", 50)),
     )
 
 
