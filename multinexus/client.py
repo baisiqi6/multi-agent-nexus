@@ -1,4 +1,8 @@
-"""DiscordClient: one discord.Client per agent, with two-layer message filtering."""
+"""DiscordClient: one discord.Client per agent, with two-layer message filtering.
+
+In agentd_mode, acts as a bridge: Gateway/mention handling only, adapter calls
+go through the local agentd via HTTP. In legacy mode, calls adapters directly.
+"""
 
 import asyncio
 import collections.abc
@@ -10,10 +14,13 @@ from discord import app_commands
 
 from .adapters.base import AdapterResult
 from .adapters.factory import make_adapter
+from .agentd.client import AgentdClient
+from .agentd.server import AgentDaemon
 from .config import load_config
 from .context.prompt import build_agent_prompt
 from .context.store import ChatContextStore
 from .models import AgentConfig
+from .protocol import AgentRequest, Platform, PlatformDestination, PlatformOrigin
 from .routing.mentions import MentionRouter
 from .sessions.store import SessionStore
 from .sessions.scope import (
@@ -69,34 +76,69 @@ def _chunk_message(text: str) -> list[str]:
 
 
 class DiscordClient(discord.Client):
-    """One agent = one DiscordClient instance."""
+    """One agent = one DiscordClient instance.
+
+    In agentd_mode, acts as a bridge: submits requests to agentd instead of
+    calling adapters directly. In legacy mode, manages adapters inline.
+    """
 
     def __init__(self, config: AgentConfig):
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(intents=intents)
         self.agent_config = config
-        self.adapter = make_adapter(config)
         self.context_store = ChatContextStore(config.context_db_path)
-        self.session_store = SessionStore(config.context_db_path)
         self.mention_router = MentionRouter(config)
         self._bot_user_id_map: dict[str, int] = {}
         self.tree = app_commands.CommandTree(self)
         self._commands_synced = False
 
+        # Bridge mode: use agentd for adapter calls
+        self._agentd_mode = config.agentd_mode
+        self._agentd_client: AgentdClient | None = None
+        self._agentd: AgentDaemon | None = None
+        self._agentd_port: int = 0
+
+        if config.agentd_mode:
+            self._agentd_client = AgentdClient()
+            self.adapter = None
+            self.session_store = None
+        else:
+            self.adapter = make_adapter(config)
+            self.session_store = SessionStore(config.context_db_path)
+
     async def setup_hook(self):
         self._register_slash_commands()
 
+    async def _start_agentd(self) -> int:
+        """Start embedded agentd for bridge mode. Returns port."""
+        if self._agentd is not None:
+            return self._agentd_port
+        self._agentd = AgentDaemon(self.agent_config)
+        self._agentd_port = await self._agentd.start()
+        log.info("Embedded agentd started for %s on port %s", self.agent_config.id, self._agentd_port)
+        return self._agentd_port
+
+    async def _stop_agentd(self) -> None:
+        if self._agentd:
+            await self._agentd.stop()
+            self._agentd = None
+        if self._agentd_client:
+            await self._agentd_client.close()
+
     async def on_ready(self):
         log.info(
-            "DiscordClient ready: agent=%s bot=%s#%s",
+            "DiscordClient ready: agent=%s bot=%s#%s agentd_mode=%s",
             self.agent_config.id,
             self.user.name,
             self.user.discriminator,
+            self._agentd_mode,
         )
-        # Register our own user ID
         self._bot_user_id_map[self.agent_config.id] = self.user.id
         self.mention_router.update_discord_user_ids(self._bot_user_id_map)
+
+        if self._agentd_mode and self._agentd is None:
+            await self._start_agentd()
 
         # One-time guild-scoped slash command sync
         if not self._commands_synced:
@@ -753,6 +795,16 @@ class DiscordClient(discord.Client):
         )
 
         progress_state: dict = {"partial": ""}
+
+        if self._agentd_mode:
+            await self._handle_via_agentd(
+                prompt, message, placeholder,
+                session_scope_id=session_scope_id,
+                legacy_scope_ids=legacy_scope_ids,
+                context_channel_id=context_channel_id,
+            )
+            return
+
         result = await self._run_adapter_for_scope(
             prompt,
             session_scope_id=session_scope_id,
@@ -761,15 +813,86 @@ class DiscordClient(discord.Client):
             progress_state=progress_state,
         )
 
-        response_text = result.text
+        await self._send_adapter_response(
+            result.text, channel, placeholder,
+            context_channel_id=context_channel_id,
+        )
 
-        # 3. Resolve handoff mentions in response
+    async def _handle_via_agentd(
+        self,
+        prompt: str,
+        message: discord.Message,
+        placeholder: discord.Message | None,
+        *,
+        session_scope_id: str,
+        legacy_scope_ids: tuple[str, ...],
+        context_channel_id: str,
+    ) -> None:
+        """Submit a request to agentd and send the response via Discord."""
+        channel = message.channel
+        channel_id = str(self._resolve_channel_id(message))
+        thread_id = str(message.channel.id) if is_thread_channel(message.channel) else None
+
+        request = AgentRequest(
+            request_id=f"discord:{message.id}",
+            agent_id=self.agent_config.id,
+            prompt=prompt,
+            origin=PlatformOrigin(
+                platform=Platform.DISCORD,
+                channel_id=channel_id,
+                thread_id=thread_id,
+                message_id=str(message.id),
+            ),
+            destination=PlatformDestination(
+                platform=Platform.DISCORD,
+                channel_id=channel_id,
+                thread_id=thread_id,
+                reply_to_message_id=str(message.id),
+            ),
+            author_id=str(message.author.id),
+            author_name=message.author.display_name,
+            author_is_bot=message.author.bot,
+            session_scope=session_scope_id,
+            legacy_scope_ids=legacy_scope_ids,
+            context_channel_id=context_channel_id,
+            work_dir=self.agent_config.work_dir,
+        )
+
+        response = await self._run_with_heartbeat(
+            placeholder,
+            self._agentd_client.submit(request, port=self._agentd_port, timeout=self.agent_config.timeout),
+        )
+
+        display_text = self.mention_router.resolve_handoff_mentions(response.text)
+        handoff_lines = [self.mention_router.resolve_handoff_mentions(h) for h in response.handoff_lines]
+
+        await self._send_text_chunks(channel, placeholder, display_text, handoff_lines, response.report_lines)
+
+        if response.success:
+            self.context_store.record_message(
+                message_id=f"response:{int(time.time() * 1000)}:{self.agent_config.id}",
+                channel_id=context_channel_id,
+                author_id=str(self.user.id),
+                author_name=self.agent_config.display_name or self.agent_config.id,
+                author_is_bot=True,
+                content=display_text[:2000],
+                created_at_ms=int(time.time() * 1000),
+                source="discord",
+                ttl_seconds=self.agent_config.context_ttl_seconds,
+            )
+
+    async def _send_adapter_response(
+        self,
+        response_text: str,
+        channel,
+        placeholder: discord.Message | None,
+        *,
+        context_channel_id: str,
+    ) -> None:
+        """Send adapter response to Discord channel (legacy mode)."""
         response_text = self.mention_router.resolve_handoff_mentions(response_text)
-
-        # 4. Split handoff lines from response text
         handoff_lines, display_text = split_handoff_lines(response_text)
 
-        # 5. Send response (edit placeholder)
         chunks = _chunk_message(display_text) if display_text else []
         if not chunks and not handoff_lines:
             if placeholder:
@@ -787,7 +910,6 @@ class DiscordClient(discord.Client):
                     await channel.send(chunks[0])
             else:
                 await channel.send(chunks[0])
-
             for chunk in chunks[1:]:
                 try:
                     await channel.send(chunk)
@@ -799,15 +921,13 @@ class DiscordClient(discord.Client):
             except discord.HTTPException:
                 pass
 
-        # 8. Send each handoff as a separate new message (MESSAGE_CREATE)
         for handoff in handoff_lines:
             try:
                 await channel.send(handoff)
             except discord.HTTPException:
                 pass
 
-        # 9. Record our response to context (skip adapter errors)
-        if not self._is_error_response(result.text):
+        if not self._is_error_response(response_text):
             self.context_store.record_message(
                 message_id=f"response:{int(time.time() * 1000)}:{self.agent_config.id}",
                 channel_id=context_channel_id,
@@ -819,6 +939,55 @@ class DiscordClient(discord.Client):
                 source="discord",
                 ttl_seconds=self.agent_config.context_ttl_seconds,
             )
+
+    @staticmethod
+    async def _send_text_chunks(
+        channel,
+        placeholder: discord.Message | None,
+        display_text: str,
+        handoff_lines: list[str],
+        report_lines: list[str],
+    ) -> None:
+        """Send display text, handoff lines, and report lines to Discord."""
+        chunks = _chunk_message(display_text) if display_text else []
+        if not chunks and not handoff_lines and not report_lines:
+            if placeholder:
+                try:
+                    await placeholder.edit(content="(no response)")
+                except discord.HTTPException:
+                    pass
+            return
+
+        if chunks:
+            if placeholder:
+                try:
+                    await placeholder.edit(content=chunks[0])
+                except discord.HTTPException:
+                    await channel.send(chunks[0])
+            else:
+                await channel.send(chunks[0])
+            for chunk in chunks[1:]:
+                try:
+                    await channel.send(chunk)
+                except discord.HTTPException:
+                    break
+        elif placeholder:
+            try:
+                await placeholder.edit(content="✅ done")
+            except discord.HTTPException:
+                pass
+
+        for hl in handoff_lines:
+            try:
+                await channel.send(hl)
+            except discord.HTTPException:
+                pass
+
+        for rl in report_lines:
+            try:
+                await channel.send(rl, allowed_mentions=discord.AllowedMentions.none())
+            except discord.HTTPException:
+                pass
 
     _ERROR_PREFIXES = (
         "Agent error:",
