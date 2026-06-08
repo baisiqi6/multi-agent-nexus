@@ -9,9 +9,10 @@
 ```
 multinexus.py                          CLI entry point
 multinexus/
-  client.py                       DiscordClient (discord.Client + CommandTree)
+  client.py                       DiscordClient (bridge: Gateway + mention + context)
   config.py                       TOML config loading, [defaults] + [[agents]] merge
   models.py                       AgentConfig, KnownAgentMention dataclasses
+  protocol.py                     AgentRequest/AgentResponse envelope (cross-platform)
   commands.py                     Operator text command handler
   embeds.py                       Discord Embed builders for slash commands
   handoff.py                      Handoff line splitting and parsing
@@ -23,6 +24,12 @@ multinexus/
     opencode.py                   OpenCode CLI wrapper (--format json, --session)
     hermes.py                     Hermes CLI wrapper (one-shot, no session)
     utils.py                      filtered_env() strips tokens from subprocess env
+  agentd/
+    server.py                     AgentDaemon — local HTTP server, one per agent identity
+    client.py                     AgentdClient — HTTP client for bridges
+  kook/
+    bot.py                        KookBridge — WebSocket + HTTP polling bridge
+    mentions.py                   KookMentionRouter — KMarkdown mention routing
   context/
     store.py                      ChatContextStore (SQLite WAL, TTL-based cleanup)
     prompt.py                     build_agent_prompt() — history + current message
@@ -34,12 +41,43 @@ multinexus/
     allowlist.py                  Operator access control by user ID
 ```
 
+## N+M Runtime Architecture
+
+In N+M mode (`agentd_mode=true`), each IM platform runs as a bridge that
+submits requests to a local agentd daemon. One agentd per agent identity
+ensures a single adapter session regardless of which platform triggers it.
+
+```
+Discord bridge ──┐
+                 ├──> agentd (mac-codex)  ──> Codex adapter
+KOOK bridge ─────┘──> agentd (mac-claude) ──> Claude adapter
+```
+
+- **Bridges** handle platform-specific: Gateway, polling, mention parsing, message sending
+- **Agentd** handles: adapter call/resume, session management, timeout, health
+- Communication: HTTP on localhost (bridge → agentd)
+- Legacy mode (`agentd_mode=false`): bridges call adapters directly
+
 ## Message Flow
+
+### Bridge Mode (agentd_mode=true)
+
+```
+Discord/KOOK message → Bridge
+  → platform filter → mention resolution
+  → build prompt with context history
+  → AgentRequest → HTTP POST to agentd
+  → AgentResponse → resolve handoff mentions
+  → chunked reply + separate handoff messages
+  → record to context store
+```
+
+### Legacy Mode (agentd_mode=false)
 
 ```
 Discord message → DiscordClient.on_message()
   → channel filter → bot/human filter → mention resolution
-  → operator command intercept (session status, agents, health)
+  → operator command intercept
   → build_agent_prompt() with context history
   → adapter.call() or adapter.resume()
   → handoff mention resolution in response
@@ -55,7 +93,7 @@ Discord message → DiscordClient.on_message()
 ## Config Structure
 
 `agents.toml`:
-- `[defaults]` — shared timeouts, context params, security settings
+- `[defaults]` — shared timeouts, context params, security settings, agentd settings
 - `[[agents]]` — managed agents (id, adapter, token_env, system_prompt, channels, discord_user_id)
 - `[[external_agents]]` — external agents (id, display_name, aliases, discord_user_id)
 
@@ -64,3 +102,4 @@ Discord message → DiscordClient.on_message()
 - Master plan: `docs/discord-multibot-plan/multi-bot-refactor-plan.md`
 - Coordinator integration design: same file, "与 multi-agent-coordinator 的集成" section
 - Platform setup: `docs/platform-setup.md`
+- Phase 7 N+M plan: `docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md`

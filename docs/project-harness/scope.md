@@ -2,16 +2,19 @@
 
 ## Project
 
-multinexus: multi-agent Discord bot framework connecting AI coding agents (Claude Code, Codex, OpenCode, Hermes) as distinct Discord bot users.
+multinexus: multi-agent IM bot framework connecting AI coding agents (Claude Code, Codex, OpenCode, Hermes) as distinct Discord and KOOK bot users.
 
 ## In Scope
 
 - **Managed coding agents**: mac-claude, mac-codex, mac-opencode — launched by `multinexus.py --agent <id>`, wrapped in adapter subprocess
 - **External gateway agents**: 小龙虾 (OpenClaw), Hermes — own Discord Gateway; multinexus does handoff routing only
-- **Handoff protocol**: `[handoff] @AgentName task` parsed and resolved to Discord `<@USER_ID>` mentions
+- **N+M runtime**: multiple IM bridges (Discord, KOOK) sharing one agentd per agent identity via local HTTP
+- **Agentd**: local HTTP daemon per agent, manages adapter call/resume, sessions, timeouts, health
+- **KOOK bridge**: WebSocket + HTTP polling, KMarkdown mention routing, handoff dedup, transient filtering
+- **Handoff protocol**: `[handoff] @AgentName task` parsed and resolved to platform-native mentions
 - **Per-agent session persistence**: scope_id + agent_id composite key, SQLite-backed, supports resume
 - **Context management**: recent channel history injected into agent prompts, configurable TTL/budget/limit
-- **Adapter layer**: claude, codex, opencode, hermes — CLI subprocess wrappers with streaming JSON output
+- **Adapter layer**: claude, codex, opencode, hermes, omp — CLI subprocess wrappers with streaming JSON output
 - **Slash commands**: /agents, /health, /session status, /session reset
 - **launchd lifecycle**: macOS user-level LaunchAgents with auto-restart
 - **Coordinator handoff intake**: managed agents can auto-accept structured `[handoff]` messages from the configured coordinator bot, then read the generated bootstrap before invoking the adapter

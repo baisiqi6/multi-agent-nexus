@@ -9,15 +9,18 @@ Per-agent configuration loaded from `agents.toml`. Key fields:
 | Field | Type | Description |
 |-------|------|-------------|
 | `id` | str | Unique identifier (e.g. "mac-claude") |
-| `adapter` | str | "claude", "codex", "opencode", "hermes" |
+| `adapter` | str | "claude", "codex", "opencode", "hermes", "omp" |
 | `token_env` | str | Env var name holding Discord bot token |
 | `display_name` | str | Human-visible name |
 | `channels` | list[int] | Discord channel IDs this agent listens in |
 | `work_dir` | str | Default CWD for adapter subprocess |
 | `discord_user_id` | int | Discord bot user ID for mention resolution |
 | `system_prompt` | str | Injected into every adapter call |
-| `timeout` | int | Total adapter timeout (default 1800s) |
+| `timeout` | int | Total adapter timeout (default 360s) |
 | `known_agents` | list[KnownAgentMention] | Peer agents for routing |
+| `agentd_mode` | bool | Enable bridge mode (submit to agentd) |
+| `agentd_port` | int | Agentd HTTP port (0 = auto-assign) |
+| `kook_poll_channel_ids` | list[int] | KOOK channel IDs for polling fallback |
 
 ### KnownAgentMention
 
@@ -29,7 +32,16 @@ A peer agent known to this agent for routing purposes.
 | `primary_name` | str | Display name |
 | `names` | set[str] | All matchable names (id + aliases + display_name) |
 | `discord_user_id` | int | Discord user ID |
+| `role_ids` | set[str] | KOOK role IDs |
 | `kind` | str | "managed" (started by nexus) or "external" (own Gateway) |
+
+### AgentRequest / AgentResponse
+
+Platform-agnostic envelope for bridge → agentd communication. See `multinexus/protocol.py`.
+
+**AgentRequest** key fields: `request_id`, `agent_id`, `prompt`, `origin` (PlatformOrigin), `destination` (PlatformDestination), `author_id`, `session_scope`, `handoff_*` fields.
+
+**AgentResponse** key fields: `request_id`, `agent_id`, `text`, `session_id`, `success`, `handoff_lines`, `report_lines`, `duration_ms`.
 
 ### AdapterResult
 
@@ -71,3 +83,10 @@ Table: `sessions`
 |------|--------|---------|----------|
 | Managed | `multinexus.py --agent <id>` | Yes (resume supported) | mac-claude, mac-codex, mac-opencode |
 | External | Own process | N/A | 小龙虾 (OpenClaw), Hermes |
+
+## Runtime Modes
+
+| Mode | Adapter | Session | Use Case |
+|------|---------|---------|----------|
+| Legacy (`agentd_mode=false`) | Direct call in bridge | Bridge-managed | Single Discord only |
+| Bridge (`agentd_mode=true`) | Via agentd HTTP | Agentd-managed | Multi-platform (Discord + KOOK) |
