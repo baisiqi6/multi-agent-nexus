@@ -462,7 +462,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         self.assertFalse(worker._running)
 
     def test_worker_shutdown_is_testable(self):
-        """Worker stop() sets _running=False, enabling clean shutdown."""
+        """Worker stop() sets _running=False and wakes the event for immediate exit."""
         from multinexus.agentd.worker import AgentdWorker
 
         cfg = _config(
@@ -471,22 +471,20 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         )
 
         worker = AgentdWorker(cfg)
-        # _running starts False; run() sets it True
         self.assertFalse(worker._running)
+        self.assertFalse(worker._wake.is_set())
 
-        # Simulate what run() does
         worker._running = True
-        self.assertTrue(worker._running)
-
         worker.stop()
         self.assertFalse(worker._running)
+        self.assertTrue(worker._wake.is_set())
 
 
 class TestAgentdMainShutdown(unittest.TestCase):
     """Verify __main__.py shutdown callback behavior."""
 
     def test_shutdown_callback_stops_worker(self):
-        """The _shutdown callback sets worker._running=False and schedules loop.stop."""
+        """The _shutdown callback sets worker._running=False and wakes the event."""
         from multinexus.agentd.worker import AgentdWorker
 
         cfg = _config(
@@ -497,22 +495,18 @@ class TestAgentdMainShutdown(unittest.TestCase):
         worker = AgentdWorker(cfg)
         loop = asyncio.new_event_loop()
 
-        stop_called = []
-
-        def track_stop():
-            stop_called.append(True)
-
-        # Simulate the _shutdown callback from __main__.py
-        def _shutdown():
-            worker.stop()
-            loop.call_soon_threadsafe(track_stop)
-
         try:
-            # Schedule shutdown after a tiny delay
+            def _shutdown():
+                worker.stop()
+
+            # Simulate run() starting
+            worker._running = True
+            self.assertTrue(worker._running)
+
+            # Simulate the _shutdown callback from __main__.py
             loop.call_soon(_shutdown)
 
             async def _run_until_stopped():
-                # Give the loop a chance to process the callback
                 await asyncio.sleep(0.01)
 
             loop.run_until_complete(_run_until_stopped())
@@ -520,7 +514,7 @@ class TestAgentdMainShutdown(unittest.TestCase):
             loop.close()
 
         self.assertFalse(worker._running)
-        self.assertTrue(len(stop_called) > 0, "loop.stop callback should have been scheduled")
+        self.assertTrue(worker._wake.is_set())
 
 
 class TestBridgeRequestNormalization(unittest.TestCase):
