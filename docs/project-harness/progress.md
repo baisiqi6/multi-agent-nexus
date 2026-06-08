@@ -2,6 +2,23 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-08
+
+### Phase 7.1: 单机 N+M 运行架构 — implementation
+
+- Created `multinexus/protocol.py`: platform-agnostic `AgentRequest`/`AgentResponse` envelope with `Platform` enum, `PlatformOrigin`/`PlatformDestination` for cross-platform routing. JSON serialization round-trip tested.
+- Created `multinexus/agentd/server.py`: `AgentDaemon` HTTP server (aiohttp) that accepts `AgentRequest` via POST, processes through existing adapters, manages session lifecycle, returns `AgentResponse`. One agentd per agent identity. Includes health check endpoint.
+- Created `multinexus/agentd/client.py`: `AgentdClient` HTTP client for bridges to submit requests to agentd.
+- Modified `multinexus/client.py`: added bridge mode (`agentd_mode=true`). When enabled, `DiscordClient` no longer calls `make_adapter()` directly — it submits `AgentRequest` to local agentd. Legacy mode preserves existing behavior.
+- Created `multinexus/kook/`: KOOK bridge module ported from kook-nexus.
+  - `kook/bot.py`: `KookBridge` — WebSocket + HTTP polling, message dedup, transient filtering, handoff dedup. Submits to agentd in bridge mode.
+  - `kook/mentions.py`: `KookMentionRouter` — KMarkdown `(met)ID(met)` / `(rol)ID(rol)` parsing, agent addressing, outbound mention conversion.
+- Updated `multinexus/models.py`: added `agentd_mode`, `agentd_port`, `agentd_host`, `kook_poll_*` fields.
+- Updated `multinexus/config.py`: parse new fields from TOML.
+- Updated `docs/project-harness/architecture.md`, `domain-model.md`, `scope.md` for N+M architecture.
+- 41 new tests: 10 protocol, 9 agentd HTTP, 21 KOOK mentions + 1 lazy import. Full suite 224/224 pass.
+- 5 commits on `agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime`.
+
 ## 2026-06-03
 
 ### Phase 6.1: omp Adapter 基础接入 — implementation
