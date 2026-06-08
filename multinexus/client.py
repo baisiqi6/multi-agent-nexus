@@ -15,7 +15,6 @@ from discord import app_commands
 from .adapters.base import AdapterResult
 from .adapters.factory import make_adapter
 from .agentd.client import AgentdClient
-from .agentd.server import AgentDaemon
 from .config import load_config
 from .context.prompt import build_agent_prompt
 from .context.store import ChatContextStore
@@ -93,13 +92,16 @@ class DiscordClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self._commands_synced = False
 
-        # Bridge mode: use agentd for adapter calls
+        # Bridge mode: submit to standalone agentd via HTTP
         self._agentd_mode = config.agentd_mode
         self._agentd_client: AgentdClient | None = None
-        self._agentd: AgentDaemon | None = None
-        self._agentd_port: int = 0
 
         if config.agentd_mode:
+            if not config.agentd_port:
+                raise SystemExit(
+                    "agentd_mode requires agentd_port to be set. "
+                    "Start a standalone agentd first, or set agentd_port in agents.toml."
+                )
             self._agentd_client = AgentdClient()
             self.adapter = None
             self.session_store = None
@@ -109,22 +111,6 @@ class DiscordClient(discord.Client):
 
     async def setup_hook(self):
         self._register_slash_commands()
-
-    async def _start_agentd(self) -> int:
-        """Start embedded agentd for bridge mode. Returns port."""
-        if self._agentd is not None:
-            return self._agentd_port
-        self._agentd = AgentDaemon(self.agent_config)
-        self._agentd_port = await self._agentd.start()
-        log.info("Embedded agentd started for %s on port %s", self.agent_config.id, self._agentd_port)
-        return self._agentd_port
-
-    async def _stop_agentd(self) -> None:
-        if self._agentd:
-            await self._agentd.stop()
-            self._agentd = None
-        if self._agentd_client:
-            await self._agentd_client.close()
 
     async def on_ready(self):
         log.info(
@@ -136,9 +122,6 @@ class DiscordClient(discord.Client):
         )
         self._bot_user_id_map[self.agent_config.id] = self.user.id
         self.mention_router.update_discord_user_ids(self._bot_user_id_map)
-
-        if self._agentd_mode and self._agentd is None:
-            await self._start_agentd()
 
         # One-time guild-scoped slash command sync
         if not self._commands_synced:
@@ -860,7 +843,7 @@ class DiscordClient(discord.Client):
 
         response = await self._run_with_heartbeat(
             placeholder,
-            self._agentd_client.submit(request, port=self._agentd_port, timeout=self.agent_config.timeout),
+            self._agentd_client.submit(request, port=self.agent_config.agentd_port, timeout=self.agent_config.timeout),
         )
 
         display_text = self.mention_router.resolve_handoff_mentions(response.text)

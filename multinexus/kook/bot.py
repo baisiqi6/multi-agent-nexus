@@ -14,7 +14,6 @@ from collections import deque
 from khl import Bot, Message, api
 
 from ..agentd.client import AgentdClient
-from ..agentd.server import AgentDaemon
 from ..context.prompt import build_agent_prompt
 from ..context.store import ChatContextStore
 from ..models import AgentConfig
@@ -65,12 +64,15 @@ class KookBridge:
         self.poll_error_keys: set[str] = set()
         self.poll_error_last_logged: dict[str, float] = {}
 
-        # Agentd integration
+        # Agentd integration: connect to standalone agentd
         self._agentd_client: AgentdClient | None = None
-        self._agentd: AgentDaemon | None = None
-        self._agentd_port: int = 0
 
         if config.agentd_mode:
+            if not config.agentd_port:
+                raise SystemExit(
+                    "agentd_mode requires agentd_port. "
+                    "Start a standalone agentd first, or set agentd_port in agents.toml."
+                )
             self._agentd_client = AgentdClient()
         else:
             # Legacy: import adapter inline
@@ -84,22 +86,6 @@ class KookBridge:
             log.info("Purged %s transient bot messages", purged)
         self._register_handlers()
 
-    async def start_agentd(self) -> int:
-        """Start embedded agentd. Returns port."""
-        if self._agentd is not None:
-            return self._agentd_port
-        self._agentd = AgentDaemon(self.config)
-        self._agentd_port = await self._agentd.start()
-        log.info("KOOK bridge embedded agentd started on port %s", self._agentd_port)
-        return self._agentd_port
-
-    async def stop_agentd(self) -> None:
-        if self._agentd:
-            await self._agentd.stop()
-            self._agentd = None
-        if self._agentd_client:
-            await self._agentd_client.close()
-
     def _register_handlers(self) -> None:
         @self.bot.on_startup
         async def on_startup(_bot: Bot):
@@ -110,12 +96,10 @@ class KookBridge:
             self.known_user_names[self.bot_id] = nickname or username or self.bot_id
             self.aliases.update(a for a in (username, nickname) if a)
             log.info(
-                "KOOK bridge ready: agent=%s id=%s roles=%s",
-                self.config.id, me.id, sorted(self.bot_role_ids),
+                "KOOK bridge ready: agent=%s id=%s roles=%s agentd_mode=%s",
+                self.config.id, me.id, sorted(self.bot_role_ids), self.config.agentd_mode,
             )
             self.bot_role_ids = await self._discover_bot_role_ids(_bot)
-            if self.config.agentd_mode and self._agentd is None:
-                await self.start_agentd()
             asyncio.create_task(self._poll_messages(_bot))
 
         @self.bot.on_message()
@@ -299,7 +283,7 @@ class KookBridge:
                     session_scope=f"channel:{channel_id}",
                     work_dir=self.config.work_dir,
                 ),
-                port=self._agentd_port,
+                port=self.config.agentd_port,
                 timeout=self.config.timeout,
             )
             reply = response.text if response.success else f"Agent error: {response.error}"
