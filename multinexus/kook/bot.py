@@ -267,6 +267,8 @@ class KookBridge:
                 "destination": channel_id,
                 "message_id": message_id,
                 "role_id": next(iter(self.bot_role_ids), None),
+                "session_scope_id": f"channel:{channel_id}",
+                "legacy_scope_ids": [],
             }
             reply_json = {
                 "platform": "kook",

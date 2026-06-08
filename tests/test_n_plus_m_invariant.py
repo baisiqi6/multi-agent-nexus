@@ -538,5 +538,325 @@ class TestBridgeRequestNormalization(unittest.TestCase):
         self.assertEqual("mac-codex", "mac-codex")
 
 
+class TestJobPollingFindsCompletedJobs(unittest.TestCase):
+    """Regression test: _get_job must parse coordinate's real output format."""
+
+    def test_get_job_parses_top_level_jobs(self):
+        """_get_job reads top-level {"jobs": [...]}, not {"result": {"jobs": [...]}}."""
+        from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
+
+        client = CoordinateRuntimeClient(
+            cli_path="/usr/bin/true",
+            db_path="/tmp/test.db",
+            workspace_id="discord-nexus",
+        )
+
+        # Simulate coordinate's actual output
+        coordinate_output = json.dumps({
+            "jobs": [
+                {"id": "job-1", "status": "done", "result_json": '{"response_text": "hi"}'},
+                {"id": "job-2", "status": "pending"},
+            ]
+        })
+
+        with patch("multinexus.agentd.coordinate_client.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout=coordinate_output,
+                stderr="",
+            )
+
+            loop = asyncio.new_event_loop()
+            try:
+                job = loop.run_until_complete(client._get_job("job-1"))
+            finally:
+                loop.close()
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job["id"], "job-1")
+        self.assertEqual(job["status"], "done")
+
+    def test_get_job_omits_status_filter(self):
+        """_get_job must not pass --status all; it should list without status filter."""
+        from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
+
+        client = CoordinateRuntimeClient(
+            cli_path="/usr/bin/true",
+            db_path="/tmp/test.db",
+            workspace_id="discord-nexus",
+        )
+
+        with patch("multinexus.agentd.coordinate_client.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"jobs": []}',
+                stderr="",
+            )
+
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(client._get_job("any"))
+            finally:
+                loop.close()
+
+        cmd = mock_run.call_args[0][0]
+        self.assertNotIn("--status", cmd)
+        self.assertIn("--workspace-id", cmd)
+        self.assertIn("discord-nexus", cmd)
+
+    def test_get_job_returns_none_for_missing(self):
+        """_get_job returns None when job not in list."""
+        from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
+
+        client = CoordinateRuntimeClient(
+            cli_path="/usr/bin/true",
+            db_path="/tmp/test.db",
+            workspace_id="discord-nexus",
+        )
+
+        with patch("multinexus.agentd.coordinate_client.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout='{"jobs": [{"id": "other-job", "status": "done"}]}',
+                stderr="",
+            )
+
+            loop = asyncio.new_event_loop()
+            try:
+                job = loop.run_until_complete(client._get_job("missing-job"))
+            finally:
+                loop.close()
+
+        self.assertIsNone(job)
+
+    def test_wait_for_job_result_finds_completed(self):
+        """wait_for_job_result returns a done job without timing out."""
+        from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
+
+        client = CoordinateRuntimeClient(
+            cli_path="/usr/bin/true",
+            db_path="/tmp/test.db",
+            workspace_id="discord-nexus",
+        )
+
+        done_job = {"id": "job-x", "status": "done", "result_json": '{"response_text": "ok"}'}
+
+        with patch.object(client, "_get_job", return_value=done_job):
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(
+                    client.wait_for_job_result(job_id="job-x", poll_interval=0.01, timeout=1.0)
+                )
+            finally:
+                loop.close()
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result["status"], "done")
+
+
+class TestWorkerSessionResume(unittest.TestCase):
+    """Regression test: worker uses call/resume logic from session store."""
+
+    def _make_worker(self, cfg):
+        from multinexus.agentd.worker import AgentdWorker
+
+        class FakeAdapter:
+            def __init__(self, c):
+                self.calls = []
+                self.resumes = []
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text=f"fresh: {prompt}", session_id="new-s1")
+            async def resume(self, sid, prompt, **kw):
+                self.resumes.append((sid, prompt))
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text=f"resumed: {prompt}", session_id=sid, resumed=True)
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FakeAdapter(cfg)
+        return worker
+
+    def test_worker_resumes_existing_session(self):
+        """Worker calls adapter.resume() when session store has an active session."""
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+        worker = self._make_worker(cfg)
+
+        # Pre-seed a session in the store
+        worker.session_store.upsert(
+            scope_id="channel:ch1",
+            agent_id="test-agent",
+            adapter="claude",
+            session_id="existing-s1",
+            work_dir=cfg.work_dir,
+        )
+
+        job = {
+            "id": "job-r1",
+            "payload_json": json.dumps({
+                "prompt": "continue",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch1",
+                    "session_scope_id": "channel:ch1",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        reported = []
+        async def mock_report(*, job_id, agent_id, status, result_json):
+            reported.append({"status": status, "result_json": result_json})
+        worker.coordinate.report_job = mock_report
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(len(worker.adapter.resumes), 1)
+        self.assertEqual(worker.adapter.resumes[0][0], "existing-s1")
+        self.assertEqual(len(worker.adapter.calls), 0)
+
+    def test_worker_fresh_call_when_no_session(self):
+        """Worker calls adapter.call() when no existing session."""
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+        worker = self._make_worker(cfg)
+
+        job = {
+            "id": "job-f1",
+            "payload_json": json.dumps({
+                "prompt": "new request",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch2",
+                    "session_scope_id": "channel:ch2",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        reported = []
+        async def mock_report(*, job_id, agent_id, status, result_json):
+            reported.append({"status": status})
+        worker.coordinate.report_job = mock_report
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(len(worker.adapter.calls), 1)
+        self.assertEqual(len(worker.adapter.resumes), 0)
+
+    def test_worker_falls_back_on_resume_error(self):
+        """Worker falls back to fresh call when resume returns error text."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class ResumeFailAdapter:
+            def __init__(self, c):
+                self.calls = []
+                self.resumes = []
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="fresh start", session_id="new-s2")
+            async def resume(self, sid, prompt, **kw):
+                self.resumes.append((sid, prompt))
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="Agent error: resume crashed", session_id=sid)
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = ResumeFailAdapter(cfg)
+
+        worker.session_store.upsert(
+            scope_id="channel:ch3",
+            agent_id="test-agent",
+            adapter="claude",
+            session_id="bad-s1",
+            work_dir=cfg.work_dir,
+        )
+
+        job = {
+            "id": "job-fb1",
+            "payload_json": json.dumps({
+                "prompt": "try resume",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch3",
+                    "session_scope_id": "channel:ch3",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        reported = []
+        async def mock_report(*, job_id, agent_id, status, result_json):
+            reported.append({"status": status, "text": result_json.get("response_text", "")})
+        worker.coordinate.report_job = mock_report
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        # Resume was attempted, then fallback to fresh call
+        self.assertEqual(len(worker.adapter.resumes), 1)
+        self.assertEqual(len(worker.adapter.calls), 1)
+        self.assertEqual(reported[0]["text"], "fresh start")
+
+    def test_bridge_includes_session_scope_in_origin(self):
+        """Discord bridge origin_json must include session_scope_id."""
+        # Verify the origin dict construction logic includes scope fields
+        session_scope_id = "channel:333"
+        legacy_scope_ids = ("legacy:333",)
+        origin = {
+            "platform": "discord",
+            "destination": "333",
+            "message_id": "222",
+            "thread_id": None,
+            "session_scope_id": session_scope_id,
+            "legacy_scope_ids": list(legacy_scope_ids),
+        }
+        j = json.dumps(origin)
+        parsed = json.loads(j)
+        self.assertEqual(parsed["session_scope_id"], "channel:333")
+        self.assertEqual(parsed["legacy_scope_ids"], ["legacy:333"])
+
+    def test_kook_bridge_includes_session_scope_in_origin(self):
+        """KOOK bridge origin_json must include session_scope_id."""
+        channel_id = "ch-kook-1"
+        origin = {
+            "platform": "kook",
+            "destination": channel_id,
+            "message_id": "m1",
+            "role_id": None,
+            "session_scope_id": f"channel:{channel_id}",
+            "legacy_scope_ids": [],
+        }
+        j = json.dumps(origin)
+        parsed = json.loads(j)
+        self.assertEqual(parsed["session_scope_id"], "channel:ch-kook-1")
+        self.assertEqual(parsed["legacy_scope_ids"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

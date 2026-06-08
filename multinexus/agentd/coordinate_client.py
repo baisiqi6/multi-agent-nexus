@@ -128,10 +128,10 @@ class CoordinateRuntimeClient:
         cmd = [
             self.cli_path,
             "job", "list",
-            "--status", "all",
+            "--workspace-id", self.workspace_id,
         ]
         result = await asyncio.to_thread(self._run_cli, cmd)
-        jobs = result.get("result", {}).get("jobs", [])
+        jobs = result.get("jobs", [])
         for job in jobs:
             if job.get("id") == job_id:
                 return job

@@ -825,6 +825,8 @@ class DiscordClient(discord.Client):
             "destination": thread_id or channel_id,
             "message_id": message_id,
             "thread_id": thread_id,
+            "session_scope_id": session_scope_id,
+            "legacy_scope_ids": list(legacy_scope_ids),
         }
         reply = {
             "platform": "discord",

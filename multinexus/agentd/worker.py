@@ -72,12 +72,18 @@ class AgentdWorker:
             return
 
         prompt = payload.get("prompt", "")
+        origin = payload.get("origin", {})
         log.info("Processing job %s: agent=%s prompt_len=%d", job_id, self.config.id, len(prompt))
+
+        # Extract session scope from bridge payload
+        session_scope_id = origin.get("session_scope_id", "")
+        legacy_scope_ids = tuple(origin.get("legacy_scope_ids", []))
+        work_dir = self.config.work_dir
 
         start = time.time()
         try:
             result = await asyncio.wait_for(
-                self.adapter.call(prompt, work_dir=self.config.work_dir),
+                self._call_or_resume(prompt, session_scope_id, legacy_scope_ids, work_dir),
                 timeout=self.config.timeout,
             )
         except asyncio.TimeoutError:
@@ -87,15 +93,13 @@ class AgentdWorker:
 
         duration_ms = int((time.time() - start) * 1000)
 
-        if result.session_id:
-            origin = payload.get("origin", {})
-            scope = f"channel:{origin.get('destination', 'unknown')}"
+        if result.session_id and session_scope_id:
             self.session_store.upsert(
-                scope_id=scope,
+                scope_id=session_scope_id,
                 agent_id=self.config.id,
                 adapter=self.config.adapter,
                 session_id=result.session_id,
-                work_dir=self.config.work_dir,
+                work_dir=work_dir,
             )
 
         status = "done" if not self._is_error(result.text) else "failed"
@@ -112,6 +116,60 @@ class AgentdWorker:
             result_json=result_json,
         )
         log.info("Job %s complete: status=%s duration=%dms", job_id, status, duration_ms)
+
+    async def _call_or_resume(
+        self,
+        prompt: str,
+        session_scope_id: str,
+        legacy_scope_ids: tuple[str, ...],
+        work_dir: str | None,
+    ) -> AdapterResult:
+        """Check session store for existing session; resume if found, else fresh call."""
+        if not session_scope_id:
+            return await self.adapter.call(prompt, work_dir=work_dir)
+
+        existing = self.session_store.get_first_active(
+            scope_ids=(session_scope_id, *legacy_scope_ids),
+            agent_id=self.config.id,
+        )
+
+        if existing:
+            current_work_dir = work_dir
+            if (
+                current_work_dir
+                and existing.get("work_dir")
+                and current_work_dir != existing["work_dir"]
+            ):
+                log.info(
+                    "Session work_dir mismatch (had=%s now=%s), marking stale",
+                    existing["work_dir"], current_work_dir,
+                )
+                self.session_store.mark_stale(
+                    scope_id=existing["scope_id"],
+                    agent_id=self.config.id,
+                )
+                existing = None
+
+        if existing:
+            log.info(
+                "Resuming session %s for scope=%s",
+                existing["session_id"], existing["scope_id"],
+            )
+            result: AdapterResult = await self.adapter.resume(
+                existing["session_id"],
+                prompt,
+                work_dir=work_dir,
+            )
+            if self._is_error(result.text):
+                log.warning("Resume failed for %s, falling back to fresh call", existing["session_id"])
+                self.session_store.mark_stale(
+                    scope_id=existing["scope_id"],
+                    agent_id=self.config.id,
+                )
+                result = await self.adapter.call(prompt, work_dir=work_dir)
+            return result
+
+        return await self.adapter.call(prompt, work_dir=work_dir)
 
     def stop(self) -> None:
         self._running = False
