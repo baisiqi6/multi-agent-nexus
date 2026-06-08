@@ -57,15 +57,17 @@
 
 ### 6. Discord 可见消息仍偏原始文本
 
-- 状态：open
+- 状态：fixed（Phase 5.5，coordinator main）
 - 原始现象：coordinator 的 handoff、state、lifecycle、review summary 仍以大段纯文本为主。结构化字段存在，但没有充分利用 Discord embeds/cards/fields。
 - 影响：群聊可读性差，人工扫描成本高；状态、owner、branch、风险、下一步等信息没有视觉层级。
-- 建议方向：新增 Discord renderer，把内部 event/delivery payload 渲染成 Discord embeds。
-- 设计原则：
-  - `[handoff]` 和 `[lifecycle]` 这类需要触发 bot 的协议行仍保留纯文本正文，避免破坏触发规则。
-  - 状态、review、done、progress、doctor 这类面向人看的消息用 embeds fields 展示。
-  - 长文本放摘要 + 链接/文件路径，不直接刷屏。
-  - Discord 没有真正表格，优先用 embed fields、bullet list、code block 小表格。
+- 修复（coordinator main）：`a5a6ac5 Add Discord embed rendering for coordinator events (Phase 5.5)` + `09cf826 Add agent.reported embed rendering and Discord delivery` + `472b739 Localize Discord embed rendering`。
+  - 新增 `src/coordinate/discord_rendering.py`，按 event type 渲染 embed 标题、颜色、fields、footer。
+  - `policy.py` 派发时把 `embeds` 字段挂到 Discord payload；`WebhookBus` 与 daemon 都透传 `embeds`。
+  - bot-to-bot 协议行（`[handoff]`、`[lifecycle]`、`[agent-report]`）仍保留在 `content` 中，embed 失败/缺失时 runtime 仍能识别。
+  - `allowed_mentions` 仍由路由层决定，渲染层不会扩大 mention 范围。
+  - 字段超长时按 Discord embed 限制截断，避免发送失败。
+- 验证：coordinator 727 tests pass（含 `tests/test_discord_rendering.py`）；multinexus 184 tests pass；multinexus 侧同步更新 `docs/agent-report-protocol.md` 加一节 "Discord Embed / 卡片展示（Phase 5.5+）"。
+- 后续：跟进项（embed 字段排版/中英混排密度、message.edit 触发的最终 report 仍要带协议行）已在 Phase 5.6–5.9 中处理。
 
 ### 7. Handoff packet 中部分字段不够可读
 
@@ -76,7 +78,7 @@
 
 ## 后续建议排期
 
-1. Phase 5.5: Discord Message Rendering
+1. ~~Phase 5.5: Discord Message Rendering~~（已合 coordinator main，本任务在 multinexus 侧做协议文档 + dogfood 闭环记录）
 2. Maintenance: pump-events 历史 delivery 过滤
-3. Maintenance: agent progress CLI / worker 中途汇报通道
+3. Maintenance: agent progress CLI / worker 中途汇报通道（部分被 Phase 5.6 缓解）
 4. Maintenance: handoff/closeout packet 可读性修复

@@ -90,3 +90,20 @@ runtime 只自动执行 `assignment.accept`。其他生命周期动作，例如 
 | 正式 mark done | coordinator CLI：`assignment mark-done` |
 
 Discord report 负责**可见性和摄取**。Coordinator CLI 负责**生命周期状态变更**。不要把二者混用。
+
+## Discord Embed / 卡片展示（Phase 5.5+）
+
+Phase 5.5 之后，coordinator 派发的 `handoff`、`assignment.*`、`progress.*`、`review.completed`、`task.done`、`ci.*` 等事件会在 Discord 频道里同时带 embed 卡片和普通 `content` 文本。
+
+规则（managed agent 端必须遵守）：
+
+- **bot-to-bot 协议仍然只看 `content`**。`[handoff]`、`[lifecycle]`、`[agent-report]` 等触发行必须出现在普通 `content` 中；它们不能只放在 embed 字段里。
+- **embed 是给人看的**，用来减少扫读成本。embed 缺失、截断或 Discord 渲染失败时，runtime 必须仍然能识别 `content` 里的协议行。
+- **`allowed_mentions` 仍由路由层决定**。embed 渲染层不会扩大 mention 范围；handoff / lifecycle 仍然只 mention 目标 agent，不会因为加了 embed 就多 ping 其他 bot。
+- **不要把 LLM 自然语言回复也包成 embed**。embed 是 coordinator 派发的结构化事件的展示，managed agent 给人类的回复保持原样。
+
+实现参考：
+
+- coordinator 侧渲染模块：`coordinate/discord_rendering.py`（`render_embed(event_type, event, payload)`）。
+- delivery 兼容：`policy.py` 在派发时把 `embeds` 字段挂到 Discord payload；`WebhookBus`（`bus.py`）和 daemon 都会把 `embeds` 透传。
+- 兼容回退：旧 delivery payload 没有 `embeds` 字段时仍按纯文本发送；`render_embed` 在内部异常时返回 `None`，不阻断 `content` 发送。

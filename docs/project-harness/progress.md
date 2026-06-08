@@ -2,6 +2,25 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-08
+
+### Phase 5.5: Discord Message Rendering — mac-opencode validation
+
+Plan 的主体工作在 coordinator 项目里已经合并到 `main`（`a5a6ac5 Add Discord embed rendering for coordinator events (Phase 5.5)` + `09cf826 Add agent.reported embed rendering and Discord delivery` + `472b739 Localize Discord embed rendering`）。本 task 在 multinexus 侧做协议文档 + dogfood 闭环记录，不改 runtime。
+
+- 启动检查：工作目录 `/Users/yinxin/projects/multinexus` 在 `agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime` 分支（别人的 WIP），存在 dirty 文件（`agents.toml`、`harness-state.json` 等）属于 mac-claude/phase-7.1，未触碰。按 bootstrap 要求新建 `agents/mac-opencode/phase-5.5-discord-message-rendering` 分支，基线为本地 `feature/multi-bot` HEAD `51ecc1f`。
+- coordinator 状态：当前 HEAD 在 `agents/mac-codex/phase-7.1-service-api-for-bridges-agentd`（别人的 WIP），dirty 状态不属于本任务，未触碰。`main` 已包含 Phase 5.5–6.1 的 Discord embed 渲染、agent.reported、本地化、content dedup 等。
+- multinexus 侧实际改动：
+  - `docs/agent-report-protocol.md`：新增 "Discord Embed / 卡片展示（Phase 5.5+）" 一节，明确 bot-to-bot 协议行（`[handoff]`、`[lifecycle]`、`[agent-report]`）仍只在 `content` 中、embed 是给人看的展示层、`allowed_mentions` 不被渲染层扩大、不要把 LLM 自然语言回复包成 embed。
+  - `docs/project-harness/dogfood-feedback.md` 第 6 项 `Discord 可见消息仍偏原始文本`：`open → fixed`，引用 coordinator main 的 Phase 5.5 commits，描述修复路径与设计原则落地。后续排期中第 1 项打上删除线，标注已在 coordinator main 闭环。
+  - 本文件（progress.md）增加本节 session log。
+- 测试验证：
+  - multinexus：`.venv/bin/python -m unittest discover tests/` → 184/184 pass。
+  - coordinator：`PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'` → 727/727 pass（含 `test_discord_rendering.py`）。
+- multinexus runtime 改动评估：未发现需要阻塞修复的 embed 触发问题。handoff/lifecycle handler 只解析 message content，对 embed 卡片透明；allowed_mentions 仍由路由层控制。不在本次任务范围内动 multinexus runtime。
+- 风险与遗留：渲染层异常时 fallback 到纯文本已由 `render_embed` 返回 `None` 保证；本任务未做 Discord 真机 dogfood 验证（无 token、无活体频道），仅靠 coordinator 727 测试 + 静态代码审阅。
+- 分支与 commit：本任务在 `agents/mac-opencode/phase-5.5-discord-message-rendering` 上，commit 后续一并推送；closeout 走 coordinator CLI（reviewer = codex-operator / codex）。
+
 ## 2026-06-03
 
 ### Phase 6.1: omp Adapter 基础接入 — implementation
