@@ -4,6 +4,13 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-08
 
+### Phase 7.1: 单机 N+M 运行架构 — round 3 rework (job polling + session resume)
+
+- Fixed coordinate job polling: `_get_job()` was parsing `result.result.jobs` but coordinate outputs top-level `{"jobs":[...]}`. Removed `--status all` (not a valid coordinate filter), added `--workspace-id` filter.
+- Preserved session resume in agentd worker mode: bridges now include `session_scope_id` and `legacy_scope_ids` in origin_json. `AgentdWorker._call_or_resume()` checks session store, calls `adapter.resume()` for existing sessions, falls back on error.
+- 9 new regression tests: job polling format parsing, status filter omission, wait_for_job_result finding done jobs, worker resume flow, fresh call, resume error fallback, bridge origin scope fields.
+- 256/256 pass (2 skipped: khl). harnessctl validate passes.
+
 ### Phase 7.1: 单机 N+M 运行架构 — round 3 rework (shutdown + test coverage)
 
 - Fixed agentd worker shutdown: replaced `asyncio.sleep` with `asyncio.Event` for immediate wake on stop().
