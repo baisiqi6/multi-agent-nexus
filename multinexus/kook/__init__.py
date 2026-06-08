@@ -5,6 +5,12 @@ and message filtering. Submits AgentRequests to the local agentd
 instead of calling adapters directly.
 """
 
-from multinexus.kook.bot import KookBridge
+
+def __getattr__(name):
+    if name == "KookBridge":
+        from .bot import KookBridge
+        return KookBridge
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = ["KookBridge"]
