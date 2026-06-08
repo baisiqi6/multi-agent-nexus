@@ -14,7 +14,7 @@ from discord import app_commands
 
 from .adapters.base import AdapterResult
 from .adapters.factory import make_adapter
-from .agentd.client import AgentdClient
+from .agentd.coordinate_client import CoordinateRuntimeClient
 from .config import load_config
 from .context.prompt import build_agent_prompt
 from .context.store import ChatContextStore
@@ -92,17 +92,20 @@ class DiscordClient(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self._commands_synced = False
 
-        # Bridge mode: submit to standalone agentd via HTTP
+        # Bridge mode: submit via coordinate runtime
         self._agentd_mode = config.agentd_mode
-        self._agentd_client: AgentdClient | None = None
+        self._coordinate_client: CoordinateRuntimeClient | None = None
 
         if config.agentd_mode:
-            if not config.agentd_port:
+            if not config.coordinator_cli_path:
                 raise SystemExit(
-                    "agentd_mode requires agentd_port to be set. "
-                    "Start a standalone agentd first, or set agentd_port in agents.toml."
+                    "agentd_mode requires coordinator_cli_path. "
+                    "Set it in agents.toml or the [defaults] section."
                 )
-            self._agentd_client = AgentdClient()
+            self._coordinate_client = CoordinateRuntimeClient(
+                cli_path=config.coordinator_cli_path,
+                db_path=config.coordinator_db_path,
+            )
             self.adapter = None
             self.session_store = None
         else:
@@ -811,47 +814,82 @@ class DiscordClient(discord.Client):
         legacy_scope_ids: tuple[str, ...],
         context_channel_id: str,
     ) -> None:
-        """Submit a request to agentd and send the response via Discord."""
+        """Submit a request via coordinate runtime, poll for result, send to Discord."""
         channel = message.channel
         channel_id = str(self._resolve_channel_id(message))
         thread_id = str(message.channel.id) if is_thread_channel(message.channel) else None
+        message_id = str(message.id)
 
-        request = AgentRequest(
-            request_id=f"discord:{message.id}",
-            agent_id=self.agent_config.id,
+        origin = {
+            "platform": "discord",
+            "destination": thread_id or channel_id,
+            "message_id": message_id,
+            "thread_id": thread_id,
+        }
+        reply = {
+            "platform": "discord",
+            "destination": thread_id or channel_id,
+        }
+
+        submit_result = await self._coordinate_client.submit_request(
+            target_agent=self.agent_config.id,
             prompt=prompt,
-            origin=PlatformOrigin(
-                platform=Platform.DISCORD,
-                channel_id=channel_id,
-                thread_id=thread_id,
-                message_id=str(message.id),
-            ),
-            destination=PlatformDestination(
-                platform=Platform.DISCORD,
-                channel_id=channel_id,
-                thread_id=thread_id,
-                reply_to_message_id=str(message.id),
-            ),
-            author_id=str(message.author.id),
-            author_name=message.author.display_name,
-            author_is_bot=message.author.bot,
-            session_scope=session_scope_id,
-            legacy_scope_ids=legacy_scope_ids,
-            context_channel_id=context_channel_id,
-            work_dir=self.agent_config.work_dir,
+            origin_json=origin,
+            reply_json=reply,
+            message_id=f"discord:{message_id}",
         )
 
-        response = await self._run_with_heartbeat(
+        submit_error = submit_result.get("error")
+        if submit_error:
+            text = f"Agent error: coordinate submit failed: {submit_error}"
+            if placeholder:
+                try:
+                    await placeholder.edit(content=text)
+                except discord.HTTPException:
+                    await channel.send(text)
+            return
+
+        job_data = submit_result.get("result", {}).get("job")
+        job_id = job_data.get("id") if job_data else None
+        if not job_id:
+            if placeholder:
+                try:
+                    await placeholder.edit(content="(no job created)")
+                except discord.HTTPException:
+                    pass
+            return
+
+        # Poll coordinate until agentd processes the job
+        completed = await self._run_with_heartbeat(
             placeholder,
-            self._agentd_client.submit(request, port=self.agent_config.agentd_port, timeout=self.agent_config.timeout),
+            self._coordinate_client.wait_for_job_result(
+                job_id=job_id,
+                timeout=self.agent_config.timeout,
+            ),
         )
 
-        display_text = self.mention_router.resolve_handoff_mentions(response.text)
-        handoff_lines = [self.mention_router.resolve_handoff_mentions(h) for h in response.handoff_lines]
+        if completed is None:
+            display_text = "Agent timed out (no response from agentd)."
+        else:
+            result_json_str = completed.get("result_json")
+            if result_json_str:
+                try:
+                    import json
+                    result_data = json.loads(result_json_str)
+                    display_text = (
+                        result_data.get("response_text")
+                        or result_data.get("text")
+                        or "(empty response)"
+                    )
+                except (json.JSONDecodeError, TypeError):
+                    display_text = "(invalid result)"
+            else:
+                display_text = f"Job {completed.get('status', 'unknown')}"
 
-        await self._send_text_chunks(channel, placeholder, display_text, handoff_lines, response.report_lines)
+        display_text = self.mention_router.resolve_handoff_mentions(display_text)
+        await self._send_text_chunks(channel, placeholder, display_text, [], [])
 
-        if response.success:
+        if completed and completed.get("status") == "done":
             self.context_store.record_message(
                 message_id=f"response:{int(time.time() * 1000)}:{self.agent_config.id}",
                 channel_id=context_channel_id,

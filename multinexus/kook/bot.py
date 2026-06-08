@@ -1,8 +1,8 @@
-"""KOOK bridge bot: connects to KOOK, routes mentions, submits to agentd.
+"""KOOK bridge bot: connects to KOOK, routes mentions, submits via coordinate.
 
 This is a bridge in the N+M architecture — it handles KOOK Gateway, WebSocket
-events, HTTP polling, and mention routing, but delegates agent calls to the
-local agentd via HTTP.
+events, HTTP polling, and mention routing, but delegates agent calls through
+coordinate runtime (bridge -> coordinate -> agentd).
 """
 
 import asyncio
@@ -13,11 +13,10 @@ from collections import deque
 
 from khl import Bot, Message, api
 
-from ..agentd.client import AgentdClient
+from ..agentd.coordinate_client import CoordinateRuntimeClient
 from ..context.prompt import build_agent_prompt
 from ..context.store import ChatContextStore
 from ..models import AgentConfig
-from ..protocol import AgentRequest, Platform, PlatformDestination, PlatformOrigin
 from .mentions import KookMentionRouter
 
 log = logging.getLogger(__name__)
@@ -42,10 +41,10 @@ TRANSIENT_BOT_MESSAGE_PREFIXES = (
 
 
 class KookBridge:
-    """KOOK bridge that submits requests to agentd.
+    """KOOK bridge that submits requests through coordinate runtime.
 
-    In agentd_mode (default), submits to local agentd. In legacy mode,
-    calls adapters directly for backward compatibility.
+    In agentd_mode, submits via coordinate CLI to be claimed by standalone agentd.
+    In legacy mode, calls adapters directly for backward compatibility.
     """
 
     def __init__(self, config: AgentConfig):
@@ -64,18 +63,20 @@ class KookBridge:
         self.poll_error_keys: set[str] = set()
         self.poll_error_last_logged: dict[str, float] = {}
 
-        # Agentd integration: connect to standalone agentd
-        self._agentd_client: AgentdClient | None = None
+        # Coordinate runtime integration
+        self._coordinate_client: CoordinateRuntimeClient | None = None
 
         if config.agentd_mode:
-            if not config.agentd_port:
+            if not config.coordinator_cli_path:
                 raise SystemExit(
-                    "agentd_mode requires agentd_port. "
-                    "Start a standalone agentd first, or set agentd_port in agents.toml."
+                    "agentd_mode requires coordinator_cli_path. "
+                    "Set it in agents.toml or the [defaults] section."
                 )
-            self._agentd_client = AgentdClient()
+            self._coordinate_client = CoordinateRuntimeClient(
+                cli_path=config.coordinator_cli_path,
+                db_path=config.coordinator_db_path,
+            )
         else:
-            # Legacy: import adapter inline
             from ..adapters.factory import make_adapter
             self._adapter = make_adapter(config)
 
@@ -259,34 +260,62 @@ class KookBridge:
             log.exception("Prompt build failed: agent=%s", self.config.id)
             return
 
-        # Submit to agentd or call adapter directly
-        if self.config.agentd_mode and self._agentd_client:
-            response = await self._agentd_client.submit(
-                AgentRequest(
-                    request_id=f"kook:{message_id}",
-                    agent_id=self.config.id,
-                    prompt=prompt,
-                    origin=PlatformOrigin(
-                        platform=Platform.KOOK,
-                        channel_id=channel_id,
-                        message_id=message_id,
-                        role_id=next(iter(self.bot_role_ids), None),
-                    ),
-                    destination=PlatformDestination(
-                        platform=Platform.KOOK,
-                        channel_id=channel_id,
-                        quote_message_id=message_id,
-                    ),
-                    author_id=author_id,
-                    author_name=author_name,
-                    author_is_bot=author_is_bot,
-                    session_scope=f"channel:{channel_id}",
-                    work_dir=self.config.work_dir,
-                ),
-                port=self.config.agentd_port,
+        # Submit to coordinate or call adapter directly
+        if self.config.agentd_mode and self._coordinate_client:
+            origin = {
+                "platform": "kook",
+                "destination": channel_id,
+                "message_id": message_id,
+                "role_id": next(iter(self.bot_role_ids), None),
+            }
+            reply_json = {
+                "platform": "kook",
+                "destination": channel_id,
+                "quote_message_id": message_id,
+            }
+            submit_result = await self._coordinate_client.submit_request(
+                target_agent=self.config.id,
+                prompt=prompt,
+                origin_json=origin,
+                reply_json=reply_json,
+                message_id=f"kook:{message_id}",
+            )
+            submit_error = submit_result.get("error")
+            if submit_error:
+                await self.send_channel_message(
+                    channel_id, f"Agent error: coordinate submit failed: {submit_error}",
+                    quote=message_id,
+                )
+                return
+
+            job_data = submit_result.get("result", {}).get("job")
+            job_id = job_data.get("id") if job_data else None
+            if not job_id:
+                return
+
+            # Poll coordinate until agentd processes the job
+            completed = await self._coordinate_client.wait_for_job_result(
+                job_id=job_id,
                 timeout=self.config.timeout,
             )
-            reply = response.text if response.success else f"Agent error: {response.error}"
+
+            if completed is None:
+                reply = "Agent timed out (no response from agentd)."
+            else:
+                result_json_str = completed.get("result_json")
+                if result_json_str:
+                    try:
+                        import json
+                        result_data = json.loads(result_json_str)
+                        reply = (
+                            result_data.get("response_text")
+                            or result_data.get("text")
+                            or "(empty response)"
+                        )
+                    except (json.JSONDecodeError, TypeError):
+                        reply = "(invalid result)"
+                else:
+                    reply = f"Job {completed.get('status', 'unknown')}"
         else:
             try:
                 reply = await self._adapter.ask(prompt)

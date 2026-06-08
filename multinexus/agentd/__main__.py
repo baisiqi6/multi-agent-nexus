@@ -40,7 +40,11 @@ def main(argv: list[str] | None = None) -> None:
 
     def _shutdown():
         log.info("Shutting down agentd for %s", config.id)
-        loop.create_task(daemon.stop())
+        loop.create_task(_async_shutdown())
+
+    async def _async_shutdown():
+        await daemon.stop()
+        loop.stop()
 
     loop.add_signal_handler(signal.SIGINT, _shutdown)
     loop.add_signal_handler(signal.SIGTERM, _shutdown)
