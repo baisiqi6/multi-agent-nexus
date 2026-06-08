@@ -4,6 +4,24 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-08
 
+### Phase 7.1: 单机 N+M 运行架构 — round 3 rework (shutdown + test coverage)
+
+- Fixed agentd worker shutdown: replaced `asyncio.sleep` with `asyncio.Event` for immediate wake on stop().
+- Simplified `__main__.py` _shutdown callback: only calls `worker.stop()` (no `loop.stop()`), lets `run_until_complete` exit cleanly.
+- Added `RuntimeError` catch alongside `KeyboardInterrupt` in main loop.
+- Updated tests: shutdown test now verifies `_wake` event is set, worker stops immediately.
+- Full suite 247/247 pass, 2 skipped (khl not installed). Harness validate passes.
+
+### Phase 7.1: 单机 N+M 运行架构 — round 2 rework
+
+- Addressed codex round 2 review: implemented bridge -> coordinate -> standalone agentd flow.
+- Created `multinexus/agentd/worker.py`: `AgentdWorker` claims jobs from coordinate runtime via CLI, executes adapter, reports results.
+- Rewrote `multinexus/agentd/__main__.py`: replaced HTTP-based `AgentDaemon` with coordinate-based `AgentdWorker`. Uses `run_until_complete` instead of `run_forever`, signal handler calls `worker.stop()` + `loop.stop()`.
+- Both Discord and KOOK bridges submit via `CoordinateRuntimeClient` (committed in prior commit).
+- Added 6 new tests: worker job processing (success + error + invalid payload), graceful stop, shutdown testability, shutdown callback verification.
+- `khl>=0.4.0` was already committed in an earlier commit.
+- Full suite 247/247 pass (2 skipped: khl not installed). harnessctl validate passed.
+
 ### Phase 7.1: 单机 N+M 运行架构 — blocker fix
 
 - Fixed reviewer blocker: removed embedded `AgentDaemon` from both `DiscordClient` and `KookBridge`.
