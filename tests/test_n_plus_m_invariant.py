@@ -318,6 +318,211 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
         self.assertIsNotNone(client)
 
 
+class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
+    """Verify AgentdWorker claims jobs from coordinate and reports results."""
+
+    def test_worker_processes_claimed_job(self):
+        """AgentdWorker claims a job, executes adapter, reports result."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class FakeAdapter:
+            def __init__(self, c):
+                pass
+            async def call(self, prompt, **kw):
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="worker reply", session_id="ws1")
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FakeAdapter(cfg)
+
+        reported_jobs = []
+
+        async def mock_report_job(*, job_id, agent_id, status, result_json):
+            reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report_job
+
+        job = {
+            "id": "job-1",
+            "payload_json": json.dumps({"prompt": "hello"}),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(len(reported_jobs), 1)
+        self.assertEqual(reported_jobs[0]["job_id"], "job-1")
+        self.assertEqual(reported_jobs[0]["status"], "done")
+        self.assertEqual(reported_jobs[0]["result_json"]["response_text"], "worker reply")
+        self.assertEqual(reported_jobs[0]["result_json"]["session_id"], "ws1")
+
+    def test_worker_reports_failed_job_on_adapter_error(self):
+        """AgentdWorker reports 'failed' when adapter returns error text."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class FailingAdapter:
+            def __init__(self, c):
+                pass
+            async def call(self, prompt, **kw):
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="Agent error: something broke")
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FailingAdapter(cfg)
+
+        reported_jobs = []
+        async def mock_report_job(*, job_id, agent_id, status, result_json):
+            reported_jobs.append({"job_id": job_id, "status": status})
+            return {"result": {}}
+        worker.coordinate.report_job = mock_report_job
+
+        job = {"id": "job-fail", "payload_json": json.dumps({"prompt": "fail please"})}
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(len(reported_jobs), 1)
+        self.assertEqual(reported_jobs[0]["status"], "failed")
+
+    def test_worker_reports_failed_job_on_invalid_payload(self):
+        """AgentdWorker reports 'failed' for invalid payload_json."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        worker = AgentdWorker(cfg)
+
+        reported_jobs = []
+        async def mock_report_job(*, job_id, agent_id, status, result_json):
+            reported_jobs.append({"job_id": job_id, "status": status})
+            return {"result": {}}
+        worker.coordinate.report_job = mock_report_job
+
+        job = {"id": "job-bad", "payload_json": "not valid json{{{"}
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(len(reported_jobs), 1)
+        self.assertEqual(reported_jobs[0]["status"], "failed")
+
+    def test_worker_run_exits_on_stop(self):
+        """AgentdWorker.run() exits its loop when stop() is called."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        worker = AgentdWorker(cfg)
+
+        claim_count = 0
+
+        async def mock_claim(*, agent_id):
+            nonlocal claim_count
+            claim_count += 1
+            if claim_count >= 2:
+                worker.stop()
+            return None
+
+        worker.coordinate.claim_job = mock_claim
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker.run(poll_interval=0.01))
+        finally:
+            loop.close()
+
+        self.assertFalse(worker._running)
+
+    def test_worker_shutdown_is_testable(self):
+        """Worker stop() sets _running=False, enabling clean shutdown."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        worker = AgentdWorker(cfg)
+        # _running starts False; run() sets it True
+        self.assertFalse(worker._running)
+
+        # Simulate what run() does
+        worker._running = True
+        self.assertTrue(worker._running)
+
+        worker.stop()
+        self.assertFalse(worker._running)
+
+
+class TestAgentdMainShutdown(unittest.TestCase):
+    """Verify __main__.py shutdown callback behavior."""
+
+    def test_shutdown_callback_stops_worker(self):
+        """The _shutdown callback sets worker._running=False and schedules loop.stop."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        worker = AgentdWorker(cfg)
+        loop = asyncio.new_event_loop()
+
+        stop_called = []
+
+        def track_stop():
+            stop_called.append(True)
+
+        # Simulate the _shutdown callback from __main__.py
+        def _shutdown():
+            worker.stop()
+            loop.call_soon_threadsafe(track_stop)
+
+        try:
+            # Schedule shutdown after a tiny delay
+            loop.call_soon(_shutdown)
+
+            async def _run_until_stopped():
+                # Give the loop a chance to process the callback
+                await asyncio.sleep(0.01)
+
+            loop.run_until_complete(_run_until_stopped())
+        finally:
+            loop.close()
+
+        self.assertFalse(worker._running)
+        self.assertTrue(len(stop_called) > 0, "loop.stop callback should have been scheduled")
+
+
 class TestBridgeRequestNormalization(unittest.TestCase):
     """Verify both platforms produce valid request metadata for the same agent."""
 
