@@ -4,6 +4,27 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-08
 
+### Phase 7.1: 单机 N+M 运行架构 — blocker fix
+
+- Fixed reviewer blocker: removed embedded `AgentDaemon` from both `DiscordClient` and `KookBridge`.
+- Both bridges now connect to a standalone agentd via `AgentdClient` (HTTP client only).
+- Created `multinexus/agentd/__main__.py`: standalone agentd launcher (`python -m multinexus.agentd --agent <id> --port <port>`).
+- One agentd process per agent identity, shared by all bridges. Prevents duplicate adapter instances.
+- `agentd_mode=true` now requires `agentd_port` to be set in config — fails fast if missing.
+- `khl>=0.4.0` already in requirements.txt (reviewer finding was stale).
+- Full suite 224/224 pass. 1 new commit.
+
+### Phase 7.1: 单机 N+M 运行架构 — review blocker
+
+- Reviewed `agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime` after Claude's Discord completion report.
+- Validation observed: `.venv/bin/python -m unittest discover tests/` passed 224 tests; `scripts/harness/harnessctl validate` passed after checklist repair; `git diff --check` passed.
+- Blocker recorded through coordinate as `blocker.raised` event `3c28dada-bfa2-4d60-a04c-438673caae04`.
+- Blocking findings:
+  - The implementation starts an embedded `AgentDaemon` inside each bridge process. If Discord and KOOK bridges both run for the same agent, they can still create two adapter/agentd instances, so the acceptance goal "only one agentd per agent identity shared by all IM bridges" is not met.
+  - The actual chain is `bridge -> local HTTP agentd -> adapter`; it bypasses the planned `bridge -> coordinate -> agentd` control-plane boundary for Phase 7.1 dogfood.
+  - `multinexus.kook.bot` cannot import in the current environment because `khl` is not in `requirements.txt`; current tests cover KOOK mention parsing but not KOOK bridge startup/import.
+- Also repaired missing Phase 7 checklist metadata: added `phase-7-n-plus-m-runtime`, `phase-7.1-single-host-n-plus-m-runtime`, and `phase-7.2-multi-host-agent-runtime` to `mvp-checklist.json` so future assignment/review/blocker transitions can be tracked.
+
 ### Phase 7.1: 单机 N+M 运行架构 — implementation
 
 - Created `multinexus/protocol.py`: platform-agnostic `AgentRequest`/`AgentResponse` envelope with `Platform` enum, `PlatformOrigin`/`PlatformDestination` for cross-platform routing. JSON serialization round-trip tested.
