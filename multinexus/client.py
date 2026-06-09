@@ -2,6 +2,9 @@
 
 In agentd_mode, acts as a bridge: Gateway/mention handling only, adapter calls
 go through the local agentd via HTTP. In legacy mode, calls adapters directly.
+
+``DiscordBridge`` (below) hosts N ``DiscordClient`` instances in 1 process and
+broadcasts their bot user_ids to build a single shared mention map.
 """
 
 import asyncio
@@ -45,7 +48,7 @@ from .handoff_handler import (
     CoordinatorHandoff,
     build_agent_report,
     build_handoff_prompt,
-    contains_agent_report,
+    contains_execution_agent_report,
     execute_assignment_accept,
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
@@ -125,6 +128,13 @@ class DiscordClient(discord.Client):
         )
         self._bot_user_id_map[self.agent_config.id] = self.user.id
         self.mention_router.update_discord_user_ids(self._bot_user_id_map)
+
+        bridge = getattr(self, "_bridge", None)
+        if bridge is not None:
+            try:
+                await bridge._on_client_ready(self)
+            except Exception:
+                log.warning("bridge _on_client_ready failed", exc_info=True)
 
         # One-time guild-scoped slash command sync
         if not self._commands_synced:
@@ -444,7 +454,7 @@ class DiscordClient(discord.Client):
         is_error: bool,
     ) -> None:
         """Emit a structured report if the adapter forgot to include one."""
-        if contains_agent_report(response_text):
+        if contains_execution_agent_report(response_text):
             return
         if is_error:
             report = build_agent_report(
@@ -1023,3 +1033,81 @@ class DiscordClient(discord.Client):
     @classmethod
     def _is_error_response(cls, text: str) -> bool:
         return any(text.startswith(p) for p in cls._ERROR_PREFIXES)
+
+
+class DiscordBridge:
+    """Single-process bridge hosting N ``DiscordClient`` instances (1 per agent).
+
+    Each ``DiscordClient`` owns its own Discord gateway connection (per-agent
+    bot token). The bridge builds a single in-process mention map by listening
+    to each client's ``on_ready`` event and calling ``register_peer_bot`` on
+    the others, so mention parsing works without cross-process DB sync.
+
+    Topology: 1 process per platform. Compare to legacy ``DiscordClient``
+    which is 1 process per agent.
+    """
+
+    def __init__(self, configs: list[AgentConfig]):
+        if not configs:
+            raise SystemExit("DiscordBridge requires at least one agent config.")
+        self.configs = configs
+        self.clients: list[DiscordClient] = []
+        self._ready_event = asyncio.Event()
+        self._all_ready = False
+
+        for cfg in configs:
+            client = DiscordClient(cfg)
+            client._bridge = self  # type: ignore[attr-defined]
+            self.clients.append(client)
+
+    @property
+    def agent_ids(self) -> list[str]:
+        return [c.agent_config.id for c in self.clients]
+
+    async def _on_client_ready(self, client: DiscordClient) -> None:
+        """Called by each client after its on_ready hook runs.
+
+        Propagates the freshly-observed user_id to every other client so the
+        shared mention map converges.
+        """
+        user = client.user
+        user_id = getattr(user, "id", None)
+        if user_id is None:
+            return
+        for peer in self.clients:
+            if peer is client:
+                continue
+            try:
+                peer.register_peer_bot(client.agent_config.id, user_id)
+            except Exception:
+                log.warning(
+                    "register_peer_bot failed: %s -> %s",
+                    client.agent_config.id, peer.agent_config.id, exc_info=True,
+                )
+        log.info(
+            "DiscordBridge ready: agent=%s user_id=%s (peers notified)",
+            client.agent_config.id, user_id,
+        )
+
+    def is_all_ready(self) -> bool:
+        """True if all clients have a bot user_id populated."""
+        return all(
+            c.user is not None and c.user.id for c in self.clients
+        )
+
+    async def start(self) -> None:
+        """Start all clients concurrently. Blocks until cancelled or all close."""
+        if len(self.clients) == 1:
+            await self.clients[0].start(self.clients[0].agent_config.token)
+            return
+        await asyncio.gather(
+            *(c.start(c.agent_config.token) for c in self.clients),
+            return_exceptions=True,
+        )
+
+    async def close(self) -> None:
+        """Close all clients."""
+        await asyncio.gather(
+            *(c.close() for c in self.clients),
+            return_exceptions=True,
+        )

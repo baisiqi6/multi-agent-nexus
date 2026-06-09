@@ -94,7 +94,12 @@ def _build_external_agents(
     return roster
 
 
-def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
+def _load_toml_agent(
+    config_path: Path,
+    agent_id: str,
+    *,
+    require_token: bool = True,
+) -> AgentConfig:
     data = tomllib.loads(config_path.read_text(encoding="utf-8"))
     defaults = data.get("defaults", {})
     agents = data.get("agents", [])
@@ -118,7 +123,7 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
     token_env = merged.get("token_env")
     if not token and token_env:
         token = os.getenv(str(token_env))
-    if not token:
+    if require_token and not token:
         raise SystemExit(
             f"Discord token missing for agent {agent_id!r}. Set {token_env} or token."
         )
@@ -230,7 +235,9 @@ def _load_toml_agent(config_path: Path, agent_id: str) -> AgentConfig:
     )
 
 
-def load_config(argv: list[str] | None = None) -> AgentConfig:
+def load_config(
+    argv: list[str] | None = None, *, require_token: bool = True
+) -> AgentConfig:
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -250,4 +257,39 @@ def load_config(argv: list[str] | None = None) -> AgentConfig:
     if not args.agent:
         raise SystemExit("--agent or DISCORD_AGENT_ID is required")
 
-    return _load_toml_agent(config_path, args.agent)
+    return _load_toml_agent(config_path, args.agent, require_token=require_token)
+
+
+def load_all_configs_for_platform(
+    config_path: str | os.PathLike[str] | None = None,
+    *,
+    require_token: bool = True,
+) -> list[AgentConfig]:
+    """Load all ``[[agents]]`` from the TOML config.
+
+    Returns a list of :class:`AgentConfig` (one per agent). Used by the
+    single-platform bridge to spawn N agent clients in 1 process.
+
+    Set ``require_token=False`` for agentd-style callers that don't connect
+    to a platform gateway; the caller is responsible for ensuring the bridge
+    entry point resolves platform tokens at startup.
+    """
+    load_dotenv()
+    path = Path(
+        config_path
+        or os.getenv("DISCORD_AGENTS_CONFIG")
+        or "agents.toml"
+    )
+    if not path.exists():
+        raise SystemExit(f"Config file not found: {path}")
+    data = tomllib.loads(path.read_text(encoding="utf-8"))
+    agents = data.get("agents", [])
+    if not agents:
+        raise SystemExit(
+            f"No [[agents]] entries found in {path}; cannot start bridge."
+        )
+    return [
+        _load_toml_agent(path, str(a.get("id", "")).strip(), require_token=require_token)
+        for a in agents
+        if str(a.get("id", "")).strip()
+    ]

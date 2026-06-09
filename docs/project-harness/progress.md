@@ -2,7 +2,57 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-09
+
+### Phase 7.1.1: Single Platform Single Bridge Process — implementation + closeout
+
+- **Codex 不可用**，operator 代行 worker + reviewer 全流程
+- **实施概要**：
+  - `multinexus/config.py`: token 值校验抽出为 `require_token` flag；新增 `load_all_configs_for_platform()` 读所有 `[[agents]]`
+  - `multinexus/agentd/__main__.py`: 调 `load_config(..., require_token=False)`
+  - `multinexus/client.py`: 加 `DiscordBridge` 类（持 N 个 `DiscordClient` 共享 asyncio loop，`_on_client_ready` 跨 client 同步 `register_peer_bot`）
+  - `multinexus.py`: 加 `--platform {discord,kook}` 参数；`--platform discord` 走 `DiscordBridge` 启动 N client
+  - `tests/test_discord_bridge_multi_agent.py`: 11 个新测试
+  - launchd: 新 `com.multinexus.discord.bridge.plist`（1 bridge）；旧 4 个 `com.multinexus.mac-X.bridge.plist` 移到 `launchd/legacy/`
+- **测试**: multinexus 269/269 pass (258 legacy + 11 new), coord 731/731 pass
+- **现场拓扑**（6 进程）:
+  - PID 13842 coord serve
+  - PID 13844 multinexus.py --platform discord（bridge, 承载 6 个 DiscordClient: mac-claude / mac-codex / mac-omp / mac-opencode / win-claude / win-openclaw）
+  - PID 13846/13848/13850/13852 multinexus.agentd --agent <4 Mac agents>
+- **端到端 smoke**: coord CLI `runtime request submit --target-agent mac-claude` → job `713c3ae2-...` → agentd claim → claude CLI → report done 11.6s
+- **遗留 / deferred** (见 `tasks/phase-7.1.1-single-platform-bridge-process/review-feedback-2026-06-09-operator-closeout.md`):
+  - KOOK bridge plist + `multinexus/kook/__main__.py` 未实现（plan 标 optional，closeout 显式 deferred）
+  - 跨 agent mention 路由测试只覆盖了 mention map 同步机制（`register_peer_bot`），没测 `MentionRouter` 在 1 进程多 client 实际解析路径
+  - Discord 真消息触发 reply 回原频道的 webhook 路径没测（用 coord CLI 模拟提交）
+  - 流程上 omp plan review 是 operator 代写（codex 不可用），已在 `operator-needs-backlog.md` 落档
+- **Coord events timeline**:
+  - 17:15:04 `assignment.requested` operator
+  - 17:30:19 `plan.review_requested` operator (round 1)
+  - 17:30:38 `plan.approved` operator (round 1)
+  - 17:36:00 `plan.rejected` omp (3 must-fix items)
+  - 17:36:58 `plan.review_requested` operator (round 2)
+  - 17:37:08 `plan.approved` operator (round 2, after omp feedback)
+  - 18:07:06 `closeout.requested` coordinator
+  - 18:08:27 `review.completed` operator (approved with caveats)
+  - 18:09:10 `task.done` operator (via `harnessctl mark-done`)
+- **mvp-checklist.json**: phase-7.1.1 status `done`, workflow `closed`, owner `operator` (harnessctl 自动更新)
+
+### Phase 7.1 review (operator-side retrospective)
+
+- 7.1 task 在 2026-06-08 15:51 由 `codex-operator` 走完 closeout → mark-done 路径
+- 2026-06-09 复盘发现 plan 验收标准（`docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md` 第 38-39 行 ASCII 图）要求 "1 Discord bridge 进程 + 1 KOOK bridge 进程 + 1 coord + 1 agentd/agent" 的 N+M 拓扑，**但当前 `multinexus.py` 是 1 process 1 agent**，bridge 没合并
+- 7.1 报告 closeout 时此问题未被记录，也未在 review feedback 中提出
+- 处置：开 `phase-7.1.1-single-platform-bridge-process` 任务（本段之上记录的实施段）
+- 现场：原 4 legacy multinexus.py 已 bootout，6 进程 N+M 拓扑（1 coord + 1 bridge + 4 agentd）已上线
+
 ## 2026-06-08
+
+### Dogfood feedback: agent-report fallback after accept
+
+- Observed Phase 7.1 Round 3 feedback in Discord, but coordinate did not ingest a done/closeout event; state only showed the runtime auto `action=accept`.
+- Root cause in MultiNexus runtime: `_send_missing_report_fallback()` treated any `[agent-report]` in adapter output as sufficient. If the output contained an `action=accept` line plus natural-language completion, fallback did not emit progress.
+- Added `contains_execution_agent_report()` so only `done`, `blocker`, or `progress` suppress the fallback; `accept` no longer counts as execution completion.
+- Added regression coverage for accept-only report plus natural-language completion.
 
 ### Phase 7.1: 单机 N+M 运行架构 — round 3 rework (job polling + session resume)
 

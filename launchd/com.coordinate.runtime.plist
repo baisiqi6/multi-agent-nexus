@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.coordinate.runtime</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/yinxin/.pyenv/versions/3.12.13/bin/python3</string>
+        <string>-m</string>
+        <string>coordinate</string>
+        <string>--db</string>
+        <string>/Users/yinxin/projects/coordinate/data/coordinator.sqlite3</string>
+        <string>serve</string>
+        <string>--pump-interval</string>
+        <string>30</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/yinxin/projects/coordinate</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/yinxin/projects/coordinate/logs/runtime.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/yinxin/projects/coordinate/logs/runtime.err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/yinxin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/yinxin/projects/coordinate/src</string>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>PATH</key>
+        <string>/Users/yinxin/.pyenv/versions/3.12.13/bin:/Users/yinxin/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>COORDINATOR_CHANNEL_ID</key>
+        <string>1507289970459803738</string>
+        <key>COORDINATOR_ALLOWED_USER_IDS</key>
+        <string>1503016766346105008</string>
+    </dict>
+</dict>
+</plist>

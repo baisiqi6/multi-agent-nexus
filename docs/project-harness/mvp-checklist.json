@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-05",
+  "updated_at": "2026-06-08",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -311,7 +311,7 @@
     {
       "id": "phase-5.5-discord-message-rendering",
       "title": "Phase 5.5 Discord 消息渲染",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -326,17 +326,25 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-01T15:54:03Z",
+      "updated_at": "2026-06-08",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-06-01T15:54:03Z"
+        "updated_at": "2026-06-08"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-5.5-discord-message-rendering/plan.md"
+        "plan": "docs/project-harness/tasks/phase-5.5-discord-message-rendering/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Approved. Reviewed mac-opencode commit 7548dda: doc-only multinexus sync for Phase 5.5, preserving protocol-in-content rules and marking dogfood feedback item #6 fixed. Validation observed: multinexus tests 224 OK in current shared worktree, harness validate OK, coordinate 727 OK before/after handoff guard work. Note: worker reported 184 multinexus tests on its isolated baseline; current count includes Phase 7.1 WIP tests.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved. Reviewed mac-opencode commit 7548dda: doc-only multinexus sync for Phase 5.5, preserving protocol-in-content rules and marking dogfood feedback item #6 fixed. Validation observed: multinexus tests 224 OK in current shared worktree, harness validate OK, coordinate 727 OK before/after handoff guard work. Note: worker reported 184 multinexus tests on its isolated baseline; current count includes Phase 7.1 WIP tests."
+      },
+      "lease": null
     },
     {
       "id": "phase-6.1-omp-smoke",
@@ -382,6 +390,175 @@
         "ttl_minutes": 120
       },
       "phase": "done"
+    },
+    {
+      "id": "phase-7-n-plus-m-runtime",
+      "title": "Phase 7 N+M Runtime Architecture",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-5.5-discord-message-rendering"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-7.1-single-host-n-plus-m-runtime",
+      "title": "Phase 7.1 Single-Host N+M Runtime",
+      "status": "done",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+      "blocked_by": [],
+      "blocked_reason": null,
+      "dependencies": [
+        "phase-5.5-discord-message-rendering"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime",
+        "updated_at": "2026-06-08",
+        "unblock_owner": "human",
+        "unblocked_by": "codex-operator",
+        "unblock_decision": "Unblock for tightly scoped mac-claude rework of round3 feedback only: fix coordinate job polling and preserve session resume behavior."
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+        "branch": "agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime",
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md",
+        "review_feedback": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-08-codex.md",
+        "review_feedback_round2": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-08-codex-round2.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Approved after closeout. Reviewed mac-claude Round 3 commits 758bd8c and 5a68189; previous blockers fixed. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Separate operator fix repaired agent-report fallback/parser chain for future handoffs.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved after closeout. Reviewed mac-claude Round 3 commits 758bd8c and 5a68189; previous blockers fixed. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Separate operator fix repaired agent-report fallback/parser chain for future handoffs."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780932782",
+        "acquired_at": "2026-06-08T15:33:02Z",
+        "expires_at": "2026-06-08T17:33:02Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-08T15:51:33Z"
+      }
+    },
+    {
+      "id": "phase-7.2-multi-host-agent-runtime",
+      "title": "Phase 7.2 Multi-Host Agent Runtime",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md",
+      "blocked_by": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-7.1.1-single-platform-bridge-process",
+      "title": "Phase 7.1.1 Single Platform Single Bridge Process",
+      "status": "done",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md",
+      "acceptance": "See plan acceptance criteria: docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md. Worker must also re-verify 7.1 plan acceptance criteria (plan 第 113-119 行) are fully satisfied after this task: 1 Discord bridge process, 1 KOOK bridge process (or explicit deferral), 1 coord process, 1 agentd process per agent, bridge code does not call make_adapter().",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "review_context": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-09-operator-postcloseout.md",
+        "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+        "plan": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "multinexus 269/269 pass, coord 731/731 pass, 6-process N+M topology, e2e job done in 11.6s",
+      "review": {
+        "decision": "approved",
+        "reviewer": "operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved with documented caveats. 7.1.1 plan main goals achieved: bridge merged to 1 process per platform, agentd remains 1 process per agent. 269/269 tests pass (258 legacy + 11 new). ps shows 6 processes (1 coord + 1 discord-bridge + 4 agentd). End-to-end smoke via coord CLI request submit / agentd claim / claude CLI / report done all pass in 11.6s. KOOK bridge / cross-agent mention / Discord real-message-reply deferred per plan. Self-review caveat: codex unavailable, omp plan review was operator-authored (see review-feedback-2026-06-09-omp-plan.md); operator-needs-backlog entry filed for per-plan-criterion review checklist."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "operator-handoff-7.1.1",
+        "acquired_at": "2026-06-08T17:15:04Z",
+        "expires_at": "2026-06-08T19:15:04Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-08T18:09:10Z"
+      }
     }
   ]
 }

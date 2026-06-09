@@ -29,7 +29,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--poll-interval", type=float, default=2.0, help="Job poll interval (seconds)")
     args = parser.parse_args(argv)
 
-    config = load_config(["--config", args.config, "--agent", args.agent])
+    config = load_config(
+        ["--config", args.config, "--agent", args.agent],
+        require_token=False,
+    )
 
     worker = AgentdWorker(config)
     loop = asyncio.new_event_loop()

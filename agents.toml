@@ -23,6 +23,9 @@ coordinator_cli_path = "/Users/yinxin/projects/coordinate/skills/coordinate-oper
 coordinator_db_path = "/Users/yinxin/projects/coordinate/data/coordinator.sqlite3"
 coordinator_workspace_path = "/Users/yinxin/projects/multinexus"
 
+# Phase 7.1: bridge -> coordinate -> standalone agentd
+agentd_mode = true
+
 # ── Managed coding agents ──────────────────────────────────────────────────────
 
 [[agents]]

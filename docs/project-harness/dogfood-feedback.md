@@ -74,6 +74,32 @@
 - 影响：不影响运行，但 review/审计文档可读性差。
 - 待修方向：harness packet 生成器应把空 handoff 渲染为 `None` 或更友好的字段列表。
 
+## 2026-06-08
+
+### 8. Phase 7 计划文件存在但 checklist 缺项
+
+- 状态：mitigated
+- 原始现象：Phase 7.1 已通过 Discord 派给 `mac-claude`，计划和 worker bootstrap 文件存在，但 `mvp-checklist.json` 没有 `phase-7.1-single-host-n-plus-m-runtime` item。
+- 影响：operator review 时 `assignment blocker` 失败，coordinate 只能记录 `harness.mutation_failed`，无法把真实审核结论写入任务状态。
+- 当前处理：已补 `phase-7-n-plus-m-runtime`、`phase-7.1-single-host-n-plus-m-runtime`、`phase-7.2-multi-host-agent-runtime` 三个 checklist item，并重新写入 Phase 7.1 blocker。
+- 待修方向：`task handoff` 前应验证 workspace harness 中存在同名 checklist item；不存在时拒绝派发或自动创建受控 item。
+
+### 9. Phase 7.1 实现报告与验收口径不一致
+
+- 状态：open
+- 原始现象：worker 报告“系统中只有一个 agentd 进程 per agent identity”，但代码实际在 Discord/KOOK bridge 内部各自启动 embedded `AgentDaemon`。
+- 影响：如果同一 agent 同时接 Discord 和 KOOK，仍可能出现两个 adapter/agentd 实例，未真正从 `n*m` 收敛到 `n+m`。
+- 当前处理：Phase 7.1 已通过 coordinate 标为 blocked；blocker 要求改成 `bridge -> coordinate -> standalone shared agentd`，并补 KOOK 启动/import 覆盖。
+- 待修方向：review checklist 应强制对照验收标准中的运行拓扑，而不是只看测试数和文件 diff。
+
+### 10. Auto accept report can hide missing execution report
+
+- 状态：fixed
+- 原始现象：Phase 7.1 Round 3 中，Discord 可见消息包含自动 `action=accept` 后接自然语言完成说明，但 coordinate 没有收到 `done`/`closeout`/progress completion event。
+- 影响：operator 能在 Discord 看到 worker 完成说明，但 coordinate 任务状态仍停留在 running/accept，review 入口断开。
+- 当前处理：MultiNexus runtime fallback 改成只把 `done`/`blocker`/`progress` 算作执行结果 report；单独的 `accept` 不再阻止 fallback 发送 progress report。
+- 待修方向：worker 仍必须显式输出 `[agent-report] action=done ...` 或运行 `assignment closeout`；系统不会从纯自然语言推断完成。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
