@@ -367,6 +367,63 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         self.assertEqual(reported_jobs[0]["result_json"]["response_text"], "worker reply")
         self.assertEqual(reported_jobs[0]["result_json"]["session_id"], "ws1")
 
+    def test_worker_processes_coordinate_payload_dict_shape(self):
+        """Runtime claim returns decoded payload dicts, not raw payload_json."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        seen_prompts = []
+
+        class FakeAdapter:
+            def __init__(self, c):
+                pass
+            async def call(self, prompt, **kw):
+                seen_prompts.append(prompt)
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="dict payload reply", session_id="ws2")
+            async def resume(self, session_id, prompt, **kw):
+                seen_prompts.append(prompt)
+                from multinexus.adapters.base import AdapterResult
+                return AdapterResult(text="dict payload resumed", session_id=session_id)
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FakeAdapter(cfg)
+
+        reported_jobs = []
+
+        async def mock_report_job(*, job_id, agent_id, status, result_json):
+            reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report_job
+
+        job = {
+            "id": "job-dict-payload",
+            "payload": {
+                "prompt": "real discord question",
+                "origin": {"session_scope_id": "channel:1"},
+            },
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(seen_prompts, ["real discord question"])
+        self.assertEqual(reported_jobs[0]["status"], "done")
+        self.assertEqual(
+            reported_jobs[0]["result_json"]["response_text"],
+            "dict payload reply",
+        )
+
     def test_worker_reports_failed_job_on_adapter_error(self):
         """AgentdWorker reports 'failed' when adapter returns error text."""
         from multinexus.agentd.worker import AgentdWorker

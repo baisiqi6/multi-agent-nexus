@@ -58,16 +58,15 @@ class AgentdWorker:
 
     async def _process_job(self, job: dict) -> None:
         job_id = job.get("id", "?")
-        payload_str = job.get("payload_json", "{}")
         try:
-            payload = json.loads(payload_str)
-        except json.JSONDecodeError:
+            payload = self._extract_payload(job)
+        except ValueError as exc:
             log.error("Invalid payload for job %s", job_id)
             await self.coordinate.report_job(
                 job_id=job_id,
                 agent_id=self.config.id,
                 status="failed",
-                result_json={"error": "invalid payload_json"},
+                result_json={"error": str(exc)},
             )
             return
 
@@ -116,6 +115,30 @@ class AgentdWorker:
             result_json=result_json,
         )
         log.info("Job %s complete: status=%s duration=%dms", job_id, status, duration_ms)
+
+    @staticmethod
+    def _extract_payload(job: dict) -> dict:
+        """Accept both current coordinate CLI payload shape and legacy raw JSON."""
+        payload = job.get("payload")
+        if isinstance(payload, dict):
+            return payload
+        if payload is not None:
+            raise ValueError("payload must be an object")
+
+        payload_json = job.get("payload_json")
+        if payload_json in (None, ""):
+            return {}
+        if isinstance(payload_json, dict):
+            return payload_json
+        if not isinstance(payload_json, str):
+            raise ValueError("payload_json must be a JSON string")
+        try:
+            decoded = json.loads(payload_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("invalid payload_json") from exc
+        if not isinstance(decoded, dict):
+            raise ValueError("payload_json must decode to an object")
+        return decoded
 
     async def _call_or_resume(
         self,
