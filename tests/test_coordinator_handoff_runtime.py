@@ -277,6 +277,42 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
         self.assertEqual(len(fallback), 1)
         self.assertIn("without a structured agent-report", fallback[0])
 
+    def test_sends_progress_fallback_when_adapter_only_echoes_accept_report(self):
+        config = _make_config()
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance.adapter.call = AsyncMock(
+            return_value=AdapterResult(
+                text=(
+                    "[agent-report] action=accept workspace_id=multinexus "
+                    "task_id=phase-5.1 summary='auto accepted by mac-claude'\n"
+                    "Round 3 rework complete. Requesting review."
+                ),
+                session_id=None,
+            )
+        )
+
+        with (
+            patch(
+                "multinexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        fallback = [
+            text for text in sent_texts
+            if "[agent-report]" in text and "action=progress" in text
+        ]
+        self.assertEqual(len(fallback), 1)
+        self.assertIn("without a structured agent-report", fallback[0])
+
     def test_does_not_send_progress_fallback_when_adapter_reports_done(self):
         config = _make_config()
         msg = _make_handoff_message()

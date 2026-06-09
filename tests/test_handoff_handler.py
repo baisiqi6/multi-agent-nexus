@@ -8,6 +8,7 @@ from multinexus.handoff_handler import (
     CoordinatorHandoff,
     build_agent_report,
     build_handoff_prompt,
+    contains_execution_agent_report,
     execute_assignment_accept,
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
@@ -30,6 +31,20 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
         self.assertEqual(handoff.workspace_id, "multinexus")
         self.assertEqual(handoff.task_id, "phase-4-coordinator-integration")
         self.assertEqual(handoff.action, "assignment.accept")
+
+    def test_execution_report_detector_ignores_accept_only_report(self):
+        self.assertFalse(
+            contains_execution_agent_report(
+                "[agent-report] action=accept workspace_id=demo task_id=t1 "
+                "summary='auto accepted'\nRound 3 rework complete."
+            )
+        )
+        self.assertTrue(
+            contains_execution_agent_report(
+                "Round 3 rework complete.\n"
+                "[agent-report] action=done workspace_id=demo task_id=t1 summary='tests OK'"
+            )
+        )
 
     def test_parses_nickname_mention_and_unordered_fields(self):
         handoff = parse_coordinator_handoff(

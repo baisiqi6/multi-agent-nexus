@@ -277,6 +277,26 @@ def contains_agent_report(text: str) -> bool:
     return bool(_AGENT_REPORT_LINE_RE.search(text or ""))
 
 
+def contains_execution_agent_report(text: str) -> bool:
+    """Return True when text contains a non-accept execution report line.
+
+    Runtime auto-accept emits ``action=accept`` before the adapter runs. That
+    report proves the handoff was accepted, but it is not an execution update
+    and must not suppress the missing-report fallback after the adapter returns.
+    """
+    for line in (text or "").splitlines():
+        if not _STRICT_AGENT_REPORT_LINE_RE.match(line):
+            continue
+        try:
+            fields = _parse_key_values(line)
+        except ValueError:
+            continue
+        action = (fields.get("action") or "").lower()
+        if action in {"blocker", "done", "progress"}:
+            return True
+    return False
+
+
 def split_agent_report_lines(text: str) -> tuple[list[str], str]:
     """Extract strict ``[agent-report] action=...`` lines from an agent response.
 
