@@ -53,6 +53,7 @@ from .handoff_handler import (
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
     read_bootstrap,
+    resolve_workspace_path,
     split_agent_report_lines,
 )
 
@@ -372,9 +373,14 @@ class DiscordClient(discord.Client):
 
         # Read bootstrap
         bootstrap_content = None
-        if handoff.bootstrap_path and cfg.coordinator_workspace_path:
+        bootstrap_workspace_path = resolve_workspace_path(
+            db_path=cfg.coordinator_db_path,
+            workspace_id=handoff.workspace_id,
+            fallback_workspace_path=cfg.coordinator_workspace_path,
+        )
+        if handoff.bootstrap_path and bootstrap_workspace_path:
             bootstrap_content = await asyncio.to_thread(
-                read_bootstrap, cfg.coordinator_workspace_path, handoff.bootstrap_path,
+                read_bootstrap, bootstrap_workspace_path, handoff.bootstrap_path,
             )
 
         # Build prompt and call adapter
@@ -404,17 +410,28 @@ class DiscordClient(discord.Client):
         except discord.HTTPException:
             pass
 
-        progress_state: dict = {"partial": ""}
-        result = await self._run_adapter_for_scope(
-            prompt,
-            session_scope_id=session_scope_id,
-            legacy_scope_ids=(),
-            placeholder=placeholder,
-            progress_state=progress_state,
-        )
+        if self._agentd_mode:
+            response_text, is_error = await self._run_handoff_via_agentd(
+                handoff,
+                prompt,
+                message,
+                placeholder,
+                session_scope_id=session_scope_id,
+            )
+        else:
+            progress_state: dict = {"partial": ""}
+            result = await self._run_adapter_for_scope(
+                prompt,
+                session_scope_id=session_scope_id,
+                legacy_scope_ids=(),
+                placeholder=placeholder,
+                progress_state=progress_state,
+            )
+            response_text = result.text
+            is_error = self._is_error_response(result.text)
 
         # Send response
-        response_text = self.mention_router.resolve_handoff_mentions(result.text)
+        response_text = self.mention_router.resolve_handoff_mentions(response_text)
         report_lines, response_without_reports = split_agent_report_lines(response_text)
         handoff_lines, display_text = split_handoff_lines(response_without_reports)
 
@@ -453,7 +470,7 @@ class DiscordClient(discord.Client):
             except discord.HTTPException:
                 pass
 
-        if not self._is_error_response(result.text):
+        if not is_error:
             self.context_store.record_message(
                 message_id=f"response:{int(time.time() * 1000)}:{cfg.id}",
                 channel_id=context_channel_id,
@@ -470,9 +487,77 @@ class DiscordClient(discord.Client):
             channel,
             handoff,
             response_text=response_text,
-            is_error=self._is_error_response(result.text),
+            is_error=is_error,
         )
         return True
+
+    async def _run_handoff_via_agentd(
+        self,
+        handoff: CoordinatorHandoff,
+        prompt: str,
+        message: discord.Message,
+        placeholder: discord.Message | None,
+        *,
+        session_scope_id: str,
+    ) -> tuple[str, bool]:
+        """Submit a coordinator handoff prompt through the agentd runtime path."""
+        if self._coordinate_client is None:
+            return "Agent error: coordinate runtime client is not configured", True
+
+        channel_id = str(self._resolve_channel_id(message))
+        thread_id = str(message.channel.id) if is_thread_channel(message.channel) else None
+        message_id = str(message.id)
+        destination = thread_id or channel_id
+
+        origin = {
+            "platform": "discord",
+            "destination": destination,
+            "message_id": message_id,
+            "thread_id": thread_id,
+            "session_scope_id": session_scope_id,
+            "legacy_scope_ids": [],
+            "handoff": {
+                "workspace_id": handoff.workspace_id,
+                "task_id": handoff.task_id,
+            },
+        }
+        reply = {
+            "platform": "discord",
+            "destination": destination,
+        }
+
+        submit_result = await self._coordinate_client.submit_request(
+            target_agent=self.agent_config.id,
+            prompt=prompt,
+            origin_json=origin,
+            reply_json=reply,
+            workspace_id=handoff.workspace_id,
+            task_id=handoff.task_id,
+            message_id=f"discord-handoff:{message_id}",
+        )
+        submit_error = submit_result.get("error")
+        if submit_error:
+            return f"Agent error: coordinate submit failed: {submit_error}", True
+
+        job_data = submit_result.get("result", {}).get("job")
+        job_id = job_data.get("id") if job_data else None
+        if not job_id:
+            return "Agent error: coordinate submit did not create a job", True
+
+        completed = await self._run_with_heartbeat(
+            placeholder,
+            self._coordinate_client.wait_for_job_result(
+                job_id=job_id,
+                workspace_id=handoff.workspace_id,
+                timeout=self.agent_config.timeout,
+            ),
+        )
+        if completed is None:
+            return "Agent timed out (no response from agentd).", True
+
+        display_text = self._extract_completed_display_text(completed)
+        is_error = completed.get("status") != "done" or self._is_error_response(display_text)
+        return display_text, is_error
 
     async def _send_missing_report_fallback(
         self,

@@ -49,6 +49,7 @@ def _make_handoff_message(content=None, author_id=999, channel_id=500):
             "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md"
         )
     msg = MagicMock(spec=discord.Message)
+    msg.id = 123456
     msg.content = content
     msg.author.id = author_id
     msg.author.bot = True
@@ -71,6 +72,8 @@ def _make_runtime_client(config=None):
         instance = DiscordClient.__new__(DiscordClient)
 
     instance.agent_config = config
+    instance._agentd_mode = config.agentd_mode
+    instance._coordinate_client = None
     instance.adapter = MagicMock()
     instance.adapter.call = AsyncMock(
         return_value=AdapterResult(text="ok", session_id=None)
@@ -214,6 +217,66 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
         accept_text = accept_send[0][0]
         self.assertIn("workspace_id=multinexus", accept_text)
         self.assertIn("task_id=phase-5.1", accept_text)
+
+    def test_agentd_mode_submits_handoff_prompt_to_runtime(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+        instance._coordinate_client.submit_request = AsyncMock(
+            return_value={"result": {"job": {"id": "request:abc"}}}
+        )
+        instance._coordinate_client.wait_for_job_result = AsyncMock(
+            return_value={
+                "id": "request:abc",
+                "status": "done",
+                "result": {
+                    "response_text": (
+                        "Implementation finished.\n"
+                        "[agent-report] action=done workspace_id=multinexus "
+                        "task_id=phase-5.1 summary='tests OK'"
+                    )
+                },
+            }
+        )
+
+        with (
+            patch(
+                "multinexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ),
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap"),
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        self.assertTrue(result)
+        instance.adapter.call.assert_not_called()
+        instance._coordinate_client.submit_request.assert_awaited_once()
+        submit_kwargs = instance._coordinate_client.submit_request.await_args.kwargs
+        self.assertEqual(submit_kwargs["workspace_id"], "multinexus")
+        self.assertEqual(submit_kwargs["task_id"], "phase-5.1")
+        self.assertEqual(submit_kwargs["target_agent"], "mac-claude")
+        self.assertIn("bootstrap", submit_kwargs["prompt"])
+        self.assertIn("phase-5.1", submit_kwargs["prompt"])
+        instance._coordinate_client.wait_for_job_result.assert_awaited_once_with(
+            job_id="request:abc",
+            workspace_id="multinexus",
+            timeout=config.timeout,
+        )
+
+        sent_texts = [call.args[0] for call in msg.channel.send.call_args_list]
+        done_reports = [
+            text for text in sent_texts
+            if text.startswith("[agent-report]") and "action=done" in text
+        ]
+        self.assertEqual(len(done_reports), 1)
+        self.assertIn("summary='tests OK'", done_reports[0])
 
     def test_accept_report_uses_allowed_mentions_none(self):
         config = _make_config()

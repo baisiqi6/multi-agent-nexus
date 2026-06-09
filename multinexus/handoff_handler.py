@@ -12,6 +12,7 @@ import logging
 import os
 import re
 import shlex
+import sqlite3
 import subprocess
 import time
 from dataclasses import dataclass
@@ -217,6 +218,8 @@ def _is_allowed_bootstrap_path(relative_path: Path) -> bool:
     parts = relative_path.parts
     if len(parts) >= 5 and parts[:3] == ("docs", "project-harness", "tasks"):
         return relative_path.name == "worker-bootstrap.md"
+    if len(parts) >= 4 and parts[:2] == ("docs", "tasks"):
+        return relative_path.name == "worker-bootstrap.md"
     return parts == ("docs", "project-harness", "current", "worker-bootstrap.md")
 
 
@@ -246,6 +249,31 @@ def read_bootstrap(workspace_path: str, bootstrap_relative_path: str) -> str | N
     except (FileNotFoundError, PermissionError) as exc:
         log.warning("Cannot read bootstrap %s: %s", full_path, exc)
         return None
+
+
+def resolve_workspace_path(
+    *,
+    db_path: str,
+    workspace_id: str,
+    fallback_workspace_path: str,
+) -> str:
+    """Resolve a coordinator workspace path from the DB, falling back to config."""
+    if not db_path or not workspace_id:
+        return fallback_workspace_path
+    if not Path(db_path).expanduser().exists():
+        return fallback_workspace_path
+    try:
+        with sqlite3.connect(db_path) as conn:
+            row = conn.execute(
+                "SELECT path FROM workspaces WHERE id = ?",
+                (workspace_id,),
+            ).fetchone()
+    except sqlite3.Error as exc:
+        log.warning("Cannot resolve workspace path for %s: %s", workspace_id, exc)
+        return fallback_workspace_path
+    if row and row[0]:
+        return str(row[0])
+    return fallback_workspace_path
 
 
 def build_agent_report(

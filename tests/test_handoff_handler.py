@@ -1,4 +1,5 @@
 import tempfile
+import sqlite3
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -13,6 +14,7 @@ from multinexus.handoff_handler import (
     parse_coordinator_handoff,
     parse_coordinator_lifecycle,
     read_bootstrap,
+    resolve_workspace_path,
     split_agent_report_lines,
 )
 
@@ -148,6 +150,18 @@ class TestBootstrapRead(unittest.TestCase):
 
         self.assertEqual(content, "bootstrap")
 
+    def test_reads_coordinate_task_scoped_worker_bootstrap(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "docs/tasks/phase-4/worker-bootstrap.md"
+            path.parent.mkdir(parents=True)
+            path.write_text("bootstrap", encoding="utf-8")
+
+            content = read_bootstrap(
+                tmp, "docs/tasks/phase-4/worker-bootstrap.md"
+            )
+
+        self.assertEqual(content, "bootstrap")
+
     def test_reads_legacy_current_worker_bootstrap(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "docs/project-harness/current/worker-bootstrap.md"
@@ -193,6 +207,41 @@ class TestBootstrapRead(unittest.TestCase):
                 content = read_bootstrap(tmp, "docs/project-harness/tasks/phase-4/plan.md")
 
         self.assertIsNone(content)
+
+
+class TestWorkspacePathResolution(unittest.TestCase):
+    def test_resolves_workspace_path_from_coordinate_db(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "coordinator.sqlite3"
+            workspace_path = Path(tmp) / "coordinate"
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("CREATE TABLE workspaces (id TEXT PRIMARY KEY, path TEXT)")
+                conn.execute(
+                    "INSERT INTO workspaces (id, path) VALUES (?, ?)",
+                    ("mac-smoke", str(workspace_path)),
+                )
+
+            resolved = resolve_workspace_path(
+                db_path=str(db_path),
+                workspace_id="mac-smoke",
+                fallback_workspace_path="/fallback",
+            )
+
+        self.assertEqual(resolved, str(workspace_path))
+
+    def test_workspace_path_resolution_falls_back_when_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "coordinator.sqlite3"
+            with sqlite3.connect(db_path) as conn:
+                conn.execute("CREATE TABLE workspaces (id TEXT PRIMARY KEY, path TEXT)")
+
+            resolved = resolve_workspace_path(
+                db_path=str(db_path),
+                workspace_id="missing",
+                fallback_workspace_path="/fallback",
+            )
+
+        self.assertEqual(resolved, "/fallback")
 
 
 class TestAssignmentAccept(unittest.TestCase):

@@ -47,21 +47,27 @@ class CoordinateRuntimeClient:
         prompt: str,
         origin_json: dict,
         reply_json: dict,
+        workspace_id: str = "",
+        task_id: str = "",
         message_id: str = "",
         idempotency_key: str = "",
     ) -> dict:
         """Submit a bridge request to coordinate. Returns the coordinate response dict."""
+        workspace = workspace_id or self.workspace_id
         cmd = [
             self.cli_path,
             "runtime", "request", "submit",
-            self.workspace_id,
+            workspace,
             "--target-agent", target_agent,
             "--prompt", prompt,
             "--origin-json", json.dumps(origin_json, ensure_ascii=False),
             "--reply-json", json.dumps(reply_json, ensure_ascii=False),
         ]
-        if message_id:
-            cmd.extend(["--idempotency-key", message_id])
+        if task_id:
+            cmd.extend(["--task-id", task_id])
+        idempotency = idempotency_key or message_id
+        if idempotency:
+            cmd.extend(["--idempotency-key", idempotency])
 
         log.info("coordinate submit: agent=%s msg=%s", target_agent, message_id)
 
@@ -103,6 +109,7 @@ class CoordinateRuntimeClient:
         self,
         *,
         job_id: str,
+        workspace_id: str = "",
         poll_interval: float = 2.0,
         timeout: float = 1800.0,
     ) -> dict | None:
@@ -112,8 +119,9 @@ class CoordinateRuntimeClient:
         """
         import time as _time
         start = _time.monotonic()
+        workspace = workspace_id or self.workspace_id
         while _time.monotonic() - start < timeout:
-            job = await self._get_job(job_id)
+            job = await self._get_job(job_id, workspace_id=workspace)
             if job is None:
                 await asyncio.sleep(poll_interval)
                 continue
@@ -123,12 +131,12 @@ class CoordinateRuntimeClient:
             await asyncio.sleep(poll_interval)
         return None
 
-    async def _get_job(self, job_id: str) -> dict | None:
+    async def _get_job(self, job_id: str, *, workspace_id: str = "") -> dict | None:
         """Fetch a single job's current state from coordinate."""
         cmd = [
             self.cli_path,
             "job", "list",
-            "--workspace-id", self.workspace_id,
+            "--workspace-id", workspace_id or self.workspace_id,
         ]
         result = await asyncio.to_thread(self._run_cli, cmd)
         jobs = result.get("jobs", [])
