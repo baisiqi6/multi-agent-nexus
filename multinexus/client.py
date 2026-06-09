@@ -290,6 +290,35 @@ class DiscordClient(discord.Client):
             return message.channel.parent_id
         return message.channel.id
 
+    @staticmethod
+    def _extract_completed_display_text(completed: dict) -> str:
+        """Turn a coord-runtime terminal-job dict into a Discord display string.
+
+        ``coord runtime job report --result-json '{"response_text": ...}'``
+        stores the payload in ``jobs.result_json`` (a JSON string in the
+        SQLite row). The CLI deserializes that field on read as ``result``
+        (dict) — see ``row_to_dict`` in coord/db.py. Older
+        ``coord job get`` / direct-SQL callers historically exposed the raw
+        ``result_json`` string. Accept both shapes so the bridge does
+        not fall back to ``"Job done"`` when a real reply is present.
+        """
+        result_data = completed.get("result")
+        if result_data is None:
+            result_json_str = completed.get("result_json")
+            if result_json_str:
+                try:
+                    import json
+                    result_data = json.loads(result_json_str)
+                except (json.JSONDecodeError, TypeError):
+                    result_data = None
+        if isinstance(result_data, dict):
+            return (
+                result_data.get("response_text")
+                or result_data.get("text")
+                or "(empty response)"
+            )
+        return f"Job {completed.get('status', 'unknown')}"
+
     def _record_message(self, message: discord.Message) -> None:
         """Persist message to context store."""
         self.context_store.record_message(
@@ -883,20 +912,7 @@ class DiscordClient(discord.Client):
         if completed is None:
             display_text = "Agent timed out (no response from agentd)."
         else:
-            result_json_str = completed.get("result_json")
-            if result_json_str:
-                try:
-                    import json
-                    result_data = json.loads(result_json_str)
-                    display_text = (
-                        result_data.get("response_text")
-                        or result_data.get("text")
-                        or "(empty response)"
-                    )
-                except (json.JSONDecodeError, TypeError):
-                    display_text = "(invalid result)"
-            else:
-                display_text = f"Job {completed.get('status', 'unknown')}"
+            display_text = self._extract_completed_display_text(completed)
 
         display_text = self.mention_router.resolve_handoff_mentions(display_text)
         await self._send_text_chunks(channel, placeholder, display_text, [], [])
