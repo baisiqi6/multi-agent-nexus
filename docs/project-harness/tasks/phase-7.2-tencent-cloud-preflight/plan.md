@@ -79,7 +79,10 @@ c91d45b dogfood: route coordinator handoffs through agentd
 
 - **假设**：`com.coordinate.runtime.plist` `WorkingDirectory = /Users/yinxin/projects/coordinate`；agents.toml 第 22 行 `coordinator_cli_path = "/Users/yinxin/projects/coordinate/skills/coordinate-operator/scripts/mac.sh"`
 - **影响**：Mac agentd 调 `mac.sh` 实际**是 `subprocess.run(['/Users/yinxin/projects/coordinate/.../mac.sh', ...])` 跑本地脚本**。**腾讯云没有这个路径**
-- **改迁方案 A（SSH wrapper 替代，本阶段 A 实施）**：Mac 上写一个独立 wrapper script `~/.local/bin/coord-ssh`，内部 `exec ssh coord@tencent-cloud "/opt/coordinate/.venv/bin/coordinate --db /var/lib/coordinate/coord.sqlite3 \$@"`；改 `agents.toml` 一行 `coordinator_cli_path = "/Users/yinxin/.local/bin/coord-ssh"`；**不改 `mac.sh` 内部**（`mac.sh` 留作 Mac 本机 coord 启动的 fallback，阶段 A 不用）
+- **改迁方案 A（SSH wrapper 替代，本阶段 A 实施）**：Mac 上写一个独立 wrapper script `~/.local/bin/coord-ssh`，**SSH 调远端 `/usr/local/bin/coord-local`**（远端 wrapper 显式带 `--db` 远端路径；group coord 方案代替 `sudo -u coord`）。改 `agents.toml` 一行 `coordinator_cli_path = "/Users/yinxin/.local/bin/coord-ssh"`；**不改 `mac.sh` 内部**（`mac.sh` 留作 Mac 本机 coord 启动的 fallback，阶段 A 不用）。**正确实现**见 impl plan 3.1（含 `printf '%q'` shell-quoting + 远端 `coord-local`）。
+  - **绝不能**用 `coord@tencent-cloud`（host 不存在）
+  - **绝不能**用 `\$@`（远端 shell 看到 `$@` 展开为空，agentd 参数全丢）
+  - **绝不能**用 `sudo -u coord`（agentd 每 2s 调 claim，sudo 不可行）
 - **改迁方案 B（HTTP API）**：agentd 直接 `requests.post("https://coord.tencent.cloud/runtime/claim", ...)` —— **需要 coord 端加 HTTP server**，**这是 7.2 阶段 B 的范围**，阶段 A preflight 不做
 - **改迁方案 C（agentd 端改）**：把 `CoordinateRuntimeClient._run_cli` 的 `subprocess.run` 改成 `subprocess.run(['ssh', 'tencent-cloud', '/usr/local/bin/coordinate', ...])` —— **这是改业务代码**，阶段 A preflight 不做，**但可以**作为阶段 A 的实施 task 单独 track
 
@@ -261,9 +264,9 @@ Mac:
 阶段 A smoke = **A0 端到端跑通**（coord + bridge 在腾讯云，4 个 Mac agentd）。具体步骤（**只描述，不在 preflight 跑**）：
 
 1. 腾讯云 `systemctl start coordinate multinexus-discord-bridge`，`systemctl status` 看两个 service 都 running
-2. Mac `ssh coord@tencent-cloud "systemctl is-active coordinate multinexus-discord-bridge"` 确认两个 daemon 都活
+2. Mac `ssh ubuntu@kook-hermes-admin "systemctl is-active coordinate multinexus-discord-bridge"` 确认两个 daemon 都活
 3. **远端 secret 落档验证**（**不 cat 内容**，只验证文件存在 + 权限 + 长度）：
-   - Mac `ssh coord@tencent-cloud "stat -c '%a %s %n' /etc/coordinate/coord.env"` —— 应当返回 `600 <size> /etc/coordinate/coord.env`
+   - Mac `ssh ubuntu@kook-hermes-admin "stat -c '%a %s %n' /etc/coordinate/coord.env"` —— 应当返回 `640 <size> /etc/coordinate/coord.env`
    - 同上对 `/etc/multinexus/discord.env`
    - 预期 size > 100 字节（确认文件非空）
 4. Mac `~/.local/bin/coord-ssh runtime agent register --agent-id mac-claude --host-id macbook-local --client-type agentd` —— **应当**成功（agentd 启动时已经做过，**这里**手验一次）
@@ -273,7 +276,7 @@ Mac:
 8. Mac 看 agentd log `complete: status=done duration=...ms` —— claude CLI 完成
 9. Mac `~/.local/bin/coord-ssh job list --workspace-id discord-nexus | grep request:xxx` —— 看到 `result.response_text`
 10. Mac Discord channel 看 bot reply —— **不是** "Job done"，是真实文本（验证 `b1d9f3d` 字段兼容 + `08b5bcc` 7.1.2 抑制 status card 两者并存）
-11. **远端 coord DB 检查**：腾讯云 `ssh coord@tencent-cloud "sqlite3 /var/lib/coordinate/coord.sqlite3 'SELECT id, status, host_id, last_seen_at FROM agents WHERE id = \"mac-claude\"'"` —— 看到 `host_id=macbook-local, last_seen_at` 是最近
+11. **远端 coord DB 检查**：腾讯云 `ssh ubuntu@kook-hermes-admin "sudo sqlite3 /var/lib/coordinate/coord.sqlite3 'SELECT id, status, host_id, last_seen_at FROM agents WHERE id = \"mac-claude\"'"` —— 看到 `host_id=macbook-local, last_seen_at` 是最近
 12. **stale detection**：Mac agentd 停 5 分钟，coord 应当把 mac-claude 标 stale（**这一条 7.2 plan 第 83 行列**）
 
 **smoke test 退出标准**：
@@ -288,22 +291,18 @@ Mac:
 - 或者 `systemctl disable coordinate multinexus-discord-bridge && rm /etc/systemd/system/coordinate.service /etc/systemd/system/multinexus-discord-bridge.service` —— 完整回滚
 - Mac 重新 `launchctl bootstrap com.coordinate.runtime` + `launchctl bootstrap com.multinexus.discord.bridge` —— 回到 Mac 单机 6 进程 N+M 拓扑
 
-### SSH wrapper 内容（关键，必须显式带 `--db`）
+### SSH wrapper 内容（关键，必须用 `printf '%q'`）
 
-`~/.local/bin/coord-ssh` 内容**应当**长这样（每个 CLI 调用都显式带远端 `--db`）：
+> **统一参考**: Mac `~/.local/bin/coord-ssh` wrapper **正确版**见 `phase-7.2-tencent-cloud-impl/plan.md` 第 3.1 段。**本段不再重复**——避免与 impl plan 不一致。
 
-```bash
-#!/usr/bin/env bash
-# Mac → 腾讯云 coord wrapper
-# 显式带 --db 远端路径，不依赖本机 MAC_DB 透传
-exec ssh \
-    -o ServerAliveInterval=30 \
-    -o ServerAliveCountMax=10 \
-    -o ConnectTimeout=10 \
-    -o StrictHostKeyChecking=accept-new \
-    coord@tencent-cloud \
-    "/opt/coordinate/.venv/bin/coordinate --db /var/lib/coordinate/coord.sqlite3 \$@"
-```
+**关键约束**（worker 必读）:
+- **远端命令**只调 `/usr/local/bin/coord-local`（**不**用 `sudo -u coord`，agentd 每 2s 调一次，sudo 不可行）
+- **shell quoting 必须用 `printf '%q ' "$@"`**——**绝不能**用 `\$@` 或 `$@`（远端 shell 看到 `$@` 展开为空，agentd 参数全丢）
+- **group 共享**（blocker 1）代替 `sudo -u`：multinexus / ubuntu 加到 `coord` group，`/var/lib/coordinate` chmod 2770，systemd `UMask=0007`
+- **`coord@tencent-cloud` / `root@tencent-cloud` 是不存在 host**——本机 `~/.ssh/config` 只有 `kook-hermes-admin` / `kook-hermes`
+- **远端 systemd 加 `SupplementaryGroups=coord`**（bridge.service）让 multinexus 进程有 coord group 写权限
+
+**为什么** preflight 之前有 `\$@` 示例: preflight 调研时 (commit `40da1db`) 还没意识到 agentd claim 频率 (2s) + 远端 shell 参数展开两个问题。**最终实现**在 impl plan (`c8bb58c`) 修订。
 
 `agents.toml` 改：
 ```toml
@@ -317,18 +316,23 @@ coordinator_db_path = "/Users/yinxin/projects/coordinate/data/coordinator.sqlite
 
 ### B1. `agents.toml` 写死了 `coordinator_cli_path` 指向本机 `/Users/yinxin/.../mac.sh`
 
-- **怎么解**：在腾讯云 setup 前，**先在 Mac 写 wrapper script `~/.local/bin/coord-ssh`**，内容：
+- **怎么解**：在腾讯云 setup 前，**先在 Mac 写 wrapper script `~/.local/bin/coord-ssh`**，内容（**正确版** —— 用 `printf '%q'` shell-quoting 避免 `$@` 远端展开为空）：
   ```bash
   #!/usr/bin/env bash
   # Mac → 腾讯云 coord wrapper
-  # 显式带 --db 远端路径，不依赖本机 MAC_DB 透传
+  # 远端命令调 /usr/local/bin/coord-local (远端 wrapper 显式带 --db 远端路径)
+  # group coord 方案代替 sudo -u coord (blocker 1 + 2)
+  # **绝不能**用 \$@ (远端 shell 看到 \$@ 展开为空, agentd 参数全丢)
+  remote_cmd=$(printf '%q ' /usr/local/bin/coord-local "$@")
+
   exec ssh \
       -o ServerAliveInterval=30 \
       -o ServerAliveCountMax=10 \
       -o ConnectTimeout=10 \
       -o StrictHostKeyChecking=accept-new \
-      coord@tencent-cloud \
-      "/opt/coordinate/.venv/bin/coordinate --db /var/lib/coordinate/coord.sqlite3 \$@"
+      -i ~/.ssh/id_ed25519_coord \
+      ubuntu@kook-hermes-admin \
+      "$remote_cmd"
   ```
   然后 `chmod +x ~/.local/bin/coord-ssh`
 - **改 `agents.toml`**：仅一行 `coordinator_cli_path = "/Users/yinxin/.local/bin/coord-ssh"`
@@ -347,7 +351,7 @@ coordinator_db_path = "/Users/yinxin/projects/coordinate/data/coordinator.sqlite
 
 ### B4. SSH key 从 Mac 推到腾讯云
 
-- **怎么解**：`ssh-keygen -t ed25519` 在 Mac 生成，`ssh-copy-id coord@tencent-cloud` 推公钥。**需要 Mac 出口 IP 已知**（B3 依赖）
+- **怎么解**：`ssh-keygen -t ed25519` 在 Mac 生成，`ssh-copy-id ubuntu@kook-hermes-admin` 推公钥。**需要 Mac 出口 IP 已知**（B3 依赖）
 
 ### B5. Mac agentd 30s subprocess timeout 不够远端
 

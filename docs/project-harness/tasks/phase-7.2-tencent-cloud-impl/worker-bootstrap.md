@@ -43,10 +43,17 @@ git log --oneline -5
 ```bash
 cat docs/project-harness/tasks/phase-7.2-tencent-cloud-impl/plan.md
 cat docs/project-harness/tasks/phase-7.2-tencent-cloud-preflight/plan.md
-cat docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md
 ```
 
-**`plan.md` 是实施清单**（6 步骤 + 14 步 smoke [8 步 CLI S1-S8 + 6 步 Discord D1-D6] + 5 步回滚）。**`preflight/plan.md` 是上游调研**。**`phase-7.2-multi-host-agent-runtime/plan.md` 是源真值**（phase-7.2 总目标 + 拓扑）。
+**`plan.md` 是实施清单**（6 步骤 + 14 步 smoke [8 步 CLI S1-S8 + 6 步 Discord D1-D6] + 5 步回滚）。**`preflight/plan.md` 是上游调研**。
+
+**`phase-7.2-multi-host-agent-runtime/plan.md` 不在** review PR branch 里（**P1.2 finding**）—— 本任务 worker **不**硬依赖该文件。下面**内联必要源真值摘要**，让 fresh checkout 也能跑：
+
+> **Phase 7.2 源真值摘要（内联）**:
+> - **目标 Server 形态 (A0)**: 腾讯云跑 `coord serve` + `multinexus.py --platform discord` (bridge); Mac 跑 4 个 Mac agentd. Bridge 跟 coord 同侧是 7.2 阶段 A 的真正目标形态.
+> - **非目标**: HTTP API (`COORDINATE_URL` 协议) / 多 coord 副本 / SQLite 跨主机共享 / PostgreSQL / 完整 HA / KOOK bridge 部署.
+> - **协议判断**: CLI + SSH tunnel 是**临时** preflight 机制, **最终**应走 `COORDINATE_URL` / HTTP API 或等价远程协议 (留 7.2 阶段 B).
+> - **本任务边界 (实施层)**: 不改业务代码 / 不改 plist 内容 / 不改 `mac.sh` 内部 / 不 push / 不开 PR.
 
 ### Step 4: 读 SSH / 防火墙 / 腾讯云状态
 
@@ -64,9 +71,9 @@ ssh -o ConnectTimeout=5 -o BatchMode=yes ubuntu@kook-hermes-admin "echo ok && id
 # 期望: ok\nubuntu\nuid=1000(ubuntu) gid=1001(ubuntu) groups=...,27(sudo),...
 
 # launchd plist label 反查 (实施前确认哪些 plist 跑):
-launchctl print gui/$(id -u)/com.coordinate.runtime 2>&1 | grep -E "^\s*path = " | head -1
-launchctl print gui/$(id -u)/com.multinexus.discord.bridge 2>&1 | grep -E "^\s*path = " | head -1
-launchctl print gui/$(id -u)/com.multinexus.mac-claude.agentd 2>&1 | grep -E "^\s*path = " | head -1
+launchctl print gui/$(id -u)/com.coordinate.runtime 2>&1 | grep -E "^[[:space:]]*path = " | head -1
+launchctl print gui/$(id -u)/com.multinexus.discord.bridge 2>&1 | grep -E "^[[:space:]]*path = " | head -1
+launchctl print gui/$(id -u)/com.multinexus.mac-claude.agentd 2>&1 | grep -E "^[[:space:]]*path = " | head -1
 # 期望: 三个都是 /Users/yinxin/projects/multinexus/launchd/*.plist
 # (如果 label 跟 plan 不一致, 报 blocker)
 ```
@@ -80,7 +87,7 @@ launchctl print gui/$(id -u)/com.multinexus.mac-claude.agentd 2>&1 | grep -E "^\
 - **Branch**: agents/mac-claude/phase-7.2-multi-host-agent-runtime（**只** plan 文档在此 branch）
 - **Plan**: docs/project-harness/tasks/phase-7.2-tencent-cloud-impl/plan.md
 - **Phase**: approved
-- **Source-of-truth upstream**: docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md
+- **Source-of-truth upstream**: docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md (P1.2: **不**在本 review PR branch, 见 Step 3 内联摘要)
 - **Preflight**: docs/project-harness/tasks/phase-7.2-tencent-cloud-preflight/plan.md
 
 ## 工具
@@ -175,8 +182,8 @@ launchctl print gui/$(id -u)/com.multinexus.mac-claude.agentd 2>&1 | grep -E "^\
 
 **Mac 端 rsync / cp agents.toml 到远端前必须 2 项 grep 检查**：
 
-1. `if grep -E "^\s*token\s*=" agents.toml; then` —— 显式 `token = "..."` 字段（**不**含 `token_env`）
-2. `if grep -E "DISCORD_[A-Z_]+_TOKEN\s*=\s*['\"]?[A-Za-z0-9._-]{20,}" agents.toml; then` —— token 字段 value 是长字符串
+1. `if grep -E "^[[:space:]]*token[[:space:]]*=" agents.toml; then` —— 显式 `token = "..."` 字段（**不**含 `token_env`）
+2. `if grep -E "DISCORD_[A-Z_]+_TOKEN[[:space:]]*=[[:space:]]*['\"]?[A-Za-z0-9._-]{20,}" agents.toml; then` —— token 字段 value 是长字符串
 
 **任一命中 → exit 1**，**不**拷到远端。
 
