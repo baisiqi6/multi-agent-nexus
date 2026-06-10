@@ -322,5 +322,62 @@ class LegacySingleAgentModeStillWorksTests(unittest.TestCase):
             os.unlink(tmp2.name)
 
 
+import os as _os
+
+
+class ResolveBridgeProxyUrlTests(unittest.TestCase):
+    def setUp(self):
+        self._saved = {k: _os.environ.get(k) for k in _os.environ}
+
+    def tearDown(self):
+        for k in list(_os.environ.keys()):
+            if k not in self._saved:
+                del _os.environ[k]
+        for k, v in self._saved.items():
+            if v is None:
+                _os.environ.pop(k, None)
+            else:
+                _os.environ[k] = v
+
+    @staticmethod
+    def _clear_vars():
+        for v in (
+            "MULTINEXUS_HTTP_PROXY",
+            "HTTPS_PROXY", "https_proxy",
+            "HTTP_PROXY", "http_proxy",
+        ):
+            _os.environ.pop(v, None)
+
+    def test_no_env_returns_none(self):
+        self._clear_vars()
+        from multinexus.client import _resolve_bridge_proxy_url
+        self.assertIsNone(_resolve_bridge_proxy_url())
+
+    def test_multinexus_http_proxy_takes_priority(self):
+        self._clear_vars()
+        _os.environ["MULTINEXUS_HTTP_PROXY"] = "http://127.0.0.1:7890"
+        _os.environ["HTTPS_PROXY"] = "http://other:3128"
+        from multinexus.client import _resolve_bridge_proxy_url
+        self.assertEqual(_resolve_bridge_proxy_url(), "http://127.0.0.1:7890")
+
+    def test_fallback_to_https_proxy(self):
+        self._clear_vars()
+        _os.environ["HTTPS_PROXY"] = "http://127.0.0.1:7890"
+        from multinexus.client import _resolve_bridge_proxy_url
+        self.assertEqual(_resolve_bridge_proxy_url(), "http://127.0.0.1:7890")
+
+    def test_fallback_to_http_proxy(self):
+        self._clear_vars()
+        _os.environ["HTTP_PROXY"] = "http://127.0.0.1:7890"
+        from multinexus.client import _resolve_bridge_proxy_url
+        self.assertEqual(_resolve_bridge_proxy_url(), "http://127.0.0.1:7890")
+
+    def test_lowercase_fallback(self):
+        self._clear_vars()
+        _os.environ["http_proxy"] = "http://127.0.0.1:7890"
+        from multinexus.client import _resolve_bridge_proxy_url
+        self.assertEqual(_resolve_bridge_proxy_url(), "http://127.0.0.1:7890")
+
+
 if __name__ == "__main__":
     unittest.main()

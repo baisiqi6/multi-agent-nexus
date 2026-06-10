@@ -10,6 +10,7 @@ broadcasts their bot user_ids to build a single shared mention map.
 import asyncio
 import collections.abc
 import logging
+import os
 import time
 
 import discord
@@ -78,6 +79,17 @@ def _chunk_message(text: str) -> list[str]:
     return chunks
 
 
+def _resolve_bridge_proxy_url() -> str | None:
+    return (
+        os.environ.get("MULTINEXUS_HTTP_PROXY")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or None
+    )
+
+
 class DiscordClient(discord.Client):
     """One agent = one DiscordClient instance.
 
@@ -88,7 +100,8 @@ class DiscordClient(discord.Client):
     def __init__(self, config: AgentConfig):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(intents=intents)
+        proxy_url = _resolve_bridge_proxy_url()
+        super().__init__(intents=intents, proxy=proxy_url)
         self.agent_config = config
         self.context_store = ChatContextStore(config.context_db_path)
         self.mention_router = MentionRouter(config)
