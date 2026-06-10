@@ -1,3 +1,5 @@
+> **Historical design note.** Current source of truth: `docs/project-harness/architecture.md` and `docs/project-harness/scope.md`. This file is preserved for historical context only.
+
 # Agent Session 持久化设计
 
 ## 背景

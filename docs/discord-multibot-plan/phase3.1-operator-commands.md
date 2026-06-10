@@ -1,3 +1,5 @@
+> **Historical design note.** Current source of truth: `docs/project-harness/architecture.md` and `docs/project-harness/scope.md`. This file is preserved for historical context only.
+
 # Phase 3.1：运行可维护性 — Operator Commands
 
 ## 背景

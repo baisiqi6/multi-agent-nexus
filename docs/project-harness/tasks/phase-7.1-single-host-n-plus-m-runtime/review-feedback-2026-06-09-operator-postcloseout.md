@@ -1,3 +1,5 @@
+> **Historical record.** Current source of truth: `docs/project-harness/progress.md` and `docs/project-harness/scope.md`. This file is preserved as part of the dogfood development audit chain.
+
 # Phase 7.1 Post-Closeout Review Feedback (Retroactive)
 
 Reviewer: `operator` (codex 不可用，operator 代行 reviewer 角色)

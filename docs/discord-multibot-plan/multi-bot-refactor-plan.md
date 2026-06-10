@@ -1,3 +1,5 @@
+> **Historical design note.** Current source of truth: `docs/project-harness/architecture.md` and `docs/project-harness/scope.md`. This file is preserved for historical context only.
+
 # Discord-Nexus 多 Bot 架构重构计划
 
 ## 背景

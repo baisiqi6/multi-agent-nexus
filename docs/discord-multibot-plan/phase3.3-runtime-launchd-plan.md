@@ -1,3 +1,5 @@
+> **Historical design note.** Current source of truth: `docs/project-harness/architecture.md` and `docs/project-harness/scope.md`. This file is preserved for historical context only.
+
 # Phase 3.3：Managed Bots 运行常驻化计划
 
 ## 背景

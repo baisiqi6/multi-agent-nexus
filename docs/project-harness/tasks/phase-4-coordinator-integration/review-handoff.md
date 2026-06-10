@@ -1,3 +1,5 @@
+> **Historical record.** Current source of truth: `docs/project-harness/progress.md` and `docs/project-harness/scope.md`. This file is preserved as part of the dogfood development audit chain.
+
 # Review Handoff: Phase 4 Coordinator Integration (v2)
 
 ## Review Target

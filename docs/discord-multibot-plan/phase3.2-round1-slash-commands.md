@@ -1,3 +1,5 @@
+> **Historical design note.** Current source of truth: `docs/project-harness/architecture.md` and `docs/project-harness/scope.md`. This file is preserved for historical context only.
+
 # Phase 3.2 Round 1：Slash Commands
 
 ## 背景

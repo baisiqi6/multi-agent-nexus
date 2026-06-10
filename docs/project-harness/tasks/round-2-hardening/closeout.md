@@ -1,3 +1,5 @@
+> **Historical record.** Current source of truth: `docs/project-harness/progress.md` and `docs/project-harness/scope.md`. This file is preserved as part of the dogfood development audit chain.
+
 # Round 2 Hardening Closeout — 2026-06-05
 
 ## Baseline
