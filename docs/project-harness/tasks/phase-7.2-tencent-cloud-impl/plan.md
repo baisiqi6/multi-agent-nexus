@@ -148,9 +148,83 @@ grep -E "coordinator_cli_path|coordinator_db_path" /Users/yinxin/projects/multin
 
 **为什么先备份**：回滚步骤 5 要用 `agents.toml.bak` + `launchctl list` 清单。
 
+### 步骤 0.4 部署前 git status gate (P2.2 + Codex review)
+
+**rsync 之前**先验 working tree 干净 — 只允许**预期**修改项, 其他 untracked / modified 全部停止:
+
+```bash
+# 实施前 git status 应当**只**有:
+#   M agents.toml
+#   M docs/project-harness/tasks/phase-7.2-tencent-cloud-impl/plan.md
+#   M docs/project-harness/tasks/phase-7.2-tencent-cloud-impl/worker-bootstrap.md
+# **不**应有其他 untracked / modified
+
+PORCELAIN=$(git status --porcelain)
+ALLOWED_PATTERNS=(
+    '^ M agents\.toml$'
+    '^ M docs/project-harness/tasks/phase-7\.2-tencent-cloud-impl/plan\.md$'
+    '^ M docs/project-harness/tasks/phase-7\.2-tencent-cloud-impl/worker-bootstrap\.md$'
+)
+ALLOWED_OK=true
+while IFS= read -r line; do
+    [ -z "$line" ] && continue
+    matched=false
+    for pat in "${ALLOWED_PATTERNS[@]}"; do
+        if [[ "$line" =~ $pat ]]; then
+            matched=true
+            break
+        fi
+    done
+    if ! $matched; then
+        echo "ABORT: 部署前 git status 含未预期项:" >&2
+        echo "  $line" >&2
+        ALLOWED_OK=false
+    fi
+done <<< "$PORCELAIN"
+
+if ! $ALLOWED_OK; then
+    echo "" >&2
+    echo "参考: 当前 worktree 还有这些非预期项, 处理 (commit / stash / 删) 后再部署." >&2
+    git status --short >&2
+    exit 1
+fi
+echo "Git status gate: 全部为预期修改项, 继续."
+```
+
+**为什么必要**: rsync 走本地 worktree 复制, 本机 dirty/untracked 文件 (如 phase-5.5 旧任务目录 / :memory: 临时 sqlite) 会被拷到远端. 显式 exclude 是双保险, 但**更可靠**是部署前 working tree 干净.
+
+**特例豁免**:
+- `M agents.toml` 是**预期**的 (`coordinator_cli_path` 一行修改)
+- `M docs/project-harness/tasks/phase-7.2-tencent-cloud-impl/plan.md` 是**预期**的 (closeout 时**可能**会改)
+- 实施过程中 closeout 报告会生成新文件 `closeout-*.md`, **这**个**不**在 ALLOWED 列表 — 因为 closeout 报告在**实施后**写, 跟 rsync 时序**不**冲突
+
 ## 步骤 1：腾讯云装 coordinate + multinexus
 
 ### 1.1 准备腾讯云 VM
+
+**先**装基础依赖（**P1.3 finding** —— fresh Ubuntu 缺这些会直接 fail）：
+
+```bash
+ssh ubuntu@kook-hermes-admin <<'EOF'
+set -euo pipefail
+sudo apt-get update
+sudo apt-get install -y \
+    python3 \
+    python3-venv \
+    python3-pip \
+    sqlite3 \
+    rsync
+# 验证 (每条应当非空)
+python3 --version
+python3 -m venv --help >/dev/null && echo "venv OK"
+which sqlite3 && sqlite3 --version
+which rsync && rsync --version | head -1
+EOF
+# 期望: Python 3.10.x / 3.11.x / 3.12.x  (coord requires-python >=3.10)
+#       venv OK
+#       sqlite3 3.x
+#       rsync 3.x
+```
 
 | 项 | 要求 |
 |---|---|
@@ -164,12 +238,21 @@ grep -E "coordinator_cli_path|coordinator_db_path" /Users/yinxin/projects/multin
 
 ```bash
 # Mac 端: rsync 到 ubuntu 临时目录 (用 KHC 简称 = kook-hermes-admin)
+# **P2.2**: 排除 git 内部, 临时 sqlite 文件, current/ worktree artifacts,
+# 还有 .venv/__pycache__/.pyc/.env 等. 防止本机 dirty/untracked 文件污染远端.
 rsync -avz --delete /Users/yinxin/projects/coordinate/ \
     ubuntu@kook-hermes-admin:/tmp/coordinate-staging/ \
+    --exclude='.git/' \
     --exclude='.venv' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     --exclude='data/*.sqlite3' \
+    --exclude='data/*.sqlite3-shm' \
+    --exclude='data/*.sqlite3-wal' \
+    --exclude=':memory:' \
+    --exclude=':memory:-shm' \
+    --exclude=':memory:-wal' \
+    --exclude='docs/project-harness/current/' \
     --exclude='.env'
 
 # 腾讯云端 (KHC ssh + sudo): 创建 system user + 拷到 /opt
@@ -223,12 +306,22 @@ EOF
 
 ```bash
 # Mac 端: rsync (排除 launchd / logs / 仓库本机配置)
+# **P2.2**: 排除 git 内部, 临时 sqlite 文件, current/ worktree artifacts.
+# **额外 (Codex review)**: 显式排除 phase-5.5-discord-message-rendering 旧 untracked 任务目录
 rsync -avz --delete /Users/yinxin/projects/multinexus/ \
     ubuntu@kook-hermes-admin:/tmp/multinexus-staging/ \
+    --exclude='.git/' \
     --exclude='.venv' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
     --exclude='data/*.sqlite3' \
+    --exclude='data/*.sqlite3-shm' \
+    --exclude='data/*.sqlite3-wal' \
+    --exclude=':memory:' \
+    --exclude=':memory:-shm' \
+    --exclude=':memory:-wal' \
+    --exclude='docs/project-harness/current/' \
+    --exclude='docs/project-harness/tasks/phase-5.5-discord-message-rendering/' \
     --exclude='.env' \
     --exclude='.multinexus' \
     --exclude='logs' \
@@ -269,13 +362,14 @@ EOF
 ```bash
 # Step 1a: 检查 Mac 端 agents.toml 是否含真实 token (defensive check, 应当 0 命中)
 # **用 if grep ... then 形式** (无命中时 grep 返 1, 避免 set -e 误中断)
+# **POSIX 写法** ([[:space:]] 不用 \s) — macOS/BSD grep 不识别 \s (P1.4)
 # 检查 1: 显式 token 字段 (token = "...")
-if grep -E "^\s*token\s*=" /Users/yinxin/projects/multinexus/agents.toml; then
+if grep -E "^[[:space:]]*token[[:space:]]*=" /Users/yinxin/projects/multinexus/agents.toml; then
     echo "ABORT: Mac 端 agents.toml 含显式 token = 字段 (应只含 token_env 字段名)" >&2
     exit 1
 fi
 # 检查 2: DISCORD_*_TOKEN=<长字符串> 模式 (防御: 即便字段名是别的, value 是 token)
-if grep -E "DISCORD_[A-Z_]+_TOKEN\s*=\s*['\"]?[A-Za-z0-9._-]{20,}" \
+if grep -E "DISCORD_[A-Z_]+_TOKEN[[:space:]]*=[[:space:]]*['\"]?[A-Za-z0-9._-]{20,}" \
     /Users/yinxin/projects/multinexus/agents.toml; then
     echo "ABORT: Mac 端 agents.toml 含疑似真实 token (应只含 token_env 字段名)" >&2
     exit 1
@@ -490,6 +584,12 @@ Wants=network-online.target
 Type=simple
 User=multinexus
 Group=multinexus
+# **blocker 1 + P2.1**: bridge 进程以 multinexus 跑, 调 /usr/local/bin/coord-local
+# 时需 coord group 写 /var/lib/coordinate. SupplementaryGroups=coord 把 coord
+# group 加到 multinexus 进程 (primary group 仍是 multinexus).
+# UMask=0007 让 bridge 创建的文件 inherit group (跟 coord.service 一致)
+SupplementaryGroups=coord
+UMask=0007
 WorkingDirectory=/opt/multinexus
 EnvironmentFile=/etc/multinexus/discord.env
 ExecStart=/opt/multinexus/.venv/bin/python /opt/multinexus/multinexus.py --config /opt/multinexus/agents.toml --platform discord
@@ -594,9 +694,9 @@ grep coordinator_db_path /Users/yinxin/projects/multinexus/agents.toml
 
 ```bash
 # 实施前先验证 launchd 跑的 plist label (用 launchctl print 反查):
-launchctl print gui/$(id -u)/com.coordinate.runtime 2>&1 | grep -E "^\s*path = " | head -1
+launchctl print gui/$(id -u)/com.coordinate.runtime 2>&1 | grep -E "^[[:space:]]*path = " | head -1
 # 期望: path = /Users/yinxin/projects/multinexus/launchd/com.coordinate.runtime.plist
-launchctl print gui/$(id -u)/com.multinexus.discord.bridge 2>&1 | grep -E "^\s*path = " | head -1
+launchctl print gui/$(id -u)/com.multinexus.discord.bridge 2>&1 | grep -E "^[[:space:]]*path = " | head -1
 # 期望: path = /Users/yinxin/projects/multinexus/launchd/com.multinexus.discord.bridge.plist
 # (label 和 plist 文件 path 可能不同! 实施前必查)
 
