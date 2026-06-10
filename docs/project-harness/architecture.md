@@ -100,6 +100,6 @@ Discord message → DiscordClient.on_message()
 ## Key References
 
 - Master plan: `docs/discord-multibot-plan/multi-bot-refactor-plan.md`
-- Coordinator integration design: same file, "与 multi-agent-coordinator 的集成" section
+- Coordinator integration design: same file, "与 coordinate 的集成" section
 - Platform setup: `docs/platform-setup.md`
 - Phase 7 N+M plan: `docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md`

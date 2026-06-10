@@ -88,8 +88,8 @@ Ordinary worker agents should not use `harnessctl` for lifecycle transitions and
 ## Coordinator Operations
 
 ```bash
-MAC_SH=~/projects/multi-agent-coordinator/skills/coordinate-operator/scripts/mac.sh
-export MAC_DB=~/projects/multi-agent-coordinator/data/coordinator.sqlite3
+MAC_SH=~/projects/coordinate/skills/coordinate-operator/scripts/mac.sh
+export MAC_DB=~/projects/coordinate/data/coordinator.sqlite3
 
 # Sync coordinator with harness state
 $MAC_SH reconcile multinexus

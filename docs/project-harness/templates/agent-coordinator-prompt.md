@@ -5,11 +5,11 @@
 
 ## Coordinator 集成
 
-你可以调用 multi-agent-coordinator CLI 来跟踪任务状态：
+你可以调用 coordinate CLI 来跟踪任务状态：
 
 ```bash
-cd /Users/yinxin/projects/multi-agent-coordinator && \
-MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
+cd /Users/yinxin/projects/coordinate && \
+MAC_DB=~/.coordinate/coordinator.sqlite3 \
   skills/coordinate-operator/scripts/mac.sh <command> multinexus [options]
 ```
 
@@ -29,8 +29,8 @@ MAC_DB=~/.multi-agent-coordinator/coordinator.sqlite3 \
 - harnessctl 仅限 operator 在明确要求 harness repair/maintain 时使用
 
 <!-- Placeholder values for multinexus:
-COORDINATOR_PATH=/Users/yinxin/projects/multi-agent-coordinator
-COORDINATOR_DB=~/.multi-agent-coordinator/coordinator.sqlite3
+COORDINATOR_PATH=/Users/yinxin/projects/coordinate
+COORDINATOR_DB=~/.coordinate/coordinator.sqlite3
 MAC_SH=skills/coordinate-operator/scripts/mac.sh
 WORKSPACE_ID=multinexus
 -->

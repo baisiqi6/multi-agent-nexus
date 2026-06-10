@@ -21,7 +21,7 @@ multinexus: multi-agent IM bot framework connecting AI coding agents (Claude Cod
 
 ## Out of Scope
 
-- **multi-agent-coordinator**: separate project (`~/projects/multi-agent-coordinator`), owns task assignment, event pipeline, Discord delivery daemon, targeted agent handoff generation, CI/review/merge gate state
+- **coordinate**: separate project (`~/projects/coordinate`), owns task assignment, event pipeline, Discord delivery daemon, targeted agent handoff generation, CI/review/merge gate state
 - **Harness protocol files**: schema and lifecycle owned by coordinator + harnessctl mutation service, not hand-edited
 - **Legacy single-bot architecture** (`bot.py`, `cogs/`, `agents/`): being replaced by `multinexus.py`, retained for reference only
 - **washer.py** (memory extraction pipeline): runs independently
