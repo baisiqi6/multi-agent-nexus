@@ -1,51 +1,59 @@
 {
   "project": "multinexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-05T05:59:32Z",
+  "generated_at": "2026-06-08T18:08:27Z",
   "current_status": "",
   "current_item": {
-    "id": "phase-6.1-omp-smoke",
-    "title": "mac-omp smoke test: 验证 omp agent 端到端链路",
-    "status": "done",
-    "owner": "mac-omp",
-    "selected_in_session": "auto-mac-omp-1780422963",
-    "updated_at": "2026-06-05",
+    "id": "phase-7.1.1-single-platform-bridge-process",
+    "title": "Phase 7.1.1 Single Platform Single Bridge Process",
+    "status": "todo",
+    "owner": "mac-claude",
+    "selected_in_session": "operator-handoff-7.1.1",
+    "updated_at": "2026-06-08",
     "workflow": {
-      "status": "closed",
-      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
-      "updated_at": "2026-06-05"
+      "status": "review_approved",
+      "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+      "updated_at": "2026-06-08"
     },
     "lease": {
-      "owner": "mac-omp",
-      "session": "auto-mac-omp-1780422963",
-      "acquired_at": "2026-06-02T17:56:04Z",
-      "expires_at": "2026-06-02T19:56:04Z",
+      "owner": "mac-claude",
+      "session": "operator-handoff-7.1.1",
+      "acquired_at": "2026-06-08T17:15:04Z",
+      "expires_at": "2026-06-08T19:15:04Z",
       "ttl_minutes": 120
     },
-    "active_lease": null,
+    "active_lease": {
+      "owner": "mac-claude",
+      "session": "operator-handoff-7.1.1",
+      "acquired_at": "2026-06-08T17:15:04Z",
+      "expires_at": "2026-06-08T19:15:04Z",
+      "ttl_minutes": 120
+    },
     "artifacts": {
-      "plan": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
-      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+      "review_context": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-09-operator-postcloseout.md",
+      "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+      "plan": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md",
       "closeout_packet": "docs/project-harness/current/closeout-packet.md"
     },
     "review": {
       "decision": "approved",
-      "reviewer": "codex",
+      "reviewer": "operator",
       "phase": "closeout_requested",
-      "updated_at": "2026-06-05"
+      "updated_at": "2026-06-08",
+      "summary": "Approved with documented caveats. 7.1.1 plan main goals achieved: bridge merged to 1 process per platform, agentd remains 1 process per agent. 269/269 tests pass (258 legacy + 11 new). ps shows 6 processes (1 coord + 1 discord-bridge + 4 agentd). End-to-end smoke via coord CLI request submit / agentd claim / claude CLI / report done all pass in 11.6s. KOOK bridge / cross-agent mention / Discord real-message-reply deferred per plan. Self-review caveat: codex unavailable, omp plan review was operator-authored (see review-feedback-2026-06-09-omp-plan.md); operator-needs-backlog entry filed for per-plan-criterion review checklist."
     },
-    "plan_path": "docs/project-harness/tasks/phase-6.1-omp-smoke/plan.md"
+    "plan_path": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md"
   },
   "checklist_summary": {
-    "todo": 1,
+    "todo": 3,
     "doing": 0,
-    "done": 8,
+    "done": 10,
     "blocked": 0
   },
   "workflow_summary": {
-    "closed": 7,
+    "closed": 10,
     "review_approved": 1,
-    "todo": 1
+    "todo": 2
   },
   "paths": {
     "scope": "docs/project-harness/scope.md",
@@ -85,49 +93,47 @@
   "open_risks": [],
   "recent_events": [
     {
-      "actor": "codex-operator",
-      "artifacts": [],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-01T12:02:04Z",
-      "id": "evt-20260601T120204Z-ccf9cf6d",
-      "idempotency_key": "CLOSE:phase-5.3-agent-registry-auto-sync:done:codex-operator",
-      "metadata": {
-        "force_reason": null
-      },
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "done",
-      "summary": "codex-operator closed phase-5.3-agent-registry-auto-sync",
-      "target": null,
-      "task": "phase-5.3-agent-registry-auto-sync",
-      "type": "CLOSE",
-      "visible_header": "[CLOSE] id=evt-20260601T120204Z-ccf9cf6d task=phase-5.3-agent-registry-auto-sync actor=codex-operator status=done"
-    },
-    {
       "actor": "mac-claude",
       "artifacts": [],
-      "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
+      "branch": "agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime",
       "causation_id": null,
-      "created_at": "2026-06-01T12:09:32Z",
-      "id": "evt-20260601T120932Z-c28a3105",
-      "idempotency_key": "ACCEPT:phase-5.4-workspace-doctor-harness-init:running:mac-claude",
+      "created_at": "2026-06-08T15:33:02Z",
+      "id": "evt-20260608T153302Z-e30cace9",
+      "idempotency_key": "ACCEPT:phase-7.1-single-host-n-plus-m-runtime:running:mac-claude",
       "metadata": {
         "force_reason": null,
-        "session": "auto-mac-claude-1780315772"
+        "session": "auto-mac-claude-1780932782"
       },
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "running",
-      "summary": "mac-claude accepted phase-5.4-workspace-doctor-harness-init",
+      "summary": "mac-claude accepted phase-7.1-single-host-n-plus-m-runtime",
       "target": "mac-claude",
-      "task": "phase-5.4-workspace-doctor-harness-init",
+      "task": "phase-7.1-single-host-n-plus-m-runtime",
       "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260601T120932Z-c28a3105 task=phase-5.4-workspace-doctor-harness-init actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-5.4-workspace-doctor-harness-init"
+      "visible_header": "[ACCEPT] id=evt-20260608T153302Z-e30cace9 task=phase-7.1-single-host-n-plus-m-runtime actor=mac-claude target=mac-claude status=running branch=agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime"
+    },
+    {
+      "actor": "codex",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-08T15:50:59Z",
+      "id": "evt-20260608T155059Z-95995ac7",
+      "idempotency_key": "REVIEW:phase-7.1-single-host-n-plus-m-runtime:approved:codex",
+      "metadata": {},
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "approved",
+      "summary": "Approved after reviewing mac-claude commits 758bd8c and 5a68189. Round 3 blockers are fixed: coordinate job polling now parses top-level job list and avoids --status all; agentd worker now receives session scope metadata and resumes existing sessions with fallback to fresh call. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Note: worker closeout/done ingest was missed due agent-report fallback/parser issue; operator fixed that chain separately and reviewed local commits directly.",
+      "target": "mac-claude",
+      "task": "phase-7.1-single-host-n-plus-m-runtime",
+      "type": "REVIEW",
+      "visible_header": "[REVIEW] id=evt-20260608T155059Z-95995ac7 task=phase-7.1-single-host-n-plus-m-runtime actor=codex target=mac-claude status=approved"
     },
     {
       "actor": "mac-claude",
@@ -136,49 +142,49 @@
       ],
       "branch": null,
       "causation_id": null,
-      "created_at": "2026-06-01T12:23:57Z",
-      "id": "evt-20260601T122357Z-14e1613a",
-      "idempotency_key": "RESULT:phase-5.4-workspace-doctor-harness-init:closeout_requested:mac-claude",
+      "created_at": "2026-06-08T15:51:20Z",
+      "id": "evt-20260608T155120Z-681e1355",
+      "idempotency_key": "RESULT:phase-7.1-single-host-n-plus-m-runtime:closeout_requested:mac-claude",
       "metadata": {},
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "closeout_requested",
-      "summary": "Closeout requested for phase-5.4-workspace-doctor-harness-init",
+      "summary": "Closeout requested for phase-7.1-single-host-n-plus-m-runtime",
       "target": "codex",
-      "task": "phase-5.4-workspace-doctor-harness-init",
+      "task": "phase-7.1-single-host-n-plus-m-runtime",
       "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260601T122357Z-14e1613a task=phase-5.4-workspace-doctor-harness-init actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+      "visible_header": "[RESULT] id=evt-20260608T155120Z-681e1355 task=phase-7.1-single-host-n-plus-m-runtime actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
     },
     {
       "actor": "codex",
       "artifacts": [],
       "branch": null,
       "causation_id": null,
-      "created_at": "2026-06-01T12:28:18Z",
-      "id": "evt-20260601T122818Z-b2430fbc",
-      "idempotency_key": "REVIEW:phase-5.4-workspace-doctor-harness-init:approved:codex",
+      "created_at": "2026-06-08T15:51:27Z",
+      "id": "evt-20260608T155127Z-f80f543d",
+      "idempotency_key": "REVIEW:phase-7.1-single-host-n-plus-m-runtime:approved:codex",
       "metadata": {},
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "approved",
-      "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
+      "summary": "Approved after closeout. Reviewed mac-claude Round 3 commits 758bd8c and 5a68189; previous blockers fixed. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Separate operator fix repaired agent-report fallback/parser chain for future handoffs.",
       "target": "mac-claude",
-      "task": "phase-5.4-workspace-doctor-harness-init",
+      "task": "phase-7.1-single-host-n-plus-m-runtime",
       "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260601T122818Z-b2430fbc task=phase-5.4-workspace-doctor-harness-init actor=codex target=mac-claude status=approved"
+      "visible_header": "[REVIEW] id=evt-20260608T155127Z-f80f543d task=phase-7.1-single-host-n-plus-m-runtime actor=codex target=mac-claude status=approved"
     },
     {
       "actor": "codex-operator",
       "artifacts": [],
       "branch": null,
       "causation_id": null,
-      "created_at": "2026-06-01T12:28:18Z",
-      "id": "evt-20260601T122818Z-abc718fd",
-      "idempotency_key": "CLOSE:phase-5.4-workspace-doctor-harness-init:done:codex-operator",
+      "created_at": "2026-06-08T15:51:33Z",
+      "id": "evt-20260608T155133Z-6658d6b5",
+      "idempotency_key": "CLOSE:phase-7.1-single-host-n-plus-m-runtime:done:codex-operator",
       "metadata": {
         "force_reason": null
       },
@@ -187,76 +193,78 @@
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "done",
-      "summary": "codex-operator closed phase-5.4-workspace-doctor-harness-init",
+      "summary": "codex-operator closed phase-7.1-single-host-n-plus-m-runtime",
       "target": null,
-      "task": "phase-5.4-workspace-doctor-harness-init",
+      "task": "phase-7.1-single-host-n-plus-m-runtime",
       "type": "CLOSE",
-      "visible_header": "[CLOSE] id=evt-20260601T122818Z-abc718fd task=phase-5.4-workspace-doctor-harness-init actor=codex-operator status=done"
+      "visible_header": "[CLOSE] id=evt-20260608T155133Z-6658d6b5 task=phase-7.1-single-host-n-plus-m-runtime actor=codex-operator status=done"
     },
     {
-      "actor": "mac-omp",
-      "artifacts": [],
-      "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+      "actor": "operator",
+      "artifacts": [
+        "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md"
+      ],
+      "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
       "causation_id": null,
-      "created_at": "2026-06-02T17:56:04Z",
-      "id": "evt-20260602T175604Z-4af37793",
-      "idempotency_key": "ACCEPT:phase-6.1-omp-smoke:running:mac-omp",
+      "created_at": "2026-06-08T17:15:04Z",
+      "id": "evt-20260608T171504Z-d6afdf5c",
+      "idempotency_key": "ASSIGN:phase-7.1.1-single-platform-bridge-process:assigned:operator",
       "metadata": {
         "force_reason": null,
-        "session": "auto-mac-omp-1780422963"
+        "session": "operator-handoff-7.1.1"
       },
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
-      "status": "running",
-      "summary": "mac-omp accepted phase-6.1-omp-smoke",
-      "target": "mac-omp",
-      "task": "phase-6.1-omp-smoke",
-      "type": "ACCEPT",
-      "visible_header": "[ACCEPT] id=evt-20260602T175604Z-4af37793 task=phase-6.1-omp-smoke actor=mac-omp target=mac-omp status=running branch=agents/mac-omp/phase-6.1-omp-smoke"
+      "status": "assigned",
+      "summary": "operator assigned phase-7.1.1-single-platform-bridge-process to mac-claude",
+      "target": "mac-claude",
+      "task": "phase-7.1.1-single-platform-bridge-process",
+      "type": "ASSIGN",
+      "visible_header": "[ASSIGN] id=evt-20260608T171504Z-d6afdf5c task=phase-7.1.1-single-platform-bridge-process actor=operator target=mac-claude status=assigned branch=agents/mac-claude/phase-7.1.1-single-platform-bridge-process artifacts=docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md"
     },
     {
-      "actor": "mac-omp",
+      "actor": "mac-claude",
       "artifacts": [
         "docs/project-harness/current/closeout-packet.md"
       ],
       "branch": null,
       "causation_id": null,
-      "created_at": "2026-06-02T17:59:04Z",
-      "id": "evt-20260602T175904Z-0b6bfe44",
-      "idempotency_key": "RESULT:phase-6.1-omp-smoke:closeout_requested:mac-omp",
+      "created_at": "2026-06-08T18:07:06Z",
+      "id": "evt-20260608T180706Z-562aab2c",
+      "idempotency_key": "RESULT:phase-7.1.1-single-platform-bridge-process:closeout_requested:mac-claude",
       "metadata": {},
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "closeout_requested",
-      "summary": "Closeout requested for phase-6.1-omp-smoke",
-      "target": "codex",
-      "task": "phase-6.1-omp-smoke",
+      "summary": "Closeout requested for phase-7.1.1-single-platform-bridge-process",
+      "target": "operator",
+      "task": "phase-7.1.1-single-platform-bridge-process",
       "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260602T175904Z-0b6bfe44 task=phase-6.1-omp-smoke actor=mac-omp target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
+      "visible_header": "[RESULT] id=evt-20260608T180706Z-562aab2c task=phase-7.1.1-single-platform-bridge-process actor=mac-claude target=operator status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
     },
     {
-      "actor": "codex",
+      "actor": "operator",
       "artifacts": [],
       "branch": null,
       "causation_id": null,
-      "created_at": "2026-06-05T05:59:32Z",
-      "id": "evt-20260605T055932Z-760f852b",
-      "idempotency_key": "REVIEW:phase-6.1-omp-smoke:approved:codex",
+      "created_at": "2026-06-08T18:08:27Z",
+      "id": "evt-20260608T180827Z-9843cf79",
+      "idempotency_key": "REVIEW:phase-7.1.1-single-platform-bridge-process:approved:operator",
       "metadata": {},
       "parent": null,
       "pr": null,
       "publish_status": "local_only",
       "schema_version": 1,
       "status": "approved",
-      "summary": "codex marked phase-6.1-omp-smoke approved",
-      "target": "mac-omp",
-      "task": "phase-6.1-omp-smoke",
+      "summary": "Approved with documented caveats. 7.1.1 plan main goals achieved: bridge merged to 1 process per platform, agentd remains 1 process per agent. 269/269 tests pass (258 legacy + 11 new). ps shows 6 processes (1 coord + 1 discord-bridge + 4 agentd). End-to-end smoke via coord CLI request submit / agentd claim / claude CLI / report done all pass in 11.6s. KOOK bridge / cross-agent mention / Discord real-message-reply deferred per plan. Self-review caveat: codex unavailable, omp plan review was operator-authored (see review-feedback-2026-06-09-omp-plan.md); operator-needs-backlog entry filed for per-plan-criterion review checklist.",
+      "target": "mac-claude",
+      "task": "phase-7.1.1-single-platform-bridge-process",
       "type": "REVIEW",
-      "visible_header": "[REVIEW] id=evt-20260605T055932Z-760f852b task=phase-6.1-omp-smoke actor=codex target=mac-omp status=approved"
+      "visible_header": "[REVIEW] id=evt-20260608T180827Z-9843cf79 task=phase-7.1.1-single-platform-bridge-process actor=operator target=mac-claude status=approved"
     }
   ]
 }

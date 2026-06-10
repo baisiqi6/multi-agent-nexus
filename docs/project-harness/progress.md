@@ -2,6 +2,72 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-10
+
+### Phase 7.1.1 后续维护 + 回归 (mac-* agentd)
+
+> **上下文**: phase-7.1.1 closeout 后, operator 在本机做 Discord reply path + 跨 agent handoff 回归, 发现 4 项遗留需要修. 该 commit 落在 phase-7.1.1 的 worker 分支 `agents/mac-claude/phase-7.1.1-single-platform-bridge-process` 上.
+
+#### 修改
+
+1. **mac-opencode context 窗口对齐** (`agents.toml`, runtime config 不入仓)
+   - `context_recent_messages: 10 → 40`
+   - `context_budget_chars: 4000 → 12000`
+   - 理由: mac-opencode 原来只有其他 agent 的 1/3 context, 跨 agent handoff 时 `[handoff]` 头部可能被截断
+
+2. **`{available_peers}` 占位符 + loader 注入** (`multinexus/config.py`)
+   - 新增 `_render_system_prompt_placeholders()` helper, 支持 `{available_peers}` 和 `{self_id}` 占位符
+   - 4 个 mac agent 的 `system_prompt` 里硬编码的 "可用 agent: xxx" 全部替换为 `{available_peers}`
+   - 行为: 从 `agents.toml` 其他 `[[agents]]` 自动生成 peer 列表 (不含自己, 含所有其它 agent 包括 win-*)
+   - 决策记录: 保留 win-* 在 peer 列表内 (F 阶段腾讯云部署后自动生效, 不用改 toml)
+
+3. **`agents.toml` mac.sh 路径漂移修复** (4 处 `system_prompt` block, runtime config 不入仓)
+   - `multi-agent-coordinator` → `coordinate` (项目实际目录名)
+   - 全仓 grep 验证 `.py / .toml / .yaml / .sh / .json` 中残留 = 0 处
+   - 历史背景: 昨天 `discord.bridge.err.log` 里 `invalid choice: 'runtime'` 错误的根因是 mac.sh 旧版本 + agents.toml 路径漂移双重叠加. agent 按旧 prompt 去 `multi-agent-coordinator/skills/coordinate-operator/scripts/mac.sh runtime ...`, 旧 binary 不认识 `runtime` 子命令. 12 小时前已自动停止.
+
+4. **4 个 mac agentd 重启加载新 prompt** (运维动作, 不入仓)
+   - `launchctl kickstart -k` 重启, **注意 launchd label 是带 `.agentd` 后缀的** (plist Label 是 `com.multinexus.mac-claude`, launchd 注册的是 `com.multinexus.mac-claude.agentd`)
+   - 新 PID: 48703 / 48706 / 48709 / 48712 (启动 14:35:28)
+   - 启动日志全部 `Agentd worker started`, 5 秒实时扫描 0 新错误
+
+#### 验证
+
+- **C — Discord reply path 终验**: PASS
+  - 测试消息: `@Mclaucode 报一下时间`, message_id `1514143348888174593`
+  - 链路 22 秒: `request.received (05:45:06) → job.claimed (05:45:08) → job.completed (05:45:28)`
+  - jobs 表 `request:48fd85f1-10bd-4dc0-af81-179ce60c42c3` status=done
+  - 0 处 "Job done" / "✅ Job 完成" 卡片
+- **E — 跨 agent handoff 测试**: PASS
+  - 测试文案: `@Mac Codex 请用 [handoff] @Mac Claude 让它只回复 "E-HANDOFF-OK"`
+  - 5 个 job 时序: codex 收到指令 → 生成 handoff → bridge 路由 → claude 回复
+  - handoff 链路总耗时 54 秒 (含两次手动触发间隔)
+  - 无 mention cascade, 无 "Job done" 残留
+- 配置加载相关轻量回归: 27 tests OK
+
+#### 已知非阻塞观察
+
+- `events` 表**没有专门的 `handoff.detected` 事件类型** — handoff 路由链路靠 jobs 表时间序列拼接追溯, 不是显式事件
+- `deliveries` 表 22 个 pending 是历史积累孤儿, agent reply 不走 deliveries 表 (走 Discord API 直发)
+
+#### 文档边界澄清
+
+- `~/.openclaw/plans/findings.md` 是 **OpenClaw 本地工作目录生成的笔记**, 不是 multinexus 项目文档, **不应 commit 到本仓**. 它的内容是关于 multinexus 的盘点, 但权威来源应该是本目录的 `progress.md` / `dogfood-feedback.md` / `mvp-checklist.json`
+- 类似地, `~/.openclaw/` 目录本身的命名属于历史遗留, 等 F 阶段腾讯云部署时统一重命名 (涉及 launchd plist / log 路径 / sqlite db 路径 / env var)
+
+#### 遗留 (deferred, 留作后续 phase 钩子)
+
+- KOOK bridge plist + `multinexus/kook/__main__.py` (与 phase-7.1.1 同样的 deferred, 参见原 review)
+- 跨 agent mention router 在 1 进程多 client 下的实际解析路径 (phase-7.1.1 closeout 已有, 但仅覆盖 mention map 同步机制)
+- `~/.openclaw/` 目录重命名
+- `:memory:*` / `docs/project-harness/current/` 等 runtime 产物补进 `.gitignore` (跟今天的 commit 无关, 单独处理)
+
+#### Harness state 回填
+
+- `docs/project-harness/events.jsonl`: 回填 phase-5.5 / phase-7.1 / phase-7.1.1 的 closeout 事件 (22 条), 这些是 harness 之前写过但未 commit 的
+- `docs/project-harness/harness-state.json`: `current_item` 从 phase-6.1-omp-smoke 更新到 phase-7.1.1, status `todo` (等待 human gate 后转 `done`)
+- **入仓原因**: harness state 是项目状态权威来源的一部分, 跟 working tree 同步后才能反映当前 phase
+
 ## 2026-06-09
 
 ### Phase 7.1.1: Single Platform Single Bridge Process — implementation + closeout

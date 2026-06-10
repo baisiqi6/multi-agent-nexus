@@ -36,6 +36,29 @@ def _as_bool(value: Any, default: bool = False) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
+def _render_system_prompt_placeholders(
+    template: str,
+    *,
+    agent_id: str,
+    peer_agents: list[str],
+) -> str:
+    """Replace ``{available_peers}`` (and friends) in the TOML system_prompt.
+
+    The roster is computed at config-load time from the other ``[[agents]]``
+    entries, so the prompt stays accurate when agents are added or removed.
+    """
+    if not template:
+        return template
+    replacements = {
+        "available_peers": "、".join(peer_agents) if peer_agents else "(none)",
+        "self_id": agent_id,
+    }
+    rendered = template
+    for key, value in replacements.items():
+        rendered = rendered.replace("{" + key + "}", value)
+    return rendered
+
+
 def _first_existing_command(*candidates: str | None) -> str:
     for candidate in candidates:
         if not candidate:
@@ -148,7 +171,15 @@ def _load_toml_agent(
         timeout=int(merged.get("timeout", 360)),
         first_byte_timeout=int(merged.get("first_byte_timeout", 120)),
         activity_timeout=int(merged.get("activity_timeout", 120)),
-        system_prompt=str(merged.get("system_prompt", "")),
+        system_prompt=_render_system_prompt_placeholders(
+            str(merged.get("system_prompt", "")),
+            agent_id=str(merged.get("id") or agent_id),
+            peer_agents=[
+                str(a.get("display_name") or a.get("id"))
+                for a in agents
+                if str(a.get("id", "")) and str(a.get("id")) != str(merged.get("id") or agent_id)
+            ],
+        ),
         known_agents=known_agents,
         work_dir=str(Path(str(merged["work_dir"])).expanduser()) if merged.get("work_dir") else None,
         model=str(merged["model"]) if merged.get("model") else None,
