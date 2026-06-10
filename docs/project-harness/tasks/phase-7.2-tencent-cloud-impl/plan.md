@@ -164,6 +164,10 @@ ALLOWED_PATTERNS=(
     '^ M agents\.toml$'
     '^ M docs/project-harness/tasks/phase-7\.2-tencent-cloud-impl/plan\.md$'
     '^ M docs/project-harness/tasks/phase-7\.2-tencent-cloud-impl/worker-bootstrap\.md$'
+    # **known unrelated phase-5.5 residue** (operator 决策 2026-06-10):
+    # rsync 已 exclude (P2.2), 但 file 仍在 working tree 作为 phase-5.5 任务遗物
+    # 不应在 7.2 部署里删除/移动, 显式豁免让 gate 不 abort
+    '^\?\? docs/project-harness/tasks/phase-5\.5-discord-message-rendering/worker-bootstrap\.md$'
 )
 ALLOWED_OK=true
 while IFS= read -r line; do
