@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import subprocess
+import sys
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +36,11 @@ class CoordinateRuntimeClient:
         self.db_path = db_path
         self.workspace_id = workspace_id
 
+        if sys.platform == "win32" and cli_path.endswith(".py"):
+            self._base_cmd = [sys.executable, cli_path]
+        else:
+            self._base_cmd = [cli_path]
+
     def _base_env(self) -> dict[str, str]:
         env = os.environ.copy()
         env["MAC_DB"] = self.db_path
@@ -55,7 +61,7 @@ class CoordinateRuntimeClient:
         """Submit a bridge request to coordinate. Returns the coordinate response dict."""
         workspace = workspace_id or self.workspace_id
         cmd = [
-            self.cli_path,
+            *self._base_cmd,
             "runtime", "request", "submit",
             workspace,
             "--target-agent", target_agent,
@@ -77,7 +83,7 @@ class CoordinateRuntimeClient:
     async def claim_job(self, *, agent_id: str) -> dict | None:
         """Claim the next pending job for this agent. Returns job dict or None."""
         cmd = [
-            self.cli_path,
+            *self._base_cmd,
             "runtime", "job", "claim",
             "--agent-id", agent_id,
         ]
@@ -96,7 +102,7 @@ class CoordinateRuntimeClient:
     ) -> dict:
         """Report job result back to coordinate."""
         cmd = [
-            self.cli_path,
+            *self._base_cmd,
             "runtime", "job", "report",
             job_id,
             "--agent-id", agent_id,
@@ -134,7 +140,7 @@ class CoordinateRuntimeClient:
     async def _get_job(self, job_id: str, *, workspace_id: str = "") -> dict | None:
         """Fetch a single job's current state from coordinate."""
         cmd = [
-            self.cli_path,
+            *self._base_cmd,
             "job", "list",
             "--workspace-id", workspace_id or self.workspace_id,
         ]
@@ -151,6 +157,8 @@ class CoordinateRuntimeClient:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=30,
                 env=self._base_env(),
             )
