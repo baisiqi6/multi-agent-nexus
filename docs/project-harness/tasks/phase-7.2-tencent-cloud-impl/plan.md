@@ -238,6 +238,32 @@ EOF
 | Python | system python3 (apt) — **不**用 pyenv（preflight H4 改迁方案：systemd unit 引用 system python） |
 | 路径 | `/opt/coordinate/`, `/opt/multinexus/`, `/var/lib/coordinate/`, `/etc/coordinate/`, `/etc/multinexus/` |
 
+### 1.1b mihomo DNS 前置检查（**真实部署发现 #5 — 不检查会导致后续网络全败**）
+
+**部署前**先确保 mihomo 代理 DNS 正常解析代理节点域名：
+
+```bash
+ssh ubuntu@kook-hermes-admin "python3 -c '
+import yaml
+with open(\"/home/ubuntu/.config/mihomo/config.yaml\") as f:
+    cfg = yaml.safe_load(f)
+dns = cfg.get(\"dns\", {})
+print(\"use-hosts:\", dns.get(\"use-hosts\"))
+print(\"proxy-server-nameserver:\", dns.get(\"proxy-server-nameserver\", []))
+print(\"nameserver-policy keys:\", list(dns.get(\"nameserver-policy\", {}).keys())[:5])
+print(\"MANAGED-CONFIG:\", any(\"MANAGED-CONFIG\" in l for l in open(\"/home/ubuntu/.config/mihomo/config.yaml\").readlines()))
+'"
+# 期望: use-hosts: false, proxy-server-nameserver: [8.8.8.8],
+#       nameserver-policy 含 +.discord.com etc., MANAGED-CONFIG: False
+
+# 如果不符合, 先修复:
+#   use-hosts: false
+#   proxy-server-nameserver: [8.8.8.8, 1.1.1.1]
+#   nameserver-policy: {+.discord.com: dns.google, +.discord.gg: dns.google, ...}
+#   注释 #!MANAGED-CONFIG 行
+# 然后 systemctl restart mihomo && test curl --proxy http://127.0.0.1:7890 https://discord.com/api/v10/gateway 200 OK
+```
+
 ### 1.2 装 coord repo 到 `/opt/coordinate`
 
 ```bash
@@ -262,9 +288,11 @@ rsync -avz --delete /Users/yinxin/projects/coordinate/ \
 # 腾讯云端 (KHC ssh + sudo): 创建 system user + 拷到 /opt
 ssh ubuntu@kook-hermes-admin <<'EOF'
 set -euo pipefail
-# **幂等**: user 存在时跳过 (id -u 返 0 = exists, || 后面才跑 adduser)
-id -u coord >/dev/null 2>&1 || sudo adduser --system --no-create-home --shell /usr/sbin/nologin coord
-id -u multinexus >/dev/null 2>&1 || sudo adduser --system --no-create-home --shell /usr/sbin/nologin multinexus
+# **真实部署发现 #3**: adduser --system 默认 group=nogroup, 需先建 group
+sudo groupadd --system coord 2>/dev/null || echo "coord group exists"
+sudo groupadd --system multinexus 2>/dev/null || echo "multinexus group exists"
+id -u coord >/dev/null 2>&1 || sudo adduser --system --no-create-home --shell /usr/sbin/nologin --ingroup coord coord
+id -u multinexus >/dev/null 2>&1 || sudo adduser --system --no-create-home --shell /usr/sbin/nologin --ingroup multinexus multinexus
 
 sudo mkdir -p /opt/coordinate /var/lib/coordinate /etc/coordinate
 
@@ -302,7 +330,8 @@ sudo -u coord /opt/coordinate/.venv/bin/pip install --upgrade pip
 
 # coord 装 [daemon] extra (含 discord.py >=2.3, bridge 进程需要)
 # 注意 [daemon] 用 quote 避免 shell glob 解释
-sudo -u coord /opt/coordinate/.venv/bin/pip install -e '/opt/coordinate[daemon]'
+# **真实部署发现 #6**: pip install 应在 multinexus user 传 ALL_PROXY, timeout 放宽到 20 分钟
+sudo -u coord bash -c 'export ALL_PROXY=http://127.0.0.1:7890; /opt/coordinate/.venv/bin/pip install -e "/opt/coordinate[daemon]"'
 EOF
 ```
 
@@ -349,7 +378,8 @@ sudo -u multinexus $PYTHON_BIN -m venv /opt/multinexus/.venv
 sudo -u multinexus /opt/multinexus/.venv/bin/pip install --upgrade pip
 
 # **关键**: multinexus **没有** pyproject.toml / setup.py, 用 requirements.txt
-sudo -u multinexus /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt
+# **真实部署发现 #6**: 需传 ALL_PROXY 给 multinexus user (无 proxy env)
+sudo -u multinexus bash -c 'export ALL_PROXY=http://127.0.0.1:7890; /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt'
 EOF
 
 **注意**：multinexus repo (`/opt/multinexus/`) **不**需要 coord group 读 —— 桥进程以 `User=multinexus` 跑，**只** multinexus 自己读写。**唯一**跨 user 共享的文件是 SQLite DB（`/var/lib/coordinate/coord.sqlite3`），由 1.2 段 group 方案处理。
@@ -548,6 +578,10 @@ User=coord
 Group=coord
 WorkingDirectory=/opt/coordinate
 EnvironmentFile=/etc/coordinate/coord.env
+# **真实部署发现 #1**: coord daemon 需 proxy 连 Discord gateway
+Environment="COORDINATOR_HTTP_PROXY=http://127.0.0.1:7890"
+Environment="HTTPS_PROXY=http://127.0.0.1:7890"
+Environment="ALL_PROXY=http://127.0.0.1:7890"
 ExecStart=/opt/coordinate/.venv/bin/coordinate --db /var/lib/coordinate/coord.sqlite3 serve --pump-interval 30
 # **blocker 1**: UMask=0007 让 coord daemon 创建的 SQLite 文件 inherit group=coord
 # (配 chmod 2770 + setgid, 配合 /usr/local/bin/coord-local 的 umask 0007)
@@ -596,6 +630,10 @@ SupplementaryGroups=coord
 UMask=0007
 WorkingDirectory=/opt/multinexus
 EnvironmentFile=/etc/multinexus/discord.env
+# **真实部署发现 #2**: bridge 需 proxy 连 Discord gateway
+Environment="MULTINEXUS_HTTP_PROXY=http://127.0.0.1:7890"
+Environment="HTTPS_PROXY=http://127.0.0.1:7890"
+Environment="ALL_PROXY=http://127.0.0.1:7890"
 ExecStart=/opt/multinexus/.venv/bin/python /opt/multinexus/multinexus.py --config /opt/multinexus/agents.toml --platform discord
 Restart=always
 RestartSec=5
@@ -627,6 +665,25 @@ ssh ubuntu@kook-hermes-admin "stat -c '%a %U %G %s %n' /etc/coordinate/coord.env
 # 应当: 640 root coord <size> /etc/coordinate/coord.env
 #        640 root multinexus <size> /etc/multinexus/discord.env
 # size > 100
+```
+
+### 2.4 创建 `discord-nexus` workspace（**真实部署发现 #4 — bridge submit 无 workspace 会报 unknown workspace**）
+
+```bash
+# Mac 端调 coord-ssh，或直接 ssh 远端用 coord-local
+ssh ubuntu@kook-hermes-admin "/usr/local/bin/coord-local workspace add discord-nexus \
+    --name discord-nexus \
+    --path /opt/multinexus \
+    --harness-root /opt/multinexus/docs/project-harness \
+    --default-bus discord_webhook \
+    --default-destination 1507289970459803738 \
+    --base-branch feature/multi-bot \
+    --branch-namespace agents"
+
+# 验证
+ssh ubuntu@kook-hermes-admin "sudo sqlite3 /var/lib/coordinate/coord.sqlite3 \
+    'SELECT id, name, default_bus FROM workspaces'"
+# 期望: discord-nexus|discord-nexus|discord_webhook
 ```
 
 ## 步骤 3：Mac 写 wrapper + 改 agents.toml
