@@ -10,6 +10,7 @@ import argparse
 import asyncio
 import logging
 import signal
+import sys
 
 from ..config import load_config
 from .worker import AgentdWorker
@@ -41,8 +42,9 @@ def main(argv: list[str] | None = None) -> None:
         log.info("Shutting down agentd for %s", config.id)
         worker.stop()
 
-    loop.add_signal_handler(signal.SIGINT, _shutdown)
-    loop.add_signal_handler(signal.SIGTERM, _shutdown)
+    if sys.platform != "win32":
+        loop.add_signal_handler(signal.SIGINT, _shutdown)
+        loop.add_signal_handler(signal.SIGTERM, _shutdown)
 
     try:
         log.info("agentd worker starting: agent=%s", config.id)
