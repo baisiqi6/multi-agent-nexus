@@ -3,6 +3,7 @@
 .env.*
 config.yaml
 agents.toml
+agents.toml.bak
 
 # Runtime data
 data/
