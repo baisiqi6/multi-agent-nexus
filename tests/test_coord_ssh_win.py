@@ -3,12 +3,11 @@
 import json
 import shlex
 import sys
+import unittest
 from unittest.mock import patch
 
-import pytest
 
-
-class TestCoordSshWinQuoting:
+class TestCoordSshWinQuoting(unittest.TestCase):
     """Verify shlex.quote produces POSIX-shell-safe strings for coord-local args."""
 
     def test_simple_args(self):
@@ -54,7 +53,7 @@ class TestCoordSshWinQuoting:
         assert parsed["duration_ms"] == 5000
 
 
-class TestAgentdWindowsSignalGuard:
+class TestAgentdWindowsSignalGuard(unittest.TestCase):
     """Verify __main__.py doesn't call add_signal_handler on win32."""
 
     def test_platform_guard_present(self):
@@ -73,7 +72,7 @@ class TestAgentdWindowsSignalGuard:
                 assert "sys.platform" in above, f"add_signal_handler at line {i+1} not guarded"
 
 
-class TestCoordinateClientBaseCmd:
+class TestCoordinateClientBaseCmd(unittest.TestCase):
     """Verify _base_cmd expansion for .py wrapper on Windows."""
 
     def test_py_path_on_windows_expands_to_sys_executable(self):
@@ -110,7 +109,7 @@ class TestCoordinateClientBaseCmd:
             assert client._base_cmd == ["/usr/local/bin/coord-local"]
 
 
-class TestCoordSshWinStdinPipe:
+class TestCoordSshWinStdinPipe(unittest.TestCase):
     """Verify coord-ssh-win.py uses stdin pipe on Windows to avoid list2cmdline mangling."""
 
     def test_windows_uses_stdin_pipe(self):
@@ -137,4 +136,3 @@ class TestCoordSshWinStdinPipe:
         json_arg = tokens[tokens.index("--result-json") + 1]
         parsed = json.loads(json_arg)
         assert parsed["response_text"] == "C:\\Users\\ADMIN\\path 中文 'quoted'"
-
