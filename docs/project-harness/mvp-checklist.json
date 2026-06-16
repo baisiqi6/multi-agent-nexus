@@ -594,6 +594,39 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-8-preflight-dogfood-cleanup",
+      "title": "Phase 8 Preflight Dogfood Cleanup",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md. The task must make live policy pumping safe, prevent task handoff when the target checklist item is missing or unmutable, and synchronize dogfood-feedback.md statuses without touching tokens, deployment services, or real agents.toml.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-8-github-automation-loop"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md",
+        "worker_bootstrap": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/worker-bootstrap.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
