@@ -559,6 +559,41 @@
         "ttl_minutes": 120,
         "released_at": "2026-06-08T18:09:10Z"
       }
+    },
+    {
+      "id": "phase-8-github-automation-loop",
+      "title": "Phase 8 GitHub Automation Loop",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-github-automation-loop/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-github-automation-loop/plan.md. MVP must scan own-repo GitHub issues, route them through operator triage, assign worker tasks, require the worker host to push its own branch, let coordinate verify/link/create PRs, and preserve the human merge gate.",
+      "blocked_by": [
+        "phase-7.2-multi-host-agent-runtime"
+      ],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.2-multi-host-agent-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "source_plan": "/Users/yinxin/.claude/plans/frolicking-popping-llama.md",
+        "plan": "docs/project-harness/tasks/phase-8-github-automation-loop/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
