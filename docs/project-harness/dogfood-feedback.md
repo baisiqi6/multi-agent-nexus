@@ -22,11 +22,11 @@
 
 ### 2. 历史 lifecycle 事件被新协议补发到 Discord
 
-- 状态：open
+- 状态：fixed
 - 原始现象：Phase 5.3 dogfood 时，`policy pump-events` 因 message key 变化，为历史 Phase 5.1 lifecycle 事件补发了一条新的 Discord 消息。
 - 影响：不会再触发 worker 执行，但会造成频道噪声，并让人误以为旧任务刚刚发生。
-- 当前处理：已记录到 `multi-agent-coordinator/docs/operator-needs-backlog.md`。
-- 待修方向：`policy pump-events` 增加 `--since-event-id`、`--created-after`、`--task-id` 或 migration guard。
+- 修复：Phase 8 preflight cleanup 在 `coordinate` 中让 live 平台的 broad `policy pump-events` fail closed；需要 `--task-id` / `--event-type` 过滤，或显式 `--allow-backfill`。
+- 验证：`coordinate` 新增 policy tests 覆盖 `--limit 1` 单独使用不再被接受为 live “latest event” 投递；`policy create-deliveries <event-id>` 保持单事件投递路径。
 
 ### 3. Managed agent 缺少稳定的中途进展通道
 
@@ -57,10 +57,11 @@
 
 ### 6. Discord 可见消息仍偏原始文本
 
-- 状态：open
+- 状态：fixed
 - 原始现象：coordinator 的 handoff、state、lifecycle、review summary 仍以大段纯文本为主。结构化字段存在，但没有充分利用 Discord embeds/cards/fields。
 - 影响：群聊可读性差，人工扫描成本高；状态、owner、branch、风险、下一步等信息没有视觉层级。
-- 建议方向：新增 Discord renderer，把内部 event/delivery payload 渲染成 Discord embeds。
+- 修复：Phase 5.5 已在 `coordinate` 增加 Discord rendering 层，支持把 plan / state / handoff / lifecycle / review 等 delivery payload 渲染为 Discord embeds，同时保留 `[handoff]` / `[lifecycle]` 协议正文。
+- 验证：`coordinate` 的 `discord_rendering.py` 与 `tests/test_discord_rendering.py` 覆盖卡片渲染；`multinexus` 文档已声明 Discord 卡片只是展示层，协议仍以 content 为准。
 - 设计原则：
   - `[handoff]` 和 `[lifecycle]` 这类需要触发 bot 的协议行仍保留纯文本正文，避免破坏触发规则。
   - 状态、review、done、progress、doctor 这类面向人看的消息用 embeds fields 展示。
@@ -78,19 +79,21 @@
 
 ### 8. Phase 7 计划文件存在但 checklist 缺项
 
-- 状态：mitigated
+- 状态：fixed
 - 原始现象：Phase 7.1 已通过 Discord 派给 `mac-claude`，计划和 worker bootstrap 文件存在，但 `mvp-checklist.json` 没有 `phase-7.1-single-host-n-plus-m-runtime` item。
 - 影响：operator review 时 `assignment blocker` 失败，coordinate 只能记录 `harness.mutation_failed`，无法把真实审核结论写入任务状态。
 - 当前处理：已补 `phase-7-n-plus-m-runtime`、`phase-7.1-single-host-n-plus-m-runtime`、`phase-7.2-multi-host-agent-runtime` 三个 checklist item，并重新写入 Phase 7.1 blocker。
-- 待修方向：`task handoff` 前应验证 workspace harness 中存在同名 checklist item；不存在时拒绝派发或自动创建受控 item。
+- 修复：Phase 8 preflight cleanup 在 `coordinate.task handoff` 写入 `worker.handoff.prepared` 事件前读取 workspace harness，要求 `harness-state.json` 与 `mvp-checklist.json` 都能观察到目标 task；缺失时拒绝生成 handoff。
+- 验证：`coordinate` 新增 handoff tests 覆盖 checklist 缺项、harness state 缺失、成功路径不回退。
 
 ### 9. Phase 7.1 实现报告与验收口径不一致
 
-- 状态：open
+- 状态：mitigated
 - 原始现象：worker 报告“系统中只有一个 agentd 进程 per agent identity”，但代码实际在 Discord/KOOK bridge 内部各自启动 embedded `AgentDaemon`。
 - 影响：如果同一 agent 同时接 Discord 和 KOOK，仍可能出现两个 adapter/agentd 实例，未真正从 `n*m` 收敛到 `n+m`。
-- 当前处理：Phase 7.1 已通过 coordinate 标为 blocked；blocker 要求改成 `bridge -> coordinate -> standalone shared agentd`，并补 KOOK 启动/import 覆盖。
-- 待修方向：review checklist 应强制对照验收标准中的运行拓扑，而不是只看测试数和文件 diff。
+- 当前处理：Phase 7.1.1 / 7.2 A0 已把 Discord bridge 与 coordinate 迁到腾讯云，Mac / Windows agentd 通过 coordinate runtime claim/report 复用同一 agentd 进程；Discord 侧不再是 `n*m`。
+- 剩余：KOOK bridge 尚未启用，真正多 IM 平台同时接入同一 agentd 的验收仍 deferred 到后续阶段。
+- 待修方向：review checklist 继续强制对照运行拓扑；KOOK 启用时必须验证同一 agent 不再启动第二个 adapter 常驻实例。
 
 ### 10. Auto accept report can hide missing execution report
 
@@ -99,6 +102,16 @@
 - 影响：operator 能在 Discord 看到 worker 完成说明，但 coordinate 任务状态仍停留在 running/accept，review 入口断开。
 - 当前处理：MultiNexus runtime fallback 改成只把 `done`/`blocker`/`progress` 算作执行结果 report；单独的 `accept` 不再阻止 fallback 发送 progress report。
 - 待修方向：worker 仍必须显式输出 `[agent-report] action=done ...` 或运行 `assignment closeout`；系统不会从纯自然语言推断完成。
+
+## 2026-06-17
+
+### 11. A0 多主机 handoff bootstrap 使用服务器部署路径
+
+- 状态：open
+- 原始现象：Phase 8 preflight cleanup 通过真实 Discord / coordinate / bridge / agentd 链路派给 `mac-claude`。第一次失败是服务器 bridge 私有 `agents.toml` 仍指向 Mac 本机路径，导致 bridge 读不到 bootstrap；修正服务器 `coordinator_db_path=/var/lib/coordinate/coord.sqlite3` 与 `coordinator_workspace_path=/opt/multinexus` 后，第二次 handoff 能读到 bootstrap。
+- 新问题：bootstrap 内容仍把 worker 执行目录写成服务器部署副本 `/opt/multinexus`，但真实 worker 跑在 Mac agentd，源码工作区是 `/Users/yinxin/projects/multinexus`。worker 正确报告 blocker，没有切分支或写错 DB。
+- 影响：A0 形态下“bridge/coordinate 在服务器，agentd 在宿主机”已经跑通普通消息，但 worker handoff 还缺少 host-aware execution profile；不能把 `/opt/multinexus` 部署副本当作开发 source of truth。
+- 待修方向：coordinate / multinexus 需要区分 delivery-side workspace path（服务器用于读取 bootstrap）与 target-agent execution workspace path（Mac/Windows 本机源码路径），并在 handoff bootstrap 中使用目标宿主机的 coordinator wrapper 与 repo path。
 
 ## 后续建议排期
 
