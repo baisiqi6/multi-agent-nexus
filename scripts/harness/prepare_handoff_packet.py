@@ -24,7 +24,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Prepare a handoff packet for a checklist item.")
     parser.add_argument("--item", required=True, help="Checklist item id, e.g. mvp-003")
     parser.add_argument("--target", required=True, help="Target owner/agent label")
-    parser.add_argument("--actor", default="coordinator", help="Actor requesting the handoff")
+    parser.add_argument("--actor", default="operator", help="Actor requesting the handoff")
     parser.add_argument("--reason", default="", help="Why the handoff is needed")
     parser.add_argument("--date", default=today(), help="ISO date override")
     args = parser.parse_args()

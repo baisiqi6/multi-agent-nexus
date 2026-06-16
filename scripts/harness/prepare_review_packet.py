@@ -105,7 +105,7 @@ def main() -> int:
     append_event(
         "REVIEW",
         task=args.item,
-        actor=item.get("owner") or "coordinator",
+        actor=item.get("owner") or "operator",
         target=args.reviewer,
         status="requested",
         artifacts=[rel(packet_path)],

@@ -112,7 +112,7 @@ def main() -> int:
     append_event(
         "BLOCKER",
         task=args.item,
-        actor=args.actor or item.get("owner") or "coordinator",
+        actor=args.actor or item.get("owner") or "operator",
         target="human",
         status="blocked",
         artifacts=[rel(packet_path)],

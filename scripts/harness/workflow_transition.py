@@ -388,7 +388,7 @@ def build_parser() -> argparse.ArgumentParser:
     assign.add_argument("--item", required=True)
     assign.add_argument("--owner", required=True)
     assign.add_argument("--session", required=True)
-    assign.add_argument("--actor", default="coordinator")
+    assign.add_argument("--actor", default="operator")
     assign.add_argument("--branch", default=None)
     assign.add_argument("--lease-minutes", type=int, default=None)
     assign.add_argument("--summary", default=None)
@@ -451,7 +451,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     done = sub.add_parser("mark-done", help="Close an item after approved review.")
     done.add_argument("--item", required=True)
-    done.add_argument("--actor", default="coordinator")
+    done.add_argument("--actor", default="operator")
     done.add_argument("--summary", default=None)
     done.add_argument("--artifact", default=None)
     done.add_argument("--verification", default=None)

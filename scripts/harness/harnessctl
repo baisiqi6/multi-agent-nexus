@@ -17,7 +17,7 @@ usage() {
 Usage: scripts/harness/harnessctl <command> [options]
 
 Workflow commands:
-  assign <item-id> <owner> <session-id> [--actor coordinator] [--branch BRANCH]
+  assign <item-id> <owner> <session-id> [--actor operator] [--branch BRANCH]
                                Assign an item and claim a lease without starting implementation
   accept <item-id> <owner> <session-id> [--branch BRANCH]
                                Accept an assigned item and move it to running
@@ -31,7 +31,7 @@ Workflow commands:
                                Renew current owner/session lease
   unblock <item-id> <actor> --decision TEXT [--force --reason TEXT]
                                Move a blocked item back to todo with an auditable decision
-  handoff <item-id> <target> [--actor coordinator] [--reason TEXT]
+  handoff <item-id> <target> [--actor operator] [--reason TEXT]
                                Generate current/handoff-packet.md and event
   review-result <item-id> <reviewer> <approved|changes_requested|blocked> [--summary TEXT]
                                Record reviewer decision
@@ -143,7 +143,7 @@ EOF
         ;;
     mark-done)
         item="${2:-}"
-        actor="coordinator"
+        actor="operator"
         [[ -n "${item}" ]] || { usage; exit 1; }
         if [ $# -ge 3 ] && [[ "${3}" != -* ]]; then
             actor="${3}"
