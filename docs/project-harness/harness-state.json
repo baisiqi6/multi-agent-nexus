@@ -1,43 +1,9 @@
 {
   "project": "multinexus",
   "harness_root": "docs/project-harness",
-  "generated_at": "2026-06-17T10:46:37Z",
+  "generated_at": "2026-06-17T10:49:08Z",
   "current_status": "",
-  "current_item": {
-    "id": "phase-8-host-profile-handoff-smoke",
-    "title": "Phase 8 Host Profile Handoff Smoke",
-    "status": "todo",
-    "owner": "operator",
-    "selected_in_session": "host-profile-smoke-20260617",
-    "updated_at": "2026-06-17",
-    "workflow": {
-      "status": "assigned",
-      "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup",
-      "updated_at": "2026-06-17"
-    },
-    "lease": {
-      "owner": "operator",
-      "session": "host-profile-smoke-20260617",
-      "acquired_at": "2026-06-17T10:46:37Z",
-      "expires_at": "2026-06-17T12:46:37Z",
-      "ttl_minutes": 120
-    },
-    "active_lease": {
-      "owner": "operator",
-      "session": "host-profile-smoke-20260617",
-      "acquired_at": "2026-06-17T10:46:37Z",
-      "expires_at": "2026-06-17T12:46:37Z",
-      "ttl_minutes": 120
-    },
-    "artifacts": {
-      "plan": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md",
-      "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup"
-    },
-    "review": {
-      "decision": null
-    },
-    "plan_path": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md"
-  },
+  "current_item": null,
   "checklist_summary": {
     "todo": 5,
     "doing": 0,
@@ -45,8 +11,8 @@
     "blocked": 0
   },
   "workflow_summary": {
-    "assigned": 1,
     "closed": 11,
+    "released": 1,
     "todo": 4
   },
   "paths": {
@@ -86,28 +52,6 @@
   },
   "open_risks": [],
   "recent_events": [
-    {
-      "actor": "mac-claude",
-      "artifacts": [
-        "docs/project-harness/current/closeout-packet.md"
-      ],
-      "branch": null,
-      "causation_id": null,
-      "created_at": "2026-06-08T15:51:20Z",
-      "id": "evt-20260608T155120Z-681e1355",
-      "idempotency_key": "RESULT:phase-7.1-single-host-n-plus-m-runtime:closeout_requested:mac-claude",
-      "metadata": {},
-      "parent": null,
-      "pr": null,
-      "publish_status": "local_only",
-      "schema_version": 1,
-      "status": "closeout_requested",
-      "summary": "Closeout requested for phase-7.1-single-host-n-plus-m-runtime",
-      "target": "codex",
-      "task": "phase-7.1-single-host-n-plus-m-runtime",
-      "type": "RESULT",
-      "visible_header": "[RESULT] id=evt-20260608T155120Z-681e1355 task=phase-7.1-single-host-n-plus-m-runtime actor=mac-claude target=codex status=closeout_requested artifacts=docs/project-harness/current/closeout-packet.md"
-    },
     {
       "actor": "codex",
       "artifacts": [],
@@ -263,6 +207,28 @@
       "task": "phase-8-host-profile-handoff-smoke",
       "type": "ASSIGN",
       "visible_header": "[ASSIGN] id=evt-20260617T104637Z-346bbd6b task=phase-8-host-profile-handoff-smoke actor=operator target=operator status=assigned branch=agents/mac-claude/phase-8-preflight-dogfood-cleanup artifacts=docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md"
+    },
+    {
+      "actor": "operator",
+      "artifacts": [],
+      "branch": null,
+      "causation_id": null,
+      "created_at": "2026-06-17T10:49:08Z",
+      "id": "evt-20260617T104908Z-8bb83d38",
+      "idempotency_key": "RELEASE:phase-8-host-profile-handoff-smoke:released:operator",
+      "metadata": {
+        "force_reason": "Release operator smoke lease so target worker can accept"
+      },
+      "parent": null,
+      "pr": null,
+      "publish_status": "local_only",
+      "schema_version": 1,
+      "status": "released",
+      "summary": "operator released phase-8-host-profile-handoff-smoke",
+      "target": null,
+      "task": "phase-8-host-profile-handoff-smoke",
+      "type": "RELEASE",
+      "visible_header": "[RELEASE] id=evt-20260617T104908Z-8bb83d38 task=phase-8-host-profile-handoff-smoke actor=operator status=released"
     }
   ]
 }
