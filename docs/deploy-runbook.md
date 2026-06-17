@@ -50,7 +50,9 @@ scripts/deploy-server.sh multinexus
 Run smoke only:
 
 ```bash
-scripts/server-smoke.sh
+scripts/deploy-server.sh status
+# equivalent lower-level command:
+# scripts/server-smoke.sh
 ```
 
 Useful options:

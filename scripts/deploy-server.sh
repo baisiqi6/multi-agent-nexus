@@ -16,7 +16,7 @@ SKIP_INSTALL=0
 usage() {
   cat <<'USAGE'
 Usage:
-  scripts/deploy-server.sh [all|coordinate|multinexus] [options]
+  scripts/deploy-server.sh [status|all|coordinate|multinexus] [options]
 
 Options:
   --host HOST              SSH host alias. Default: kook-hermes-admin
@@ -36,7 +36,7 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    all|coordinate|multinexus)
+    status|all|coordinate|multinexus)
       COMPONENT="$1"
       shift
       ;;
@@ -260,6 +260,10 @@ require_cmd ssh
 require_cmd rsync
 
 case "$COMPONENT" in
+  status)
+    "$SCRIPT_DIR/server-smoke.sh" --host "$HOST"
+    exit 0
+    ;;
   coordinate)
     deploy_coordinate
     ;;
