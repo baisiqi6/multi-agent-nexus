@@ -107,11 +107,28 @@
 
 ### 11. A0 多主机 handoff bootstrap 使用服务器部署路径
 
-- 状态：open
+- 状态：fixed
 - 原始现象：Phase 8 preflight cleanup 通过真实 Discord / coordinate / bridge / agentd 链路派给 `mac-claude`。第一次失败是服务器 bridge 私有 `agents.toml` 仍指向 Mac 本机路径，导致 bridge 读不到 bootstrap；修正服务器 `coordinator_db_path=/var/lib/coordinate/coord.sqlite3` 与 `coordinator_workspace_path=/opt/multinexus` 后，第二次 handoff 能读到 bootstrap。
 - 新问题：bootstrap 内容仍把 worker 执行目录写成服务器部署副本 `/opt/multinexus`，但真实 worker 跑在 Mac agentd，源码工作区是 `/Users/yinxin/projects/multinexus`。worker 正确报告 blocker，没有切分支或写错 DB。
 - 影响：A0 形态下“bridge/coordinate 在服务器，agentd 在宿主机”已经跑通普通消息，但 worker handoff 还缺少 host-aware execution profile；不能把 `/opt/multinexus` 部署副本当作开发 source of truth。
-- 待修方向：coordinate / multinexus 需要区分 delivery-side workspace path（服务器用于读取 bootstrap）与 target-agent execution workspace path（Mac/Windows 本机源码路径），并在 handoff bootstrap 中使用目标宿主机的 coordinator wrapper 与 repo path。
+- 修复：`coordinate` 增加 `workspace_host_profiles` 与 `workspace host-profile` CLI，`task handoff` 根据目标 agent 的 `host_id` 渲染 worker bootstrap；`multinexus` bridge 使用 `assignment accept` 返回的 `bootstrap_text`，不再从服务器 `/opt/multinexus` 读取 worker 执行提示。
+- 验证：真实 Discord handoff 给 `win-claude`，bootstrap / handoff 均使用 `C:\Users\ADMIN\projects\multinexus`，没有把 `/opt/multinexus` 当 worker 执行目录；job `request:651a60b4-327b-4aa7-95c6-b53e8bba7856` done，review approved 后 mark-done。
+
+### 12. Mac Claude agentd 运行环境缺少 Claude API proxy
+
+- 状态：open
+- 原始现象：host-profile smoke 派给 `mac-claude` 后，handoff path 已经正确使用 `/Users/yinxin/projects/multinexus`，但 adapter 执行失败：`Claude error: API Error: Unable to connect to API (ConnectionRefused)`。
+- 诊断：Mac shell 环境有 `ANTHROPIC_BASE_URL=http://127.0.0.1:15721` 与 `ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED`，但 15721 没有 listener；`claude -p "Reply with exactly: ok"` 本地 45 秒超时。当前失败是 Mac Claude CLI / 本地代理环境问题，不是 handoff/bootstrap 路径问题。
+- 影响：Mac worker handoff 可以 accept/claim，但实际 Claude 执行不可靠；会干扰后续用 `mac-claude` 做 coding worker 的 dogfood。
+- 待修方向：统一 Mac agentd launchd 环境中的 Claude proxy 配置，并加一个启动前/健康检查：Claude CLI 可用、proxy listener 存在、短 prompt 能在超时内返回。
+
+### 13. Job response_text 内的 `[agent-report] done` 没被摄取
+
+- 状态：open
+- 原始现象：`win-claude` smoke 的最终 `response_text` 末尾包含标准 `[agent-report] action=done ...` block，但 coordinate 事件里只出现 bridge 兜底 `progress.reported`：`adapter completed without a structured agent-report; operator should inspect the visible response`。
+- 影响：worker 的自然语言结果与 done block 已经回到 job result/Discord 可见层，但 lifecycle 没自动进入 done，需要 operator 手动 `review-result` + `mark-done` 收尾。
+- 当前处理：operator 已核对 job result，走 `assignment review-result` approved，再走 `assignment mark-done`，任务最终 closed。
+- 待修方向：bridge 在收到 agentd job `response_text` 后，应复用 agent-report parser 处理其中的结构化 block，或将拆出的 `[agent-report]` 独立发为 Discord message create，避免只写入 result text 后被 fallback 覆盖。
 
 ## 后续建议排期
 
@@ -119,3 +136,5 @@
 2. Maintenance: pump-events 历史 delivery 过滤
 3. Maintenance: agent progress CLI / worker 中途汇报通道
 4. Maintenance: handoff/closeout packet 可读性修复
+5. Maintenance: response_text 中的 `[agent-report]` 摄取修复
+6. Maintenance: Mac Claude CLI proxy / agentd launchd 健康检查

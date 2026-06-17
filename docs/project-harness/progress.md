@@ -2,6 +2,35 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-17
+
+### Phase 8 host-profile handoff smoke — dogfood closeout
+
+- **目标**: 验证 A0 形态下 `coordinate` / Discord bridge 跑在腾讯云、worker agentd 跑在各宿主机时，handoff bootstrap 使用目标宿主机自己的 repo path，而不是服务器部署副本 `/opt/multinexus`。
+- **代码/部署前提**:
+  - `coordinate` branch `agents/mac-claude/phase-8-preflight-dogfood-cleanup`
+    - `a9ba1c7` host-aware bootstrap / `workspace_host_profiles`
+    - `fb25b78` daemon internal pump guard
+    - `244f95f` relaxed handoff state preflight for summary state
+  - `multinexus` branch `agents/mac-claude/phase-8-preflight-dogfood-cleanup`
+    - `d315eea` bridge uses `assignment accept` returned `bootstrap_text`
+    - `7ef76aa` host-profile smoke task
+    - `8ca4e6e` smoke task lease release
+- **Host profiles verified**:
+  - `macbook-local`: `/Users/yinxin/projects/multinexus`, coordinator wrapper `/Users/yinxin/.local/bin/coord-ssh`
+  - `win-admin`: `C:\Users\ADMIN\projects\multinexus`, coordinator wrapper `python C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py`
+- **Mac handoff result**:
+  - Handoff bootstrap correctly used `/Users/yinxin/projects/multinexus` and did not leak `/opt/multinexus` as worker execution path.
+  - Execution blocked in environment: Mac Claude CLI could not reach local API proxy (`ConnectionRefused` / local `claude -p` timed out). This is recorded as dogfood feedback item 12.
+- **Windows handoff result**:
+  - Windows checkout was first synced from `agents/mac-claude/phase-7.2-multi-host-agent-runtime` to `agents/mac-claude/phase-8-preflight-dogfood-cleanup`.
+  - Handoff event `6bf3aad2-ea9d-4da3-8381-16cffa085214` generated bootstrap for `C:\Users\ADMIN\projects\multinexus`.
+  - Job `request:651a60b4-327b-4aa7-95c6-b53e8bba7856` was claimed by `win-claude` and completed `done` in ~97.5s.
+  - Worker result verified: Windows path present, `/opt/multinexus` not used as execution directory, branch matched, no source files/services/tokens touched.
+- **Lifecycle closeout**:
+  - Worker response included `[agent-report] action=done`, but coordinate did not ingest it as `agent.reported done`; bridge emitted fallback `progress.reported` instead. This is recorded as dogfood feedback item 13.
+  - Operator reviewed the visible result, recorded `assignment review-result ... approved`, then `assignment mark-done`; task `phase-8-host-profile-handoff-smoke` is closed on the remote harness.
+
 ## 2026-06-10
 
 ### Phase 7.1.1 后续维护 + 回归 (mac-* agentd)
