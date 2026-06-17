@@ -167,6 +167,12 @@ class TestCoordSshWinEnvConfig(unittest.TestCase):
             "-o",
             "IdentitiesOnly=yes",
             "-o",
+            "BatchMode=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "LogLevel=ERROR",
+            "-o",
             "ConnectTimeout=7",
             "ubuntu@124.221.111.209",
         ]
@@ -175,3 +181,16 @@ class TestCoordSshWinEnvConfig(unittest.TestCase):
         module = self._load_module()
         with patch.dict(os.environ, {"COORD_SSH_TIMEOUT_SECONDS": "bad"}, clear=True):
             assert module._ssh_timeout_seconds() == 30
+
+    def test_ssh_base_cmd_can_pin_known_hosts_file(self):
+        module = self._load_module()
+        env = {
+            "COORD_SSH_TARGET": "ubuntu@124.221.111.209",
+            "COORD_SSH_KNOWN_HOSTS_FILE": r"C:\Users\ADMIN\.ssh\known_hosts",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            cmd = module._ssh_base_cmd()
+
+        assert "-o" in cmd
+        assert r"UserKnownHostsFile=C:\Users\ADMIN\.ssh\known_hosts" in cmd
+        assert cmd[-1] == "ubuntu@124.221.111.209"

@@ -23,11 +23,20 @@ def _ssh_base_cmd() -> list[str]:
     identity_file = os.environ.get("COORD_SSH_IDENTITY_FILE", "").strip()
     if identity_file:
         cmd += ["-i", identity_file, "-o", "IdentitiesOnly=yes"]
+    known_hosts_file = os.environ.get("COORD_SSH_KNOWN_HOSTS_FILE", "").strip()
     cmd += [
         "-o",
+        "BatchMode=yes",
+        "-o",
+        "StrictHostKeyChecking=accept-new",
+        "-o",
+        "LogLevel=ERROR",
+        "-o",
         f"ConnectTimeout={_ssh_timeout_seconds()}",
-        os.environ.get("COORD_SSH_TARGET", DEFAULT_SSH_TARGET),
     ]
+    if known_hosts_file:
+        cmd += ["-o", f"UserKnownHostsFile={known_hosts_file}"]
+    cmd += [os.environ.get("COORD_SSH_TARGET", DEFAULT_SSH_TARGET)]
     return cmd
 
 
