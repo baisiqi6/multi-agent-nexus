@@ -14,6 +14,6 @@ def filtered_env(*, cwd: str | None = None) -> dict[str, str]:
         for key, value in os.environ.items()
         if not any(key.startswith(prefix) for prefix in strip_prefixes)
     }
-    if cwd:
+    if cwd and not IS_WIN:
         env["PWD"] = cwd
     return env
