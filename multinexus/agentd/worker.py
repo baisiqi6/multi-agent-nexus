@@ -200,7 +200,7 @@ class AgentdWorker:
 
     _ERROR_PREFIXES = (
         "Agent error:",
-        "OpenCode CLI failed", "OpenCode timed out",
+        "OpenCode CLI failed", "OpenCode timed out", "OpenCode returned no text",
         "Codex CLI failed", "Codex timed out", "Codex stopped responding",
         "Hermes CLI failed", "Hermes timed out",
         "Claude CLI failed", "Claude error:", "Claude timeout",

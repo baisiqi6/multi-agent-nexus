@@ -110,5 +110,29 @@ class OpenCodeAdapterRetryTests(unittest.TestCase):
 
         result = asyncio.run(run())
 
-        self.assertEqual(result.text, "(no response)")
+        self.assertEqual(
+            result.text,
+            "OpenCode returned no text (events=step_start,tool_use)",
+        )
         self.assertEqual(len(calls), 1)
+
+    def test_empty_success_eventually_fails_after_retries(self):
+        calls = []
+        processes = [
+            _FakeProcess([{"type": "step_start", "sessionID": f"s{i}"}])
+            for i in range(5)
+        ]
+
+        async def fake_create(*args, **kwargs):
+            calls.append((args, kwargs))
+            return processes.pop(0)
+
+        async def run():
+            adapter = OpenCodeAdapter(_config())
+            with patch("multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create):
+                return await adapter.call("reply ok")
+
+        result = asyncio.run(run())
+
+        self.assertEqual(result.text, "OpenCode returned no text (events=step_start)")
+        self.assertEqual(len(calls), 5)

@@ -10,6 +10,8 @@ from .utils import NO_WINDOW, filtered_env
 
 log = logging.getLogger(__name__)
 
+EMPTY_TEXT_RETRIES = 4
+
 
 class OpenCodeAdapter(AgentAdapter):
     """OpenCode CLI adapter with streaming JSON output."""
@@ -70,7 +72,7 @@ class OpenCodeAdapter(AgentAdapter):
         work_dir: str | None = None,
         on_progress: Callable[[str], None] | None = None,
         resume_session_id: str | None = None,
-        retry_empty_text: bool = True,
+        empty_text_retries: int = EMPTY_TEXT_RETRIES,
     ) -> AdapterResult:
         timeout = timeout or self.config.timeout
         full_prompt = self._with_system_prompt(prompt)
@@ -194,11 +196,12 @@ class OpenCodeAdapter(AgentAdapter):
         if (
             not response_parts
             and proc.returncode == 0
-            and retry_empty_text
+            and empty_text_retries > 0
             and "tool_use" not in event_types_seen
         ):
             log.warning(
-                "OpenCode returned no text with rc=0; retrying once (events=%s)",
+                "OpenCode returned no text with rc=0; retrying (%d remaining, events=%s)",
+                empty_text_retries,
                 sorted(event_types_seen),
             )
             return await self._run(
@@ -207,7 +210,16 @@ class OpenCodeAdapter(AgentAdapter):
                 work_dir=work_dir,
                 on_progress=on_progress,
                 resume_session_id=resume_session_id,
-                retry_empty_text=False,
+                empty_text_retries=empty_text_retries - 1,
+            )
+
+        if not response_parts and proc.returncode == 0:
+            return AdapterResult(
+                text=(
+                    "OpenCode returned no text"
+                    f" (events={','.join(sorted(event_types_seen)) or 'none'})"
+                ),
+                session_id=session_id,
             )
 
         return AdapterResult(
