@@ -125,7 +125,7 @@ sync_to_remote_staging() {
   # $@ carries --exclude PATTERN pairs (same syntax tar accepts).
   # --delete semantics come from `rm -rf '$staging'` before extract.
   # -z compresses during transfer (ssh doesn't compress by default).
-  COPYFILE_DISABLE=1 tar -czf - "$@" -C "$src" . | ssh "$HOST" "tar -xzf - -C '$staging'"
+  COPYFILE_DISABLE=1 tar --no-xattrs -czf - "$@" -C "$src" . | ssh "$HOST" "tar -xzf - -C '$staging'"
 }
 
 write_remote_version() {
