@@ -23,6 +23,19 @@ Harness root: `docs/project-harness/`
   - 5 个 pending smoke job 被消费：2 done (`WIN-OPENCODE-ENV-2`, `WIN-OPENCODE-ENV-4`)，3 failed (`OpenCode returned no text (events=step_start)`)。
 - **结论**: `win-opencode` 链路已从“假 done / pending / SSH 卡死”降级为“明确 failed”，但 NSSM LocalSystem 下 OpenCode 仍不稳定；暂不作为默认 worker。后续需要 per-user runner 或 NSSM ObjectName=ADMIN 后再验收。
 
+### Phase 8 preflight — manual server deploy/sync
+
+- **目标**: 在进入 GitHub PR / review automation 前，先解决腾讯云 `/opt/coordinate` / `/opt/multinexus` 运行副本与本地开发 checkout 漂移的问题。
+- **落地内容**:
+  - `scripts/deploy-server.sh`: 手动部署入口，支持 `status` / `coordinate` / `multinexus` / `all`。
+  - `scripts/server-smoke.sh`: 服务器健康检查，验证 systemd、`VERSION_DEPLOYED`、`coord-local`、mihomo proxy、agent registry、近期 breaker log。
+  - `docs/deploy-runbook.md`: 记录 source-of-truth 边界；`/opt/*` 是部署副本，不是开发源。
+- **验证**:
+  - `scripts/deploy-server.sh status` 通过，coordinate / bridge 均 active，Discord proxy 可达。
+  - `scripts/deploy-server.sh multinexus --skip-install` 已将腾讯云 `/opt/multinexus` 同步到 `f465a1f91ead938b355d2ca935fb48e4323dc3a8` 并重启 bridge；smoke 通过。
+  - `/opt/coordinate/VERSION_DEPLOYED` 已是本地 coordinate tip `244f95f6026857fef8cd74362792435955f2c72d`，本轮无需重复部署。
+- **边界**: 这是最小手动 deploy/sync，不是 GitHub Actions 自动生产发布。后续 CI/CD 应复用该脚本作为唯一部署路径。
+
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 
 - **目标**: 验证 A0 形态下 `coordinate` / Discord bridge 跑在腾讯云、worker agentd 跑在各宿主机时，handoff bootstrap 使用目标宿主机自己的 repo path，而不是服务器部署副本 `/opt/multinexus`。

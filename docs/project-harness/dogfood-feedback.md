@@ -144,6 +144,15 @@
 - 剩余问题：OpenCode 在前台 ADMIN 环境下稳定，但 NSSM LocalSystem 仍有高比例空 text。当前只能视为 degraded worker，不应作为默认 coding worker。
 - 待修方向：给 `win-opencode` 改成真实 ADMIN 用户上下文的长期运行方式（NSSM ObjectName 需要用户密码，或设计可自动重启的 Scheduled Task / per-user runner），再做 10 次以上真实 job smoke；通过前不要把 `win-opencode` 放入默认 worker selection。
 
+### 15. 服务器部署副本容易与开发 checkout 漂移
+
+- 状态：fixed
+- 原始现象：腾讯云 `/opt/multinexus` / `/opt/coordinate` 是运行副本，不是开发 source of truth；手工 rsync / hotfix 后容易忘记服务器当前跑的是哪个 commit。Phase 8 dogfood 中已多次遇到服务器副本落后本地分支的问题。
+- 影响：operator 调试时可能以为“代码已修”，但远端 bridge / coordinate 仍在跑旧版本；worker bootstrap、agent-report、proxy、Windows wrapper 等问题会反复出现。
+- 修复：增加 `scripts/deploy-server.sh` 与 `scripts/server-smoke.sh` 的手动一键部署/状态检查流程，并在 `/opt/{coordinate,multinexus}/VERSION_DEPLOYED` 写入 component、branch、commit、deployed_at、deployed_by。
+- 验证：`scripts/deploy-server.sh status` 通过；`scripts/deploy-server.sh multinexus --skip-install` 已把服务器 `/opt/multinexus` 同步到 `f465a1f`，`server smoke OK`。
+- 设计边界：这不是完整 GitHub Actions 自动发布；当前仍是 operator 手动触发的受控部署。后续 CI/CD 应调用同一套脚本，而不是发明第二套生产发布路径。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
@@ -153,3 +162,4 @@
 5. Maintenance: response_text 中的 `[agent-report]` 摄取修复
 6. Maintenance: Mac Claude CLI proxy / agentd launchd 健康检查
 7. Maintenance: win-opencode per-user runner / service account stabilization
+8. Phase 8: GitHub PR / CI / review automation loop
