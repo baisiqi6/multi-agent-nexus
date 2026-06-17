@@ -154,7 +154,7 @@ class TestCoordSshWinEnvConfig(unittest.TestCase):
         module = self._load_module()
         env = {
             "COORD_SSH_TARGET": "ubuntu@124.221.111.209",
-            "COORD_SSH_IDENTITY_FILE": r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win",
+            "COORD_SSH_IDENTITY_FILE": r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win_v2",
             "COORD_SSH_TIMEOUT_SECONDS": "7",
         }
         with patch.dict(os.environ, env, clear=True):
@@ -163,7 +163,7 @@ class TestCoordSshWinEnvConfig(unittest.TestCase):
         assert cmd == [
             "ssh",
             "-i",
-            r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win",
+            r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win_v2",
             "-o",
             "IdentitiesOnly=yes",
             "-o",
