@@ -194,6 +194,22 @@
 - dogfood 命令修正：`coord-local task list` 不存在（task CLI 只有 `create`/`handoff`）；验证 task mirror 改用 `coord-local event list <workspace>` 看 `issue.triaged` event，或直接读 triage CLI 的 JSON 输出里的 `task` 字段。
 - 待修方向：Phase 8.3 把 accepted issue mirror materialize 到 harness checklist/task state，使其可被 `task handoff`；Phase 8.5 再做 operator bot 自动消费 `issue.spotted` 并产出 triage 决策。
 
+### 19. Phase 8.3 accepted-issue materialization：把 issue accept 落成 harness task
+
+- 状态：fixed（coordinate 侧已实现，待真实 dogfood）
+- 背景：Phase 8.2 accept 只建 DB task mirror，不进 harness `mvp-checklist.json`，所以 `task handoff` 过不了 `_require_harness_task` preflight（dogfood-feedback #18 收口边界）。
+- 实现：`coord-local issue materialize <workspace> --event-id <issue.triaged id> --plan-doc <workspace-relative plan path>`。
+- 设计边界：
+  - **复用 create_plan_task**：materialize 调 `onboarding.create_plan_task`（写 `plan.ready` + sync `mvp-checklist.json` + upsert task mirror），不手写 checklist JSON mutation。
+  - **operator 必须提供 plan**：`--plan-doc` 必须指向真实文件；refuse 从 untrusted issue body 自动生成 plan/prompt。
+  - **content_trust 强制 untrusted**：materialize 层不读 spotted/triaged payload 的自声明。
+  - **fail closed**：reject/defer 的 issue.triaged 不能 materialize；非 issue.triaged event 不能 materialize；plan_doc 缺/不存在报错。
+  - **幂等 + 冲突**：同 (triage_event_id, task_id, plan_doc) 复用；不同 task_id/plan_doc 报 `IssueTriageError`。
+  - **不自动 approve / handoff / close issue**：materialize 只解 checklist gate；plan gate 仍需 operator 手动 `plan approve --scope "implementation plan"`；merge/close 保持 human-gated。
+- 验证：`tests/test_issues.py::IssueMaterializeTests` 12 cases + `tests/test_handoff.py::IssueMaterializeHandoffTests` 3 cases（`_require_harness_task` 前 fail / 后 pass；materialize + plan approve → `prepare_handoff` 成功）。coordinate 793 OK，multinexus 314 OK (2 skipped)。
+- 后续 dogfood 步骤：临时 issue → `issue scan --event-cli-path` → `issue triage accept` →（operator 写 plan 文件）→ `issue materialize --plan-doc ...` → `plan approve --scope "implementation plan"` → `task handoff`。
+- 待修方向：Phase 8.5 operator bot 自动 triage；Phase 8.4 PR/CI/review automation。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
