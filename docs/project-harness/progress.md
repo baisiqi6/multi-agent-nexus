@@ -70,7 +70,7 @@ Harness root: `docs/project-harness/`
 - **Dogfood 发现**:
   - 之前 `scripts/deploy-server.sh coordinate --skip-install` 只同步了 `/opt/coordinate/src`，但 `/opt/coordinate/.venv/site-packages` 仍是旧 wheel，导致 `coord-local policy create-deliveries` 报 `unsupported event type: issue.spotted`。
   - 结论：Python package 代码变更不能用 `--skip-install` 部署；`--skip-install` 只适合文档、非导入脚本或确认 venv 不需要更新的紧急同步。
-  - Mac tar 会带 Apple extended attributes，服务器 tar 会输出大量 `LIBARCHIVE.xattr.*` warning；`deploy-server.sh` 已设置 `COPYFILE_DISABLE=1` + `tar --no-xattrs` 降噪。
+  - Mac tar 会带 Apple extended attributes / file flags，服务器 tar 会输出 `LIBARCHIVE.xattr.*` / `SCHILY.fflags` warning；`deploy-server.sh` 已设置 `COPYFILE_DISABLE=1`，并自动探测 `--no-xattrs` / `--no-fflags` 降噪。
 
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 

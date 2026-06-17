@@ -116,6 +116,10 @@ remote_sudo_script() {
   ssh "$HOST" "sudo bash -s" "$@"
 }
 
+tar_supports_flag() {
+  tar "$1" -cf /dev/null -T /dev/null >/dev/null 2>&1
+}
+
 sync_to_remote_staging() {
   local src="$1"
   local staging="$2"
@@ -125,7 +129,10 @@ sync_to_remote_staging() {
   # $@ carries --exclude PATTERN pairs (same syntax tar accepts).
   # --delete semantics come from `rm -rf '$staging'` before extract.
   # -z compresses during transfer (ssh doesn't compress by default).
-  COPYFILE_DISABLE=1 tar --no-xattrs -czf - "$@" -C "$src" . | ssh "$HOST" "tar -xzf - -C '$staging'"
+  local tar_flags=()
+  tar_supports_flag --no-xattrs && tar_flags+=(--no-xattrs)
+  tar_supports_flag --no-fflags && tar_flags+=(--no-fflags)
+  COPYFILE_DISABLE=1 tar "${tar_flags[@]}" -czf - "$@" -C "$src" . | ssh "$HOST" "tar -xzf - -C '$staging'"
 }
 
 write_remote_version() {
