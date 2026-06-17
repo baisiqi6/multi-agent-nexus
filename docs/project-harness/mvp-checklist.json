@@ -666,6 +666,36 @@
         "ttl_minutes": 120,
         "released_at": "2026-06-17T10:49:08Z"
       }
+    },
+    {
+      "id": "phase-8.3.1-harness-source-boundary",
+      "title": "Phase 8.3.1 Harness Source Boundary and Sidecar Workspace Rules",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17T19:35:02Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-17T19:35:02Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
