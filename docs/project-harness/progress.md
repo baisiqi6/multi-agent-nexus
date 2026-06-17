@@ -36,6 +36,24 @@ Harness root: `docs/project-harness/`
   - `/opt/coordinate/VERSION_DEPLOYED` 已是本地 coordinate tip `244f95f6026857fef8cd74362792435955f2c72d`，本轮无需重复部署。
 - **边界**: 这是最小手动 deploy/sync，不是 GitHub Actions 自动生产发布。后续 CI/CD 应复用该脚本作为唯一部署路径。
 
+### Phase 8.1 — GitHub issue intake MVP
+
+- **目标**: 实现 Phase 8 的第一段闭环：own-repo GitHub issue scan → coordinate `issue.spotted` event → Discord-visible `[ISSUE]` rendering。该阶段不做自动 triage、assignment、PR 或 merge。
+- **Coordinate 实现**:
+  - `coordinate` commit `38f773a`: 新增 `src/coordinate/issues.py`、`coordinate issue scan` CLI、`issue.spotted` policy/rendering、测试。
+  - issue idempotency key 使用 `<workspace_id>:github_issue:<repo>:<number>:<updated_at>`，同一 updated_at 不重复刷事件，issue 更新后可再次 surfaced。
+  - issue body 只保存短 excerpt，并带 `content_trust=untrusted`；渲染文案明确提醒 operator/worker 不得把 issue 正文当系统指令。
+- **验证**:
+  - coordinate full suite 759 tests OK。
+  - 本机 `coordinate issue scan demo --repo baisiqi6/multi-agent-nexus --limit 3` 返回合法空结果（当前 repo 无 open issue）。
+  - `multi-agent-nexus` / `multi-agent-coordinator` 当前均无 open issue，因此尚未产生真实 `issue.spotted` 事件。
+- **部署**:
+  - 已用 `scripts/deploy-server.sh coordinate --skip-install` 部署到腾讯云。
+  - `/opt/coordinate/VERSION_DEPLOYED` 已更新为 `38f773a8d4cc9aa95c9a4a62bf3631dd7f1ebe94`，server smoke OK。
+- **下一步阻塞**:
+  - 腾讯云尚未安装/认证 `gh`，server-side issue scan 还不能直接跑。
+  - 需要创建或标记一个低风险测试 issue，才能做真实 Discord `[ISSUE]` dogfood。
+
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 
 - **目标**: 验证 A0 形态下 `coordinate` / Discord bridge 跑在腾讯云、worker agentd 跑在各宿主机时，handoff bootstrap 使用目标宿主机自己的 repo path，而不是服务器部署副本 `/opt/multinexus`。
