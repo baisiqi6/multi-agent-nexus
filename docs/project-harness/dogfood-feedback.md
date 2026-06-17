@@ -227,6 +227,17 @@
 - 验证：coordinate 全量 805 OK；multinexus 无源码改动故无需跑测试；两 repo `git diff --check` 干净。
 - 待修方向：无。文档 + 跨 repo 测试 only，无 deploy / 无服务变更。
 
+### 21. Handoff follow-up：worker 首次回复可能只完成 start/progress
+
+- 状态：open
+- 原始现象：`phase-8.3.1-harness-source-boundary` 通过 coordinate -> Discord -> `mac-claude` handoff 后，第一次 agentd job 只发了"已接收/准备做"的 start/progress 文本，没有执行实现、提交或 closeout；同时 `[agent-report] action=progress` 被放在 fenced code block 内，coordinate 未按结构化 report 摄取，只生成 fallback progress。
+- 临时处理：operator 通过 `runtime request submit` 用同一个 `session_scope_id=task:discord-nexus:phase-8.3.1-harness-source-boundary` 发 follow-up，明确要求"不要再发 start，继续执行实际任务"，agentd 成功 resume 旧 Claude session，随后完成 commit/push/closeout；codex review approved 并 mark-done。
+- 影响：handoff 链路可恢复，但首次 worker job 可能消耗一次交互而没有实际推进；如果 operator 不盯状态，会误以为 worker 正在执行，或者只收到 fallback progress。
+- 待修方向：
+  - worker bootstrap / handoff accepted prompt 应区分"visible start update"和"actual implementation"，避免 adapter 调用在 start 后停止。
+  - `[agent-report]` 示例不要放在 fenced code block，或者 report parser 应明确忽略 fenced 示例但能捕获真实未 fenced block。
+  - 可考虑给 `action=progress` 加 `next_requires_followup=false/true` 或 agentd 侧检测"只 start 无文件变更/无 closeout"的长任务风险。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
