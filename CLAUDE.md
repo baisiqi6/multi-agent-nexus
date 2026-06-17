@@ -84,7 +84,7 @@ MultiNexus 同时跑在 **3 台宿主机**上：
 - **永远不要**直接改 coord SQLite DB
 - **永远不要**直接调 `harnessctl` 或改 harness JSON
 
-### 1.8 部署到 server（push-based rsync 模型）
+### 1.8 部署到 server（push-based tar+ssh 模型）
 
 **核心架构**：dev 机器（Mac/Win）持有 git repo，server 是 runtime，**不持有 git 历史、不需要 GitHub 凭证**。代码用 tar+ssh push 过去（**不依赖 rsync**，所以 Win 也能 deploy）。
 
@@ -116,11 +116,11 @@ scripts/deploy-server.sh all           # 两个都部署（默认）
 
 **绝对不要：**
 - ❌ 手工 `scp` 单个文件到 server（会绕过 VERSION_DEPLOYED 审计 + smoke test）
-- ❌ 在 server 上手工改 `/opt/multinexus/` 的代码（会被下次 rsync 覆盖）
+- ❌ 在 server 上手工改 `/opt/multinexus/` 的代码（会被下次 deploy 覆盖）
 - ❌ 在 server 上 `git clone` 或 `git pull`（server 故意不是 git repo，安全考虑）
 - ❌ 用 `--allow-dirty` 除非是紧急 hotfix（默认拒绝 dirty deploy 是保护机制）
 
-**保留在 server 上、不进 rsync 的文件**（deploy-server.sh 自动排除）：
+**保留在 server 上、deploy 时不覆盖的文件**（deploy-server.sh 自动排除）：
 - `.venv/`（virtualenv）
 - `agents.toml`（含 secret / 路径）
 - `.env`（Discord token 等）
@@ -129,8 +129,8 @@ scripts/deploy-server.sh all           # 两个都部署（默认）
 
 **deploy-server.sh 自动做的事：**
 1. 检查 working tree 是否干净（防误部署）
-2. rsync 到 `/tmp/deploy-multinexus-<sha>/` 暂存
-3. rsync 同步到 `/opt/multinexus/`（保留上述文件）
+2. tar+ssh 推到 `/tmp/deploy-multinexus-<sha>/` 暂存（dev 机 → server）
+3. server-side rsync 同步 staging 到 `/opt/multinexus/`（保留上述文件）
 4. 重建 `.venv` + `pip install -r requirements.txt`
 5. 写 `VERSION_DEPLOYED` 文件（component/branch/sha/time/deployed_by）
 6. `systemctl restart` 对应服务
