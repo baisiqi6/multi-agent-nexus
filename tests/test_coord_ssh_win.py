@@ -112,15 +112,15 @@ class TestCoordinateClientBaseCmd(unittest.TestCase):
             assert client._base_cmd == ["/usr/local/bin/coord-local"]
 
 
-class TestCoordSshWinStdinPipe(unittest.TestCase):
-    """Verify coord-ssh-win.py uses stdin pipe on Windows to avoid list2cmdline mangling."""
+class TestCoordSshWinRemoteCommandArg(unittest.TestCase):
+    """Verify coord-ssh-win.py sends one POSIX-quoted remote command string."""
 
-    def test_windows_uses_stdin_pipe(self):
+    def test_uses_ssh_remote_command_arg(self):
         with open("scripts/coord-ssh-win.py", encoding="utf-8") as f:
             source = f.read()
-        assert "_run_via_stdin" in source
-        assert 'sys.platform == "win32"' in source
-        assert "sh" in source
+        assert "_run_via_argv" in source
+        assert "_run_via_stdin" not in source
+        assert "[*_ssh_base_cmd(), \"--\", remote_cmd]" in source
 
     def test_json_arg_not_mangled_through_subprocess(self):
         import subprocess

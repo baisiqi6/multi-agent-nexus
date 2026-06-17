@@ -5,8 +5,9 @@ Usage: python coord-ssh-win.py <coordinate subcommand and args...>
 
 Example: python coord-ssh-win.py runtime agent register --agent-id win-claude --host-id win-admin
 
-On Windows, pipes the remote command through SSH stdin to avoid list2cmdline
-mangling JSON arguments that contain backslashes and double quotes.
+The agentd should point coordinator_cli_path at this .py wrapper, not the .cmd
+shim, so JSON arguments arrive here intact before being POSIX-quoted for the
+remote shell.
 """
 
 import shlex
@@ -48,29 +49,10 @@ def _ssh_timeout_seconds() -> int:
         return 30
 
 
-def _run_via_stdin(remote_cmd: str) -> int:
-    cmd = [*_ssh_base_cmd()[:-1], "-T", _ssh_base_cmd()[-1], "sh"]
-    try:
-        result = subprocess.run(
-            cmd,
-            input=(remote_cmd + "\n").encode("utf-8"),
-            capture_output=True,
-            timeout=_ssh_timeout_seconds() + 5,
-        )
-    except subprocess.TimeoutExpired:
-        print("coord-ssh-win: ssh timed out", file=sys.stderr)
-        return 124
-    if result.stdout:
-        sys.stdout.buffer.write(result.stdout)
-    if result.stderr:
-        sys.stderr.buffer.write(result.stderr)
-    return result.returncode
-
-
 def _run_via_argv(remote_cmd: str) -> int:
     try:
         result = subprocess.run(
-            [*_ssh_base_cmd(), remote_cmd],
+            [*_ssh_base_cmd(), "--", remote_cmd],
             timeout=_ssh_timeout_seconds() + 5,
         )
     except subprocess.TimeoutExpired:
@@ -95,8 +77,6 @@ def main() -> int:
         print(remote_cmd)
         return 0
 
-    if sys.platform == "win32":
-        return _run_via_stdin(remote_cmd)
     return _run_via_argv(remote_cmd)
 
 
