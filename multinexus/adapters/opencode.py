@@ -70,6 +70,7 @@ class OpenCodeAdapter(AgentAdapter):
         work_dir: str | None = None,
         on_progress: Callable[[str], None] | None = None,
         resume_session_id: str | None = None,
+        retry_empty_text: bool = True,
     ) -> AdapterResult:
         timeout = timeout or self.config.timeout
         full_prompt = self._with_system_prompt(prompt)
@@ -104,6 +105,7 @@ class OpenCodeAdapter(AgentAdapter):
         saw_output = False
         response_parts: list[str] = []
         session_id: str | None = resume_session_id
+        event_types_seen: set[str] = set()
 
         while True:
             now = loop.time()
@@ -151,6 +153,8 @@ class OpenCodeAdapter(AgentAdapter):
                 session_id = event["sessionID"]
 
             event_type = event.get("type", "")
+            if event_type:
+                event_types_seen.add(event_type)
             if event_type == "text":
                 text = event.get("part", {}).get("text", "")
                 if text:
@@ -185,6 +189,25 @@ class OpenCodeAdapter(AgentAdapter):
             detail = stderr_text or f"exit code {proc.returncode}"
             return AdapterResult(
                 text=f"OpenCode CLI failed ({proc.returncode}): {detail[:500]}"
+            )
+
+        if (
+            not response_parts
+            and proc.returncode == 0
+            and retry_empty_text
+            and "tool_use" not in event_types_seen
+        ):
+            log.warning(
+                "OpenCode returned no text with rc=0; retrying once (events=%s)",
+                sorted(event_types_seen),
+            )
+            return await self._run(
+                prompt,
+                timeout=timeout,
+                work_dir=work_dir,
+                on_progress=on_progress,
+                resume_session_id=resume_session_id,
+                retry_empty_text=False,
             )
 
         return AdapterResult(
