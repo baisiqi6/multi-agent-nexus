@@ -50,9 +50,27 @@ Harness root: `docs/project-harness/`
 - **部署**:
   - 已用 `scripts/deploy-server.sh coordinate --skip-install` 部署到腾讯云。
   - `/opt/coordinate/VERSION_DEPLOYED` 已更新为 `38f773a8d4cc9aa95c9a4a62bf3631dd7f1ebe94`，server smoke OK。
-- **下一步阻塞**:
-  - 腾讯云尚未安装/认证 `gh`，server-side issue scan 还不能直接跑。
-  - 需要创建或标记一个低风险测试 issue，才能做真实 Discord `[ISSUE]` dogfood。
+- **原始待验证项**:
+  - 首版实现只能在本地 DB 或 server-side `gh` 形态下运行；A0 runtime-only 形态需要后续 dogfood 验证。
+  - 当时 owned repos 没有 open issue，需要创建或标记一个低风险测试 issue 才能做真实 Discord `[ISSUE]` dogfood。
+
+### Phase 8.1 — GitHub issue intake dogfood closeout
+
+- **架构修正**: 腾讯云继续保持 runtime-only，不安装 `git` / `gh` / GitHub token；GitHub issue scan 应在 Mac / Windows coding worker 宿主机上运行，再通过 `coord-ssh` / `coord-ssh-win.py` 把 `issue.spotted` event 写入远端 coordinate DB。
+- **Coordinate 修复**:
+  - `966b8c5`: `coordinate issue scan` 新增 `--event-cli-path`，支持本地 `gh issue list` + 远端 `event append` 的组合模式。
+  - 这避免把服务器变成开发机，也保留原来的本地 SQLite scan 模式。
+- **真实 dogfood**:
+  - 创建临时 issue `baisiqi6/multi-agent-nexus#2`：`[dogfood] Phase 8 issue intake smoke`。
+  - 在 Mac 上运行 `PYTHONPATH=src python3 -m coordinate issue scan discord-nexus --repo baisiqi6/multi-agent-nexus --limit 5 --event-cli-path /Users/yinxin/.local/bin/coord-ssh`。
+  - 远端 event `335d09e2-189c-41bd-b874-8fbe32f1bca2` 创建成功，payload 带 `content_trust=untrusted`。
+  - 远端 coordinate daemon 将 delivery `6d5c5601-1f36-45e7-9317-305912893aba` 发送到 Discord，`platform_message_id=discord_bot:1516860802613641457`。
+  - 重复 scan 返回 `created=0 existing=1`，幂等正常。
+  - 临时 GitHub issue 已关闭。
+- **Dogfood 发现**:
+  - 之前 `scripts/deploy-server.sh coordinate --skip-install` 只同步了 `/opt/coordinate/src`，但 `/opt/coordinate/.venv/site-packages` 仍是旧 wheel，导致 `coord-local policy create-deliveries` 报 `unsupported event type: issue.spotted`。
+  - 结论：Python package 代码变更不能用 `--skip-install` 部署；`--skip-install` 只适合文档、非导入脚本或确认 venv 不需要更新的紧急同步。
+  - Mac tar 会带 Apple extended attributes，服务器 tar 会输出大量 `LIBARCHIVE.xattr.*` warning；`deploy-server.sh` 已设置 `COPYFILE_DISABLE=1` 降噪。
 
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 

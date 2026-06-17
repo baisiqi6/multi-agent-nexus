@@ -153,6 +153,23 @@
 - 验证：`scripts/deploy-server.sh status` 通过；`scripts/deploy-server.sh multinexus --skip-install` 已把服务器 `/opt/multinexus` 同步到 `f465a1f`，`server smoke OK`。
 - 设计边界：这不是完整 GitHub Actions 自动发布；当前仍是 operator 手动触发的受控部署。后续 CI/CD 应调用同一套脚本，而不是发明第二套生产发布路径。
 
+### 16. Issue scan 不能假设服务器有 GitHub 开发工具
+
+- 状态：fixed
+- 原始现象：Phase 8.1 首版 `coordinate issue scan` 把 `gh issue list` 与 SQLite event append 放在同一个进程里。A0 架构确认腾讯云是 runtime-only 后，不能要求服务器安装 `gh`、`git` 或保存 GitHub token。
+- 影响：如果直接通过 `coord-ssh issue scan` 跑首版命令，会把 `gh` 依赖转移到服务器，扩大攻击面并破坏 runtime-only 边界。
+- 修复：`coordinate issue scan` 增加 `--event-cli-path`；Mac / Windows coding host 本地运行 `gh issue list`，再通过远端 coordinate CLI wrapper 写入 `issue.spotted` event。
+- 验证：Mac 创建并扫描临时 GitHub issue `baisiqi6/multi-agent-nexus#2`，远端 event `335d09e2-189c-41bd-b874-8fbe32f1bca2` 创建成功，Discord delivery `6d5c5601-1f36-45e7-9317-305912893aba` 已发送；重复 scan `created=0 existing=1`。
+
+### 17. `--skip-install` 会让 Python package venv 变旧
+
+- 状态：mitigated
+- 原始现象：`scripts/deploy-server.sh coordinate --skip-install` 同步了 `/opt/coordinate/src`，但 `/opt/coordinate/.venv/site-packages/coordinate` 仍是旧 wheel。随后 `coord-local policy create-deliveries` 仍报 `unsupported event type: issue.spotted`，尽管 `/opt/coordinate/src/coordinate/policy.py` 已包含该 event type。
+- 影响：`VERSION_DEPLOYED` 看起来是新 commit，server smoke 也可能通过，但 `coord-local` 实际执行旧 installed package，造成“代码已部署但行为没变”的错觉。
+- 当前处理：Phase 8.1 dogfood 后已用非 `--skip-install` 的 `scripts/deploy-server.sh coordinate` 重新安装 package，远端 venv 已支持 `issue.spotted`。
+- 规则：只要 Python import package 代码变化，就不要用 `--skip-install`；该参数仅用于文档、纯脚本或明确不影响 venv installed package 的同步。
+- 待修方向：server smoke 后续应增加 installed package 与 `VERSION_DEPLOYED` 的一致性检查，避免只看 `/opt/*` 源码路径。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
