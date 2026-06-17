@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-08",
+  "updated_at": "2026-06-17",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -625,6 +625,46 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-8-host-profile-handoff-smoke",
+      "title": "Phase 8 Host Profile Handoff Smoke",
+      "status": "todo",
+      "priority": "p0",
+      "owner": "operator",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md",
+      "acceptance": "Use the smoke acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md. Worker must only report path/branch/bootstrap observations and must not edit files, commit, push, or restart services.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "host-profile-smoke-20260617",
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "assigned",
+        "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup",
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md",
+        "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup"
+      },
+      "verification": "",
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "operator",
+        "session": "host-profile-smoke-20260617",
+        "acquired_at": "2026-06-17T10:46:37Z",
+        "expires_at": "2026-06-17T12:46:37Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
