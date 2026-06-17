@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from multinexus.handoff_handler import (
     CoordinatorHandoff,
+    bootstrap_text_from_accept_output,
     build_agent_report,
     build_handoff_prompt,
     contains_execution_agent_report,
@@ -138,6 +139,20 @@ class TestParseCoordinatorLifecycle(unittest.TestCase):
 
 
 class TestBootstrapRead(unittest.TestCase):
+    def test_extracts_bootstrap_text_from_accept_output(self):
+        output = (
+            '{"result":{"bootstrap_text":"# Worker Bootstrap\\ncd /Users/yinxin/projects/multinexus",'
+            '"bootstrap_path":"docs/project-harness/tasks/t1/worker-bootstrap.md"}}'
+        )
+
+        self.assertEqual(
+            bootstrap_text_from_accept_output(output),
+            "# Worker Bootstrap\ncd /Users/yinxin/projects/multinexus",
+        )
+
+    def test_extract_bootstrap_text_ignores_non_json_accept_output(self):
+        self.assertIsNone(bootstrap_text_from_accept_output("accepted"))
+
     def test_reads_task_scoped_worker_bootstrap(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "docs/project-harness/tasks/phase-4/worker-bootstrap.md"

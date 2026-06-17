@@ -9,6 +9,7 @@ normal adapter/LLM flow.
 from __future__ import annotations
 
 import logging
+import json
 import os
 import re
 import shlex
@@ -193,6 +194,23 @@ def execute_assignment_accept(
         return False, "assignment accept timed out (30s)"
     except Exception as exc:
         return False, str(exc)
+
+
+def bootstrap_text_from_accept_output(output: str) -> str | None:
+    """Extract bootstrap_text returned by newer coordinate assignment accept."""
+    if not output:
+        return None
+    try:
+        payload = json.loads(output)
+    except json.JSONDecodeError:
+        return None
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        return None
+    bootstrap_text = result.get("bootstrap_text")
+    if isinstance(bootstrap_text, str) and bootstrap_text.strip():
+        return bootstrap_text
+    return None
 
 
 def _infer_coordinator_repo(cli_path: str) -> Path | None:

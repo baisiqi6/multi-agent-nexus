@@ -278,6 +278,47 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
         self.assertEqual(len(done_reports), 1)
         self.assertIn("summary='tests OK'", done_reports[0])
 
+    def test_accept_output_bootstrap_text_skips_workspace_file_read(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_handoff_message()
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+        instance._coordinate_client.submit_request = AsyncMock(
+            return_value={"result": {"job": {"id": "request:abc"}}}
+        )
+        instance._coordinate_client.wait_for_job_result = AsyncMock(
+            return_value={
+                "id": "request:abc",
+                "status": "done",
+                "result": {"response_text": "done"},
+            }
+        )
+        accept_output = (
+            '{"result":{"bootstrap_text":"# Worker Bootstrap\\n'
+            'cd /Users/yinxin/projects/multinexus"}}'
+        )
+
+        with (
+            patch(
+                "multinexus.client.execute_assignment_accept",
+                return_value=(True, accept_output),
+            ),
+            patch("multinexus.client.read_bootstrap", return_value="server bootstrap") as read_bootstrap,
+        ):
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(instance._try_coordinator_handoff(msg))
+            finally:
+                loop.close()
+
+        self.assertTrue(result)
+        read_bootstrap.assert_not_called()
+        submit_kwargs = instance._coordinate_client.submit_request.await_args.kwargs
+        self.assertIn("/Users/yinxin/projects/multinexus", submit_kwargs["prompt"])
+        self.assertNotIn("server bootstrap", submit_kwargs["prompt"])
+
     def test_accept_report_uses_allowed_mentions_none(self):
         config = _make_config()
         msg = _make_handoff_message()

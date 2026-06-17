@@ -49,6 +49,7 @@ from .handoff_handler import (
     CoordinatorHandoff,
     build_agent_report,
     build_handoff_prompt,
+    bootstrap_text_from_accept_output,
     contains_execution_agent_report,
     execute_assignment_accept,
     parse_coordinator_handoff,
@@ -384,14 +385,15 @@ class DiscordClient(discord.Client):
             log.error("Assignment accept failed: %s", output)
             return True
 
-        # Read bootstrap
-        bootstrap_content = None
+        # Prefer bootstrap_text returned by coordinate assignment accept. This
+        # avoids reading target-agent bootstrap through the bridge deploy path.
+        bootstrap_content = bootstrap_text_from_accept_output(output)
         bootstrap_workspace_path = resolve_workspace_path(
             db_path=cfg.coordinator_db_path,
             workspace_id=handoff.workspace_id,
             fallback_workspace_path=cfg.coordinator_workspace_path,
         )
-        if handoff.bootstrap_path and bootstrap_workspace_path:
+        if bootstrap_content is None and handoff.bootstrap_path and bootstrap_workspace_path:
             bootstrap_content = await asyncio.to_thread(
                 read_bootstrap, bootstrap_workspace_path, handoff.bootstrap_path,
             )
