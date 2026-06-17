@@ -2,6 +2,16 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-18
+
+### Phase 8.3.1 — harness source-of-truth boundary + sidecar workspace rules
+
+- Task `phase-8.3.1-harness-source-boundary` (branch `agents/mac-claude/phase-8-preflight-dogfood-cleanup`). Turns the Phase 8.3 host-aware materialize decision into documented, tested, worker-facing rules. Coordinate-side work (test + docs) lands in the `coordinate` repo; this entry records the multinexus-facing documentation.
+- **Rule** (added to `scope.md` Boundaries, mirrored in coordinate `docs/runbook.md`): multinexus is an internal repo → harness lives in-repo and is committed (`workspace.path` parent of `workspace.harness_root`). External/upstream repos use a **sidecar `harness_root` outside the checkout** so upstream PRs stay free of our harness files. `workspace.path` and `workspace.harness_root` are intentionally separate. Server `/opt/multinexus` is a deploy artifact (tar+ssh, no git history), not source — never edit harness state there directly.
+- **No multinexus code/runtime change**: the worker bootstrap already exposes both `execution_workspace_path` (cd/git) and `execution_harness` (harness root) as separate values via the coordinator host profile, so a coding-host worker is never pointed at `/opt/multinexus`. This was the A0 fix recorded in dogfood-feedback #11/#14/#15; 8.3.1 only codifies it.
+- Verification: no multinexus source changed, so no multinexus test run needed. Coordinate suite 805 OK (incl. new sidecar materialize-files test). `git diff --check` clean on both repos.
+- Open risk: none. Documentation + cross-repo test only; no deploy, no service change.
+
 ## 2026-06-17
 
 ### Phase 8 dogfood cleanup — win-opencode degraded service

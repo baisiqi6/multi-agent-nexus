@@ -211,6 +211,22 @@
 - 后续 dogfood 步骤：临时 issue → `issue scan --event-cli-path` → `issue triage accept` →（operator 写 plan 文件）→ `issue materialize --plan-doc ...` → `plan approve --scope "implementation plan"` → `task handoff`。
 - 待修方向：Phase 8.5 operator bot 自动 triage；Phase 8.4 PR/CI/review automation。
 
+## 2026-06-18
+
+### 20. Phase 8.3.1 harness 源真理边界：internal repo vs external sidecar vs `/opt`
+
+- 状态：documented + tested。把 Phase 8.3 host-aware materialize（#19）的边界固化成文档 + 测试，不动 runtime 代码。
+- 规则（写入 multinexus `scope.md` Boundaries + coordinate `docs/runbook.md`）：
+  - **internal/managed repo**（如 multinexus）：harness 在 repo 内，随 repo commit；`workspace.path` 是 `workspace.harness_root` 的父目录；`init-harness --mode full` 要求 `harness_root ⊆ workspace.path`（`onboarding.full_init` 拒绝 out-of-tree）。
+  - **external/upstream repo**（如 opencode）：harness 放 **checkout 外的 sidecar `harness_root`**，保证 upstream PR 不带我们的 harness 文件；不在那跑 `init-harness --mode full`，只用 host-aware flow。
+  - **`/opt/*` 是 deploy artifact**（tar+ssh，无 git history，下次 deploy 覆盖），不是开发 source。`materialize`/`materialize-files` 拒 `/opt/` 路径（除非 `--allow-runtime-copy`）。
+  - `workspace.path` 与 `workspace.harness_root` 是有意分离的概念（同树 or 分离树）。
+- 证据：
+  - 新测试 `coordinate/tests/test_issues.py::IssueMaterializeHostAwareTests::test_files_supports_sidecar_harness_root` 证明 `materialize-files` 把 checklist 写到 checkout **外**的 sidecar `harness_root`，且 checkout 保持无 harness 文件。
+  - worker bootstrap（`coordinate/src/coordinate/handoff.py`）已把 `execution_workspace_path`（cd/git）与 `execution_harness`（harness root）作为分离值渲染并按 host profile 重映射 —— 即 #11/#14/#15 的 A0 修复，8.3.1 只是固化。
+- 验证：coordinate 全量 805 OK；multinexus 无源码改动故无需跑测试；两 repo `git diff --check` 干净。
+- 待修方向：无。文档 + 跨 repo 测试 only，无 deploy / 无服务变更。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
