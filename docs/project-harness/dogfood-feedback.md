@@ -182,6 +182,10 @@
   - **服务器零改动**：triage 逻辑在 coordinate 控制面，但实际 dogfood 在 Mac/Win 本地跑（通过 coord-ssh 写远端 DB）；server 仍是 runtime-only，不装 gh/git。
 - 后续 dogfood 步骤：create test issue → `issue scan --event-cli-path <coord-cli>` → `issue triage accept --event-id <id> --task-id <id>` → 验证 `[ISSUE_TRIAGE]` delivery + task mirror + 后续 assignment 流程。
 - 待修方向：operator bot 自动 triage——目前是 operator 手动决策 + 手敲 CLI；Phase 8.5 operator bot 起来后可自动消费 `issue.spotted` event 并产出 triage 决策（仍保留 untrusted 边界 + 幂等约束）。
+- Phase 8 编号体系（2026-06-18 对齐现实进度）：8.1 issue intake（done）/ 8.2 issue triage（done，本条）/ 8.3 accepted-issue materialization + handoff readiness / 8.4 PR-CI-review automation / 8.5 operator bot。
+- 8.2 边界（review 收口）：accept 只创建 DB task mirror（`tasks` 表），不写 harness `mvp-checklist.json`，不保证 `task handoff`（`handoff.py` preflight 要 checklist 含该 task）。把 accepted issue 落成 harness task/checklist/plan-ready 是 8.3。
+- content_trust follow-up：triage 层强制 `content_trust="untrusted"`，不再读 spotted payload 的自声明（防 payload 篡改声明 `trusted` 绕过 untrusted 边界）。
+- dogfood 命令修正：`coord-local task list` 不存在（task CLI 只有 `create`/`handoff`）；验证 task mirror 改用 `coord-local event list <workspace>` 看 `issue.triaged` event，或直接读 triage CLI 的 JSON 输出里的 `task` 字段。
 
 ## 后续建议排期
 
