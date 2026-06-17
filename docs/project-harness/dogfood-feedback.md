@@ -172,7 +172,7 @@
 
 ### 18. Phase 8.2 issue triage：untrusted 边界与幂等设计
 
-- 状态：fixed（coordinate 侧已实现，待真实 issue dogfood）
+- 状态：fixed（coordinate 侧已实现并完成真实 issue dogfood）
 - 背景：Phase 8.1 已能 `issue scan` 把 GitHub issue 写成 `issue.spotted` event（coordinate commit 966b8c5；真实 dogfood：issue #2 → event `335d09e2-189c-41bd-b874-8fbe32f1bca2` → Discord delivery sent）。Phase 8.2 补下一段：issue.spotted → operator triage → task/assignment。
 - 实现的 CLI：`coord-local issue triage <workspace> --event-id <issue.spotted id> --decision accept|reject|defer`（accept 额外接 `--task-id/--title/--owner/--phase`，reject/defer 接 `--reason`）。
 - 设计边界（重要，踩过 untrusted 边界的坑都要写下来）：
@@ -180,12 +180,19 @@
   - **幂等 + 冲突拒绝**：同 (event_id, decision, task_id) 幂等复用 `issue.triaged` event；同一个 issue 已被 accept 后再 reject/defer 会报 `IssueTriageError`，避免重复或矛盾的 triage 决策。
   - **不自动 merge / close**：triage accept 只创建 task mirror + 写 event + 可见 delivery，不创建 PR、不 merge、不关 GitHub issue。merge/close 保持 operator-gated。
   - **服务器零改动**：triage 逻辑在 coordinate 控制面，但实际 dogfood 在 Mac/Win 本地跑（通过 coord-ssh 写远端 DB）；server 仍是 runtime-only，不装 gh/git。
-- 后续 dogfood 步骤：create test issue → `issue scan --event-cli-path <coord-cli>` → `issue triage accept --event-id <id> --task-id <id>` → 验证 `[ISSUE_TRIAGE]` delivery + task mirror + 后续 assignment 流程。
-- 待修方向：operator bot 自动 triage——目前是 operator 手动决策 + 手敲 CLI；Phase 8.5 operator bot 起来后可自动消费 `issue.spotted` event 并产出 triage 决策（仍保留 untrusted 边界 + 幂等约束）。
+- 真实 dogfood：
+  - 部署 coordinate commit `5092bc4` 到腾讯云，未使用 `--skip-install`，确保远端 installed package 与 `/opt/coordinate/VERSION_DEPLOYED` 一致。
+  - 创建临时 GitHub issues `baisiqi6/multi-agent-nexus#3`（accept）和 `#4`（reject），在 Mac 本地跑 `gh` + `/Users/yinxin/.local/bin/coord-ssh` 写远端 DB。
+  - Scan 创建 `issue.spotted` events：`45279001-d431-45f7-8286-30c0a1e08af3`（#3）和 `b59be207-33c6-4434-9357-e65c96f68f1d`（#4）。
+  - Accept 创建 `issue.triaged` event `b1d35a1c-970a-4f75-914c-e94cb5ca5ffa`、delivery `240e9eb1-01c0-4bdd-94e2-bddc5bdb0f4b`、task mirror `phase-8-2-triage-accept-smoke`，且 `content_trust=untrusted`。
+  - Reject 创建 `issue.triaged` event `f7f8bcc5-9086-4e95-b250-31fa12f37e6f`、delivery `076e71b3-4daa-4217-89c1-96d7c172dad0`，不创建 task mirror。
+  - 两条 `[ISSUE_TRIAGE]` delivery 已投递到 Discord：`discord_bot:1516871824963539165`（accept）和 `discord_bot:1516871826884661398`（reject）。
+  - 重复 accept 幂等复用原 event/delivery；对已 accept 的 issue 改 reject 返回 `IssueTriageError`。临时 issue #3/#4 已关闭。
 - Phase 8 编号体系（2026-06-18 对齐现实进度）：8.1 issue intake（done）/ 8.2 issue triage（done，本条）/ 8.3 accepted-issue materialization + handoff readiness / 8.4 PR-CI-review automation / 8.5 operator bot。
 - 8.2 边界（review 收口）：accept 只创建 DB task mirror（`tasks` 表），不写 harness `mvp-checklist.json`，不保证 `task handoff`（`handoff.py` preflight 要 checklist 含该 task）。把 accepted issue 落成 harness task/checklist/plan-ready 是 8.3。
 - content_trust follow-up：triage 层强制 `content_trust="untrusted"`，不再读 spotted payload 的自声明（防 payload 篡改声明 `trusted` 绕过 untrusted 边界）。
 - dogfood 命令修正：`coord-local task list` 不存在（task CLI 只有 `create`/`handoff`）；验证 task mirror 改用 `coord-local event list <workspace>` 看 `issue.triaged` event，或直接读 triage CLI 的 JSON 输出里的 `task` 字段。
+- 待修方向：Phase 8.3 把 accepted issue mirror materialize 到 harness checklist/task state，使其可被 `task handoff`；Phase 8.5 再做 operator bot 自动消费 `issue.spotted` 并产出 triage 决策。
 
 ## 后续建议排期
 

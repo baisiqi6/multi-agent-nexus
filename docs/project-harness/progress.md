@@ -72,6 +72,21 @@ Harness root: `docs/project-harness/`
   - 结论：Python package 代码变更不能用 `--skip-install` 部署；`--skip-install` 只适合文档、非导入脚本或确认 venv 不需要更新的紧急同步。
   - Mac tar 会带 Apple extended attributes / file flags，服务器 tar 会输出 `LIBARCHIVE.xattr.*` / `SCHILY.fflags` warning；`deploy-server.sh` 已设置 `COPYFILE_DISABLE=1`，并自动探测 `--no-xattrs` / `--no-fflags` 降噪。
 
+### Phase 8.2 — GitHub issue triage dogfood closeout
+
+- **目标**: 验证 `issue.spotted` 能被 operator triage 成 accept/reject/defer 决策，并通过远端 coordinate DB 产生 `[ISSUE_TRIAGE]` 可见消息。
+- **Coordinate 实现/部署**:
+  - `995bc5c`: `coordinate issue triage`、`issue.triaged` event、task mirror、policy delivery、幂等/冲突保护。
+  - `5092bc4`: review follow-up，triage 层强制 `content_trust="untrusted"`，忽略 spotted payload 的自声明 trust；文档明确 8.2 accept 只创建 DB task mirror，不写 harness checklist。
+  - 已用 `scripts/deploy-server.sh coordinate` 部署到腾讯云，未用 `--skip-install`；`/opt/coordinate/VERSION_DEPLOYED` 记录 `5092bc416caae836a8a01b9cc59dffdfd4ae3281`。
+- **真实 dogfood**:
+  - 创建临时 issues `baisiqi6/multi-agent-nexus#3`（accept）和 `#4`（reject），Mac 本地跑 `gh`，通过 `/Users/yinxin/.local/bin/coord-ssh` 写远端 coordinate DB。
+  - Scan events: `45279001-d431-45f7-8286-30c0a1e08af3`（#3）和 `b59be207-33c6-4434-9357-e65c96f68f1d`（#4）。
+  - Accept triage: event `b1d35a1c-970a-4f75-914c-e94cb5ca5ffa`，delivery `240e9eb1-01c0-4bdd-94e2-bddc5bdb0f4b`，task mirror `phase-8-2-triage-accept-smoke`，Discord message `discord_bot:1516871824963539165`。
+  - Reject triage: event `f7f8bcc5-9086-4e95-b250-31fa12f37e6f`，delivery `076e71b3-4daa-4217-89c1-96d7c172dad0`，Discord message `discord_bot:1516871826884661398`。
+  - Repeated accept reused the existing triage event/delivery; conflicting reject on the accepted issue returned `IssueTriageError`. Temporary issues #3/#4 were closed.
+- **Boundary**: 8.2 is complete but intentionally stops at DB task mirror. Phase 8.3 must materialize accepted issue mirrors into harness checklist/task state before `task handoff` can use them.
+
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 
 - **目标**: 验证 A0 形态下 `coordinate` / Discord bridge 跑在腾讯云、worker agentd 跑在各宿主机时，handoff bootstrap 使用目标宿主机自己的 repo path，而不是服务器部署副本 `/opt/multinexus`。
