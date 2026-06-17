@@ -116,12 +116,16 @@ remote_sudo_script() {
   ssh "$HOST" "sudo bash -s" "$@"
 }
 
-rsync_to_remote_staging() {
+sync_to_remote_staging() {
   local src="$1"
   local staging="$2"
   shift 2
   ssh "$HOST" "rm -rf '$staging' && mkdir -p '$staging'"
-  rsync -az --delete "$@" "$src"/ "$HOST:$staging"/
+  # tar+ssh instead of rsync — works on Win where rsync is unavailable.
+  # $@ carries --exclude PATTERN pairs (same syntax tar accepts).
+  # --delete semantics come from `rm -rf '$staging'` before extract.
+  # -z compresses during transfer (ssh doesn't compress by default).
+  tar -czf - "$@" -C "$src" . | ssh "$HOST" "tar -xzf - -C '$staging'"
 }
 
 write_remote_version() {
@@ -155,7 +159,7 @@ deploy_coordinate() {
   staging="/tmp/deploy-coordinate-$sha"
 
   echo "==> Deploy coordinate $branch@$sha to $HOST"
-  rsync_to_remote_staging "$COORDINATE_SRC" "$staging" \
+  sync_to_remote_staging "$COORDINATE_SRC" "$staging" \
     --exclude .git \
     --exclude .venv \
     --exclude .env \
@@ -201,7 +205,7 @@ deploy_multinexus() {
   staging="/tmp/deploy-multinexus-$sha"
 
   echo "==> Deploy multinexus $branch@$sha to $HOST"
-  rsync_to_remote_staging "$MULTINEXUS_SRC" "$staging" \
+  sync_to_remote_staging "$MULTINEXUS_SRC" "$staging" \
     --exclude .git \
     --exclude .venv \
     --exclude .env \
@@ -257,7 +261,7 @@ EOF
 
 require_cmd git
 require_cmd ssh
-require_cmd rsync
+require_cmd tar
 
 case "$COMPONENT" in
   status)
