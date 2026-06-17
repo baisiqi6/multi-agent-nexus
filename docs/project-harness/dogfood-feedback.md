@@ -196,7 +196,8 @@
 
 ### 19. Phase 8.3 accepted-issue materialization：把 issue accept 落成 harness task
 
-- 状态：fixed（coordinate 侧已实现，待真实 dogfood）
+- 状态：implemented + host-aware path added；pending A0 dogfood。同机（coding host = coordinate host）下 `issue materialize` 可用；A0 runtime-only server 不能直接 coord-ssh 跑 `materialize`（/opt guard 拒），必须走 `materialize-files`（coding host）+ commit/push + deploy + `materialize-record`（coord-ssh）。
+- Host-aware rework（A0-safe，review follow-up）：单 `materialize` 命令拒绝 workspace.path/harness_root 在 `/opt/` 的 runtime copy（除非 `--allow-runtime-copy`），错误信息指向 host-aware flow。拆成 `issue materialize-files`（coding host 写 mvp-checklist.json，不碰 DB）+ `issue materialize-record`（coord-ssh 写 plan.ready/issue.materialized/task mirror/delivery，不碰 harness 文件，所以对 /opt workspace 安全）。renderer P2 修：兼容 `payload.number` 或 `payload.issue_number`，Discord 卡片不再显示 `repo#?`。`test_issues.py` 46 OK，`test_handoff.py` 46 OK，coordinate 全量 803 OK。
 - 背景：Phase 8.2 accept 只建 DB task mirror，不进 harness `mvp-checklist.json`，所以 `task handoff` 过不了 `_require_harness_task` preflight（dogfood-feedback #18 收口边界）。
 - 实现：`coord-local issue materialize <workspace> --event-id <issue.triaged id> --plan-doc <workspace-relative plan path>`。
 - 设计边界：
