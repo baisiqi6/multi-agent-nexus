@@ -86,15 +86,15 @@ MultiNexus 同时跑在 **3 台宿主机**上：
 
 ### 1.8 部署到 server（push-based rsync 模型）
 
-**核心架构**：dev 机器（Mac/Win）持有 git repo，server 是 runtime，**不持有 git 历史、不需要 GitHub 凭证**。代码用 rsync push 过去。
+**核心架构**：dev 机器（Mac/Win）持有 git repo，server 是 runtime，**不持有 git 历史、不需要 GitHub 凭证**。代码用 tar+ssh push 过去（**不依赖 rsync**，所以 Win 也能 deploy）。
 
 ```
 Mac/Win (dev)                     Server (runtime, 124.221.111.209)
 ─────────────                     ─────────────────────────────────
-git repo                          /opt/multinexus/    ← rsync 推过来
+git repo                          /opt/multinexus/    ← tar+ssh 推过来
   ↓ commit/push                     /opt/coordinate/   ← 同上
 scripts/deploy-server.sh            VERSION_DEPLOYED   ← 审计 trail
-  ↓ rsync + restart                  agents.toml, .venv, logs, data ← 保留
+  ↓ tar+ssh + restart                agents.toml, .venv, logs, data ← 保留
 systemd (bridge / coordinate)
 ```
 
