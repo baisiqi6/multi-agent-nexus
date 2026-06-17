@@ -4,6 +4,25 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-17
 
+### Phase 8 dogfood cleanup — win-opencode degraded service
+
+- **目标**: 收口 Windows `win-opencode` 接入，避免 Discord job 出现假成功、永久 thinking 或 SSH wrapper 卡死。
+- **代码修复**:
+  - `2b8a3a3`: Windows adapter 子进程环境不再注入 `PWD`。
+  - `d1cdb93` / `8066e0c`: OpenCode 空 text 做有限重试；重试后仍为空时返回错误，并由 agentd 标记 job `failed`，不再生成 `"(no response)"` 假成功。
+  - `6c926a4`: Windows `coord-ssh-win.py` 支持显式 `COORD_SSH_TARGET`、identity file、timeout。
+  - `c662313`: SSH wrapper 加 `BatchMode=yes`、`StrictHostKeyChecking=accept-new`、可选 known_hosts，避免服务态交互等待。
+  - `3fa17c2`: Windows wrapper 避免 OpenSSH stdin pipe；改为传单个 POSIX-quoted remote command arg，解决 `ssh -T ... sh` 在 Windows 下卡 EOF 的问题。
+- **运维修复**:
+  - Windows NSSM `win-claude` / `win-opencode` 服务增加 `COORD_SSH_TARGET=ubuntu@124.221.111.209`、`COORD_SSH_IDENTITY_FILE`、`COORD_SSH_KNOWN_HOSTS_FILE`。
+  - 纠正服务私钥：服务器授权的是 `id_ed25519_coord_win_v2`，不是旧 `id_ed25519_coord_win`。
+  - 为 LocalSystem 服务复制专用私钥到 `C:\ProgramData\ssh\coord\id_ed25519_coord_win_v2`，ACL 限制为 `SYSTEM` / `Administrators`，解决 OpenSSH `UNPROTECTED PRIVATE KEY FILE`。
+- **验证结果**:
+  - Windows wrapper `--version` 通过显式 v2 key 返回 `coordinate 0.1.0`。
+  - `win-opencode` NSSM 服务恢复 claim/report，不再因为 SSH alias、stdin pipe 或私钥 ACL 卡住。
+  - 5 个 pending smoke job 被消费：2 done (`WIN-OPENCODE-ENV-2`, `WIN-OPENCODE-ENV-4`)，3 failed (`OpenCode returned no text (events=step_start)`)。
+- **结论**: `win-opencode` 链路已从“假 done / pending / SSH 卡死”降级为“明确 failed”，但 NSSM LocalSystem 下 OpenCode 仍不稳定；暂不作为默认 worker。后续需要 per-user runner 或 NSSM ObjectName=ADMIN 后再验收。
+
 ### Phase 8 host-profile handoff smoke — dogfood closeout
 
 - **目标**: 验证 A0 形态下 `coordinate` / Discord bridge 跑在腾讯云、worker agentd 跑在各宿主机时，handoff bootstrap 使用目标宿主机自己的 repo path，而不是服务器部署副本 `/opt/multinexus`。

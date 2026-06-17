@@ -130,6 +130,20 @@
 - 当前处理：operator 已核对 job result，走 `assignment review-result` approved，再走 `assignment mark-done`，任务最终 closed。
 - 待修方向：bridge 在收到 agentd job `response_text` 后，应复用 agent-report parser 处理其中的结构化 block，或将拆出的 `[agent-report]` 独立发为 Discord message create，避免只写入 result text 后被 fallback 覆盖。
 
+### 14. win-opencode 在 NSSM / LocalSystem 下仍不稳定
+
+- 状态：mitigated
+- 原始现象：Windows `win-opencode` agentd 可以 claim job，但 OpenCode adapter 在 NSSM LocalSystem 服务环境下经常只收到 `step_start` 后 EOF，没有 `text` event。早期表现为 `response_text="(no response)"` 且 job 被错误标为 `done`，Discord 侧看起来像 worker 成功但没有内容。
+- 已修复：
+  - `filtered_env()` 不再在 Windows 子进程环境注入 POSIX 风格 `PWD`。
+  - OpenCode adapter 对空 text 做有限重试，重试后仍无 text 时返回 `OpenCode returned no text ...`。
+  - Agentd worker 将该错误前缀标为失败，使 job 变为 `failed`，不再假成功。
+  - Windows `coord-ssh-win.py` 支持显式 `COORD_SSH_TARGET` / identity / known_hosts，并避免 OpenSSH stdin pipe 卡死。
+  - Windows 服务态私钥改用 `C:\ProgramData\ssh\coord\id_ed25519_coord_win_v2`，ACL 只给 `SYSTEM` / `Administrators`，解决 NSSM service 读取私钥的权限问题。
+- 验证：Windows `win-opencode` NSSM 服务恢复 claim/report；5 个 pending smoke job 最终 2 done、3 failed，失败均为 `OpenCode returned no text (events=step_start)`，没有 `(no response)` 假成功或永久 pending。
+- 剩余问题：OpenCode 在前台 ADMIN 环境下稳定，但 NSSM LocalSystem 仍有高比例空 text。当前只能视为 degraded worker，不应作为默认 coding worker。
+- 待修方向：给 `win-opencode` 改成真实 ADMIN 用户上下文的长期运行方式（NSSM ObjectName 需要用户密码，或设计可自动重启的 Scheduled Task / per-user runner），再做 10 次以上真实 job smoke；通过前不要把 `win-opencode` 放入默认 worker selection。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
@@ -138,3 +152,4 @@
 4. Maintenance: handoff/closeout packet 可读性修复
 5. Maintenance: response_text 中的 `[agent-report]` 摄取修复
 6. Maintenance: Mac Claude CLI proxy / agentd launchd 健康检查
+7. Maintenance: win-opencode per-user runner / service account stabilization
