@@ -1,6 +1,9 @@
 """Tests for Windows coord SSH wrapper quoting and agentd Windows compat."""
 
 import json
+import importlib.util
+import os
+from pathlib import Path
 import shlex
 import sys
 import unittest
@@ -136,3 +139,39 @@ class TestCoordSshWinStdinPipe(unittest.TestCase):
         json_arg = tokens[tokens.index("--result-json") + 1]
         parsed = json.loads(json_arg)
         assert parsed["response_text"] == "C:\\Users\\ADMIN\\path 中文 'quoted'"
+
+
+class TestCoordSshWinEnvConfig(unittest.TestCase):
+    def _load_module(self):
+        path = Path("scripts/coord-ssh-win.py")
+        spec = importlib.util.spec_from_file_location("coord_ssh_win_test", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        return module
+
+    def test_ssh_base_cmd_uses_explicit_target_and_identity(self):
+        module = self._load_module()
+        env = {
+            "COORD_SSH_TARGET": "ubuntu@124.221.111.209",
+            "COORD_SSH_IDENTITY_FILE": r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win",
+            "COORD_SSH_TIMEOUT_SECONDS": "7",
+        }
+        with patch.dict(os.environ, env, clear=True):
+            cmd = module._ssh_base_cmd()
+
+        assert cmd == [
+            "ssh",
+            "-i",
+            r"C:\Users\ADMIN\.ssh\id_ed25519_coord_win",
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "ConnectTimeout=7",
+            "ubuntu@124.221.111.209",
+        ]
+
+    def test_ssh_timeout_defaults_on_invalid_value(self):
+        module = self._load_module()
+        with patch.dict(os.environ, {"COORD_SSH_TIMEOUT_SECONDS": "bad"}, clear=True):
+            assert module._ssh_timeout_seconds() == 30

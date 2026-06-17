@@ -10,19 +10,47 @@ mangling JSON arguments that contain backslashes and double quotes.
 """
 
 import shlex
+import os
 import subprocess
 import sys
 
-SSH_TARGET = "kook-hermes-admin"
+DEFAULT_SSH_TARGET = "kook-hermes-admin"
 REMOTE_CLI = "/usr/local/bin/coord-local"
 
 
+def _ssh_base_cmd() -> list[str]:
+    cmd = ["ssh"]
+    identity_file = os.environ.get("COORD_SSH_IDENTITY_FILE", "").strip()
+    if identity_file:
+        cmd += ["-i", identity_file, "-o", "IdentitiesOnly=yes"]
+    cmd += [
+        "-o",
+        f"ConnectTimeout={_ssh_timeout_seconds()}",
+        os.environ.get("COORD_SSH_TARGET", DEFAULT_SSH_TARGET),
+    ]
+    return cmd
+
+
+def _ssh_timeout_seconds() -> int:
+    raw = os.environ.get("COORD_SSH_TIMEOUT_SECONDS", "30").strip()
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return 30
+
+
 def _run_via_stdin(remote_cmd: str) -> int:
-    result = subprocess.run(
-        ["ssh", "-T", SSH_TARGET, "sh"],
-        input=(remote_cmd + "\n").encode("utf-8"),
-        capture_output=True,
-    )
+    cmd = [*_ssh_base_cmd()[:-1], "-T", _ssh_base_cmd()[-1], "sh"]
+    try:
+        result = subprocess.run(
+            cmd,
+            input=(remote_cmd + "\n").encode("utf-8"),
+            capture_output=True,
+            timeout=_ssh_timeout_seconds() + 5,
+        )
+    except subprocess.TimeoutExpired:
+        print("coord-ssh-win: ssh timed out", file=sys.stderr)
+        return 124
     if result.stdout:
         sys.stdout.buffer.write(result.stdout)
     if result.stderr:
@@ -31,9 +59,14 @@ def _run_via_stdin(remote_cmd: str) -> int:
 
 
 def _run_via_argv(remote_cmd: str) -> int:
-    result = subprocess.run(
-        ["ssh", SSH_TARGET, remote_cmd],
-    )
+    try:
+        result = subprocess.run(
+            [*_ssh_base_cmd(), remote_cmd],
+            timeout=_ssh_timeout_seconds() + 5,
+        )
+    except subprocess.TimeoutExpired:
+        print("coord-ssh-win: ssh timed out", file=sys.stderr)
+        return 124
     return result.returncode
 
 
