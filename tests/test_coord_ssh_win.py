@@ -126,10 +126,16 @@ class TestCoordSshWinRemoteCommandArg(unittest.TestCase):
         import subprocess
         result = {"response_text": "C:\\Users\\ADMIN\\path 中文 'quoted'", "duration_ms": 500}
         json_str = json.dumps(result, ensure_ascii=False)
+        # PYTHONUTF8=1 forces the child Python to emit UTF-8 on stdout/stderr.
+        # Without this, Chinese Windows children default to GBK (cp936) and the
+        # parent's UTF-8 decoder hits bytes like 0xd6 in multibyte sequences.
+        # This matches the NSSM production env, which also sets PYTHONUTF8=1.
+        env = {**os.environ, "PYTHONUTF8": "1"}
         proc = subprocess.run(
             [sys.executable, "scripts/coord-ssh-win.py", "--dry-run",
              "test", "--result-json", json_str],
             capture_output=True, text=True, encoding="utf-8",
+            env=env,
         )
         output = proc.stdout.strip()
         assert "--result-json" in output
