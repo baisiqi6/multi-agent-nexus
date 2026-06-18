@@ -27,7 +27,7 @@ Harness root: `docs/project-harness/`
 - **Host-aware profile 验证**（plan acceptance #3）: `worker.handoff.prepared` 的 `execution_profile` = host `macbook-local`，`workspace_path=/Users/yinxin/projects/multinexus`，`harness_root=/Users/yinxin/projects/multinexus/docs/project-harness`，`coordinator_cli_path=/Users/yinxin/.local/bin/coord-ssh`，`coordinator_db_path=/var/lib/coordinate/coord.sqlite3`，`harnessctl_path=/Users/yinxin/projects/multinexus/scripts/harness/harnessctl`。worker 执行目录指向 Mac source checkout；`/opt/multinexus` 仅作为服务器控制面 `control_workspace_path`，未被当作 worker 执行目录 —— 即 #11/#14/#15/#20 的 A0 修复，8.3.2 用真实 handoff 再次验证。
 - **Worker 改动**: 仅 `progress.md` + `dogfood-feedback.md`（记录 A0 dogfood 证据 + 重试观察）；无 runtime / coordinate / harness 代码改动。
 - **验证**: `git diff --check` 干净；multinexus 全量 `python -m unittest discover -s tests` 通过；`coord-ssh event list --workspace-id discord-nexus` 链路证据如上；GitHub issue #5 保持 OPEN（plan 非目标：不在本次自动关 issue，待 closeout approved 后由 operator 关闭）。
-- **Closeout**: commit + push 后通过 `coord-ssh assignment closeout discord-nexus --task-id phase-8.3.2-a0-materialization-dogfood --reviewer codex --actor mac-claude` 请求 codex 审核。
+- **Closeout**: worker commit `d68c8b0` push 后通过 `coord-ssh assignment closeout discord-nexus --task-id phase-8.3.2-a0-materialization-dogfood --reviewer codex --actor mac-claude` 请求审核（event `83ae267e-7bb0-4f83-972e-a68d0c908b46`）。Codex review approved（event `1d4b0625-b8aa-4cec-b278-ef641601fa4d`），修正文档中对 529 可见性的错误描述（operator commit `1bff2be`），随后 `task.done`（event `b905a4be-3135-49f8-ac19-7e9e1d1f15d7`）。临时 GitHub issue #5 已由 operator 关闭。
 
 ## 2026-06-17
 
