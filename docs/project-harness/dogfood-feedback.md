@@ -238,16 +238,17 @@
   - `[agent-report]` 示例不要放在 fenced code block，或者 report parser 应明确忽略 fenced 示例但能捕获真实未 fenced block。
   - 可考虑给 `action=progress` 加 `next_requires_followup=false/true` 或 agentd 侧检测"只 start 无文件变更/无 closeout"的长任务风险。
 
-### 22. Phase 8.3.2 A0 重试：worker job 在 provider 529 后无声卡死，accept 状态被保留
+### 22. Phase 8.3.2 A0 重试：provider 529 后执行失败，assignment 仍保持 running
 
-- 状态：open（操作观察，非代码缺陷）
-- 原始现象：`phase-8.3.2-a0-materialization-dogfood` 首次 handoff 被 `mac-claude` accept（event `e5800e0c-9d8f-44e4-a7f0-8ca8f14ed755`，2026-06-18 05:02:11Z），但 worker 执行时遇到 Claude API `529 Overloaded`，未产出任何 start/progress、实现、提交或 closeout。Discord / coordinate 侧只见 `assignment.accepted`，随后静默。
-- 影响：任务停在 `assignment.accepted`/running，没进入 closeout；只看"已 accept"的 operator 会误以为 worker 正在执行。与 #21 同属"accepted ≠ executed"的可观察风险，但本次更极端 —— 连 #21 那种 start/progress 文本都没有。
+- 状态：open（重试策略缺口；失败可见性正常）
+- 原始现象：`phase-8.3.2-a0-materialization-dogfood` 首次 handoff 被 `mac-claude` accept（event `e5800e0c-9d8f-44e4-a7f0-8ca8f14ed755`，2026-06-18 05:02:11Z），但 worker 执行时遇到 Claude API `529 Overloaded`，未产出实现、提交或 closeout。coordinate 正确记录了 `job.failed`，Discord 也生成了 fallback blocker；但 harness assignment 仍保持 accepted/running，没有自动 retry 或回退到可重新调度状态。
+- 影响：失败本身可见，但任务生命周期不会自行恢复；operator 必须看到 blocker 后主动重试。与 #21 同属"accepted != executed"风险，区别是本次 adapter 明确失败，而不是只返回 start/progress。
 - 当前处理：operator 直接重试 worker 执行，明确说明"上次 529 未开始实施，不要再 accept"。重试在同一执行内完成进度记录 → 测试 → commit/push → closeout；未再次 `assignment accept`（该命令对同 task+owner 幂等，accept 已记录）。
 - 待修方向：
-  - agentd / bridge 在 adapter 调用因 provider 限流（529 / overloaded / 超时）失败时，应渲染一条可见的 `progress.reported`（或 `blocker`）delivery，而不是只在 job result 里静默 `failed` —— 避免 accepted → 无声卡死。
+  - 对 provider 限流（529 / overloaded / 短时超时）增加有上限、带退避的自动 retry；超过上限后继续保留当前可见 blocker 行为。
+  - 明确失败后的 assignment 状态：保持 running 等待 operator retry，或转为 blocked/retryable，避免 DB job 已 failed 而 harness 仍像在执行。
   - worker bootstrap 可固化重试指引：若 session 仍 live 且 task 已 `accepted`/`running`，直接 resume 执行，不要重新 accept。
-  - 可给任务加一个"accepted 后 N 分钟无 progress/done 即标 stale"的看护，让 operator 不必靠盯 Discord 才发现卡死。
+  - 可给任务加一个"accepted 后 N 分钟无成功执行/closeout 即标 stale"的看护。
 
 ## 后续建议排期
 
