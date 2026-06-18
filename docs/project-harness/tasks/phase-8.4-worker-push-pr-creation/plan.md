@@ -127,20 +127,30 @@ coordinate can create or link a PR safely and idempotently".
 The plan answers six boundary questions before any code is written:
 
 1. **Where does `gh` execute?**
-   - Only on Mac/Windows coding hosts, through the host-side wrapper
-     `coordinate pr publish ... --event-cli-path /Users/yinxin/.local/bin/coord-ssh`
-     (Mac) or `python scripts/coord-ssh-win.py ...` (Windows).
-   - Tencent Cloud coordinate never calls `gh`. The server path
-     `publish_pr` is record-only: it appends a `pr.linked` /
-     `pr.created` event directly to the local DB. It must refuse if asked
-     to verify a SHA or run `gh`.
+   - Only on the Mac/Windows coding host that runs `coordinate pr publish`
+     **without** `--event-cli-path` (or with `--event-cli-path` whose
+     remote coord CLI is itself a host wrapper — never `/opt/coordinate`).
+     All `gh api`, `gh pr list`, `gh pr create` calls happen in
+     `coordinate.prs.publish_pr` on that host.
+   - Tencent Cloud `/opt/coordinate` never calls `gh`. The
+     `coordinate pr publish` CLI in the server runtime must not be
+     invoked with `gh`-relevant parameters; if it is, the gh runner
+     surfaces `gh_missing` and `publish.blocked (gh_missing)` is
+     recorded. The server copy of `coordinate` is a pure event sink.
 
 2. **How is the result written back idempotently to the remote DB?**
-   - The host CLI invokes `coord-ssh event append <event-type> --workspace-id
-     ... --task-id ... --idempotency-key ... --payload-json ...`. The
-     event-appender reuses the existing `db.append_event` contract, which
-     treats `idempotency_key` collisions as `created=False` rather than
-     errors. The event_appender (existing) is reused without modification.
+   - The host runs `coordinate pr publish` locally. After
+     `publish_pr` succeeds (or records a `push.required` / `publish.blocked`
+     event), if the operator passes `--event-cli-path PATH`, the CLI
+     forwards **only** the resulting event via
+     `PATH event append <event-type> --workspace-id ... --task-id ...
+     --idempotency-key ... --payload-json ...`.
+   - `event_cli append` reuses the existing `db.append_event` contract,
+     which treats `idempotency_key` collisions as `created=False`
+     rather than errors.
+   - The remote side never sees another `pr publish` invocation —
+     that would defeat the host/server split. We never forward a
+     nested `pr publish`.
 
 3. **PR is created on GitHub but event record write fails — how does a rerun
    recover without creating a duplicate PR?**
