@@ -4,6 +4,74 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-18
 
+### Phase 8.4 — Worker Push And PR Creation (vertical slice, source-of-truth only)
+
+- **Scope**: close the GitHub automation loop from a worker host's
+  `[agent-report] action=done` to a real PR, without requiring the Tencent
+  Cloud coordinate server to own a local checkout of the worker branch.
+- **Branch**: `agents/mac-claude/phase-8.4-worker-push-pr-creation` (both
+  repos; base = `origin/agents/mac-claude/phase-8-preflight-dogfood-cleanup`).
+- **Plan + bootstrap**:
+  `docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md`,
+  `.../worker-bootstrap.md`.
+- **Coordinate changes**:
+  - `src/coordinate/github.py`: new `fetch_remote_ref`,
+    `discover_open_pr_for_head`, `create_pr`, and strict
+    `validate_repo/branch/commit/pushed`. All `gh` calls go through an
+    injected runner.
+  - `src/coordinate/prs.py`: new `publish_pr()` orchestrator emitting
+    `pr.created` / `pr.linked` / `push.required` / `publish.blocked`.
+    Decision tree: validate → mirror conflict → `pushed=false` → remote
+    ref lookup → SHA mismatch → discover existing PR → create-or-link.
+    Idempotency keys embed `(workspace, task, repo, branch, commit,
+    action)`, so reruns never duplicate events and never call
+    `gh pr create` twice.
+  - `src/coordinate/daemon.py`: `AgentReport` and `agent.reported`
+    payload gain optional `repo/branch/commit/remote/pushed/validation`.
+    Old reports (summary/reason only) keep working.
+  - `src/coordinate/policy.py` +
+    `src/coordinate/discord_rendering.py`: 3 new visible events added
+    to `SUPPORTED_EVENT_TYPES` with stable text renderers and Discord
+    embed colour mappings.
+  - `src/coordinate/cli.py`: `pr publish <workspace> --task-id ...
+    --repo ... --branch ... --head-owner ... --base ... --title ... --body
+    ... --commit ... --pushed true|false [--event-cli-path PATH]`.
+- **Host/server split**: server path is record-only and never calls
+  `gh`. Host wrapper (`coord-ssh` on Mac, `coord-ssh-win.py` on Windows)
+  is the only thing that invokes `gh api` / `gh pr list` /
+  `gh pr create`. `--event-cli-path` mirrors the Phase 8.1 issue-scan
+  pattern.
+- **Validation**:
+  - coordinate `993 tests OK` (805 pre-existing + 188 new for Phase 8.4).
+    Targeted modules (`test_prs`, `test_github`, `test_cli`, `test_daemon`,
+    `test_policy`, `test_discord_rendering`, `test_ci`, `test_reviews`)
+    all green; `merge gate` / `ci check` / `review check` tests
+    unchanged green.
+  - multinexus `314 tests OK (2 skipped)` (no runtime change).
+  - `git diff --check` clean on both repos.
+  - `scripts/harness/harnessctl validate` passes on both repos.
+- **No real GitHub write operation was performed** (no `gh pr create`,
+  no `gh api POST`). Only read-only smoke is allowed for Phase 8.6
+  end-to-end, after operator explicit authorization.
+- **No deploy**, **no merge** of the long-lived Phase 8 branch.
+
+### Harness state preflight repair (this task)
+
+- `docs/project-harness/mvp-checklist.json`: changed
+  `phase-8.3.2-a0-materialization-dogfood.priority` from the invalid
+  value `high` to `p1` so the local `harnessctl validate` no longer
+  fails. This is a minimal, evidence-driven operator repair — see
+  implementation handoff §7.
+- Added the canonical checklist item for `phase-8.4-worker-push-pr-creation`
+  with explicit `priority=p1`, `owner=mac-claude`, blocked_by
+  `phase-8.3.2-a0-materialization-dogfood`. This task does **not**
+  forge `issue.spotted` / `issue.triaged` events; remote registration
+  remains an operator step.
+- The local checklist still shows 8.3.1 / 8.3.2 / host-profile smoke
+  as `todo` even though the remote DB has `task.done` for all three
+  (`2544db0f`, `b905a4be`, `1682cf34`). That drift is intentional and
+  not silently repaired here — reconciliation is the operator's job.
+
 ### Phase 8.3.1 — harness source-of-truth boundary + sidecar workspace rules
 
 - Task `phase-8.3.1-harness-source-boundary` (branch `agents/mac-claude/phase-8-preflight-dogfood-cleanup`). Turns the Phase 8.3 host-aware materialize decision into documented, tested, worker-facing rules. Coordinate-side work (test + docs) lands in the `coordinate` repo; this entry records the multinexus-facing documentation.

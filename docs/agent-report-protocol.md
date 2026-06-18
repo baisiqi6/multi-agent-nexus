@@ -16,6 +16,28 @@
 - `task_id`：任务 id，必填。
 - `summary`：人类可读摘要，可选；含空格时需要 shell quote。
 - `reason`：错误或阻塞原因，可选；含空格时需要 shell quote。
+- `repo` / `branch` / `commit` / `remote` / `pushed` / `validation`：Phase 8.4 GitHub publish 元数据，可选。当任务来源是 GitHub issue 且 worker 准备让 coordinator 走 `pr publish` 时，必须提供。
+
+### Phase 8.4 GitHub publish-capable `done` report
+
+GitHub issue implementation 任务在 `action=done` 时必须附带 publish 元数据，
+否则 `coordinate pr publish` 会因为 mirror 缺失或校验失败被拦截：
+
+```text
+[agent-report] action=done workspace_id=discord-nexus task_id=phase-8.4-x \
+  repo=baisiqi6/multi-agent-coordinator \
+  branch=agents/mac-claude/phase-8.4-x \
+  commit=<40-hex SHA> \
+  remote=origin \
+  pushed=true \
+  validation="805+ tests OK; git diff --check clean" \
+  summary="implementation complete; closeout requested"
+```
+
+- `pushed` 仅接受字面 `true` / `false`，其它写法一律视作未提供。
+- `commit` 必须是 40-char 小写 hex SHA，不是 short SHA。
+- 普通 `done` report（不含 publish 元数据）继续兼容；只是 Phase 8.4 的
+  `pr publish` 不会自动启动。
 
 coordinator daemon 会扫描消息中的结构化 report 行。agent 可以先输出人类摘要，再单独换行输出 `[agent-report] ...`。
 
@@ -85,6 +107,7 @@ runtime 只自动执行 `assignment.accept`。其他生命周期动作，例如 
 | agent 认为工作完成 | `[agent-report] action=done`，由 agent 输出，仅作报告 |
 | 分配分支 | coordinator CLI：`branch allocate` |
 | 关联 PR | coordinator CLI：`pr link` |
+| 发布 PR（Phase 8.4） | coordinator CLI：`pr publish` |
 | CI 状态 | coordinator CLI：`ci check` |
 | 请求 closeout review | coordinator CLI：`assignment closeout` |
 | 正式 mark done | coordinator CLI：`assignment mark-done` |
