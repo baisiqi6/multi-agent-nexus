@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-17",
+  "updated_at": "2026-06-18",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -693,6 +693,36 @@
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8.3.2-a0-materialization-dogfood",
+      "title": "Phase 8.3.2 A0 Materialization Dogfood",
+      "status": "todo",
+      "priority": "high",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-18T05:00:51Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-18T05:00:51Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md"
       },
       "verification": "",
       "review": {}
