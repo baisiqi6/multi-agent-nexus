@@ -735,7 +735,7 @@
       "owner": "mac-claude",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md",
-      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md. MVP must let a coding host's `coordinate pr publish` verify remote ref SHA, idempotently create-or-link a GitHub PR, write pr.created/pr.linked/push.required/publish.blocked events, and keep the existing CI/review/merge gate untouched. The Tencent Cloud coordinate runtime never invokes `gh`; the host wrapper owns `gh api`/`gh pr list`/`gh pr create` via `--event-cli-path`.",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md. MVP must let a coding host's `coordinate pr publish` verify remote ref SHA via `gh api`, idempotently create-or-link a GitHub PR (with head_owner forced equal to repo owner), and forward the PublishResult JSON to `coordinate pr publish-record --result-json` so the remote DB's tasks row gets the PR URL upserted. The remote sink is record-only and never invokes `gh`. CLI must exit non-zero on push_required/publish.blocked so CI / harnessctl can fail-fast. Existing CI/review/merge gate untouched.",
       "blocked_by": [
         "phase-8.3.2-a0-materialization-dogfood"
       ],

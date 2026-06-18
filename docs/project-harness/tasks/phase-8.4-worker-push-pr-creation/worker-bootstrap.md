@@ -54,8 +54,16 @@ rg -n "link_pr|publish|pr.linked|pr.created|fetch_remote_ref|gh pr|gh api" src/c
    and Discord embed colour.
 5. `src/coordinate/cli.py` — add `pr publish <workspace>` with explicit
    `--repo --branch --head-owner --base --title --body --commit --pushed
-   [--event-cli-path]`. Default mode is record-only and never invokes `gh`.
-6. Documentation sync (coordinate + multinexus `agent-report-protocol.md`).
+   [--event-cli-path]`. Default mode runs `publish_pr` against the local
+   DB on the GitHub-capable coding host (the only path that may invoke
+   `gh`). `--event-cli-path` forwards the host's PublishResult JSON to a
+   remote `coordinate pr publish-record ...` invocation; the remote CLI
+   re-validates the mirror and upserts the remote task mirror but never
+   invokes `gh`. `head_owner` must equal the repo owner (fork workflow
+   out of scope).
+6. `src/coordinate/cli.py` — add `pr publish-record <workspace>
+   --result-json <json>` for the record-only remote sink.
+7. Documentation sync (coordinate + multinexus `agent-report-protocol.md`).
 
 ## Scope (Out)
 

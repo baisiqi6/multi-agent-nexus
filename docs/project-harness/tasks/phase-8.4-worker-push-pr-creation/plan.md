@@ -112,15 +112,38 @@ coordinate can create or link a PR safely and idempotently".
   test suites green.
 - `merge gate` still returns `human_gate_required=true`; still never merges.
 
-### G. A0 host/server split
+### G. A0 host/server split (record-only remote sink)
 
-- `gh api`, `gh pr list`, `gh pr create` are only invoked from the
-  Mac/Windows coding host wrapper (`publish_pr_via_gh` or the host CLI).
-- The Tencent Cloud coordinate server is never asked to have `gh` or a
-  GitHub token. Server `publish_pr` is record-only / idempotency-only and
-  refuses to invoke `gh`.
-- A failed `gh` call and a failed remote-CLI record write are reported
-  separately; neither returns a fake success.
+Two distinct CLI subcommands implement the split. Neither ever shells
+out to `gh` from the server.
+
+- `coordinate pr publish <workspace> ...` runs on the Mac/Windows
+  coding host. Default mode (no `--event-cli-path`) executes
+  `publish_pr` against the host's local DB, which is the only path
+  allowed to call `gh api` / `gh pr list` / `gh pr create`.
+- With `--event-cli-path`, the host first runs `publish_pr` locally
+  and then forwards the resulting `PublishResult.to_dict()` JSON to a
+  remote `coordinate pr publish-record <workspace> --result-json ...`
+  invocation.
+- `coordinate pr publish-record` is a record-only sink. It runs on
+  Tencent Cloud `/opt/coordinate` (or any other DB-bearing host). It
+  re-validates the host's claim against the local task mirror, appends
+  the event using the host-supplied `idempotency_key`, and on
+  `action in {created, linked}` upserts the local task mirror with
+  the resolved PR URL. It never invokes `gh`.
+
+The `merge gate` reads whichever DB the operator / CI is configured
+to read. In A0 the merge gate runs on the server, so the remote
+record-only sink is what makes `tasks.pr` visible to it.
+
+`head_owner` must equal the repo owner — fork workflow is out of
+scope, and a mismatched `head_owner` would create a PR pointing at a
+different fork that `fetch_remote_ref` cannot see. Mismatches
+fail-closed as `publish.blocked (head_owner_mismatch)`.
+
+`.py` event_cli paths are auto-prepended with `sys.executable` so the
+Windows coding host (`coord-ssh-win.py`) spawns correctly without
+hardcoding `python` in worker scripts.
 
 ## Boundary Review
 
