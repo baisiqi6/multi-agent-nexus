@@ -12,6 +12,23 @@ Harness root: `docs/project-harness/`
 - Verification: no multinexus source changed, so no multinexus test run needed. Coordinate suite 805 OK (incl. new sidecar materialize-files test). `git diff --check` clean on both repos.
 - Open risk: none. Documentation + cross-repo test only; no deploy, no service change.
 
+### Phase 8.3.2 — A0 issue materialization dogfood closeout
+
+- **目标**: 从一条 GitHub issue 走完 host-aware 全链路 — issue scan → triage accept → `materialize-files`（Mac 写 checklist）→ deploy → `materialize-record`（coord-ssh 写 DB，不碰 `/opt` 文件）→ plan approval → Discord handoff → worker 实现 → review → closeout。本条是上一轮 worker job 遇 Claude API `529 Overloaded` 后的重试收口（accept 已在首轮回退前记录，本次不再重复 accept）。
+- **Source**: GitHub issue `baisiqi6/multi-agent-nexus#5`（临时 operator-owned dogfood issue）。issue body 一律标 `content_trust=untrusted`，不作 worker / system prompt；实现指令以本仓 `tasks/phase-8.3.2-a0-materialization-dogfood/plan.md` 为唯一来源。
+- **Materialization 链路证据**（远端 coordinate DB，workspace `discord-nexus`，actor `codex`，2026-06-18 UTC）：
+  - `04:59:55Z` `issue.spotted` `ae7c7493-54b8-4985-b54e-12dcce1bce8b` — Mac 本地 `gh` + `/Users/yinxin/.local/bin/coord-ssh` 写入，`content_trust=untrusted`。
+  - `05:00:17Z` `issue.triaged` `a28062a2-e576-4744-b2ec-6478975a95cd`（decision `accept`）→ task mirror `phase-8.3.2-a0-materialization-dogfood`。
+  - `05:00:51Z` Mac checkout `mvp-checklist.json` 写入对应 checklist item — 由 `materialize-files` 生成，非手工编辑。
+  - `05:01:32Z` `plan.ready` `f0f32d89-b543-49b2-a9e1-796f62cb2b87` + `issue.materialized` `60c612ff-2a83-45f4-88b9-92d175af3edc`，`materialize_mode=record-only`，未改动服务器 harness 文件系统。
+  - `05:01:43Z` `plan.approved` `85210fc3-e1a3-4cfd-a2c8-b4715786a075`（scope "implementation plan"）。
+  - `05:02:05Z` `worker.handoff.prepared` `168cb51e-422b-47f6-8e3a-02ca77c98606` — bootstrap 按目标 host profile 渲染。
+  - `05:02:11Z` `assignment.accepted` `e5800e0c-9d8f-44e4-a7f0-8ca8f14ed755`，owner `mac-claude`，session `auto-mac-claude-1781758930`（首轮已记录，重试复用，未再次 accept）。
+- **Host-aware profile 验证**（plan acceptance #3）: `worker.handoff.prepared` 的 `execution_profile` = host `macbook-local`，`workspace_path=/Users/yinxin/projects/multinexus`，`harness_root=/Users/yinxin/projects/multinexus/docs/project-harness`，`coordinator_cli_path=/Users/yinxin/.local/bin/coord-ssh`，`coordinator_db_path=/var/lib/coordinate/coord.sqlite3`，`harnessctl_path=/Users/yinxin/projects/multinexus/scripts/harness/harnessctl`。worker 执行目录指向 Mac source checkout；`/opt/multinexus` 仅作为服务器控制面 `control_workspace_path`，未被当作 worker 执行目录 —— 即 #11/#14/#15/#20 的 A0 修复，8.3.2 用真实 handoff 再次验证。
+- **Worker 改动**: 仅 `progress.md` + `dogfood-feedback.md`（记录 A0 dogfood 证据 + 重试观察）；无 runtime / coordinate / harness 代码改动。
+- **验证**: `git diff --check` 干净；multinexus 全量 `python -m unittest discover -s tests` 通过；`coord-ssh event list --workspace-id discord-nexus` 链路证据如上；GitHub issue #5 保持 OPEN（plan 非目标：不在本次自动关 issue，待 closeout approved 后由 operator 关闭）。
+- **Closeout**: commit + push 后通过 `coord-ssh assignment closeout discord-nexus --task-id phase-8.3.2-a0-materialization-dogfood --reviewer codex --actor mac-claude` 请求 codex 审核。
+
 ## 2026-06-17
 
 ### Phase 8 dogfood cleanup — win-opencode degraded service
