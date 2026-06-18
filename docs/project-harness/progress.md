@@ -4,6 +4,49 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-18
 
+### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
+
+Codex reviewed the Phase 8.4 commit `73a439a` and surfaced three P1
+findings. The fix commit `54788ae` (coordinate) addresses all three:
+
+- **P1-A (host/server split inverted)**: `--event-cli-path` was forwarding
+  the entire `pr publish` argv to a remote coord CLI, which on Tencent
+  Cloud has no `gh` and would surface GH_MISSING. Replaced the
+  `_publish_via_event_cli` wrapper with `_forward_publish_event`, which
+  forwards a single `event append <type> ...` argv per emitted event.
+  The remote coord CLI is now strictly a durable event sink. `gh` lives
+  on the coding host only.
+- **P1-B (blocked paths wipe mirror payload)**: `_emit_publish_event`
+  no longer calls `mirror_branch_update`. Blocked / push.required paths
+  record the event only; the trusted branch / payload in the mirror is
+  left untouched. All `existing[...] ['payload_json']` reads switched
+  to `existing.get('payload')` (the post-`row_to_dict` name). Mirror
+  conflict is recorded as `publish.blocked` without altering the
+  existing mirror row.
+- **P1-C (discover PR without SHA / base check)**: `discover_open_pr_for_head`
+  now takes `expected_head_sha` and `expected_base` and rejects
+  mismatches with `GitHubCommandError(reason="discovery_mismatch")`,
+  which `publish_pr` records as `publish.blocked`. The blocked payload
+  carries the requested `head_ref` and `base` so the operator sees what
+  was requested vs. what GitHub returned. Policy text + Discord embed
+  now surface `Head` / `Base` for `publish.blocked`.
+
+Validation:
+
+- coordinate `1002 tests OK` (993 + 9 review-fix regressions).
+- multinexus `314 tests OK (2 skipped)`.
+- `git diff --check` clean on both repos.
+- `harnessctl validate` passes on both repos.
+- No real GitHub write. No deploy. No merge.
+
+Plan and bootstrap updated:
+
+- `docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md`
+  Boundary Review Q1 + Q2 rewritten to match the corrected semantics.
+
+Reviewer still has not written `review.completed`; this round is again
+requesting review (no `task.done` written).
+
 ### Phase 8.4 — Worker Push And PR Creation (vertical slice, source-of-truth only)
 
 - **Scope**: close the GitHub automation loop from a worker host's
