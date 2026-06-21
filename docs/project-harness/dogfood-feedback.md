@@ -276,6 +276,10 @@
   canonical PR URL validator（HTTPS、github.com、精确 owner/repo/pull/数字路径、
   无 query/fragment），owner/repo 元数据用 case-insensitive 比较；首次 publish
   的恶意 URL 回归证明 event/mirror 均不会成功绑定。
+- reviewer round 3 fuzz 发现 Python `isdigit()` 会接受 Unicode 数字，且
+  `urlparse()` 无法区分无 query/fragment 与空 `?`/`#`。最终 validator 使用
+  ASCII `[0-9]+`，从原始 URL 拒绝任何 `?`/`#`，并把 URL 解析异常统一转换为
+  `invalid_pr_url`；remote sink 回归证明这些 edge cases 事件/mirror 都为零。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。

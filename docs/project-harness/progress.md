@@ -91,6 +91,12 @@ target repo, while repository identity comparisons use case-insensitive GitHub
 semantics. A full first-publish regression proves malformed URLs never bind a
 task mirror. Real PR #1 still passes the stricter read-only discovery.
 
+Dogfood-fix review round 3 fuzzed the canonical URL boundary and found Unicode
+digits plus empty `?`/`#` delimiters still passed. PR numbers now use ASCII
+digits only, the raw URL rejects all query/fragment delimiters, and parser
+errors are normalized to `invalid_pr_url`. Remote sink regressions assert zero
+event/mirror writes for every edge case.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
