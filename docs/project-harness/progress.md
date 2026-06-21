@@ -145,6 +145,49 @@ Validation:
 Reviewer still has not written `review.completed`; this round is again
 requesting review (no `task.done` written).
 
+### Phase 8.4 — review-fix round 6 (2026-06-22, address codex P1/P2)
+
+Codex reviewed the Phase 8.4 review-fix commit `f3110b3` and surfaced
+two P1 + one P2 findings. Fix commit `f2ec9f8` (coordinate) addresses
+all three:
+
+- **P1 (schema v8 migration fails on production DB)**: The schema version 8
+  unique indexes on `(workspace_id, branch)` and `(workspace_id, pr)` were
+  global, so migrating a v7 database with duplicate closed-task branches
+  (e.g. `discord-nexus / feature/multi-bot` shared by two closed tasks)
+  raised `IntegrityError`. Replaced the global unique indexes with partial
+  unique indexes `WHERE phase IS NOT 'closed'`, both in the initial
+  `CREATE TABLE` block and in the v7→v8 migration path. Active tasks still
+  enforce cross-task uniqueness; closed-task historical reuse is allowed.
+- **P1 (preflight allowed host to create duplicate PR)**: `record_publish_preflight`
+  only checked mirror conflict and cross-task branch conflict. If a task's
+  remote mirror already had `/pull/1`, the host would still run `gh pr create`
+  and only be rejected later by the record sink. Added a same-task PR probe
+  to `record_publish_preflight`: when the mirror already has a PR, preflight
+  returns `ok=false, reason=pr_already_linked, pr_url=<existing>` *before*
+  any GitHub write. The host CLI already treats any `ok=false` preflight as
+  a hard failure and skips all `gh` calls.
+- **P2 (IntegrityError not converted to cross_task_conflict)**: SQLite reports
+  unique-constraint failures as `UNIQUE constraint failed: tasks.workspace_id,
+  tasks.branch` — the message does not contain the index name. The previous
+  code matched on `idx_tasks_workspace_*`, so the raw `IntegrityError` leaked
+  out instead of becoming `RecordPublishError(reason="cross_task_conflict")`.
+  Changed the exception translator to match the canonical column combinations
+  (`tasks.workspace_id, tasks.branch` and `tasks.workspace_id, tasks.pr`),
+  and added regression tests that bypass the application-level check to
+  guarantee the DB-level guard is exercised.
+
+Validation:
+
+- coordinate full suite `1049 tests OK` (1043 + 6 Round 6 regressions).
+- multinexus full suite `314 tests OK (2 skipped)`.
+- `harnessctl validate` passes on both repos.
+- `git diff --check` clean on both repos.
+- No real GitHub write. No deploy. No merge.
+
+Reviewer still has not written `review.completed`; this round is again
+requesting review (no `task.done` written).
+
 ### Phase 8.4 — Worker Push And PR Creation (vertical slice, source-of-truth only)
 
 - **Scope**: close the GitHub automation loop from a worker host's
