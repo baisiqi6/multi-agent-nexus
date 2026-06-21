@@ -188,6 +188,52 @@ Validation:
 Reviewer still has not written `review.completed`; this round is again
 requesting review (no `task.done` written).
 
+### Phase 8.4 — review-fix round 7 (2026-06-22, address codex P1/P2)
+
+Codex reviewed the Phase 8.4 review-fix commit `f2ec9f8` and surfaced
+one P1 + three P2 findings. Fix commit `011df4a` (coordinate) addresses
+all four:
+
+- **P1 (second run with existing PR was not idempotent)**: `record_publish_preflight`
+  returned `ok=false, reason=pr_already_linked` for any task whose mirror
+  already had a PR, so the host CLI exited 1 on the second execution.
+  Phase 8.4 requires the second run to discover and link the existing PR
+  read-only, succeeding without another `gh pr create`. Changed preflight
+  so that, when the worker's repo/branch/commit are consistent with the
+  mirror, it returns `ok=true, mode=link_existing, expected_pr_url=<url>`.
+  Added `publish_pr_existing()` which performs only read-only `gh pr list`,
+  verifies URL/SHA/base match, and writes `pr.linked` + updates the mirror.
+  The CLI routes preflight `link_existing` to this path and still forwards
+  the linked result to the remote record-only sink. URL/SHA/base mismatch
+  returns `publish.blocked` with exit 1.
+- **P2 (schema v8 was not upgraded to partial index)**: Round 5/6 shared
+  schema version 8, so environments that already ran Round 5 kept the
+  global `(workspace_id, branch)` index even though Round 6 code created
+  partial indexes with `IF NOT EXISTS`. Bumped `SCHEMA_VERSION` to 9 and
+  added an explicit `DROP INDEX IF EXISTS` + recreate for both indexes in
+  the migration path, guaranteeing partial branch + global PR shapes.
+- **P2 (active-only rule not applied in application layer)**: Database
+  allowed active tasks to reuse a closed task's branch, but
+  `_cross_task_conflict_check` and `allocate_branch` still treated closed
+  tasks as branch conflicts. Updated both queries to include
+  `AND phase IS NOT 'closed'`, matching the partial index semantics.
+- **P2 (PR URL should not be widened with branch)**: Production data only
+  had duplicate closed branches, not duplicate PRs. PR URLs are immutable
+  historical associations, and `link_pr` already forbids cross-task reuse.
+  Reverted the PR unique index to global `(workspace_id, pr)`; only the
+  branch index is partial.
+
+Validation:
+
+- coordinate full suite `1057 tests OK` (1049 + 8 Round 7 regressions).
+- multinexus full suite `314 tests OK (2 skipped)`.
+- `harnessctl validate` passes on both repos.
+- `git diff --check` clean on both repos.
+- No real GitHub write. No deploy. No merge.
+
+Reviewer still has not written `review.completed`; this round is again
+requesting review (no `task.done` written).
+
 ### Phase 8.4 — Worker Push And PR Creation (vertical slice, source-of-truth only)
 
 - **Scope**: close the GitHub automation loop from a worker host's
