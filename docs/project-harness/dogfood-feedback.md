@@ -254,7 +254,7 @@
 
 ### 23. Phase 8.4 真实 PR replay：同仓 `gh pr list --head owner:branch` 返回空
 
-- 状态：fixed, reviewer pending。
+- 状态：fixed, reviewer round 2 pending。
 - 原始现象：fresh host 首次通过远端 preflight 创建
   `multi-agent-coordinator#1` 并写入远端 mirror；第二个 fresh host 收到
   `mode=link_existing`，但 read-only discovery 返回 `discover_missing_pr`。
@@ -266,6 +266,11 @@
 - 修复：`discover_open_pr_for_head` 校验 owner 等于 repo owner 后，把 CLI
   filter 规范化为 bare branch；增加 argv-shape 测试，并用真实 GitHub read-only
   discovery 验证 URL/head SHA/base。
+- reviewer round 1 发现 bare filter 的同名 fork 歧义：只校验 SHA/base 仍可能
+  误取攻击者 fork PR。最终实现请求并严格筛选 `headRefName`、
+  `headRepositoryOwner.login`、`headRepository.nameWithOwner`、
+  `isCrossRepository=false`；最多读取 100 个候选，从中选择 exact same-repo
+  SHA/base 匹配项，fork-only 候选 fail closed。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。

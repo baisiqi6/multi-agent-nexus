@@ -77,6 +77,13 @@ The bounded fix and commit-advance replay support are under review before the
 dogfood retry. Deployment also surfaced and fixed a missing `.coordinator`
 server-local exclusion in `deploy-server.sh`.
 
+Dogfood-fix review round 1 rejected the initial bare-branch normalization:
+same-name fork PRs could appear in the candidate list. The follow-up requests
+head repository/owner/cross-repository metadata, scans up to 100 candidates,
+and selects only an exact same-repo candidate matching expected SHA and base.
+Fork-only candidates now fail closed. Real read-only discovery still resolves
+PR #1 with the new metadata checks.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
