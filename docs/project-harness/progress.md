@@ -103,6 +103,12 @@ all whitespace/C0/DEL characters before parsing, and requires a positive PR
 number without leading zeros. Remote sink fuzz regressions again require zero
 event/mirror writes.
 
+Dogfood-fix review round 5 found one final generic-parser normalization case:
+an empty path-params delimiter. Because GitHub PR URLs have a deliberately
+narrow grammar, validation now uses an exact full-string ASCII pattern instead
+of `urlparse`, followed by case-insensitive repo binding. This removes the
+entire delimiter-normalization class rather than adding another parser patch.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

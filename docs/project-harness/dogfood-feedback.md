@@ -284,6 +284,11 @@
   内嵌 tab/newline。最终在解析前要求原始 URL 为 ASCII 且不含任何空白、
   C0/DEL 控制字符；PR number 同时收紧为无前导零的正整数。validator 与
   remote sink 都覆盖原始控制字符零写入。
+- reviewer round 5 又发现空 path params `;` 被 `urlparse()` 规范化。由于 PR
+  URL 的合法语言很窄，最终移除通用 URL parser，改为完整 ASCII grammar
+  `https://github.com/<owner>/<repo>/pull/<positive-int>` 的 fullmatch，再对
+  owner/repo 做 case-insensitive 绑定校验。任何额外 delimiter/authority/path
+  语法都无法进入 mirror。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。
