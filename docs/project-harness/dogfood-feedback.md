@@ -271,6 +271,11 @@
   `headRepositoryOwner.login`、`headRepository.nameWithOwner`、
   `isCrossRepository=false`；最多读取 100 个候选，从中选择 exact same-repo
   SHA/base 匹配项，fork-only 候选 fail closed。
+- reviewer round 2 继续发现 candidate URL 未结构化校验、GitHub canonical
+  owner/repo casing 可能与小写输入不同。最终 discovery 与 remote sink 共用
+  canonical PR URL validator（HTTPS、github.com、精确 owner/repo/pull/数字路径、
+  无 query/fragment），owner/repo 元数据用 case-insensitive 比较；首次 publish
+  的恶意 URL 回归证明 event/mirror 均不会成功绑定。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。

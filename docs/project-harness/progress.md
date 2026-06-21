@@ -84,6 +84,13 @@ and selects only an exact same-repo candidate matching expected SHA and base.
 Fork-only candidates now fail closed. Real read-only discovery still resolves
 PR #1 with the new metadata checks.
 
+Dogfood-fix review round 2 found two adjacent gaps: candidate PR URLs were not
+canonicalized, and GitHub may preserve mixed-case owner/repository names. The
+shared validator now enforces a query-free HTTPS GitHub pull URL scoped to the
+target repo, while repository identity comparisons use case-insensitive GitHub
+semantics. A full first-publish regression proves malformed URLs never bind a
+task mirror. Real PR #1 still passes the stricter read-only discovery.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
