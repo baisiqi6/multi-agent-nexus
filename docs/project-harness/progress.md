@@ -2,6 +2,39 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-22
+
+### Phase 8.4 operator closeout — correctness pass
+
+The operator resumed Phase 8.4 from Round 7 on dedicated
+`agents/codex/phase-8.4-closeout` branches. This pass reproduced and fixed four
+cross-host/schema defects before starting the independent review loop:
+
+- Schema v9 task-index replacement is now version-gated. Opening an existing
+  v9 DB performs no task-index `DROP`/`CREATE` statements.
+- The v8-to-v9 destructive index replacement runs under `BEGIN IMMEDIATE`; a
+  failed rebuild restores both prior indexes, and a concurrent duplicate
+  branch writer blocks until the rebuilt unique index rejects it.
+- A fresh host DB can follow a remote `link_existing` preflight. The remote
+  expected PR URL is validated against the repository, GitHub discovery still
+  verifies URL/head SHA/base, and the successful link repairs the local mirror.
+- Mirror repo/commit identity is read through one compatibility helper that
+  supports legacy top-level payloads and current `publish_metadata` rows.
+  Sink-produced repo/commit mismatches now fail remote preflight.
+- Malformed successful preflight envelopes fail closed: unknown modes and
+  `link_existing` without `expected_pr_url` return code 1 before any `gh` call.
+
+Validation before review:
+
+- coordinate full suite: `1064 tests OK`.
+- multinexus full suite: `314 tests OK (2 skipped)` using the project venv.
+- Both `harnessctl validate` commands pass.
+- Both `harnessctl doctor` commands exit 0 with pre-existing optional/current
+  pointer misses only.
+- Both `git diff --check` commands are clean.
+- No GitHub write, deploy, merge, lifecycle closeout, or remote DB mutation was
+  performed in this correctness pass.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

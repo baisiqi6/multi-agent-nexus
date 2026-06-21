@@ -761,6 +761,37 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-8.4-closeout-dogfood-refactor",
+      "title": "Phase 8.4 Closeout Dogfood And Boundary Refactor",
+      "status": "doing",
+      "priority": "p1",
+      "owner": "codex",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
+      "acceptance": "Use docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md as source of truth. Complete Phase 8.4 correctness with a persistent independent reviewer loop, prove the real host/server publish path with one non-merged dogfood PR plus a fresh-host idempotent replay, and refactor the identified coordinate/multinexus boundaries without changing public CLI, event, database, or adapter contracts.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": "mac-claude",
+        "to": "codex",
+        "reason": "User-authorized operator takeover for Phase 8.4 closeout, dogfood, and refactor"
+      },
+      "selected_in_session": "codex-phase84-closeout-20260622",
+      "updated_at": "2026-06-22",
+      "workflow": {
+        "status": "running",
+        "branch": "agents/codex/phase-8.4-closeout",
+        "updated_at": "2026-06-22"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
+        "source_phase_plan": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md"
+      },
+      "verification": "pending",
+      "review": {}
     }
   ]
 }
