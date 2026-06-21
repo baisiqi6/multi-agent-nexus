@@ -34,17 +34,31 @@ coordinate can create or link a PR safely and idempotently".
 2. **Remote branch SHA verification** — add `coordinate.github.fetch_remote_ref`
    using `gh api repos/<owner>/<repo>/git/ref/heads/<branch>`. All calls go
    through an injected runner (testable, never shells out implicitly).
-3. **Create-or-link PR publish flow** — add `coordinate.prs.publish_pr`
-   (server path: idempotency only, no `gh`) and `coordinate.prs.publish_pr_via_gh`
-   (host path: owns `gh pr create` + `gh api`). No new GitHub SDK abstraction.
+3. **Publish flow** — add `coordinate.prs.publish_pr` (the host-side
+   orchestrator: validates, fetches remote ref via `gh api`,
+   discovers existing PR via `gh pr list`, then either links or
+   creates via `gh pr create`). All `gh` calls go through an injected
+   runner. The CLI exposes `coordinate pr publish <workspace>` for the
+   host and `coordinate pr publish-record <workspace> --result-json <json>`
+   plus `coordinate pr publish-preflight <workspace> --repo ...
+   --branch ... --commit ... --task-id ...` as a record-only /
+   read-only sink for the remote DB. The remote sink recomputes
+   `event_type` / `idempotency_key` / event payload from the host's
+   minimal facts (it never trusts the host envelope for those); it
+   writes the event + mirror upsert inside a single SAVEPOINT so a
+   partial failure leaves no half-state; it re-validates the mirror
+   so a replay repairs missing mirror rows.
 4. **Three new visible events** — `pr.created`, `push.required`,
    `publish.blocked`. `pr.linked` already exists. All four get policy text,
    Discord embed colour, message_key uniqueness, and tests.
-5. **CLI surface** — add `coordinate pr publish <workspace> --task-id ...
-   --repo ... --head <owner>:<branch> --base ... --title ... --body ...
-   --commit <sha> --pushed true|false --actor ... [--event-cli-path PATH]`
-   plus an explicit `[GH-PUBLISH]` host-side wrapper. `--event-cli-path`
-   mirrors the Phase 8.1 issue-scan pattern and is the only host/server
+5. **CLI surface** — `coordinate pr publish <workspace>` on the host
+   (default: runs `publish_pr` locally); `--event-cli-path` forwards
+   the host's PublishResult JSON to a remote `pr publish-record`
+   invocation; `--preflight-event-cli-path` runs a remote
+   `pr publish-preflight` BEFORE any `gh` call so a remote mirror
+   conflict short-circuits the host without writing to GitHub.
+   `--event-cli-path` mirrors the Phase 8.1 `issue scan` pattern and is
+   the only host/server split plumbing.
    split plumbing we add.
 6. **Documentation sync** — `coordinate/README.md`, `docs/runbook.md`,
    `docs/progress.md`, the operator command reference and GitHub integration
@@ -163,28 +177,44 @@ The plan answers six boundary questions before any code is written:
 
 2. **How is the result written back idempotently to the remote DB?**
    - The host runs `coordinate pr publish` locally. After
-     `publish_pr` succeeds (or records a `push.required` / `publish.blocked`
-     event), if the operator passes `--event-cli-path PATH`, the CLI
-     forwards **only** the resulting event via
-     `PATH event append <event-type> --workspace-id ... --task-id ...
-     --idempotency-key ... --payload-json ...`.
-   - `event_cli append` reuses the existing `db.append_event` contract,
-     which treats `idempotency_key` collisions as `created=False`
-     rather than errors.
-   - The remote side never sees another `pr publish` invocation —
-     that would defeat the host/server split. We never forward a
-     nested `pr publish`.
+     `publish_pr` produces a result, if the operator passes
+     `--event-cli-path PATH`, the CLI forwards the host's full
+     `PublishResult.to_dict()` JSON to a remote
+     `coordinate pr publish-record <workspace> --result-json <json>`
+     invocation.
+   - The remote sink is `record_publish_result(conn, workspace_id,
+     result)`. It is **deliberately paranoid**: it does not trust the
+     host's `event_type` / `idempotency_key` / event payload. It
+     recomputes the canonical `event_type` from the action
+     (`created`→`pr.created`, `linked`→`pr.linked`,
+     `push_required`→`push.required`, `blocked`→`publish.blocked`),
+     the `idempotency_key` from `(workspace_id, task_id, event_type,
+     repo, branch, commit, extra)`, and the event payload from the
+     action + minimal facts.
+   - `event append` and (on success) `upsert_task_mirror` run inside
+     a single SAVEPOINT so a partial failure rolls back both writes.
+     On replay, even if `event_created=False`, the sink re-upserts
+     the mirror from the host's facts if the row is missing (so a
+     transient half-completion can be repaired by a retry).
+   - The remote side never sees another `pr publish` invocation
+     (no nested publish) and never invokes `gh`.
 
-3. **PR is created on GitHub but event record write fails — how does a rerun
-   recover without creating a duplicate PR?**
-   - Before any `gh pr create`, the host CLI calls `gh pr list --head
-     <branch> --state open`. If an open PR already exists for that head, it
-     short-circuits to `pr.linked` instead. Even if a transient write failed,
-     the next rerun will see the same existing PR and never re-create.
+3. **Does the host ever create a PR whose record the remote will refuse?**
+   - No. When `--preflight-event-cli-path PATH` is set, the host runs
+     a remote `coordinate pr publish-preflight <workspace> --repo ...
+     --branch ... --commit ... --task-id ...` BEFORE any `gh` call.
+     The remote preflight is a read-only check; if the remote
+     returns `ok=false` (mirror_conflict / unknown_workspace /
+     invalid_result), the host short-circuits with
+     `publish.blocked` and exits 1 without invoking `gh`. This is
+     what guarantees "no GitHub write happens before the remote
+     state has been re-validated".
    - The publish idempotency key is derived from
-     `(workspace_id, task_id, repo, branch, commit, "publish")`, so re-running
-     without an open PR still produces `created=False` and does not duplicate
-     events.
+     `(workspace_id, task_id, event_type, repo, branch, commit, extra)`,
+     so re-running after a transient write failure produces
+     `event_created=False` and does not duplicate events. Replays
+     also re-upsert the remote mirror from the host's facts so a
+     partial half-completion can be repaired.
 
 4. **Where does `base` come from, and how do we avoid the cross-repo trap
    where one workspace carries many target repos?**
