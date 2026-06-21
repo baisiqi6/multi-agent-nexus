@@ -60,6 +60,12 @@ Review-fix validation in progress: targeted tests pass on the normal test
 runtime and the system Python sqlite semantics without `autocommit`; coordinate
 full suite passes `1065 tests OK`. No GitHub write or deployment occurred.
 
+Round 2 found one remaining P2 in committed head `b8c4081`: workspace identity
+was enforced for created/linked but not blocked/push-required audit events. The
+check now applies before action branching, so the envelope workspace must equal
+the record target for every action. A mismatched blocked envelope writes zero
+events. Coordinate full suite after this final fix passes `1066 tests OK`.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
