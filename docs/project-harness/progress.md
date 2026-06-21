@@ -35,6 +35,31 @@ Validation before review:
 - No GitHub write, deploy, merge, lifecycle closeout, or remote DB mutation was
   performed in this correctness pass.
 
+### Phase 8.4 operator closeout — independent review round 1
+
+The persistent reviewer rejected coordinate `8e39578` with two P1 findings
+and one P2 test gap. The operator reproduced each issue before fixing it:
+
+- On Python sqlite versions without `Connection.autocommit`, the prior
+  `isolation_level=None` fallback let `append_event()` commit before mirror
+  upsert. A simulated mirror failure left a permanent `pr.created` event.
+  `append_event` and `upsert_task_mirror` now expose compatibility-preserving
+  `commit=False`; the record sink owns both writes through one SAVEPOINT on
+  every supported Python version.
+- A hostile/stale success envelope could previously record an invalid repo,
+  branch, SHA, head/base, or non-GitHub PR URL. The server now accepts a
+  created/linked result only when workspace identity matches, all GitHub facts
+  are canonical, `head_ref == repo_owner:branch`, the PR URL belongs to the
+  repository, and `remote_sha == reported_commit`. Blocked results may still
+  preserve invalid worker input for audit but never update the mirror.
+- The fresh-host test now sends the linked result back to the independent
+  remote DB twice, verifies the first linked event/mirror update, and verifies
+  the second replay reuses the event without mirror drift.
+
+Review-fix validation in progress: targeted tests pass on the normal test
+runtime and the system Python sqlite semantics without `autocommit`; coordinate
+full suite passes `1065 tests OK`. No GitHub write or deployment occurred.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
