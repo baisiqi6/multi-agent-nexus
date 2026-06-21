@@ -59,10 +59,14 @@ rg -n "link_pr|publish|pr.linked|pr.created|fetch_remote_ref|gh pr|gh api" src/c
    `gh`). `--event-cli-path` forwards the host's PublishResult JSON to a
    remote `coordinate pr publish-record ...` invocation; the remote CLI
    re-validates the mirror and upserts the remote task mirror but never
-   invokes `gh`. `head_owner` must equal the repo owner (fork workflow
-   out of scope).
+   invokes `gh`. When `--event-cli-path` is set, the host also runs a
+   remote `pr publish-preflight` before any `gh` call (override with
+   `--preflight-event-cli-path`). `head_owner` must equal the repo owner
+   (fork workflow out of scope).
 6. `src/coordinate/cli.py` — add `pr publish-record <workspace>
-   --result-json <json>` for the record-only remote sink.
+   --result-json <json>` and `pr publish-preflight <workspace>
+   --repo ... --branch ... --commit ... --task-id ...` for the remote
+   record-only sink and read-only preflight.
 7. Documentation sync (coordinate + multinexus `agent-report-protocol.md`).
 
 ## Scope (Out)

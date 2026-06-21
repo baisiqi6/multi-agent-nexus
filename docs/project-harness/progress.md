@@ -47,6 +47,104 @@ Plan and bootstrap updated:
 Reviewer still has not written `review.completed`; this round is again
 requesting review (no `task.done` written).
 
+### Phase 8.4 — review-fix round 4 (2026-06-21, address codex P1/P2)
+
+Codex reviewed the Phase 8.4 review-fix commit `54788ae` and surfaced
+three P1 + one P2 findings. Fix commits `0bb3816` (coordinate) and
+`9cc5e33` (multinexus) address all four:
+
+- **P1 (preflight bypassable)**: `--preflight-event-cli-path` was optional
+  and `--event-cli-path` alone allowed direct PR creation without a
+  remote mirror preflight. Fixed by defaulting the preflight path to the
+  event-cli path, and by strictly checking `ok is True` instead of
+  truthiness (the string `"false"` is truthy). The help text now documents
+  the mandatory coupling.
+- **P1 (SAVEPOINT lock leak)**: The exception path rolled back to the
+  savepoint but never released it, leaving the transaction lock held on
+  Python <3.12 or autocommit-capable connections. Fixed by releasing the
+  savepoint after rollback. Also added Python 3.10/3.11 compatibility by
+  falling back to `isolation_level=None` when `autocommit` is unavailable.
+- **P1 (cross-task uniqueness bypass)**: `record_publish_result` and
+  `record_publish_preflight` only checked the current task mirror, so a
+  record-only sink could attach the same branch or PR URL to multiple
+  tasks in the same workspace. Added `_cross_task_conflict_check` mirroring
+  the protections in `link_pr` and enforced it in both preflight and result
+  sinks.
+- **P2 (audit fields dropped)**: `PublishResult.to_dict()` omitted
+  `remote`, `validation`, `message`, `detail`, so the server-side payload
+  recompute lost worker audit context. Extended the dataclass and added
+  round-trip serialization; `_record_event_payload` now copies
+  `blocked_detail` into `publish.blocked` payloads.
+
+Validation:
+
+- coordinate full suite `1033 tests OK`.
+- multinexus full suite `314 tests OK (2 skipped)`.
+- `harnessctl validate` passes on both repos.
+- `git diff --check` clean on both repos.
+- No real GitHub write. No deploy. No merge.
+
+Plan and documentation updated:
+
+- `docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md`
+  removes stale `publish_pr_via_gh` reference and lists the host
+  orchestrator, remote sink, and remote preflight in the correct order.
+- `docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/worker-bootstrap.md`
+  documents `publish-preflight` and the automatic preflight triggered by
+  `--event-cli-path`.
+- `coordinate/docs/runbook.md`,
+  `coordinate/skills/coordinate-operator/references/command-reference.md`,
+  and
+  `coordinate/skills/coordinate-operator/references/github-integration.md`
+  now describe the preflight guarantee, the `--preflight-event-cli-path`
+  override, and the server-side `publish-record` / `publish-preflight`
+  subcommands.
+
+Reviewer still has not written `review.completed`; this round is again
+requesting review (no `task.done` written).
+
+### Phase 8.4 — review-fix round 5 (2026-06-21, address codex P1/P2)
+
+Codex reviewed the Phase 8.4 review-fix commit `0bb3816` and surfaced
+two P1 + one P2 findings. Fix commit `f3110b3` (coordinate) addresses
+all three:
+
+- **P1 (cross-task uniqueness TOCTOU)**: `_cross_task_conflict_check` ran
+  outside the record-only sink transaction, so two concurrent
+  `record_publish_result` calls could both observe no conflict and then
+  both bind the same branch or PR to different tasks. Fixed by adding
+  unique indexes `idx_tasks_workspace_branch` and `idx_tasks_workspace_pr`
+  on the `tasks` table (schema version 8) and moving the mirror conflict,
+  cross-task, and same-task rebind checks inside the SAVEPOINT. The
+  resulting `sqlite3.IntegrityError` is caught and surfaced as
+  `RecordPublishError(reason="cross_task_conflict")`, with no half-state
+  left on disk.
+- **P1 (same-task PR silent rebind)**: `publish_pr` created/linked paths
+  would overwrite a task mirror's existing PR with a new one, violating
+  the same invariant enforced by `link_pr`. Added
+  `_check_existing_pr_rebind` and applied it in `publish_pr` (before
+  writing `pr.created`/`pr.linked`) and in `record_publish_result` (inside
+  the SAVEPOINT). A task with `/pull/1` now returns
+  `publish.blocked (pr_already_linked)` instead of silently becoming
+  `/pull/2`.
+- **P2 (created/linked audit fields dropped)**: `PublishResult.to_dict()`
+  and the success-path payloads omitted `remote` and `validation`, so the
+  remote sink lost worker audit context for created/linked events.
+  `_finalize_link` and `_finalize_created` now return `remote` and
+  `validation` in `PublishResult`, and `_record_event_payload` copies them
+  into `pr.created`/`pr.linked` payloads.
+
+Validation:
+
+- coordinate full suite `1043 tests OK` (1033 + 10 Round 5 regressions).
+- multinexus full suite `314 tests OK (2 skipped)`.
+- `harnessctl validate` passes on both repos.
+- `git diff --check` clean on both repos.
+- No real GitHub write. No deploy. No merge.
+
+Reviewer still has not written `review.completed`; this round is again
+requesting review (no `task.done` written).
+
 ### Phase 8.4 — Worker Push And PR Creation (vertical slice, source-of-truth only)
 
 - **Scope**: close the GitHub automation loop from a worker host's

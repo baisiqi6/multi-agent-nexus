@@ -254,9 +254,9 @@ The plan answers six boundary questions before any code is written:
 2. Read source files listed in the implementation handoff Step 4.
 3. Implement coordinate changes in this order (each step has tests):
    1. `coordinate.github.fetch_remote_ref` + tests.
-   2. `coordinate.prs.publish_pr` (server record-only) + tests.
-   3. `coordinate.prs.publish_pr_via_gh` (host GH orchestrator) + tests.
-   4. CLI surface (`coordinate pr publish`) + handler + tests.
+   2. `coordinate.prs.publish_pr` (host GH orchestrator) + tests.
+   3. CLI surface (`coordinate pr publish`) + handler + tests.
+   4. Remote sink `coordinate.prs.record_publish_result` / `record_publish_preflight` + tests.
    5. `policy.SUPPORTED_EVENT_TYPES` + text renderers + Discord styling +
       tests.
    6. `daemon.AgentReport` field extension + payload persistence + tests
