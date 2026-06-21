@@ -97,6 +97,12 @@ digits only, the raw URL rejects all query/fragment delimiters, and parser
 errors are normalized to `invalid_pr_url`. Remote sink regressions assert zero
 event/mirror writes for every edge case.
 
+Dogfood-fix review round 4 found that Python URL parsing normalizes raw control
+characters before validation. The validator now rejects non-ASCII input and
+all whitespace/C0/DEL characters before parsing, and requires a positive PR
+number without leading zeros. Remote sink fuzz regressions again require zero
+event/mirror writes.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

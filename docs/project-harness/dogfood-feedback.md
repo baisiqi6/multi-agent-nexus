@@ -280,6 +280,10 @@
   `urlparse()` 无法区分无 query/fragment 与空 `?`/`#`。最终 validator 使用
   ASCII `[0-9]+`，从原始 URL 拒绝任何 `?`/`#`，并把 URL 解析异常统一转换为
   `invalid_pr_url`；remote sink 回归证明这些 edge cases 事件/mirror 都为零。
+- reviewer round 4 发现 `urlparse()` 会静默剥离 C0 控制字符、前导空格及
+  内嵌 tab/newline。最终在解析前要求原始 URL 为 ASCII 且不含任何空白、
+  C0/DEL 控制字符；PR number 同时收紧为无前导零的正整数。validator 与
+  remote sink 都覆盖原始控制字符零写入。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。
