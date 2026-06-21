@@ -250,6 +250,35 @@
   - worker bootstrap 可固化重试指引：若 session 仍 live 且 task 已 `accepted`/`running`，直接 resume 执行，不要重新 accept。
   - 可给任务加一个"accepted 后 N 分钟无成功执行/closeout 即标 stale"的看护。
 
+## 2026-06-22
+
+### 23. Phase 8.4 真实 PR replay：同仓 `gh pr list --head owner:branch` 返回空
+
+- 状态：fixed, reviewer pending。
+- 原始现象：fresh host 首次通过远端 preflight 创建
+  `multi-agent-coordinator#1` 并写入远端 mirror；第二个 fresh host 收到
+  `mode=link_existing`，但 read-only discovery 返回 `discover_missing_pr`。
+- 根因：`gh pr create --head` 接受 `owner:branch`，而真实
+  `gh pr list --head` 对同仓 PR 需要 bare branch。单测 fake runner 没断言 argv
+  的 `--head` 值，因此 Round 1-7 和 correctness review 都没发现。
+- 安全结果：第二次没有调用 create，远端原 PR/mirror 未被覆盖；只追加了可见
+  `publish.blocked` 事件。
+- 修复：`discover_open_pr_for_head` 校验 owner 等于 repo owner 后，把 CLI
+  filter 规范化为 bare branch；增加 argv-shape 测试，并用真实 GitHub read-only
+  discovery 验证 URL/head SHA/base。
+- 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
+  `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
+  `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。
+
+### 24. coordinate 部署尝试删除服务器 `.coordinator/logs`
+
+- 状态：fixed, deploy replay pending。
+- 原始现象：部署成功，但 rsync 输出
+  `cannot delete non-empty directory: .coordinator`。该目录是服务器本地运行日志，
+  不属于源码部署产物。
+- 修复：coordinate staging tar 与远端 rsync 都显式排除 `.coordinator`，与
+  `.venv`、data、logs、`VERSION_DEPLOYED` 的 server-local 保留策略一致。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering

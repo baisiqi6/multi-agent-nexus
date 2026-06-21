@@ -66,6 +66,17 @@ check now applies before action branching, so the envelope workspace must equal
 the record target for every action. A mismatched blocked envelope writes zero
 events. Coordinate full suite after this final fix passes `1066 tests OK`.
 
+The persistent reviewer approved coordinate `8013f2f` / multinexus `b050f5b`.
+Real dogfood then deployed both commits, migrated the Tencent DB from schema 7
+to 9 with the expected partial branch/global PR indexes, registered this task,
+and created `https://github.com/baisiqi6/multi-agent-coordinator/pull/1` through
+remote preflight -> host GitHub create -> remote record sink. A second fresh
+host exposed a real CLI mismatch: same-repo `gh pr list --head` needs a bare
+branch, not `owner:branch`, so replay safely blocked without duplicate create.
+The bounded fix and commit-advance replay support are under review before the
+dogfood retry. Deployment also surfaced and fixed a missing `.coordinator`
+server-local exclusion in `deploy-server.sh`.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

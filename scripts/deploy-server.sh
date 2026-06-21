@@ -170,6 +170,7 @@ deploy_coordinate() {
     --exclude .git \
     --exclude .venv \
     --exclude .env \
+    --exclude .coordinator \
     --exclude data \
     --exclude logs \
     --exclude events.jsonl \
@@ -183,6 +184,7 @@ set -euo pipefail
 mkdir -p /opt/coordinate
 rsync -a --delete \
   --exclude .venv \
+  --exclude .coordinator \
   --exclude data \
   --exclude logs \
   --exclude events.jsonl \
