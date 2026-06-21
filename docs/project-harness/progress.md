@@ -109,6 +109,12 @@ narrow grammar, validation now uses an exact full-string ASCII pattern instead
 of `urlparse`, followed by case-insensitive repo binding. This removes the
 entire delimiter-normalization class rather than adding another parser patch.
 
+Dogfood-fix review round 6 found repo dot-segments were still valid according
+to the upstream repo regex. Repo validation now rejects `.`/`..` components;
+branch validation was hardened at the same boundary against path traversal,
+empty components, hidden/`.lock` components, double dots, and invalid endings.
+Remote sink tests cover matching malicious repo+URL pairs with zero writes.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

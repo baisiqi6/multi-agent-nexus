@@ -289,6 +289,11 @@
   `https://github.com/<owner>/<repo>/pull/<positive-int>` 的 fullmatch，再对
   owner/repo 做 case-insensitive 绑定校验。任何额外 delimiter/authority/path
   语法都无法进入 mirror。
+- reviewer round 6 发现上游 repo grammar 本身允许 `.`/`..` 组件，使精确 URL
+  grammar 仍可表达路径导航。`validate_repo` 现在拒绝 dot-segment；相邻的 branch
+  validator 也同步拒绝 `../`、重复/首尾斜杠、隐藏/`.lock` 组件、双点和尾点，
+  避免 branch 被嵌入 API ref path 时出现同类歧义。remote sink 对 matching
+  dot-segment repo+URL 保持零写入。
 - 衍生修复：已有 PR 的同 task/repo/branch 允许 commit 前进，但只能走
   `link_existing`，由 GitHub 验证新 head SHA 和同一 PR URL 后，remote sink 才更新
   `publish_metadata.reported_commit`。repo/branch/PR 改绑仍 fail closed。
