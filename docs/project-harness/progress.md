@@ -115,6 +115,15 @@ branch validation was hardened at the same boundary against path traversal,
 empty components, hidden/`.lock` components, double dots, and invalid endings.
 Remote sink tests cover matching malicious repo+URL pairs with zero writes.
 
+Dogfood-fix review round 10 approved coordinate `6bec11e` / multinexus
+`06033bb`. Both were deployed; the new deploy exclusion removed the prior
+`.coordinator` deletion warning. A third fresh host successfully followed
+`link_existing` for PR #1 at commit `6bec11e`; the remote `pr.linked` event and
+publish metadata match the live PR head. This live replay exposed one response
+accuracy issue: `mirror_updated` was false despite a metadata update. The sink
+now derives that flag from the DB upsert status and prefers current nested
+publish metadata over legacy top-level identity.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)

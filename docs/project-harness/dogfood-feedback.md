@@ -307,6 +307,19 @@
 - 修复：coordinate staging tar 与远端 rsync 都显式排除 `.coordinator`，与
   `.venv`、data、logs、`VERSION_DEPLOYED` 的 server-local 保留策略一致。
 
+### 25. commit-advance replay 已更新 mirror，但响应 `mirror_updated=false`
+
+- 状态：fixed, reviewer pending。
+- 原始现象：reviewer-approved dogfood replay 成功产生 `pr.linked`，远端
+  `publish_metadata.reported_commit/remote_sha` 从 `8013f2f` 前进到 `6bec11e`，
+  但 record sink 响应错误显示 `mirror_updated=false`。
+- 根因：`_record_upsert_mirror` 只用 `existing_pr != pr_url` 判断是否更新，忽略
+  payload/last_event 的变化；同时 identity reader 仍优先旧 top-level commit，
+  而不是当前 `publish_metadata`。
+- 修复：使用 `upsert_task_mirror` 的 `created|updated|unchanged` 状态生成
+  `mirror_updated`；当前 nested publish metadata 优先于 legacy top-level identity。
+  首次 commit advance 返回 true，同 envelope replay 返回 event/mirror false。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
