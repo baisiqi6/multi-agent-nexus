@@ -830,6 +830,36 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-8.4.3-long-running-job-recovery",
+      "title": "Phase 8.4.3 Long-Running Job Recovery And Delivery Reliability",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4.3-long-running-job-recovery/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4.3-long-running-job-recovery/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-22T11:34:00Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-22T11:34:00Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4.3-long-running-job-recovery/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
