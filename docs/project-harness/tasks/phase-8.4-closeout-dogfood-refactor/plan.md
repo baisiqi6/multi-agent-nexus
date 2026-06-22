@@ -79,6 +79,12 @@ not merge authorization.
 
 Use separate branches based on the reviewed Stage A commit.
 
+Stage C completed on 2026-06-22. Real PR #1 remains open and unmerged. The
+final fresh-host replay at coordinate `6b0f0fa` produced no duplicate event or
+mirror update; CI/review/merge gates remained closed. The runtime-only server
+`gh` gap is explicitly deferred to the later host-side driver/record-sink
+slice.
+
 ### Coordinate
 
 - Extract schema/migration code from `db.py` while preserving `db.migrate` and

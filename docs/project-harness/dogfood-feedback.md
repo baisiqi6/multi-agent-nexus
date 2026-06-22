@@ -254,7 +254,7 @@
 
 ### 23. Phase 8.4 真实 PR replay：同仓 `gh pr list --head owner:branch` 返回空
 
-- 状态：fixed, reviewer round 2 pending。
+- 状态：fixed, reviewer approved, deployed and replayed。
 - 原始现象：fresh host 首次通过远端 preflight 创建
   `multi-agent-coordinator#1` 并写入远端 mirror；第二个 fresh host 收到
   `mode=link_existing`，但 read-only discovery 返回 `discover_missing_pr`。
@@ -300,7 +300,7 @@
 
 ### 24. coordinate 部署尝试删除服务器 `.coordinator/logs`
 
-- 状态：fixed, deploy replay pending。
+- 状态：fixed, deployed and smoke-verified。
 - 原始现象：部署成功，但 rsync 输出
   `cannot delete non-empty directory: .coordinator`。该目录是服务器本地运行日志，
   不属于源码部署产物。
@@ -309,7 +309,7 @@
 
 ### 25. commit-advance replay 已更新 mirror，但响应 `mirror_updated=false`
 
-- 状态：fixed, reviewer pending。
+- 状态：fixed, reviewer approved, deployed and replayed。
 - 原始现象：reviewer-approved dogfood replay 成功产生 `pr.linked`，远端
   `publish_metadata.reported_commit/remote_sha` 从 `8013f2f` 前进到 `6bec11e`，
   但 record sink 响应错误显示 `mirror_updated=false`。
@@ -327,7 +327,7 @@
 
 ### 26. 无 GitHub checks 的真实 PR 被 `ci check` 当作命令失败
 
-- 状态：fixed, reviewer pending。
+- 状态：fixed, reviewer approved and dogfood-verified。
 - 原始现象：对真实 dogfood PR #1 执行 host-side `coordinate ci check` 时，
   `gh pr checks` 返回 exit 1、空 stdout，并在 stderr 输出 `no checks reported`。
   旧实现只接受 JSON，因此抛出命令失败，无法写入 merge gate 所需的 pending

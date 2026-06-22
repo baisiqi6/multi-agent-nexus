@@ -24,6 +24,15 @@ Harness root: `docs/project-harness/`
   server intentionally has no `gh` or GitHub token. This is recorded as a
   deferred host-side driver/record-sink requirement rather than weakening the
   runtime credential boundary.
+- The persistent reviewer rejected the first no-checks parser because a
+  substring match could hide auth/network errors. The approved implementation
+  accepts only rc=1, empty stdout, and a full match of GitHub's two no-checks
+  messages; auth/network/403 lookalikes and rc=8 fail with zero CI events.
+- Final deployed heads are coordinate `6b0f0fa` and multinexus `f5e0350`.
+  Fresh host 5 linked PR #1 at the final coordinate SHA, then immediately
+  replayed with `event_created=false` and `mirror_updated=false`. A final local
+  gate probe recorded `ci.pending` and `pr_review.required`; merge readiness is
+  false and `human_gate_required=true`.
 
 ### Phase 8.4 operator closeout — correctness pass
 
