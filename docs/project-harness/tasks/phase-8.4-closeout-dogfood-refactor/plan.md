@@ -138,6 +138,11 @@ The same reviewer subagent reviews both refactor branches. The operator repeats
 fix/review until clean, then pushes final commits, updates harness artifacts,
 and reports the exact PR/branch/commit/lifecycle state. No merge is performed.
 
+Completed 2026-06-22. Two refactor review rounds restored all legacy import and
+patch surfaces; the persistent reviewer returned `APPROVED` with no actionable
+P1/P2. Final suites: coordinate 1087 OK; multinexus 319 OK (2 skipped). Both
+refactor branches are pushed and remain unmerged/undeployed.
+
 ## Verification commands
 
 ```bash

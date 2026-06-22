@@ -55,6 +55,14 @@ Harness root: `docs/project-harness/`
   request workflows now resolve injected helpers through those historical
   facades at runtime. New import-surface and patch-effect tests bring the final
   suites to coordinate 1087 and multinexus 319 (2 skipped).
+- Refactor review round 2 found the last three compatibility omissions:
+  record action constants, Discord message-length constant, and the historical
+  handoff chunk monkeypatch hook. All were restored with patch-effect coverage.
+  The persistent reviewer then returned `APPROVED` with no actionable P1/P2.
+- Final verification: coordinate 1087 OK; multinexus 319 OK (2 skipped);
+  both harness validate/doctor and diff checks pass. Refactor branches are
+  pushed but not deployed or merged. Real PR #1 remains open on the separate
+  Phase 8.4 closeout branch.
 
 ### Phase 8.4 operator closeout — correctness pass
 

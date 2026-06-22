@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-18",
+  "updated_at": "2026-06-22",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -765,9 +765,9 @@
     {
       "id": "phase-8.4-closeout-dogfood-refactor",
       "title": "Phase 8.4 Closeout Dogfood And Boundary Refactor",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
-      "owner": "codex",
+      "owner": null,
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
       "acceptance": "Use docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md as source of truth. Complete Phase 8.4 correctness with a persistent independent reviewer loop, prove the real host/server publish path with one non-merged dogfood PR plus a fresh-host idempotent replay, and refactor the identified coordinate/multinexus boundaries without changing public CLI, event, database, or adapter contracts.",
@@ -779,19 +779,27 @@
         "to": "codex",
         "reason": "User-authorized operator takeover for Phase 8.4 closeout, dogfood, and refactor"
       },
-      "selected_in_session": "codex-phase84-closeout-20260622",
+      "selected_in_session": null,
       "updated_at": "2026-06-22",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "agents/codex/phase-8.4-closeout",
         "updated_at": "2026-06-22"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
-        "source_phase_plan": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md"
+        "source_phase_plan": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "pending",
-      "review": {}
+      "verification": "coordinate 1087 OK; multinexus 319 OK (2 skipped); both harness validate/doctor and git diff --check clean; real PR #1 open/unmerged; reviewer approved",
+      "review": {
+        "decision": "approved",
+        "reviewer": "phase84_reviewer",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-22",
+        "summary": "Persistent reviewer approved final refactor heads bcad055 and dc02a78; no actionable P1/P2"
+      },
+      "lease": null
     }
   ]
 }
