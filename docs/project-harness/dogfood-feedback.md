@@ -319,6 +319,11 @@
 - 修复：使用 `upsert_task_mirror` 的 `created|updated|unchanged` 状态生成
   `mirror_updated`；当前 nested publish metadata 优先于 legacy top-level identity。
   首次 commit advance 返回 true，同 envelope replay 返回 event/mirror false。
+- reviewer round 1 发现 replay 还可能把 `tasks.last_event_id` 从后续 lifecycle
+  event 倒退到旧 publish event。sink 现在接收 `event_result.created`；若为 replay，
+  通过 events rowid 比较保留较新的 mirror event pointer，同时仍可修复缺失的
+  PR/publish metadata。`publish -> later lifecycle -> replay` 回归要求指针不倒退且
+  `mirror_updated=false`。
 
 ## 后续建议排期
 

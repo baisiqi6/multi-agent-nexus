@@ -124,6 +124,12 @@ accuracy issue: `mirror_updated` was false despite a metadata update. The sink
 now derives that flag from the DB upsert status and prefers current nested
 publish metadata over legacy top-level identity.
 
+Post-replay review round 1 found an idempotent publish replay could regress
+`tasks.last_event_id` after a newer lifecycle event. Replay now compares event
+row order and preserves the newer pointer while retaining its repair behavior
+for missing PR/metadata. The no-side-effect replay contract has an explicit
+publish/lifecycle/replay regression.
+
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
