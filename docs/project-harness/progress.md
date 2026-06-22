@@ -48,6 +48,13 @@ Harness root: `docs/project-harness/`
 - Before reviewer submission, coordinate full suite passed 1084 tests and
   multinexus passed 314 tests (2 skipped); both harness validate/doctor and
   diff checks passed.
+- Refactor review round 1 found incomplete compatibility surfaces in both
+  repositories. Old `coordinate.db` schema helpers, `coordinate.prs` publish
+  helpers, `multinexus.client` handoff helpers, and `cogs.agents` exception/UI/
+  correlation hooks are re-exported again. Critical record, lifecycle, and
+  request workflows now resolve injected helpers through those historical
+  facades at runtime. New import-surface and patch-effect tests bring the final
+  suites to coordinate 1087 and multinexus 319 (2 skipped).
 
 ### Phase 8.4 operator closeout — correctness pass
 

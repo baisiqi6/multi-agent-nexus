@@ -45,9 +45,17 @@ from .commands import (
 from .embeds import build_agents_embed, build_health_embed, build_session_status_embed
 from .handoff import split_handoff_lines
 from .handoff_handler import (
+    CoordinatorHandoff,
+    build_agent_report,
+    build_handoff_prompt,
+    bootstrap_text_from_accept_output,
+    contains_execution_agent_report,
     execute_assignment_accept,
+    parse_coordinator_handoff,
     parse_coordinator_lifecycle,
     read_bootstrap,
+    resolve_workspace_path,
+    split_agent_report_lines,
 )
 
 

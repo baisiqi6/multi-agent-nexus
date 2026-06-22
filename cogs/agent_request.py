@@ -73,7 +73,9 @@ class AgentRequestMixin:
           6. Handles handoffs to other agents
           7. Triggers researcher follow-ups
         """
-        set_correlation(agent=agent_name, channel=str(channel.id))
+        from cogs import agents as agents_facade
+
+        agents_facade.set_correlation(agent=agent_name, channel=str(channel.id))
 
         # Resolve project work directory for CLI agents
         if agent_name in ("claude", "codex") and work_dir is None:
@@ -141,18 +143,21 @@ class AgentRequestMixin:
                 history[-1]["content"] = ephemeral_context + "\n\n" + history[-1]["content"]
 
             # Memory injection — shared always; private only for local-inference agents
-            _is_local = _is_local_agent_name(agent_name) or (
+            _is_local = agents_facade._is_local_agent_name(agent_name) or (
                 agent_config.get("inference_backend") in {"local", "openclaw"}
             )
             memory_block = ""
             if agent_name != "researcher":
                 shared_memories = await self.bot.db.get_memories(limit=10)
                 if shared_memories:
-                    memory_block = _format_memory_block(shared_memories)
+                    memory_block = agents_facade._format_memory_block(shared_memories)
                 if _is_local and getattr(self.bot, "private_db", None) is not None:
                     private_memories = await self.bot.private_db.get_memories_for_injection(limit=10)
                     if private_memories:
-                        private_block = "[Private Memory]\n" + _format_memory_block(private_memories)
+                        private_block = (
+                            "[Private Memory]\n"
+                            + agents_facade._format_memory_block(private_memories)
+                        )
                         memory_block = (
                             (memory_block + "\n\n" + private_block)
                             if memory_block
@@ -178,7 +183,7 @@ class AgentRequestMixin:
                     pass
 
             job_id = await self.bot.db.create_job(thread_id, agent_name, prompt)
-            set_correlation(job_id=str(job_id), session_id=thread_id)
+            agents_facade.set_correlation(job_id=str(job_id), session_id=thread_id)
             await self.bot.db.update_job(job_id, "running")
 
             try:
@@ -220,7 +225,7 @@ class AgentRequestMixin:
                         # Local agent relay path — system prompt is owned by the backend.
                         # Discord context (mission, wiki, memory) is appended to the last user message.
                         relay_messages = [dict(m) for m in history]
-                        ctx_block = build_discord_context(
+                        ctx_block = agents_facade.build_discord_context(
                             self.bot.alert_mention, mission, wiki_context
                         )
                         if memory_block:
@@ -290,7 +295,7 @@ class AgentRequestMixin:
                                     resume_prompt,
                                     **resume_kwargs,
                                 )
-                            except AgentOfflineError:
+                            except agents_facade.AgentOfflineError:
                                 log.warning(
                                     "%s resume failed (thread=%s, session=%s); falling back to fresh call",
                                     agent_name,
@@ -503,7 +508,7 @@ class AgentRequestMixin:
                         ]
 
                 # Scan for leaked secrets before posting
-                response_text = scan_output(response_text)
+                response_text = agents_facade.scan_output(response_text)
 
                 # Extract handoff commands from the response
                 handoff_agents, clean_response = self._extract_handoffs(response_text, agent_name)
@@ -517,7 +522,7 @@ class AgentRequestMixin:
                 # Send Promote / Reject buttons for each private wiki draft written this turn.
                 wiki = getattr(self.bot, "wiki", None)
                 for pw_page in private_wiki_pages:
-                    view = PrivateWikiPromoteView(
+                    view = agents_facade.PrivateWikiPromoteView(
                         page_name=pw_page, wiki=wiki, author_id=user_id
                     )
                     await channel.send(
@@ -556,7 +561,7 @@ class AgentRequestMixin:
                     f"thread={thread_id} chars={len(clean_response)}",
                 )
 
-            except AgentRateLimitError as e:
+            except agents_facade.AgentRateLimitError as e:
                 await self.bot.db.update_job(job_id, "failed")
                 log.warning("%s rate/usage limit hit: %s", agent_name, e)
                 # Fallback chain: claude → codex → mac-openclaw; codex → mac-openclaw
@@ -599,7 +604,7 @@ class AgentRequestMixin:
                     else:
                         await channel.send(err_msg)
 
-            except AgentOfflineError as e:
+            except agents_facade.AgentOfflineError as e:
                 await self.bot.db.update_job(job_id, "failed")
                 msg = f"{self._agent_label(agent_name)} is offline: {e}"
                 log.error(msg)
@@ -612,13 +617,13 @@ class AgentRequestMixin:
                     await channel.send(msg)
                 return
 
-            except AgentTimeoutError as e:
+            except agents_facade.AgentTimeoutError as e:
                 await self.bot.db.update_job(job_id, "failed")
                 msg = f"{self._agent_label(agent_name)} timed out: {e}"
                 log.error(msg)
                 # Save partial streamed response so it appears in future history.
                 if last_streamed_text:
-                    partial = scan_output(last_streamed_text)
+                    partial = agents_facade.scan_output(last_streamed_text)
                     if partial:
                         await self.bot.db.save_message(
                             thread_id, "assistant",
@@ -680,4 +685,3 @@ class AgentRequestMixin:
         # Trigger researcher agent for any RESEARCH tags
         for query in research_queries:
             await self._handle_research(channel, query, agent_name)
-

@@ -35,7 +35,7 @@ class CoordinatorHandoffMixin:
         from . import client as client_facade
 
         cfg = self.agent_config
-        handoff = parse_coordinator_handoff(
+        handoff = client_facade.parse_coordinator_handoff(
             message.content,
             my_discord_user_id=self.user.id,
         )
@@ -57,7 +57,7 @@ class CoordinatorHandoffMixin:
         )
 
         if not success:
-            error_msg = build_agent_report(
+            error_msg = client_facade.build_agent_report(
                 "blocker",
                 handoff,
                 reason=f"assignment accept failed: {output[:500]}",
@@ -71,8 +71,8 @@ class CoordinatorHandoffMixin:
 
         # Prefer bootstrap_text returned by coordinate assignment accept. This
         # avoids reading target-agent bootstrap through the bridge deploy path.
-        bootstrap_content = bootstrap_text_from_accept_output(output)
-        bootstrap_workspace_path = resolve_workspace_path(
+        bootstrap_content = client_facade.bootstrap_text_from_accept_output(output)
+        bootstrap_workspace_path = client_facade.resolve_workspace_path(
             db_path=cfg.coordinator_db_path,
             workspace_id=handoff.workspace_id,
             fallback_workspace_path=cfg.coordinator_workspace_path,
@@ -85,7 +85,7 @@ class CoordinatorHandoffMixin:
             )
 
         # Build prompt and call adapter
-        prompt = build_handoff_prompt(
+        prompt = client_facade.build_handoff_prompt(
             handoff,
             bootstrap_content,
             agent_name=cfg.id,
@@ -94,7 +94,7 @@ class CoordinatorHandoffMixin:
 
         # Confirm acceptance
         await message.channel.send(
-            build_agent_report(
+            client_facade.build_agent_report(
                 "accept",
                 handoff,
                 summary=f"auto accepted by {cfg.id}",
@@ -133,8 +133,12 @@ class CoordinatorHandoffMixin:
 
         # Send response
         response_text = self.mention_router.resolve_handoff_mentions(response_text)
-        report_lines, response_without_reports = split_agent_report_lines(response_text)
-        handoff_lines, display_text = split_handoff_lines(response_without_reports)
+        report_lines, response_without_reports = client_facade.split_agent_report_lines(
+            response_text
+        )
+        handoff_lines, display_text = client_facade.split_handoff_lines(
+            response_without_reports
+        )
 
         chunks = chunk_message(display_text) if display_text else []
         if chunks:
@@ -269,16 +273,18 @@ class CoordinatorHandoffMixin:
         is_error: bool,
     ) -> None:
         """Emit a structured report if the adapter forgot to include one."""
-        if contains_execution_agent_report(response_text):
+        from . import client as client_facade
+
+        if client_facade.contains_execution_agent_report(response_text):
             return
         if is_error:
-            report = build_agent_report(
+            report = client_facade.build_agent_report(
                 "blocker",
                 handoff,
                 reason="adapter returned an error without a structured agent report",
             )
         else:
-            report = build_agent_report(
+            report = client_facade.build_agent_report(
                 "progress",
                 handoff,
                 summary=(
@@ -296,8 +302,10 @@ class CoordinatorHandoffMixin:
 
     async def _try_coordinator_lifecycle(self, message: discord.Message) -> bool:
         """Archive local task-scoped sessions after coordinator closeout/done notices."""
+        from . import client as client_facade
+
         cfg = self.agent_config
-        event = parse_coordinator_lifecycle(
+        event = client_facade.parse_coordinator_lifecycle(
             message.content,
             my_discord_user_id=self.user.id,
         )
@@ -309,14 +317,14 @@ class CoordinatorHandoffMixin:
             task_id=event.task_id,
             agent_id=cfg.id,
         )
-        handoff = CoordinatorHandoff(
+        handoff = client_facade.CoordinatorHandoff(
             workspace_id=event.workspace_id,
             task_id=event.task_id,
             bootstrap_path="",
             action=event.action,
         )
         await message.channel.send(
-            build_agent_report(
+            client_facade.build_agent_report(
                 "progress",
                 handoff,
                 summary=(

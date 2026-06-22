@@ -126,6 +126,11 @@ slice.
   event JSON, DB schema, and Discord behavior remain covered. Full suites after
   extraction: coordinate 1084 OK; multinexus 314 OK (2 skipped), before adding
   the three boundary-contract tests.
+- Reviewer round 1 rejected incomplete legacy import/patch surfaces. The final
+  compatibility pass explicitly re-exports moved helpers and makes remote
+  recording, coordinator lifecycle, and agent-request injection resolve via
+  the old facades. Dedicated patch-effect tests verify the indirection rather
+  than only checking attribute presence.
 
 ## Stage E: Final review and closeout
 
