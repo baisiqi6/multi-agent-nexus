@@ -800,6 +800,36 @@
         "summary": "Persistent reviewer approved final refactor heads bcad055 and dc02a78; no actionable P1/P2"
       },
       "lease": null
+    },
+    {
+      "id": "phase-8.4.2-contracts-function-decomposition",
+      "title": "Phase 8.4.2 Stable Contracts And Function Decomposition",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-22T06:18:49Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-22T06:18:49Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
