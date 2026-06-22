@@ -830,6 +830,36 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "phase-8.4.4-host-aware-mark-done",
+      "title": "Phase 8.4.4 Host-Aware Mark-Done (Reconcile Drift)",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md",
+      "acceptance": "Use docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md as source of truth. Add mark-done-files (local checklist write, no DB) + mark-done-record (cloud DB idempotent task.done, no local file) host-aware split, mirroring materialize-files/materialize-record. Goal: operator can reconcile drift (cloud DB done but local checklist todo) without editing JSON or bare harnessctl. Non-goal: C1 generic host-aware framework (separate task). Worker: omp. Reviewer: opencode.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood: omp as worker, opencode as reviewer"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-22",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-22"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
