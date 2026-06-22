@@ -25,7 +25,6 @@ import time
 import discord
 from discord.ext import commands
 
-from agents.base import AgentOfflineError, AgentRateLimitError, AgentTimeoutError
 from routing.dispatcher import (
     ALL_AGENTS, parse_commands, parse_sectioned_commands, split_stages,
     resolve_channel_id, should_respond, expand_list_reference,
@@ -33,8 +32,6 @@ from routing.dispatcher import (
 from security.filter import scan_output
 from utils.attachments import ProcessedAttachments, process_attachments
 from utils.chunker import chunk_message
-from utils.confirm import PrivateWikiPromoteView
-from utils.log import set_correlation, clear_correlation
 from .agent_request import (
     AgentRequestMixin,
     LEGACY_LOCAL_AGENT_NAME,
