@@ -241,7 +241,12 @@ class AgentDaemon:
 
     @staticmethod
     def _make_progress_callback(progress_state: dict):
-        def _on_progress(partial_text: str):
+        def _on_progress(partial_text):
+            if isinstance(partial_text, dict):
+                progress_state["partial"] = partial_text.get("summary", "")
+                if partial_text.get("session_id"):
+                    progress_state["session_id"] = partial_text["session_id"]
+                return
             progress_state["partial"] = partial_text
         return _on_progress
 

@@ -30,7 +30,7 @@ class AgentAdapter(ABC):
         *,
         timeout: int | None = None,
         work_dir: str | None = None,
-        on_progress: Callable[[str], None] | None = None,
+        on_progress: Callable[[str | dict[str, Any]], None] | None = None,
     ) -> AdapterResult:
         """Send prompt to the agent and return an AdapterResult."""
         ...
@@ -42,7 +42,7 @@ class AgentAdapter(ABC):
         *,
         timeout: int | None = None,
         work_dir: str | None = None,
-        on_progress: Callable[[str], None] | None = None,
+        on_progress: Callable[[str | dict[str, Any]], None] | None = None,
     ) -> AdapterResult:
         """Resume a previous session. Default: fallback to fresh call()."""
         return await self.call(

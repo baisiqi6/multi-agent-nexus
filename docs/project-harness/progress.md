@@ -4,6 +4,32 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-22
 
+### Phase 8.4.3 long-running job recovery implementation
+
+- Coordinate runtime jobs now have explicit recoverable timeout state:
+  `timed_out`, `recoverable`, `last_activity_at`, `progress`, and
+  `terminal_session_id` are recorded outside the error string. Agentd can
+  checkpoint bounded progress/session id through `runtime job progress`.
+- Runtime result handling now has deterministic recovery rules: ordinary
+  terminal `done`/`failed` rows remain immutable, replay events retain the
+  submitted payload and reason, recoverable `timed_out` rows can be reclaimed,
+  and late `done`/`failed` results can be accepted once with their response
+  delivery.
+- Runtime reply delivery normalizes Discord responses to `discord_webhook`,
+  matching the currently pumped transport instead of leaving `platform=discord`
+  responses pending.
+- Multinexus agentd no longer wraps adapter execution in a competing
+  equal-budget `wait_for`. The Claude adapter owns first-byte/activity/total
+  timeout semantics, emits safe bounded progress and session checkpoints, and
+  kills/reaps the subprocess on timeout, cancellation, or unexpected exception.
+- Recoverable retries resume the recorded session id from coordinate when no
+  local session exists. If that resume fails, worker reports an operator-visible
+  failure and does not silently start duplicate fresh work.
+- Verification: coordinate full suite passed `1091 tests OK`; multinexus full
+  suite passed `325 tests OK (2 skipped)` under a temporary Python 3.12 venv;
+  `git diff --check` passed in both repos. No merge, deploy, mark-done, force
+  push, harnessctl mutation, or Phase 8.4.2 checkout cleanup was performed.
+
 ### Phase 8.4 closeout dogfood — final publish replay and gate probe
 
 - Deployed reviewer-approved coordinate `aaea94d` and multinexus `b655b9c` to

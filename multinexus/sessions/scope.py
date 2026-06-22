@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-import discord
+try:
+    import discord
+except ImportError:  # pragma: no cover - exercised in minimal worker runtimes
+    discord = None
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,8 @@ def legacy_scope_for_channel_id(channel_id: int | str) -> str:
 
 
 def is_thread_channel(channel: Any) -> bool:
+    if discord is None:
+        return False
     return isinstance(channel, discord.Thread)
 
 

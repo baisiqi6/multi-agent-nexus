@@ -112,7 +112,7 @@ class TestCmdSessionStatus(unittest.TestCase):
             work_dir="/tmp/test",
         )
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session status", client, msg.channel.id)
         )
         self.assertIn("test-agent", result)
@@ -128,7 +128,7 @@ class TestCmdSessionStatus(unittest.TestCase):
             adapter="claude", session_id="sess-channel",
             work_dir="/tmp/test",
         )
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session status", client, 999)
         )
         self.assertIn("channel scope", result)
@@ -141,7 +141,7 @@ class TestCmdSessionStatus(unittest.TestCase):
             adapter="claude", session_id="sess-thread",
             work_dir="/tmp/test",
         )
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session status", client, 888, is_thread=True)
         )
         self.assertIn("thread scope", result)
@@ -150,7 +150,7 @@ class TestCmdSessionStatus(unittest.TestCase):
     def test_without_active_session(self):
         client = _make_client()
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session status", client, msg.channel.id)
         )
         self.assertIn("没有活跃会话", result)
@@ -165,7 +165,7 @@ class TestCmdSessionReset(unittest.TestCase):
             adapter="claude", session_id="sess-abc",
         )
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session reset", client, msg.channel.id)
         )
         self.assertIn("stale", result)
@@ -176,7 +176,7 @@ class TestCmdSessionReset(unittest.TestCase):
     def test_without_active_session(self):
         client = _make_client()
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("session reset", client, msg.channel.id)
         )
         self.assertIn("没有活跃会话", result)
@@ -186,7 +186,7 @@ class TestCmdAgents(unittest.TestCase):
     def test_lists_managed_and_external(self):
         client = _make_client()
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("agents", client, msg.channel.id)
         )
         self.assertIn("托管 Agent", result)
@@ -203,7 +203,7 @@ class TestCmdHealth(unittest.TestCase):
     def test_shows_adapter_info(self):
         client = _make_client()
         msg = _make_message()
-        result = asyncio.get_event_loop().run_until_complete(
+        result = asyncio.run(
             handle_operator_command("health", client, msg.channel.id)
         )
         self.assertIn("claude", result)

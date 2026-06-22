@@ -111,6 +111,30 @@ class CoordinateRuntimeClient:
         ]
         return await asyncio.to_thread(self._run_cli, cmd)
 
+    async def record_progress(
+        self,
+        *,
+        job_id: str,
+        agent_id: str,
+        stage: str = "",
+        summary: str = "",
+        session_id: str = "",
+    ) -> dict:
+        """Record a bounded progress checkpoint for a running job."""
+        cmd = [
+            *self._base_cmd,
+            "runtime", "job", "progress",
+            job_id,
+            "--agent-id", agent_id,
+        ]
+        if stage:
+            cmd.extend(["--stage", stage])
+        if summary:
+            cmd.extend(["--summary", summary])
+        if session_id:
+            cmd.extend(["--session-id", session_id])
+        return await asyncio.to_thread(self._run_cli, cmd)
+
     async def wait_for_job_result(
         self,
         *,
@@ -132,7 +156,7 @@ class CoordinateRuntimeClient:
                 await asyncio.sleep(poll_interval)
                 continue
             status = job.get("status", "")
-            if status in ("done", "failed"):
+            if status in ("done", "failed", "timed_out"):
                 return job
             await asyncio.sleep(poll_interval)
         return None
