@@ -325,6 +325,30 @@
   PR/publish metadata。`publish -> later lifecycle -> replay` 回归要求指针不倒退且
   `mirror_updated=false`。
 
+### 26. 无 GitHub checks 的真实 PR 被 `ci check` 当作命令失败
+
+- 状态：fixed, reviewer pending。
+- 原始现象：对真实 dogfood PR #1 执行 host-side `coordinate ci check` 时，
+  `gh pr checks` 返回 exit 1、空 stdout，并在 stderr 输出 `no checks reported`。
+  旧实现只接受 JSON，因此抛出命令失败，无法写入 merge gate 所需的 pending
+  状态。
+- 修复：只把上述精确的 GitHub CLI 响应规范化为空 check list，并写
+  `ci.pending`；其他非 JSON、鉴权和网络失败仍 fail closed。回归测试使用真实
+  stderr 形状，dogfood 重跑已得到 `aggregated_status=pending`。
+
+### 27. runtime-only server 无 `gh`，不能直接刷新 CI/review/merge gate
+
+- 状态：deferred to the host-side driver slice。
+- 原始现象：Mac host 上对 PR #1 执行 `ci check`、`review check` 和 `merge gate`
+  均按预期工作；腾讯云 `/opt/coordinate` 直接执行 merge gate 时，current head、
+  CI 和 review 检查都返回 `gh CLI not available`。human gate 仍为 true，因此没有
+  错误合并或放行。
+- 边界判断：Phase 8.4 只为 publish 提供了 preflight/record-only sink；CI/review
+  的 host-side driver 与远端 record sink 属于后续自动化 driver 范围。服务器继续
+  保持无 token、无 `gh`，本阶段不通过安装凭证绕过架构边界。
+- 后续验收：driver 必须在 GitHub-capable host 查询并把带 head SHA 的 canonical
+  CI/review 结果写回控制面；远端 merge gate 只消费已记录状态并保留人工 gate。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering

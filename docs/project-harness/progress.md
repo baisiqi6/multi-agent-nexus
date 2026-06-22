@@ -4,6 +4,27 @@ Harness root: `docs/project-harness/`
 
 ## 2026-06-22
 
+### Phase 8.4 closeout dogfood — final publish replay and gate probe
+
+- Deployed reviewer-approved coordinate `aaea94d` and multinexus `b655b9c` to
+  Tencent Cloud; both services remained active and the remote schema stayed at
+  v9.
+- A fourth fresh host DB linked real PR
+  `https://github.com/baisiqi6/multi-agent-coordinator/pull/1` at commit
+  `aaea94df86cf966cf6a835ef22bb2646f2588e94`. Immediate replay returned
+  `event_created=false` and `mirror_updated=false`; no second PR was created.
+- Remote event `bd9d8103-0236-4fbe-b77f-7780916ff8ca` produced sent Discord
+  delivery `47a192f3-41c8-4436-a0d2-ed0b4c29c8e4` with platform message
+  `discord_bot:1518407243366793217`. The PR remains open and unmerged.
+- Real `gh pr checks` exposed the no-checks exit-code shape. Coordinate now
+  records that exact response as `ci.pending`; host-side review remained
+  `pr_review.required`, and merge gate correctly remained closed with
+  `human_gate_required=true`.
+- Direct remote CI/review/head refresh remains unavailable because the runtime
+  server intentionally has no `gh` or GitHub token. This is recorded as a
+  deferred host-side driver/record-sink requirement rather than weakening the
+  runtime credential boundary.
+
 ### Phase 8.4 operator closeout — correctness pass
 
 The operator resumed Phase 8.4 from Round 7 on dedicated
