@@ -34,6 +34,21 @@ Harness root: `docs/project-harness/`
   gate probe recorded `ci.pending` and `pr_review.required`; merge readiness is
   false and `human_gate_required=true`.
 
+### Phase 8.4.1 boundary refactor
+
+- Created separate `agents/codex/phase-8.4.1-boundary-refactor` branches from
+  the reviewed/dogfooded heads; PR #1 remains attached to the closeout branch
+  and was not updated or merged by the refactor.
+- coordinate extracted schema migration, host publish, remote recording, and
+  PR CLI boundaries while retaining `coordinate.db`, `coordinate.prs`, and
+  `coordinate.cli` facades. PR tests were split into feature-specific files.
+- multinexus extracted coordinator handoff/lifecycle and the central agent
+  request workflow behind the existing `DiscordClient`/`Agents` types. Added
+  explicit inheritance and chunking contract tests.
+- Before reviewer submission, coordinate full suite passed 1084 tests and
+  multinexus passed 314 tests (2 skipped); both harness validate/doctor and
+  diff checks passed.
+
 ### Phase 8.4 operator closeout — correctness pass
 
 The operator resumed Phase 8.4 from Round 7 on dedicated

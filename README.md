@@ -35,7 +35,9 @@ Discord Message
       │     Determines which agent(s) to invoke
       │
       ├── cogs/agents.py
-      │     Orchestrates agent calls, tag processing, handoffs, webhooks
+      │     Dispatch, handoff extraction, and webhook facade
+      ├── cogs/agent_request.py
+      │     Agent call, tag processing, fallback, and response workflow
       │
       ├── agents/
       │     ├── cli.py             ClaudeAgent, CodexAgent (subprocess)

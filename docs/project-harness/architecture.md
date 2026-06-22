@@ -9,7 +9,9 @@
 ```
 multinexus.py                          CLI entry point
 multinexus/
-  client.py                       DiscordClient (bridge: Gateway + mention + context)
+  client.py                       DiscordClient facade (Gateway + mention + context)
+  coordinator_handoff.py          coordinator handoff/lifecycle orchestration mixin
+  message_chunks.py               shared Discord-sized response chunking
   config.py                       TOML config loading, [defaults] + [[agents]] merge
   models.py                       AgentConfig, KnownAgentMention dataclasses
   protocol.py                     AgentRequest/AgentResponse envelope (cross-platform)
@@ -39,6 +41,9 @@ multinexus/
     mentions.py                   MentionRouter — @name -> <@UID>, [handoff] detection
   security/
     allowlist.py                  Operator access control by user ID
+cogs/
+  agents.py                       dispatch, handoff extraction, webhook facade
+  agent_request.py                core agent call/tag/fallback request workflow mixin
 ```
 
 ## N+M Runtime Architecture

@@ -110,6 +110,23 @@ slice.
 - Every extraction is independently testable and committed separately.
 - Record before/after file and largest-function line counts.
 
+### Stage D implementation result
+
+- coordinate compatibility facades now route to `schema.py`,
+  `pr_publishing.py`, `pr_recording.py`, and `pr_cli.py`. `db.py` fell from
+  1320 to 1090 lines, `prs.py` from 2353 to 234, and `cli.py` from 2417 to
+  1871. Phase 8.4 PR tests moved from the generic 4911/3171-line test files to
+  feature-specific `test_pr_cli.py` and `test_pr_publish.py`.
+- multinexus moved coordinator handoff/lifecycle orchestration from
+  `client.py` (1229 to 910 lines) to `coordinator_handoff.py`; the shared
+  response chunker is independent. The agent request workflow moved from
+  `cogs/agents.py` (1415 to 761 lines) to `cogs/agent_request.py`, preserving
+  the Cog method through a mixin and explicit boundary tests.
+- Public command names, handler signatures, facade imports, monkeypatch hooks,
+  event JSON, DB schema, and Discord behavior remain covered. Full suites after
+  extraction: coordinate 1084 OK; multinexus 314 OK (2 skipped), before adding
+  the three boundary-contract tests.
+
 ## Stage E: Final review and closeout
 
 The same reviewer subagent reviews both refactor branches. The operator repeats
