@@ -63,6 +63,17 @@ Harness root: `docs/project-harness/`
   both harness validate/doctor and diff checks pass. Refactor branches are
   pushed but not deployed or merged. Real PR #1 remains open on the separate
   Phase 8.4 closeout branch.
+- Remote lifecycle closeout produced durable events: `closeout.requested`
+  `7feeec89-17b9-4042-aeef-37a3e136fba6`, approved `review.completed`
+  `46033db5-401a-4dd6-950b-afbec4288576`, and `task.done`
+  `09e6a173-e998-4908-a8df-0777d09e8ece`.
+- Post-closeout inspection caught reconcile erasing the PR binding. The same
+  reviewer rejected the first preservation patch until branch/PR/metadata
+  rebinds also failed closed, then APPROVED. The fix is present on refactor
+  coordinate `63cdafb` and backported/deployed as closeout `cf4f1e9`.
+- Fresh host 6 linked PR #1 at `cf4f1e9`; remote reconcile then reported the
+  closed task unchanged with PR/publish metadata intact, and immediate replay
+  returned event/mirror false/false. The PR remains open and unmerged.
 
 ### Phase 8.4 operator closeout — correctness pass
 

@@ -143,6 +143,12 @@ patch surfaces; the persistent reviewer returned `APPROVED` with no actionable
 P1/P2. Final suites: coordinate 1087 OK; multinexus 319 OK (2 skipped). Both
 refactor branches are pushed and remain unmerged/undeployed.
 
+Final lifecycle dogfood exposed one additional reconciliation ownership bug.
+The approved fix preserves omitted coordinator-owned PR/publish/event state and
+rejects explicit branch/PR/metadata rebinds. It was backported to the deployed
+closeout branch and verified by fresh-host link, reconcile-unchanged, and
+idempotent replay. No merge was performed.
+
 ## Verification commands
 
 ```bash

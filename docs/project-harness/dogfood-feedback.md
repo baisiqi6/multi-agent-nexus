@@ -349,6 +349,21 @@
 - 后续验收：driver 必须在 GitHub-capable host 查询并把带 head SHA 的 canonical
   CI/review 结果写回控制面；远端 merge gate 只消费已记录状态并保留人工 gate。
 
+### 28. lifecycle reconcile 清空 coordinator-owned PR/publish metadata
+
+- 状态：fixed, reviewer approved, deployed and dogfood-verified。
+- 原始现象：远端任务成功 `task.done` 后，reconciler 用已关闭 checklist item
+  覆盖 task mirror；因为 harness 没有 PR 字段，`tasks.pr`、`publish_metadata` 和
+  `last_event_id` 被清空。GitHub PR 本身未受影响，但控制面丢失绑定。
+- 修复：reconcile 把 branch、PR、publish metadata 和 event pointer 视为
+  coordinator-owned。harness 省略时保留；相同值接受；已有可信值与 harness
+  非空不同值时 fail closed，防止绕过 publish/rebind gate。显式清理必须走专用
+  coordinator mutation。
+- 真实验证：修复 backport 到 closeout commit `cf4f1e9` 并部署。fresh host 6
+  重新 link PR #1 后，远端 `reconcile --no-refresh` 报该 task `unchanged`，保留
+  closed phase、PR URL 和 commit metadata；立即 publish replay 返回
+  `event_created=false` / `mirror_updated=false`。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
