@@ -201,6 +201,28 @@ row order and preserves the newer pointer while retaining its repair behavior
 for missing PR/metadata. The no-side-effect replay contract has an explicit
 publish/lifecycle/replay regression.
 
+
+### Phase 8.4.4 Host-Aware Mark-Done (Reconcile Drift)
+
+- Implemented host-aware `mark-done-files` and `mark-done-record` in coordinate
+  (branch `agents/mac-omp/phase-8.4.4-host-aware-mark-done`, commit
+  `8c31416`).
+- **mark-done-files**: writes local `mvp-checklist.json` (status=done,
+  workflow=closed), no DB connection, /opt guard without `--allow-runtime-copy`.
+  Privileged operator tool that bypasses the review gate (explicitly documented).
+- **mark-done-record**: inline `append_event('task.done')` via cloud DB,
+  never calls `adapter.run_mutation` (zero file touches). Wide-match
+  idempotency scans all prior `task.done` by workspace+task (ignoring actor).
+  Gate diagnostic from /opt checklist is present but non-blocking.
+- Runbook updated with reconcile drift standard flow and legacy race warning
+  (do not run legacy `assignment mark-done` between files/record).
+- Coordinate full suite: 1141 tests OK (17 new + pre-existing baseline 1087).
+- Multinexus full suite: 333 tests, 8 pre-existing asyncio errors, 2 skipped.
+- `harnessctl validate` passed; `harnessctl doctor` exited 0 with pre-existing
+  optional misses; `git diff --check` clean.
+- End-to-end dogfood confirmed: mark-done-files (checklist update + idempotent
+  no-op) → mark-done-record (event created + wide-match idempotent with
+  different actor+hint).
 ## 2026-06-18
 
 ### Phase 8.4 — review-fix round (2026-06-19, address codex findings)
