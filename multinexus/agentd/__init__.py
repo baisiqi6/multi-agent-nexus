@@ -4,6 +4,12 @@ One agentd process per agent identity. Bridges submit requests via HTTP POST to 
 Agentd manages adapter call/resume, session persistence, timeouts, and health checks.
 """
 
-from multinexus.agentd.server import AgentDaemon
-
 __all__ = ["AgentDaemon"]
+
+
+def __getattr__(name: str):
+    if name == "AgentDaemon":
+        from multinexus.agentd.server import AgentDaemon
+
+        return AgentDaemon
+    raise AttributeError(name)
