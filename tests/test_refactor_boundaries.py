@@ -8,7 +8,10 @@ from cogs.agent_request import AgentRequestMixin
 from cogs.agents import Agents
 from multinexus import client as client_facade
 from multinexus.client import DiscordClient
-from multinexus.coordinator_handoff import CoordinatorHandoffMixin
+from multinexus.coordinator_handoff import (
+    CoordinatorHandoffMixin,
+    _chunk_handoff_message,
+)
 from multinexus.message_chunks import chunk_message
 
 
@@ -25,10 +28,16 @@ class RefactorBoundaryTests(unittest.TestCase):
         self.assertIs(Agents.handle_agent_request, AgentRequestMixin.handle_agent_request)
 
     def test_message_chunk_boundary_preserves_empty_and_size_behavior(self):
+        self.assertEqual(client_facade._MAX_DISCORD_MSG_LEN, 1900)
         self.assertEqual(chunk_message("   "), [])
         chunks = chunk_message("x" * 1901)
         self.assertEqual("".join(chunks), "x" * 1901)
         self.assertTrue(all(len(chunk) <= 1900 for chunk in chunks))
+        with mock.patch.object(
+            client_facade, "_chunk_message", return_value=["patched"]
+        ) as patched:
+            self.assertEqual(_chunk_handoff_message("payload"), ["patched"])
+        patched.assert_called_once_with("payload")
 
     def test_client_keeps_handoff_import_surface_and_patch_hook(self):
         for name in (
@@ -56,7 +65,7 @@ class RefactorBoundaryTests(unittest.TestCase):
                 CoordinatorHandoffMixin._try_coordinator_lifecycle(dummy, message)
             )
             loop.close()
-            asyncio.set_event_loop(asyncio.new_event_loop())
+            asyncio.set_event_loop(None)
         self.assertFalse(handled)
         patched.assert_called_once_with("ignored", my_discord_user_id=123)
 
@@ -80,16 +89,15 @@ class RefactorBoundaryTests(unittest.TestCase):
 
         channel = SimpleNamespace(id=456)
         with mock.patch.object(agents_facade, "set_correlation") as patched:
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
             loop.run_until_complete(
                 AgentRequestMixin.handle_agent_request(
                     Dummy(), "researcher", "prompt", "thread", channel, 1, depth=1
                 )
             )
+            loop.close()
+            asyncio.set_event_loop(None)
         patched.assert_called_once_with(agent="researcher", channel="456")
 
 

@@ -24,7 +24,10 @@ from .coordinator_handoff import CoordinatorHandoffMixin
 from .context.prompt import build_agent_prompt
 from .context.store import ChatContextStore
 from .models import AgentConfig
-from .message_chunks import chunk_message as _chunk_message
+from .message_chunks import (
+    MAX_DISCORD_MSG_LEN as _MAX_DISCORD_MSG_LEN,
+    chunk_message as _chunk_message,
+)
 from .protocol import AgentRequest, Platform, PlatformDestination, PlatformOrigin
 from .routing.mentions import MentionRouter
 from .sessions.store import SessionStore

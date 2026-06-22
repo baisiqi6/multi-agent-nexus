@@ -21,10 +21,16 @@ from .handoff_handler import (
     resolve_workspace_path,
     split_agent_report_lines,
 )
-from .message_chunks import chunk_message
 from .sessions.scope import is_thread_channel, task_scope
 
 log = logging.getLogger(__name__)
+
+
+def _chunk_handoff_message(text: str) -> list[str]:
+    """Resolve through the historical client chunking hook."""
+    from . import client as client_facade
+
+    return client_facade._chunk_message(text)
 
 
 class CoordinatorHandoffMixin:
@@ -140,7 +146,7 @@ class CoordinatorHandoffMixin:
             response_without_reports
         )
 
-        chunks = chunk_message(display_text) if display_text else []
+        chunks = _chunk_handoff_message(display_text) if display_text else []
         if chunks:
             if placeholder:
                 try:
