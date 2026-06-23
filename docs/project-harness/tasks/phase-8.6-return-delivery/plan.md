@@ -74,6 +74,12 @@ agent（reviewer/worker）完成 → 创建 `agent.reported` event + 记 **pendi
 - **recommended edit-3**：reconciliation 清 stale `awaiting_operator`（harness status=done/closed 时清）。
 - **double agent.reported 风险**：runtime 设 `source="runtime"` + source-specific idempotency key（`runtime:job:{id}:agent-reported:{status}` vs `discord-agent-report:{msg_id}`）。
 
-## Review history
+## Reviewer round-2 implementation notes（opencode via reviewer handoff，Approve 带注意）
+
+- report_job_result 发 `agent.reported` 必须带 `source="runtime"` + **独立 idempotency key**（避免和 Discord 路径重复）。
+- **delivery 去重**：已有 `job.completed`/`job.failed` 渲染的 runtime dialog job，runtime `agent.reported` 会再产一条 delivery → policy 按 `source=runtime` skip 或在 pending 视图去重。
+- `awaiting_operator` 要加入 `onboarding.py` 的 phase 允许集合 + checklist/workflow 映射。
+- **phase-8.5 回填**需要扫描/重放历史 job（不能仅靠新 terminal 触发）。
+- `coordinate operator pending` 补测试 + 输出 schema。
 
 - round-1 (opencode, job 49458e65, via runtime request — 注：该用 reviewer handoff，round-2 改用): APPROVE + 4 open question 答案（a-d）+ 3 recommended edits（source=runtime payload / 不 auto mark_done / reconcile 清 stale）+ double-agent.reported 风险（source 区分 + idempotency）。已融入 Round-1 decisions。
