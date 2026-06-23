@@ -868,7 +868,7 @@
     {
       "id": "phase-8.6-return-delivery",
       "title": "Phase 8.6 Return Delivery (agent done → pending operator action)",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -883,16 +883,16 @@
         "reason": "dogfood"
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-23",
+      "updated_at": "2026-06-23T08:19:29Z",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-06-23"
+        "updated_at": "2026-06-23T08:19:29Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/phase-8.6-return-delivery/plan.md"
       },
-      "verification": "",
+      "verification": "phase-8.6 回程 delivery 自举成功 (operator pending). 2 code review bug 修 (runtime dedup + action==done). 1158 tests.",
       "review": {}
     }
   ]
