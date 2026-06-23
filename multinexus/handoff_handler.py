@@ -43,7 +43,7 @@ _LIFECYCLE_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
-_ALLOWED_ACTIONS = frozenset({"assignment.accept"})
+_ALLOWED_ACTIONS = frozenset({"assignment.accept", "review.begin"})
 _LIFECYCLE_ACTIONS = frozenset(
     {"assignment.closeout", "assignment.mark-done", "task.done"}
 )
@@ -233,12 +233,16 @@ def _infer_coordinator_repo(cli_path: str) -> Path | None:
 
 
 def _is_allowed_bootstrap_path(relative_path: Path) -> bool:
+    _allowed_names = frozenset({"worker-bootstrap.md", "reviewer-bootstrap.md"})
     parts = relative_path.parts
     if len(parts) >= 5 and parts[:3] == ("docs", "project-harness", "tasks"):
-        return relative_path.name == "worker-bootstrap.md"
+        return relative_path.name in _allowed_names
     if len(parts) >= 4 and parts[:2] == ("docs", "tasks"):
-        return relative_path.name == "worker-bootstrap.md"
-    return parts == ("docs", "project-harness", "current", "worker-bootstrap.md")
+        return relative_path.name in _allowed_names
+    return parts in (
+        ("docs", "project-harness", "current", "worker-bootstrap.md"),
+        ("docs", "project-harness", "current", "reviewer-bootstrap.md"),
+    )
 
 
 def read_bootstrap(workspace_path: str, bootstrap_relative_path: str) -> str | None:
@@ -410,6 +414,56 @@ def build_handoff_prompt(
 
     if bootstrap_content:
         parts.append("\n你的任务启动说明:\n")
+        parts.append(bootstrap_content)
+    else:
+        parts.append("\n未找到 bootstrap 文件，请联系 operator。")
+
+    return "\n".join(parts)
+
+def build_review_handoff_prompt(
+    handoff: CoordinatorHandoff,
+    bootstrap_content: str | None,
+    *,
+    agent_name: str | None = None,
+) -> str:
+    """Build the reviewer agent prompt for a coordinator review handoff."""
+    parts = [
+        "[Reviewer Handoff Accepted]\n",
+        f"任务: {handoff.task_id}",
+        f"Workspace: {handoff.workspace_id}",
+    ]
+
+    if agent_name:
+        parts.extend(
+            [
+                "\n任务接收状态:",
+                (
+                    "- 你以 reviewer 角色接收此 handoff。你 **不持有** task ownership。"
+                ),
+                (
+                    "- 不要运行 `assignment accept`。reviewer 不声索任务所有权。"
+                ),
+                (
+                    "- 你的职责是评审（review），不是实现。不要修改代码、commit 或 push。"
+                ),
+            ]
+        )
+
+    parts.extend(
+        [
+            "\nReview 协作规则:",
+            "- 开始评审前，先在群里发一句说明：已接收 review 请求，准备先检查哪几个方面。",
+            "- 完成评审时，在消息中附带一个 parseable block：",
+            "  `[agent-report] decision=approve workspace_id=... task_id=... summary=\"...\"`",
+            "  或 `[agent-report] decision=reject workspace_id=... task_id=... reason=\"...\"`",
+            "- `[agent-report]` 行必须从新的一行行首开始；不要把它埋在普通句子中。",
+            "- 如果 approve，明确 @Coordinator 和 @Codex 告知 plan/code 已通过。",
+            "- 如果 reject，明确说明原因和需要修改的地方。",
+        ]
+    )
+
+    if bootstrap_content:
+        parts.append("\n你的 review 启动说明:\n")
         parts.append(bootstrap_content)
     else:
         parts.append("\n未找到 bootstrap 文件，请联系 operator。")
