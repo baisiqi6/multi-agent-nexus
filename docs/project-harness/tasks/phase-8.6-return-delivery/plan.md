@@ -63,9 +63,17 @@ agent（reviewer/worker）完成 → 创建 `agent.reported` event + 记 **pendi
 - operator 用一条命令查 pending 推进，不手动 `job list` 轮询。
 - phase-8.6 / phase-8.5 的 omp job done 都被 pending 捕获。
 
-## Open design questions（plan review 定）
+## Round-1 review decisions（opencode round-1 APPROVE，open questions 已定）
 
-1. runtime job terminal 触发 `agent.reported` 的层：`report_job_result`（agentd 层）写入 vs daemon 监听 job terminal？
-2. pending 存哪：task phase=`awaiting_operator` vs 新 `pending_operator_actions` 表？
-3. `operator pending` 是新 CLI 还是 `state --pending` 扩展？
-4. pending 的"待办动作"怎么推断（从 task 当前 phase + 最新 event 推该 operator 做什么）？
+- **(a) 触发层 = `report_job_result`（agentd 层）**。daemon 不监听 job terminal（加 listener 复杂）；`report_job_result` 已有 agent_id/task_id/workspace_id/result summary，在那里 emit `agent.reported` 最小幂等。
+- **(b) pending 存储 = `task.phase = awaiting_operator`**。不新建表；phase 已和 harness state reconcile，是"task 在什么状态"的自然位置。加进 onboarding/schema 允许的 phase。
+- **(c) 新 CLI `coordinate operator pending <workspace>`**。不扩展 `state --pending`（state 读 harness JSON，pending 是 coordinator 派生概念）；新 `operator` 子command 职责分离、易扩展。
+- **(d) 推断 = 规则（phase + latest event）**。例：`planned + plan.review_requested → approve/reject plan`；`implementing + agent.reported done → review code/closeout`；`ready + no owner → handoff`；`awaiting_operator + agent.reported → advance/mark-done`。
+- **recommended edit-1**：runtime `agent.reported` payload 显式含 `source="runtime"`、`job_id`、`agent_id`、`status`、`result_summary`（policy 据 source 区分 runtime vs Discord）。
+- **recommended edit-2**：runtime 路径**不** auto `mark_done_task`（只设 `awaiting_operator`，operator 决定）；与 Discord 路径 `action=done → mark_done_task` 区分，符合半自动设计。
+- **recommended edit-3**：reconciliation 清 stale `awaiting_operator`（harness status=done/closed 时清）。
+- **double agent.reported 风险**：runtime 设 `source="runtime"` + source-specific idempotency key（`runtime:job:{id}:agent-reported:{status}` vs `discord-agent-report:{msg_id}`）。
+
+## Review history
+
+- round-1 (opencode, job 49458e65, via runtime request — 注：该用 reviewer handoff，round-2 改用): APPROVE + 4 open question 答案（a-d）+ 3 recommended edits（source=runtime payload / 不 auto mark_done / reconcile 清 stale）+ double-agent.reported 风险（source 区分 + idempotency）。已融入 Round-1 decisions。
