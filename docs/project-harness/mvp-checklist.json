@@ -874,6 +874,14 @@
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md",
       "acceptance": "Use docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md as source of truth. Let reviewer go via [handoff] role=reviewer (Discord visible, reviewer bot self-sends review), not runtime request submit. coordinate task handoff --role {worker,reviewer} + reviewer bootstrap; multinexus parses role=reviewer + reviewer [agent-report] decision. Non-goal: full role generalization. Worker: omp, reviewer: opencode.",
+      "id": "phase-8.6-return-delivery",
+      "title": "Phase 8.6 Return Delivery (agent done → pending operator action)",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.6-return-delivery/plan.md",
+      "acceptance": "Use plan as source of truth. agent done → agent.reported event + pending operator action; operator queries pending to advance (no manual job list polling). Semi-auto (human stays in loop). Non-goal: full auto operator loop. Worker: omp.",
       "blocked_by": [],
       "blocked_reason": "",
       "dependencies": [],
@@ -893,6 +901,19 @@
         "plan": "docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md"
       },
       "verification": "",
+        "reason": "dogfood"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-23T08:19:29Z",
+      "workflow": {
+        "status": "closed",
+        "branch": null,
+        "updated_at": "2026-06-23T08:19:29Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.6-return-delivery/plan.md"
+      },
+      "verification": "phase-8.6 回程 delivery 自举成功 (operator pending). 2 code review bug 修 (runtime dedup + action==done). 1158 tests.",
       "review": {}
     }
   ]
