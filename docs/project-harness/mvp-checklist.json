@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-22",
+  "updated_at": "2026-06-23",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -834,7 +834,7 @@
     {
       "id": "phase-8.4.4-host-aware-mark-done",
       "title": "Phase 8.4.4 Host-Aware Mark-Done (Reconcile Drift)",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -849,17 +849,21 @@
         "reason": "dogfood: omp as worker, opencode as reviewer"
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-22",
+      "updated_at": "2026-06-23T02:14:14Z",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-06-22"
+        "updated_at": "2026-06-23T02:14:14Z"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md"
+        "plan": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "opencode code review approved (round-1): 1141 tests, 4 must-fix resolved, 17 tests cover Workstream A/B, no correctness bugs. omp worker implementation. Reconciled via host-aware mark-done (self-bootstrap).",
+      "review": {
+        "decision": null,
+        "reviewer": "opencode"
+      }
     }
   ]
 }
