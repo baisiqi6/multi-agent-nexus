@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-23",
+  "updated_at": "2026-06-24",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -928,7 +928,7 @@
     {
       "id": "phase-8.7-worker-self-test",
       "title": "Phase 8.7 Worker Self-Test Before Closeout (根因)",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -945,15 +945,34 @@
       "selected_in_session": null,
       "updated_at": "2026-06-24",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-06-24"
+        "status": "closeout_requested",
+        "branch": "agents/mac-opencode/phase-8.7-worker-self-test",
+        "updated_at": "2026-06-24",
+        "handoff_from": "mac-opencode",
+        "handoff_target": "mac-omp"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-8.7-worker-self-test/plan.md"
+        "plan": "docs/project-harness/tasks/phase-8.7-worker-self-test/plan.md",
+        "branch": "agents/mac-opencode/phase-8.7-worker-self-test",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null,
+        "reviewer": "mac-opencode",
+        "phase": "running",
+        "updated_at": "2026-06-24",
+        "summary": "ROUND-1 APPROVE with notes. Motivation is real and well-evidenced (phase-8.5/8.6 藏 bug 是 operator 实测才发现的). Root cause analysis correct: 单测覆盖不了 daemon/bridge 长进程集成 bug. Design pragmatic: 半自动 + 证据 (不硬 gate) 适合 first version (硬 gate 留后续). WS-A/B/C 范围合理 (bootstrap 协议 + packet schema + reviewer 检查). Open questions answered: (a) e2e scope = 本 task 的新链路 (per plan); (b) e2e fail → worker 修 → re-self-test → evidence 更新, 不能修就 escalate operator; (c) 首版对所有 task 应用, plan-only/refactor 由 reviewer 在 bootstrap 显式标记 skip; (d) evidence 真实性 = reviewer spot-check (e.g., ssh kook-hermes-admin cat /opt/multinexus/VERSION_DEPLOYED) + 必填 raw e2e 输出 (非 summary). Recommended edits (must-fix before closeout, not blocking implementation): edit-1 Workstream B 加 'Self-Test Failure Handling' 子节 (worker 修+re-evidence 或 escalate, 不 auto-approve with failing e2e); edit-2 self_test_evidence schema 加 raw_e2e_output 字段 (必填, 非 summary) 让 reviewer spot-check; edit-3 在 WS-A bootstrap 加 'applies_to=code_change_tasks' 标记 (plan-only/refactor 显式 skip, reviewer 看到 skip 原因). Plan ready for implementation. Dogfood (this task self-tests) noted — watch for circular dependency."
+      },
+      "lease": {
+        "owner": "mac-opencode",
+        "session": "review-1782306652",
+        "acquired_at": "2026-06-24T13:10:57Z",
+        "expires_at": "2026-06-24T15:10:57Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-24T13:12:24Z"
+      }
     }
   ]
 }
