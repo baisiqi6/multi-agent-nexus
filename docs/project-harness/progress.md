@@ -2,6 +2,20 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-06-24
+
+### Phase 8.7 Worker Self-Test Before Closeout
+
+- Implemented in `coordinate` worktree (`~/projects/coordinate`, branch `agents/mac-omp/phase-8.7-worker-self-test`).
+- Worker bootstrap (`src/coordinate/handoff.py:_build_worker_bootstrap`) now includes a "Self-Test Before Closeout" section with deploy/e2e rules, `--self-test-evidence` usage, and cross-repo coordinate branch reminder.
+- Reviewer bootstrap (`_build_reviewer_bootstrap`) now includes "Verify Worker Self-Test Evidence" with reject criteria.
+- `assignment closeout` CLI gained `--self-test-evidence`; `closeout_task` forwards it to `harnessctl` and stores it in the event payload.
+- `scripts/harness/prepare_closeout_packet.py` renders `self_test_evidence` in the closeout packet (warning placeholder if empty).
+- Added targeted tests: bootstrap content, CLI payload/command, transition args/payload. Full coordinate suite: **1166 tests OK**.
+- Updated `docs/project-harness/tasks/phase-8.7-worker-self-test/plan.md` with reviewer round-1 implementation notes (`raw_e2e_output`, self-test failure handling).
+- Pushed both coordinate and multinexus branches.
+- Self-test evidence: coordinate 1166 tests OK; bootstrap text verified by targeted tests; no server deploy required because this task only changes coordinate/harness protocol code.
+
 ## 2026-06-22
 
 ### Phase 8.4 closeout dogfood — final publish replay and gate probe
