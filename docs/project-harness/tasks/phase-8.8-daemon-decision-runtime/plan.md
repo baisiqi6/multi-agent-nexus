@@ -55,8 +55,11 @@ runtime job 的 `[agent-report] decision=/action=` 自动解析 → `review.comp
 - 不改 phase-8.6 `awaiting_operator`（半自动；review decision 走 review.completed，worker done 走 awaiting_operator）。
 - 不做 worker self-test 硬 gate（#7 结论指向的，另立 task）。
 
-## Open questions（plan review 定）
+## Reviewer round-1 notes（opencode via reviewer handoff，Approve + 6 must-fix，closeout 前落实）
 
-1. 解析 `[agent-report]` 的 helper 放哪（runtime.py 内联 vs 抽到共享 module 供 daemon + runtime 复用）？
-2. `decision=approve` → `review.completed` 在 `report_job_result` 直接触发，还是 daemon pump runtime `agent.reported` 时触发（解耦）？
-3. review 意见 delivery 渲染——`agent.reported`(source=runtime, decision) 专用 renderer，还是复用 `review.completed` renderer？
+- **must-fix-1 self_test_evidence**：closeout 前必须 deploy SHA + raw e2e 输出，e2e 覆盖 `decision=approve` **和** `decision=reject` 两条 runtime 路径。引用 phase-8.7 硬 gate 结论（软提醒不够）。
+- **must-fix-2 idempotency key**：runtime `agent.reported` 带 source-specific key（`runtime:job:{job_id}:agent-reported:{decision}`），防与 Discord 路径重复触发。
+- **must-fix-3 测试清单**：parse helper 单测 + lifecycle transition（approve/reject/done）+ delivery 渲染 + 无 `[agent-report]` fallback 测试。
+- **must-fix-4 malformed decision**：malformed/unknown `decision=` fail loud（不静默 fallback）。
+- **must-fix-5 open q 落定**：解析 helper 抽到**共享 module**（daemon + runtime 复用，避免重复）；触发点放在 `report_job_result`（边界简单）；review 意见 delivery 复用 `review.completed` renderer。
+- **must-fix-6 循环保护**：runtime 触发的 `review.completed` 绝不再触发 reviewer handoff（reviewer decision 只推进 lifecycle 给 operator，不回 reviewer）。
