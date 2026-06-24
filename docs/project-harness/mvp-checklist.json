@@ -928,7 +928,7 @@
     {
       "id": "phase-8.7-worker-self-test",
       "title": "Phase 8.7 Worker Self-Test Before Closeout (根因)",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -943,11 +943,11 @@
         "reason": "dogfood"
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-24",
+      "updated_at": "2026-06-24T15:18:41Z",
       "workflow": {
-        "status": "closeout_requested",
+        "status": "closed",
         "branch": "agents/mac-opencode/phase-8.7-worker-self-test",
-        "updated_at": "2026-06-24",
+        "updated_at": "2026-06-24T15:18:41Z",
         "handoff_from": "mac-opencode",
         "handoff_target": "mac-omp"
       },
@@ -957,7 +957,7 @@
         "handoff_packet": "docs/project-harness/current/handoff-packet.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "#7 work (operator self-test: pending+bootstrap+evidence field). soft reminder insufficient → hard gate next task.",
       "review": {
         "decision": null,
         "reviewer": "mac-opencode",
