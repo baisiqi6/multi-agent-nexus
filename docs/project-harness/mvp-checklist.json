@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-24",
+  "updated_at": "2026-06-25",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -977,7 +977,7 @@
     {
       "id": "phase-8.8-daemon-decision-runtime",
       "title": "Phase 8.8 Daemon decision= Runtime Path (可见性核心)",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -992,17 +992,35 @@
         "reason": "dogfood"
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-24",
+      "updated_at": "2026-06-25T01:27:25Z",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-06-24"
+        "status": "closed",
+        "branch": "agents/mac-opencode/phase-8.8-daemon-decision-runtime",
+        "updated_at": "2026-06-25T01:27:25Z",
+        "handoff_from": "mac-opencode",
+        "handoff_target": "mac-omp"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-8.8-daemon-decision-runtime/plan.md"
+        "plan": "docs/project-harness/tasks/phase-8.8-daemon-decision-runtime/plan.md",
+        "branch": "agents/mac-opencode/phase-8.8-daemon-decision-runtime",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "phase-8.8 daemon decision= runtime. operator impl + self-test. 89 tests OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "mac-opencode",
+        "phase": "running",
+        "updated_at": "2026-06-24",
+        "summary": "ROUND-1 APPROVE with answers to 3 open questions + minor edits. Motivation is real and well-evidenced (phase-8.5/8.6/8.7 都实测过 review 意见埋 job result + Discord 看不到 + operator 手动挖 job list — 这是用户最初诉求的最终一块). Root cause: daemon _parse_agent_report 只解 Discord 消息, runtime report_job_result 没接同一解析. Q1 (helper 位置) = SHARED MODULE (抽 coordinate/parsing/agent_report.py 或类似, daemon + runtime 复用, 单一 source of truth). Q2 (trigger 层) = DAEMON PUMP (report_job_result 只 emit raw agent.reported with decision in payload; daemon pump 这条 event, 当 decision=approve/reject 时 emit review.completed/review.rejected — 解耦, 符合现有 daemon 路由架构, 避免 runtime 直接做 lifecycle mutation). Q3 (renderer) = EXTEND agent.reported policy renderer 加 decision 字段 (source=runtime 时显示), review.completed 保留自己 renderer (两 event 两 delivery 都渲染, 一致). WS-A/B/C 范围合理, 与 phase-8.6 awaiting_operator 协调明确 (review decision 走 review.completed, worker done 走 awaiting_operator). 推荐 edits (worker 实现前 absorb): edit-1 WS-A 加 'multiple [agent-report] blocks' 处理 (取最后一个含 decision 的; latest intent wins); edit-2 WS-A 加 strict enum validation (decision ∈ {approve, reject, blocked}; unknown → log warning + fallback no-decision, treat as action=done awaiting_operator); edit-3 worker bootstrap 加 reminder 提示 worker 仍用 [agent-report] decision= 格式 (runtime 解析依赖); edit-4 daemon pump 测试覆盖 concurrency (multiple agent.reported for same task 应 idempotent, source-specific key per phase-8.6). Non-goals 合理 (不动 Discord 路径 / reviewer handoff / awaiting_operator). dogfood (本 task 用 reviewer handoff 验证 Discord 可见 review 意见) 设计扎实."
+      },
+      "lease": {
+        "owner": "mac-opencode",
+        "session": "review-1782315152",
+        "acquired_at": "2026-06-24T15:32:34Z",
+        "expires_at": "2026-06-24T17:32:34Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-24T15:34:49Z"
+      }
     }
   ]
 }
