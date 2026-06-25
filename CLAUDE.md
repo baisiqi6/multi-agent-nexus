@@ -266,3 +266,80 @@ Bot 在 system prompt 顶部注入：
 - 不要引用内部 bot 实现细节（DB schema、文件路径、config key）
 - 不要输出 raw JSON 或 YAML，除非用户明确要求
 - 不要说能浏览 web，除非你确实有 WebSearch/WebFetch 工具，或 researcher agent 返回了结果
+
+---
+
+## 第三节 — 架构准则（以 phase-8.4.2 函数拆分为范例）
+
+本节适用于**开发 MultiNexus 本身**时写的所有新代码。老代码逐步迁移，新代码必须遵守。
+
+### 3.1 一个函数只做一件事
+
+- **编排器 ≤ 80 行**，只负责调用顺序和早期退出。
+- 每个被调函数只解决一个子问题：验证、转换、I/O、决策。
+- 禁止把"解析输入 + 调用外部服务 + 更新数据库 + 发送 Discord 消息"写在一个函数里。
+
+### 3.2 阶段结果用不可变数据类传递
+
+- 复杂流程拆成 `stage`，每个 stage 返回一个 `frozen=True`（或至少显式字段）的数据类。
+- 数据类名要表达**阶段结果**，而不是过程：`_AgentRequestSetup`、`_AgentInvocationResult`、`_AgentResponseResult`。
+- Stage 之间不共享可变上下文字典；需要补充的字段在下一阶段的数据类里声明。
+
+### 3.3 单向依赖，调用方不依赖实现细节
+
+- 高层模块定义**需要什么**，低层模块实现**怎么做**。
+- `cogs/agent_request.py` 的 orchestrator 调用 `agents_facade`，不直接实例化子进程或模型客户端。
+- `runtime.py` 调用 `agent_report.parse_agent_report`，不内联正则。
+- 如果调用方开始解析字典、拼接 SQL、检查内部状态码 → 说明边界设计错了。
+
+### 3.4 抽象基类 / 协议优先于具体类
+
+- Agent 后端、runner profile、delivery platform 都可能扩展。
+- 定义协议（`typing.Protocol`）或 ABC，代码针对协议编程。
+- 新增一种 agent / runner / platform 时，**只新增实现文件，不改调用方**（open-closed）。
+
+### 3.5 Open-closed：新增行为靠扩展，不靠修改核心
+
+- 解析 `[agent-report]` 时，`AgentReport` 数据类可以容纳新字段，但 `parse_agent_report` 的调用签名保持稳定。
+- 新增 lifecycle event 类型时，加 event + policy handler，不改事件总线。
+- 新增 host-aware 操作时，加新的 `materialize-*` / `mark-done-*` 命令对，不改现有命令解析器。
+
+### 3.6 边界清晰：分层不要渗色
+
+| 层 | 职责 | 不做什么 |
+|---|---|---|
+| `multinexus` (bot / cog) | Discord 交互、路由、渲染、用户限流 | 不直接改 coordinate DB；不内联模型调用 |
+| `coordinate` runtime / API | job 生命周期、agent 注册、事件总线 | 不渲染 Discord 消息；不解析 Markdown |
+| `coordinate` daemon / policy | 事件消费、状态推导、delivery 创建 | 不直接执行子进程 agent |
+| adapters / runner profiles | 子进程 / agentd / bridge 调用 | 不决定 lifecycle |
+
+### 3.7 Host-aware：本地写文件，云端写记录
+
+- `materialize-files` / `mark-done-files`：在**当前 dev 机**创建/更新本地 checklist。
+- `materialize-record` / `mark-done-record`：通过 `coord-ssh` 在**生产 coordinate** 写事件与状态。
+- 不要把"本地文件操作"和"云端事件写入"混在一个函数里；每个路径有独立的 stage 或 helper。
+
+### 3.8 错误是设计的一部分
+
+- 每个 stage 都要定义失败路径返回什么（数据类里放 `error` / `exception` / `terminal` 字段）。
+- 调用方在编排器里统一处理失败，而不是在每个 stage 里各自发 Discord 消息。
+- 不要 catch `Exception` 后只打日志；要么恢复，要么把错误向上传。
+
+### 3.9 以 phase-8.4.2 与 phase-8.8 为模板
+
+`multinexus/cogs/agent_request.py` 的 `handle_agent_request` 原本约 687 行，重构后：
+
+- `handle_agent_request` ≈ 50 行，只负责锁 + 4 个 stage 调用顺序。
+- 4 个 stage：`_stage_setup_agent_request`、`_stage_invoke_agent`、`_stage_process_response_tags`、`_stage_follow_up`。
+- 3 个数据类：`_AgentRequestSetup`、`_AgentInvocationResult`、`_AgentResponseResult`。
+- 新增/修改一个行为时，通常只需要改一个 stage，不需要重读整个函数。
+
+`coordinate/src/coordinate/runtime.py` 的 `report_job_result` 在 phase-8.8 中同样遵循该原则：
+
+- job 状态更新 → `job.completed`/`job.failed` event → `[agent-report]` 解析（共享 `agent_report.py`）→ `agent.reported` → `review.completed/rejected` → task phase 更新 → delivery 创建。
+- 每个子任务有清晰边界；解析逻辑被抽到 `coordinate/src/coordinate/agent_report.py`，供 daemon 与 runtime 共享，避免重复。
+
+### 3.10 开发 MultiNexus 时的额外纪律
+
+- 第一节的所有规则（多宿主机意识、服务生命周期、fail loud、debug 方法论、Coord CLI 规则、部署流程）优先于本节的风格建议。
+- 如果某条准则与第一节冲突，**以第一节为准**。
