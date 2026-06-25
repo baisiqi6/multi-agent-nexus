@@ -4,7 +4,7 @@
 
 **Goal:** Add a `coordinate task archive` command that moves closed phase artifacts from `docs/project-harness/tasks/<phase-id>/` to `docs/project-harness/archive/<phase-id>/` while leaving a stable stub pointer behind.
 
-**Architecture:** Introduce a small `coordinate/archive.py` module that knows how to resolve source/archive/stub paths, copy files, write an `INDEX.md` with YAML front-matter, and rewrite `current/` packet links. The CLI delegates to this module after verifying the task mirror phase is `closed` or `done`. Validation compatibility is added to `scripts/harness/validate_checklist.py`（`harnessctl` 是 bash dispatcher，真实校验逻辑在 `validate_checklist.py`）so archived stubs do not fail the check.
+**Architecture:** Introduce a small `coordinate/archive.py` module that knows how to resolve source/archive/stub paths, copy files, write an `INDEX.md` with YAML front-matter, and rewrite `current/` packet links. The CLI delegates to this module after verifying the task mirror phase is `closed` or `done`. Harness compatibility is added so archived task stubs resolve their plan from `archive/` — the scripts that actually hardcode `tasks/<id>/plan.md` are `harnessctl` (bash ~line 269), `build_harness_state.py`, `workflow_transition.py` (NOT `validate_checklist.py`, which only validates JSON schema).
 
 **Tech Stack:** Python 3.12+, `pathlib`, `shutil`, `pytest`.（`INDEX.md` 的 YAML front-matter 手写标量字段——coordinate 的 `pyproject.toml` 依赖里只有 `python-dotenv`，没有 PyYAML，不为此引入新依赖。）
 
@@ -15,7 +15,7 @@
 - Archive trigger condition SHALL be task mirror phase == `closed` or `done`.
 - `INDEX.md` SHALL be Markdown with YAML front-matter and include `original_path`, `archive_path`, `workspace_id`, `task_id`, `closeout_event_id`, `closed_at`, `commit_sha`.
 - The command SHALL be idempotent.
-- Only text/Markdown/JSON files are copied; binary runtime assets are referenced, not archived.
+- Archive copies every file in the task dir faithfully (no extension filter); only gitignored runtime byproducts (`:memory:*`, logs, local DB shards) are skipped with a logged note. Spec `task-archive:preserves file content` is the source of truth — the earlier "Only text/Markdown/JSON" draft was rejected as self-contradictory (mac-codex round-2 review).
 - All state changes through CLI; never direct DB or JSON edits.
 - TDD: write the failing test first, then the minimal implementation.
 
@@ -190,6 +190,7 @@ Expected: FAIL with `ImportError: cannot import name 'copy_task_directory'`
 - [ ] **Step 3: Write minimal implementation**
 
 ```python
+import logging
 import shutil
 
 
@@ -198,7 +199,15 @@ def copy_task_directory(source_dir: Path, archive_dir: Path) -> None:
     # 走到这里且 archive 已存在 = 部分态异常，fail loud 不静默覆盖（spec: archive 不变）。
     if archive_dir.exists():
         raise ArchiveError(f"archive already exists: {archive_dir}")
-    shutil.copytree(source_dir, archive_dir)
+    # Copy every tracked artifact; skip gitignored runtime byproducts
+    # (:memory:* SQLite shards, logs, __pycache__) per spec — log skipped names.
+    _RUNTIME_IGNORE = {":memory:", ":memory:-shm", ":memory:-wal"}
+    def _ignore_runtime(_dir, names):
+        skipped = [n for n in names if n in _RUNTIME_IGNORE or n == "__pycache__" or n.endswith(".pyc") or n.endswith(".log")]
+        if skipped:
+            logging.warning("archive: skipping runtime byproducts in %s: %s", _dir, skipped)
+        return skipped
+    shutil.copytree(source_dir, archive_dir, ignore=_ignore_runtime)
 
 
 def write_archive_index(
@@ -315,10 +324,14 @@ def update_current_links(current_dir: Path, task_id: str, archive_dir: Path) -> 
     changed: list[Path] = []
     if not current_dir.exists():
         return changed
+    # Match `tasks/<task_id>/<rest>` and rewrite to `archive/<task_id>/<rest>`.
+    # The task_id MUST be carried into the replacement — earlier draft used
+    # `archive/\1` which dropped task_id (tasks/<id>/plan.md → archive/plan.md).
     pattern = re.compile(r"tasks/" + re.escape(task_id) + r"/([^\s\)\"\]]*)")
+    replacement = f"archive/{task_id}/\\1"
     for path in current_dir.glob("*.md"):
         original = path.read_text(encoding="utf-8")
-        updated = pattern.sub(r"archive/\1", original)
+        updated = pattern.sub(replacement, original)
         if updated != original:
             path.write_text(updated, encoding="utf-8")
             changed.append(path)
@@ -562,43 +575,53 @@ git commit -m "feat(cli): add coordinate task archive command"
 
 ---
 
-### Task 5: Update harnessctl validate to accept archive stubs
+### Task 5: Make harnessctl accept archived task stubs
+
+**Correction from mac-codex round-2 review:** earlier draft assumed `validate_checklist.py` checks `plan.md` existence and would reject a stubbed task dir. That premise is **false** — `validate_checklist.py` only validates the checklist JSON schema (`Path(args.checklist)`, no filesystem check of `tasks/<id>/plan.md`). The scripts that actually hardcode `tasks/<id>/plan.md` are:
+- `harnessctl:269` — `if [ -f "$HARNESS_ROOT/tasks/$DOING_ID/plan.md" ]` (bash existence check)
+- `workflow_transition.py:111` — artifacts plan path default
+- `build_harness_state.py:128` — plan_path default
+- `activate_item.py:126`, `sync_current_from_item.py:118` — doc/comment references
+
+So Task 5 targets **`harnessctl` (bash) + `build_harness_state.py` + `workflow_transition.py`**, not `validate_checklist.py`.
 
 **Files:**
-- Modify: `multinexus/scripts/harness/validate_checklist.py`（真实校验逻辑在这；`harnessctl` 只是转发到它的 bash dispatcher）
-- Test: 与 `validate_checklist.py` 同 repo（multinexus）的测试，或 extend 既有 harnessctl 测试
+- Modify: `multinexus/scripts/harness/harnessctl` (the `tasks/$ID/plan.md` existence check at ~line 269)
+- Modify: `multinexus/scripts/harness/build_harness_state.py` (plan_path default at line 128)
+- Modify: `multinexus/scripts/harness/workflow_transition.py` (artifacts plan default at line 111)
+- Test: `multinexus` harnessctl/build_harness_state tests, or a new `tests/test_archive_stub_harness.py`
 
 **Interfaces:**
-- Consumes: existence of `tasks/<phase-id>/README.md` with archive pointer
+- Consumes: existence of `tasks/<phase-id>/README.md` stub with archive pointer + `archive/<phase-id>/INDEX.md`
 
 - [ ] **Step 1: Write the failing test**
 
 Create a minimal harness root with:
 - `mvp-checklist.json` containing a done item `phase-8.4.2`
-- `tasks/phase-8.4.2/README.md` stub pointing to archive
-- `archive/phase-8.4.2/INDEX.md`
+- `tasks/phase-8.4.2/README.md` stub (containing "Archived Task" + `archive/phase-8.4.2` pointer), NO `plan.md`
+- `archive/phase-8.4.2/INDEX.md` + `archive/phase-8.4.2/plan.md`
 
-Run `python3 scripts/harness/validate_checklist.py <checklist-path>`（或经 `scripts/harness/harnessctl validate`，它转发到 validate_checklist.py）and assert exit 0.
+Run `bash scripts/harness/harnessctl validate <item>` (or `build_harness_state.py`) and assert it does NOT error on the missing `tasks/phase-8.4.2/plan.md` — it should resolve the archive copy.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Expected: FAIL because validate currently expects plan.md in task dir.
+Expected: FAIL — harnessctl:269 / build_harness_state treats absence of `tasks/<id>/plan.md` as a problem (or the plan_path points at a now-stubbed location).
 
 - [ ] **Step 3: Write minimal implementation**
 
-In `multinexus/scripts/harness/validate_checklist.py`（先读该文件找到 task 目录/artifact 检查点；`harnessctl` bash 里没有校验逻辑）, in the check that asserts task artifact existence:
-- If `tasks/<item_id>/README.md` exists and contains "Archived Task" + archive pointer, treat the task as valid.
-- Optionally warn if `archive/<item_id>/INDEX.md` is missing.
+For each hardcoded `tasks/<id>/plan.md` path, add a fallback: if the direct path doesn't exist but `tasks/<id>/README.md` is an archive stub, resolve the plan from `archive/<id>/plan.md` (read the stub's archive pointer). Concretely:
+- `harnessctl` (bash, ~line 269): `if [ -f ".../tasks/$ID/plan.md" ]; then ...; elif grep -q "Archived Task" ".../tasks/$ID/README.md" 2>/dev/null; then PLAN="archive/$ID/plan.md"; ...`
+- `build_harness_state.py:128` + `workflow_transition.py:111`: Python helper `_resolve_plan_path(item_id)` that checks stub → archive before defaulting.
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Expected: PASS
+Expected: PASS — harness resolves archived task's plan without error.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/harness/validate_checklist.py  # multinexus repo
-git commit -m "feat(harnessctl): validate accepts archived task stubs"
+git add scripts/harness/harnessctl scripts/harness/build_harness_state.py scripts/harness/workflow_transition.py  # multinexus repo
+git commit -m "feat(harness): accept archived task stubs (resolve plan from archive/)"
 ```
 
 ---

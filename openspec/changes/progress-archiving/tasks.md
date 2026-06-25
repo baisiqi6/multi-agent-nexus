@@ -20,7 +20,7 @@
 
 ## 4. Harness Validation Compatibility
 
-- [ ] 4.1 Update `multinexus/scripts/harness/validate_checklist.py`（真实校验逻辑在这；`harnessctl` 只是转发到它的 bash dispatcher）to treat a `tasks/<task-id>/README.md` stub (with archive pointer) as a valid reference when the task status is `done`/`closed`.
+- [ ] 4.1 Make `harnessctl` (bash, ~line 269 `tasks/$ID/plan.md` check) + `build_harness_state.py:128` + `workflow_transition.py:111` accept a `tasks/<task-id>/README.md` archive stub: if the direct `plan.md` is absent but the stub points to `archive/<task-id>/`, resolve the plan from the archive. (Note: `validate_checklist.py` only validates checklist JSON schema — it does NOT check `plan.md`, so it needs no change. mac-codex round-2 review caught the false premise.)
 - [ ] 4.2 Ensure validate still fails if a non-closed task directory only contains a stub.
 
 ## 5. Tests

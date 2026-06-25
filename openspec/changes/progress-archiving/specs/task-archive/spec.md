@@ -27,9 +27,10 @@ The system SHALL allow the archive command to run multiple times for the same cl
 - **AND** the stub in `tasks/<phase-id>/README.md` continues to point to the same archive location
 
 ### Requirement: Archive preserves file content and metadata
-The system SHALL copy files into the archive without altering their content or dropping files present in the source task directory.
+The system SHALL copy into the archive every file present in the source task directory, without altering content, excluding only runtime/byproducts that are gitignored (e.g. `:memory:*`, logs, local DB shards). Archiving is a faithful copy of the task's tracked artifacts — it does not filter by extension. Binary assets that an operator wants preserved alongside should live in the task dir at archive time; anything not meant to be archived should not be in the task dir to begin with.
 
 #### Scenario: Archive contains all original files
 - **WHEN** the archive command succeeds
 - **THEN** every file in `tasks/<phase-id>/` before archiving has an equivalent in `archive/<phase-id>/` with identical content
 - **AND** `INDEX.md` is added but no original file is removed from the archive copy
+- **AND** gitignored runtime byproducts (if any are present) are skipped with a logged note, not copied
