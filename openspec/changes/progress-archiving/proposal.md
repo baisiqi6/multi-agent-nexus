@@ -17,8 +17,8 @@
   - 在 `archive/<phase-id>/` 生成 `INDEX.md`，记录原始路径、closeout event id、closed_at、相关 commit SHA；
   - 将 `tasks/<phase-id>/` 替换为一个 stub `README.md`，指向 `archive/<phase-id>/`；
   - 更新 `docs/project-harness/current/` 中仍指向旧路径的 packet（若存在）。
-- 修改 `harnessctl validate`：把 archive stub 视为合法引用，不再因 `tasks/<phase-id>/` 只剩 README 而报错。
-- 修改 `task mark-done` closeout 流程：成功 closeout 后**可选**自动触发归档（`--archive` 标志，默认 false，先显式后自动）。
+- 修改 `harnessctl`（bash ~line 269）+ `build_harness_state.py` + `workflow_transition.py`：识别 `tasks/<id>/README.md` archive stub，从 `archive/<id>/plan.md` 解析 plan（详见 tasks 4.1）。
+- `assignment mark-done --archive` 自动归档**不在本次变更**（Phase 2 后续，见 design Migration Plan）；本次只做显式 `coordinate task archive` 命令。
 - **BREAKING**：外部脚本若直接硬编码读取 `tasks/<phase-id>/plan.md`，需要改为解析 stub README 中的 archive 指针，或直接读 `archive/<phase-id>/plan.md`。
 
 ## Capabilities
@@ -31,7 +31,8 @@
 ### Modified Capabilities
 
 - `harness-validation`: 校验规则需把 archive stub 视为合法路径；若 task 状态为 closed 但 archive 索引缺失，可降级为 warning（保留兼容）。
-- `task-mark-done`: closeout 成功后支持可选 `--archive` 触发归档。
+
+*(task-mark-done `--archive` 自动归档是 Phase 2，不在本次 scope，见 design Migration Plan)*
 
 ## Impact
 

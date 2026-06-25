@@ -42,8 +42,8 @@
 - **Decision**: coordinate 的 `pyproject.toml` 依赖只有 `python-dotenv`，**没有 PyYAML**。INDEX 字段都是标量（路径/字符串），手写 `key: value` 行即可，不为此引入新依赖。spec 也允许 "key-value list parseable by simple regex"。
 - **Trade-off**: 手写 front-matter 要保证值里没有破坏 YAML 解析的字符（冒号在值中间无碍，只有 `key:` 后的冒号有语义）；字段都是受控标量，风险低。
 
-### 5. 命令默认显式触发，自动触发靠 `--archive` 可选标志
-- **Rationale**: 归档是不可逆的文件系统布局变更（虽然副本保留），先让 operator 显式运行，观察几轮后再默认开启自动归档。降低误归档运行中 phase 的风险。
+### 5. 本次只做显式 `coordinate task archive`，自动触发（`--archive`）是 Phase 2
+- **Rationale**: 归档是不可逆的文件系统布局变更（虽然副本保留），先让 operator 显式运行、观察几轮，再决定是否接 closeout 自动触发（Phase 2）。降低误归档运行中 phase 的风险，也让本次变更 scope 收敛（mac-codex round-3 review 指出原"先显式后自动"措辞与 Migration Plan 矛盾）。
 
 ## Risks / Trade-offs
 

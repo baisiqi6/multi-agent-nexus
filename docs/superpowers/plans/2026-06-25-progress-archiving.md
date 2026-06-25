@@ -601,11 +601,13 @@ Create a minimal harness root with:
 - `tasks/phase-8.4.2/README.md` stub (containing "Archived Task" + `archive/phase-8.4.2` pointer), NO `plan.md`
 - `archive/phase-8.4.2/INDEX.md` + `archive/phase-8.4.2/plan.md`
 
-Run `bash scripts/harness/harnessctl validate <item>` (or `build_harness_state.py`) and assert it does NOT error on the missing `tasks/phase-8.4.2/plan.md` — it should resolve the archive copy.
+Then exercise the **plan-path resolvers** (not `validate` — validate_checklist only checks JSON schema):
+- `python3 scripts/harness/build_harness_state.py` (reads checklist, resolves plan_path per item) → assert the built `harness-state.json` for `phase-8.4.2` has `plan_path` pointing at `archive/phase-8.4.2/plan.md`, not the stubbed `tasks/phase-8.4.2/plan.md`.
+- `bash scripts/harness/harnessctl status <item>` (or whichever subcommand hits the ~line 269 plan.md check) → assert it does NOT report a missing plan.
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Expected: FAIL — harnessctl:269 / build_harness_state treats absence of `tasks/<id>/plan.md` as a problem (or the plan_path points at a now-stubbed location).
+Expected: FAIL — `build_harness_state` defaults plan_path to `tasks/<id>/plan.md` (line 128) which no longer exists; harnessctl:269 flags missing plan.
 
 - [ ] **Step 3: Write minimal implementation**
 

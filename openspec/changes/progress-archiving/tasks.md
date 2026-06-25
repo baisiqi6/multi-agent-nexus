@@ -21,7 +21,7 @@
 ## 4. Harness Validation Compatibility
 
 - [ ] 4.1 Make `harnessctl` (bash, ~line 269 `tasks/$ID/plan.md` check) + `build_harness_state.py:128` + `workflow_transition.py:111` accept a `tasks/<task-id>/README.md` archive stub: if the direct `plan.md` is absent but the stub points to `archive/<task-id>/`, resolve the plan from the archive. (Note: `validate_checklist.py` only validates checklist JSON schema — it does NOT check `plan.md`, so it needs no change. mac-codex round-2 review caught the false premise.)
-- [ ] 4.2 Ensure validate still fails if a non-closed task directory only contains a stub.
+- [ ] 4.2 Test the plan-path resolver (harnessctl line 269 + build_harness_state): a `done`/`closed` task with only an archive stub resolves its plan from `archive/<id>/plan.md`; a non-closed task whose dir is stubbed (anomalous) is flagged. (Note: `validate_checklist.py` validates checklist JSON schema only — it does NOT inspect `tasks/<id>/plan.md`, so "validate fails on stub" is not a meaningful test; target the plan-path resolvers instead.)
 
 ## 5. Tests
 
