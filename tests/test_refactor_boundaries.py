@@ -81,10 +81,13 @@ class RefactorBoundaryTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue(hasattr(agents_facade, name))
 
-        class Dummy:
+        class Dummy(AgentRequestMixin):
             MAX_HANDOFF_DEPTH = 1
 
             async def _send_as_agent(self, *_args, **_kwargs):
+                return None
+
+            async def _stage_setup_agent_request(self, *args, **kwargs):
                 return None
 
         channel = SimpleNamespace(id=456)
@@ -92,8 +95,8 @@ class RefactorBoundaryTests(unittest.TestCase):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(
-                AgentRequestMixin.handle_agent_request(
-                    Dummy(), "researcher", "prompt", "thread", channel, 1, depth=1
+                Dummy().handle_agent_request(
+                    "researcher", "prompt", "thread", channel, 1, depth=1
                 )
             )
             loop.close()
