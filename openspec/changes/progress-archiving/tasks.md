@@ -31,7 +31,7 @@
 - [ ] 5.4 Integration test CLI archive command: closed phase → archive + stub + current link update.
 - [ ] 5.5 Integration test CLI archive command: running phase → rejected, no files changed.
 - [ ] 5.6 Integration test idempotent re-archive.
-- [ ] 5.7 Test harnessctl validate with archived task stub passes; non-closed stub fails.
+- [ ] 5.7 Test plan-path resolver (`build_harness_state` plan_path + `harnessctl:269` check) with archived task stub: resolves from `archive/<id>/plan.md`; non-closed stubbed dir flagged (see 4.2).
 
 ## 6. Documentation & Dogfood
 

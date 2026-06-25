@@ -585,6 +585,8 @@ git commit -m "feat(cli): add coordinate task archive command"
 
 So Task 5 targets **`harnessctl` (bash) + `build_harness_state.py` + `workflow_transition.py`**, not `validate_checklist.py`.
 
+**Out of scope (mac-codex round-4 review):** the packet generators also read `tasks/<id>/plan.md` — `prepare_review_packet.py:41`, `prepare_closeout_packet.py:55`, `prepare_handoff_packet.py:40`, `sync_current_from_item.py:136`. These run when a task is being reviewed/closed-out/handed-off — i.e. **before** it's archived (archive only happens at `phase=closed/done`, after closeout). So by the time a task dir is stubbed, these packet readers are no longer invoked for it. Reading a stub post-archive is undefined-but-harmless (they'd render the stub text, not crash). We **do not** add resolver logic to them — that would inflate scope for a path that isn't exercised post-archive. If a future workflow reviews an already-archived task, revisit.
+
 **Files:**
 - Modify: `multinexus/scripts/harness/harnessctl` (the `tasks/$ID/plan.md` existence check at ~line 269)
 - Modify: `multinexus/scripts/harness/build_harness_state.py` (plan_path default at line 128)
@@ -668,7 +670,7 @@ coordinate task archive <workspace> --task-id phase-8.4.4-host-aware-mark-done
 Verify:
 - `archive/phase-8.4.4-host-aware-mark-done/` contains all original files + `INDEX.md`.
 - `tasks/phase-8.4.4-host-aware-mark-done/README.md` links to archive.
-- `harnessctl validate` passes.
+- `build_harness_state.py` resolves the archived task's plan_path to `archive/<id>/plan.md`; `harnessctl:269` check accepts the stub (no missing-plan error).
 - `current/` packet links updated.
 
 - [ ] **Step 4: Commit**

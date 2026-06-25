@@ -37,6 +37,6 @@
 ## Impact
 
 - `coordinate` CLI 增加 `task archive` 命令与测试。
-- `scripts/harness/harnessctl validate` 需识别 archive stub。
+- `scripts/harness/harnessctl`（bash ~line 269）+ `build_harness_state.py` + `workflow_transition.py` 需识别 archive stub，从 `archive/<id>/plan.md` 解析 plan（非 `validate_checklist.py`，它只校验 JSON schema）。
 - `docs/project-harness/` 目录结构多一层 `archive/`，不影响现有未关闭 task。
 - 生产部署脚本（`deploy-server.sh`）无需改动，archive 是普通文本文件。
