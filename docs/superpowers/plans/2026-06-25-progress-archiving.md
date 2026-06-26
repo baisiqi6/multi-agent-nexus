@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `coordinate task archive` command that moves closed phase artifacts from `docs/project-harness/tasks/<phase-id>/` to `docs/project-harness/archive/<phase-id>/` while leaving a stable stub pointer behind.
+**Goal:** Add a `coordinate task archive` command that copies closed phase artifacts from `docs/project-harness/tasks/<phase-id>/` to `docs/project-harness/archive/<phase-id>/`, then replaces the original task directory contents with a stable stub pointer.
 
 **Architecture:** Introduce a small `coordinate/archive.py` module that knows how to resolve source/archive/stub paths, copy files, write an `INDEX.md` with YAML front-matter, and rewrite `current/` packet links. The CLI delegates to this module after verifying the task mirror phase is `closed` or `done`. Harness compatibility is added so archived task stubs resolve their plan from `archive/` — the scripts that actually hardcode `tasks/<id>/plan.md` are `harnessctl` (bash ~line 269), `build_harness_state.py`, `workflow_transition.py` (NOT `validate_checklist.py`, which only validates JSON schema).
 
@@ -201,9 +201,14 @@ def copy_task_directory(source_dir: Path, archive_dir: Path) -> None:
         raise ArchiveError(f"archive already exists: {archive_dir}")
     # Copy every tracked artifact; skip gitignored runtime byproducts
     # (:memory:* SQLite shards, logs, __pycache__) per spec — log skipped names.
-    _RUNTIME_IGNORE = {":memory:", ":memory:-shm", ":memory:-wal"}
     def _ignore_runtime(_dir, names):
-        skipped = [n for n in names if n in _RUNTIME_IGNORE or n == "__pycache__" or n.endswith(".pyc") or n.endswith(".log")]
+        skipped = [
+            n for n in names
+            if n.startswith(":memory:")
+            or n == "__pycache__"
+            or n.endswith(".pyc")
+            or n.endswith(".log")
+        ]
         if skipped:
             logging.warning("archive: skipping runtime byproducts in %s: %s", _dir, skipped)
         return skipped
@@ -262,7 +267,7 @@ git commit -m "feat(archive): copy task directory and write archive index"
 
 **Interfaces:**
 - Produces: `write_stub(stub_path: Path, archive_dir: Path, closeout_event_id: str, closed_at: str) -> None`
-- Produces: `update_current_links(current_dir: Path, task_id: str, archive_dir: Path) -> list[Path]`
+- Produces: `update_current_links(current_dir: Path, task_id: str, archive_dir: Path, *, dry_run: bool = False) -> list[Path]`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -293,6 +298,18 @@ def test_update_current_links(tmp_path):
     text = packet.read_text()
     assert "archive/phase-8.4.2/plan.md" in text
     assert "tasks/phase-8.4.2/plan.md" not in text
+
+
+def test_update_current_links_dry_run_reports_changed_without_writing(tmp_path):
+    current_dir = tmp_path / "current"
+    current_dir.mkdir()
+    packet = current_dir / "closeout-packet.md"
+    original = "See [plan](tasks/phase-8.4.2/plan.md).\n"
+    packet.write_text(original)
+    archive_dir = tmp_path / "archive" / "phase-8.4.2"
+    changed = update_current_links(current_dir, "phase-8.4.2", archive_dir, dry_run=True)
+    assert changed == [packet]
+    assert packet.read_text() == original
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -320,7 +337,13 @@ This phase has been archived. See the full artifacts at [{archive_dir.name}]({re
     stub_path.write_text(content, encoding="utf-8")
 
 
-def update_current_links(current_dir: Path, task_id: str, archive_dir: Path) -> list[Path]:
+def update_current_links(
+    current_dir: Path,
+    task_id: str,
+    archive_dir: Path,
+    *,
+    dry_run: bool = False,
+) -> list[Path]:
     changed: list[Path] = []
     if not current_dir.exists():
         return changed
@@ -328,12 +351,13 @@ def update_current_links(current_dir: Path, task_id: str, archive_dir: Path) -> 
     # The task_id MUST be carried into the replacement — earlier draft used
     # `archive/\1` which dropped task_id (tasks/<id>/plan.md → archive/plan.md).
     pattern = re.compile(r"tasks/" + re.escape(task_id) + r"/([^\s\)\"\]]*)")
-    replacement = f"archive/{task_id}/\\1"
+    replacement = f"archive/{archive_dir.name}/\\1"
     for path in current_dir.glob("*.md"):
         original = path.read_text(encoding="utf-8")
         updated = pattern.sub(replacement, original)
         if updated != original:
-            path.write_text(updated, encoding="utf-8")
+            if not dry_run:
+                path.write_text(updated, encoding="utf-8")
             changed.append(path)
     return changed
 ```
@@ -395,6 +419,7 @@ def test_archive_task_closed_phase_copies_and_stubs(tmp_path):
     conn, harness_root, tasks_dir = _setup(tmp_path, "phase-8.4.2", "done")
     result = archive_task(conn, "demo", "phase-8.4.2")
     assert result.archived is True
+    assert result.source_dir == tasks_dir
     archive_dir = harness_root / "archive" / "phase-8.4.2"
     assert (archive_dir / "plan.md").read_text() == "# Plan\n"
     assert (archive_dir / "INDEX.md").exists()
@@ -409,6 +434,43 @@ def test_archive_task_running_phase_rejected(tmp_path):
         archive_task(conn, "demo", "phase-8.8")
     assert not (harness_root / "archive" / "phase-8.8").exists()
     assert (tasks_dir / "plan.md").exists()  # original untouched
+
+
+def test_archive_task_dry_run_reports_rewrites_without_writing(tmp_path):
+    conn, harness_root, tasks_dir = _setup(tmp_path, "phase-8.4.2", "done")
+    current_dir = harness_root / "current"
+    current_dir.mkdir()
+    packet = current_dir / "closeout-packet.md"
+    original = "See [plan](tasks/phase-8.4.2/plan.md).\n"
+    packet.write_text(original)
+    unrelated = current_dir / "blocker-packet.md"
+    unrelated.write_text("No archived task link here.\n")
+
+    result = archive_task(conn, "demo", "phase-8.4.2", dry_run=True)
+
+    assert result.archived is False
+    assert result.source_dir == tasks_dir
+    assert result.current_links_updated == [packet]
+    assert not (harness_root / "archive" / "phase-8.4.2").exists()
+    assert (tasks_dir / "plan.md").exists()
+    assert packet.read_text() == original
+
+
+def test_archive_task_partial_archive_state_rejected(tmp_path):
+    conn, harness_root, tasks_dir = _setup(tmp_path, "phase-8.4.2", "done")
+    (harness_root / "archive" / "phase-8.4.2").mkdir(parents=True)
+    with pytest.raises(ArchiveError, match="partial archive state"):
+        archive_task(conn, "demo", "phase-8.4.2")
+    assert (tasks_dir / "plan.md").exists()
+
+
+def test_archive_task_stub_only_state_rejected(tmp_path):
+    conn, harness_root, tasks_dir = _setup(tmp_path, "phase-8.4.2", "done")
+    (tasks_dir / "README.md").write_text("# Archived Task\n")
+    with pytest.raises(ArchiveError, match="partial archive state"):
+        archive_task(conn, "demo", "phase-8.4.2")
+    assert not (harness_root / "archive" / "phase-8.4.2").exists()
+    assert (tasks_dir / "plan.md").exists()
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -451,6 +513,7 @@ def handle_task_archive(args: argparse.Namespace) -> int:
         return 1
     _print_json({
         "archived": result.archived,
+        "source_dir": str(result.source_dir),
         "archive_dir": str(result.archive_dir),
         "stub_path": str(result.stub_path),
         "current_links_updated": [str(p) for p in result.current_links_updated],
@@ -471,6 +534,7 @@ from .db import get_workspace
 @dataclass(frozen=True)
 class ArchiveResult:
     archived: bool
+    source_dir: Path
     archive_dir: Path
     stub_path: Path
     current_links_updated: list[Path]
@@ -490,20 +554,32 @@ def archive_task(
     task = require_closed_phase(conn, workspace_id, task_id)
     paths = resolve_archive_paths(workspace.harness_root, task_id)
 
-    if paths.stub_path.exists() and paths.archive_dir.exists():
+    archive_exists = paths.archive_dir.exists()
+    stub_exists = _is_archive_stub(paths.stub_path)
+    if stub_exists and archive_exists:
         return ArchiveResult(
             archived=False,
+            source_dir=paths.source_dir,
             archive_dir=paths.archive_dir,
             stub_path=paths.stub_path,
             current_links_updated=[],
         )
+    if stub_exists or archive_exists:
+        raise ArchiveError(
+            "partial archive state for "
+            f"{task_id}: archive_exists={archive_exists}, stub_exists={stub_exists}"
+        )
 
     if dry_run:
+        preview_links = update_current_links(
+            paths.current_dir, task_id, paths.archive_dir, dry_run=True
+        )
         return ArchiveResult(
             archived=False,
+            source_dir=paths.source_dir,
             archive_dir=paths.archive_dir,
             stub_path=paths.stub_path,
-            current_links_updated=list((paths.current_dir).glob("*.md")),
+            current_links_updated=preview_links,
         )
 
     closeout_event_id, closed_at = _find_closeout_event_id(conn, workspace_id, task_id)
@@ -528,10 +604,16 @@ def archive_task(
             shutil.rmtree(child)
         else:
             child.unlink()
-    write_stub(paths.stub_path, paths.archive_dir, closeout_event_id, task["updated_at"])
+    write_stub(paths.stub_path, paths.archive_dir, closeout_event_id, closed_at)
 
     updated = update_current_links(paths.current_dir, task_id, paths.archive_dir)
-    return ArchiveResult(archived=True, archive_dir=paths.archive_dir, stub_path=paths.stub_path, current_links_updated=updated)
+    return ArchiveResult(
+        archived=True,
+        source_dir=paths.source_dir,
+        archive_dir=paths.archive_dir,
+        stub_path=paths.stub_path,
+        current_links_updated=updated,
+    )
 
 
 def _find_closeout_event_id(conn, workspace_id, task_id):
@@ -549,7 +631,16 @@ def _find_closeout_event_id(conn, workspace_id, task_id):
     return row["id"], row["created_at"]
 
 
-def _current_commit_sha(repo_path: Path) -> str:
+def _is_archive_stub(stub_path: Path) -> bool:
+    if not stub_path.exists():
+        return False
+    try:
+        return "Archived Task" in stub_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+
+
+def _current_commit_sha(repo_path: str | Path) -> str:
     try:
         result = subprocess.run(
             ["git", "-C", str(repo_path), "rev-parse", "HEAD"],
@@ -585,7 +676,7 @@ git commit -m "feat(cli): add coordinate task archive command"
 
 So Task 5 targets **`harnessctl` (bash) + `build_harness_state.py` + `workflow_transition.py`**, not `validate_checklist.py`.
 
-**Out of scope (mac-codex round-4 review):** the packet generators also read `tasks/<id>/plan.md` — `prepare_review_packet.py:41`, `prepare_closeout_packet.py:55`, `prepare_handoff_packet.py:40`, `sync_current_from_item.py:136`. These run when a task is being reviewed/closed-out/handed-off — i.e. **before** it's archived (archive only happens at `phase=closed/done`, after closeout). So by the time a task dir is stubbed, these packet readers are no longer invoked for it. Reading a stub post-archive is undefined-but-harmless (they'd render the stub text, not crash). We **do not** add resolver logic to them — that would inflate scope for a path that isn't exercised post-archive. If a future workflow reviews an already-archived task, revisit.
+**Out of scope (mac-codex round-4/5 review):** the packet generators also read `tasks/<id>/plan.md` — `prepare_review_packet.py:41`, `prepare_closeout_packet.py:55`, `prepare_handoff_packet.py:40`, `prepare_blocker_packet.py:46`, `sync_current_from_item.py:136`. These run when a task is being reviewed/closed-out/handed-off or when a blocker packet is prepared — i.e. **before** it's archived (archive only happens at `phase=closed/done`, after closeout). Post-archive behavior for these packet readers is **undefined and unverified**; do not claim they will render a stub safely or avoid crashing without tests. We **do not** add resolver logic to them in this phase — that would inflate scope for a path that is not expected to be exercised post-archive. If a future workflow reviews, blocks, or hands off an already-archived task, add tests and resolver logic then.
 
 **Files:**
 - Modify: `multinexus/scripts/harness/harnessctl` (the `tasks/$ID/plan.md` existence check at ~line 269)
@@ -599,13 +690,14 @@ So Task 5 targets **`harnessctl` (bash) + `build_harness_state.py` + `workflow_t
 - [ ] **Step 1: Write the failing test**
 
 Create a minimal harness root with:
-- `mvp-checklist.json` containing a done item `phase-8.4.2`
+- `mvp-checklist.json` containing an active resolver fixture item `phase-8.4.2` (`status: doing` or `workflow.status: running`). This is only to exercise plan-path readers that inspect current/active items; the archive command's closed/done gate is tested separately in Task 1/4.
 - `tasks/phase-8.4.2/README.md` stub (containing "Archived Task" + `archive/phase-8.4.2` pointer), NO `plan.md`
 - `archive/phase-8.4.2/INDEX.md` + `archive/phase-8.4.2/plan.md`
+- `current/task_plan.md` pointing at checklist item `phase-8.4.2` and omitting an explicit active plan path so `build_harness_state.py` exercises its default plan-path resolver.
 
 Then exercise the **plan-path resolvers** (not `validate` — validate_checklist only checks JSON schema):
-- `python3 scripts/harness/build_harness_state.py` (reads checklist, resolves plan_path per item) → assert the built `harness-state.json` for `phase-8.4.2` has `plan_path` pointing at `archive/phase-8.4.2/plan.md`, not the stubbed `tasks/phase-8.4.2/plan.md`.
-- `bash scripts/harness/harnessctl status <item>` (or whichever subcommand hits the ~line 269 plan.md check) → assert it does NOT report a missing plan.
+- `python3 scripts/harness/build_harness_state.py` (reads checklist/current pointer, resolves `current_item.plan_path`) → assert the built `harness-state.json` for `phase-8.4.2` has `current_item.plan_path` pointing at `archive/phase-8.4.2/plan.md`, not the stubbed `tasks/phase-8.4.2/plan.md`.
+- `bash scripts/harness/harnessctl doctor` (the subcommand that hits the ~line 269 stale-current plan.md check) → assert it does NOT report a missing plan for the stubbed current item.
 
 - [ ] **Step 2: Run test to verify it fails**
 
@@ -689,6 +781,9 @@ git commit -m "docs: archive command usage and dogfood notes"
 | Archive command migrates closed phase artifacts | Task 4 |
 | Archive refuses non-closed phases | Task 1 + Task 4 |
 | Archive is idempotent | Task 4 |
+| Partial archive state is rejected | Task 4 |
+| Dry-run previews exact archive effects | Task 3 + Task 4 |
+| Harness plan-path readers resolve archived stubs | Task 5 |
 | Archive preserves file content | Task 2 |
 | Active directory keeps stable pointer | Task 3 |
 | Archive index is machine-readable | Task 2 |
@@ -701,9 +796,10 @@ No TBD/TODO/"implement later" placeholders. Every step includes concrete file pa
 ## Type Consistency
 
 - `ArchivePaths` fields are `Path`.
-- `ArchiveResult` fields are `Path` and `list[Path]`.
+- `ArchiveResult` fields are `source_dir: Path`, `archive_dir: Path`, `stub_path: Path`, and `current_links_updated: list[Path]`.
 - `require_closed_phase` returns `sqlite3.Row`.
 - `archive_task` accepts `workspace_id: str`, `task_id: str`, `actor: str`, `dry_run: bool`.
+- `update_current_links` accepts `dry_run: bool`; dry-run returns the exact files whose contents would change without writing them.
 
 ## Execution Handoff
 

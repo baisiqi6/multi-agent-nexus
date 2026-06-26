@@ -4,7 +4,7 @@
 
 现有工具链：
 - `coordinate task create` / `task handoff` / `assignment mark-done` 管理 task mirror 和 harness checklist。
-- `scripts/harness/validate_checklist.py`（经 `harnessctl validate` 调用）只校验 `mvp-checklist.json` 的 JSON schema，**不检查 `tasks/<id>/plan.md` 是否存在**。真正硬编码 `tasks/<id>/plan.md` 路径的是 `harnessctl:269`（bash 存在检查）、`build_harness_state.py:128`、`workflow_transition.py:111`（plan_path 默认），以及 `prepare_review_packet.py` / `prepare_closeout_packet.py` / `prepare_handoff_packet.py` / `sync_current_from_item.py`（packet 生成时读 plan）。
+- `scripts/harness/validate_checklist.py`（经 `harnessctl validate` 调用）只校验 `mvp-checklist.json` 的 JSON schema，**不检查 `tasks/<id>/plan.md` 是否存在**。真正硬编码 `tasks/<id>/plan.md` 路径的是 `harnessctl:269`（bash 存在检查）、`build_harness_state.py:128`、`workflow_transition.py:111`（plan_path 默认），以及 `prepare_review_packet.py:41` / `prepare_closeout_packet.py:55` / `prepare_handoff_packet.py:40` / `prepare_blocker_packet.py:46` / `sync_current_from_item.py:136`（packet 生成时读 plan）。
 - 没有"归档已完成 phase 产物"的约定或命令。
 
 ## Goals / Non-Goals
@@ -48,6 +48,7 @@
 ## Risks / Trade-offs
 
 - **[Risk] archive 后外部脚本仍读旧 plan.md 路径** → Mitigation: stub README 顶部明确说明已归档并提供链接；同时加入废弃警告，给下游 1–2 个 release 的迁移期。
+- **[Risk] packet generators post-archive 行为未定义** → Mitigation: 本次只改预期会读取 archived stub 的 plan-path resolver（`harnessctl` / `build_harness_state.py` / `workflow_transition.py`）。`prepare_review_packet.py:41` / `prepare_closeout_packet.py:55` / `prepare_handoff_packet.py:40` / `prepare_blocker_packet.py:46` / `sync_current_from_item.py:136` 仍在 scope 外；若未来要对 archived task 生成 packet，先补测试再加 resolver。
 - **[Risk] 重复 archive 产生冲突** → Mitigation: idempotency 检查——若 archive 目录已存在且 stub 已存在，命令直接成功；若部分存在（只有 archive 没有 stub 或反之），报错并列出差异，不自动修复。
 - **[Risk] `current/` packet 指向已归档 task 目录** → Mitigation: archive 命令扫描 `current/` 下所有 `.md`，把指向 `tasks/<phase-id>/` 的相对链接更新为 `archive/<phase-id>/`。
 - **[Risk] 大文件/二进制文件进入 archive 增加 repo 体积** → Mitigation: archive 是 task 目录的 faithful copy（spec `task-archive:preserves file content`）——原则上 task 目录里本就不该有大二进制产物（它们该在 gitignored runtime 目录）。gitignored runtime byproducts（`:memory:*`、log、`__pycache__`）由 `copy_task_directory` 的 ignore 过滤跳过。不按扩展名挑文件（之前的"只归档 Markdown/JSON/文本"措辞已废弃，和 spec 矛盾）。

@@ -26,6 +26,30 @@ The system SHALL allow the archive command to run multiple times for the same cl
 - **THEN** the command succeeds and the existing archive directory remains unchanged
 - **AND** the stub in `tasks/<phase-id>/README.md` continues to point to the same archive location
 
+#### Scenario: Partial archive state is rejected
+- **WHEN** the operator runs `coordinate task archive` for a phase where only the archive directory or only the archive stub exists
+- **THEN** the command fails with a clear partial-state error
+- **AND** the source task directory remains untouched
+
+### Requirement: Dry-run previews the exact archive effects
+The system SHALL support a dry-run mode that computes the archive target paths and link rewrites without modifying the filesystem.
+
+#### Scenario: Dry-run a closed phase
+- **WHEN** the operator runs `coordinate task archive <workspace-id> --task-id phase-8.4.2 --dry-run`
+- **AND** `current/*.md` contains one file that links to `tasks/phase-8.4.2/plan.md` and one unrelated Markdown file
+- **THEN** the command reports the source task directory, archive directory, stub path, and only the `current/*.md` file whose contents would change
+- **AND** no archive directory, stub, index, or rewritten packet is written
+
+### Requirement: Harness plan-path readers resolve archived task stubs
+The system SHALL allow harness plan-path readers that encounter a task stub to resolve that task's plan from the archive when the original task directory contains only a stub.
+
+#### Scenario: Resolve archived plan path
+- **WHEN** `harnessctl`, `build_harness_state.py`, or `workflow_transition.py` needs the plan for a task
+- **AND** `tasks/<phase-id>/plan.md` is absent
+- **AND** `tasks/<phase-id>/README.md` points to `archive/<phase-id>/`
+- **THEN** the reader resolves the plan path to `archive/<phase-id>/plan.md`
+- **AND** `validate_checklist.py` remains unchanged because it only validates checklist JSON schema
+
 ### Requirement: Archive preserves file content and metadata
 The system SHALL copy into the archive every file present in the source task directory, without altering content, excluding only runtime/byproducts that are gitignored (e.g. `:memory:*`, logs, local DB shards). Archiving is a faithful copy of the task's tracked artifacts — it does not filter by extension. Binary assets that an operator wants preserved alongside should live in the task dir at archive time; anything not meant to be archived should not be in the task dir to begin with.
 

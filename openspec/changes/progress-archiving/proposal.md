@@ -6,12 +6,12 @@
 - worker/reviewer handoff 的 bootstrap 容易引用到已完成任务的旧 plan 或旧测试基线；
 - 归档历史缺少统一规则，drift 和重复搬运风险随 phase 数量线性增长。
 
-本变更建立一套轻量、可自动化的 progress 归档机制：phase closeout 后把相关产物移入 `docs/project-harness/archive/<phase-id>/`，同时在活跃目录保留一个稳定的 `index.md` 指针。这样 active workspace 保持最小，历史仍可追溯。
+本变更建立一套轻量、可自动化的 progress 归档机制：phase 进入 `closed`/`done` 后把相关产物复制到 `docs/project-harness/archive/<phase-id>/`，同时用 `tasks/<phase-id>/README.md` stub 替换原 task 目录内容。这样 active workspace 保持最小，历史仍可追溯。
 
 ## What Changes
 
 - 在 `docs/project-harness/` 下新增 `archive/` 目录结构约定。
-- 定义归档触发条件：task 进入 `closed`/`done` 状态且 `closeout` packet 已记录。
+- 定义归档触发条件：task mirror 进入 `closed`/`done` 状态；`INDEX.md` 记录最新 `closeout.requested` / `task.done` event（若缺失则写 fallback）。
 - 新增 CLI 子命令 `coordinate task archive <workspace-id> --task-id <phase-id>`：
   - 把 `tasks/<phase-id>/` 下所有文件复制到 `archive/<phase-id>/`；
   - 在 `archive/<phase-id>/` 生成 `INDEX.md`，记录原始路径、closeout event id、closed_at、相关 commit SHA；
@@ -30,7 +30,7 @@
 
 ### Modified Capabilities
 
-- `harness-validation`: 校验规则需把 archive stub 视为合法路径；若 task 状态为 closed 但 archive 索引缺失，可降级为 warning（保留兼容）。
+- `harness-plan-resolution`: `harnessctl` / `build_harness_state.py` / `workflow_transition.py` 的 plan-path resolver 需把 archive stub 视为合法路径；`validate_checklist.py` 只校验 JSON schema，不在本次 scope。
 
 *(task-mark-done `--archive` 自动归档是 Phase 2，不在本次 scope，见 design Migration Plan)*
 
