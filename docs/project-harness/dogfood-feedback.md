@@ -364,6 +364,29 @@
   closed phase、PR URL 和 commit metadata；立即 publish replay 返回
   `event_created=false` / `mirror_updated=false`。
 
+## 2026-06-26（progress-archiving plan review dogfood）
+
+### 1. plan review session 复用让 review 变快，但可能让 reviewer 放松
+
+- 状态：observation（机制观察，非 bug）
+- 原始现象：mac-codex 5 轮 review 同一 plan，session 复用时 duration 递减（轮1→3 同 session：4.4→3.6→3.0min；轮5 复用轮4 session：2.6min）；唯独轮4 换了新 session，反而最慢（9.8min）且挖最深（design 残渣 + packet readers 全 grep）。
+- 观察：session 复用积累 review context，越来越快；但 reviewer 对"之前看过的点"可能放松（觉得处理过）。新 session 没锚定、更客观。
+- 后续规则：plan/code review 质量可用 session TTL 调——复用省时间，定期强制新 session 做"冷看"保证客观。这是 review 质量的一个可调维度（session TTL / 强制冷看开关）。
+
+### 2. reviewer 自修自 approve（B 流程）适合 plan 修订收尾，但要独立核
+
+- 状态：observation
+- 原始现象：progress-archiving plan review 5 轮，operator（Claude）reactive 手修每轮都留残渣（mac-codex 下一轮总能挑新问题）。改派 mac-codex 自修（`runtime request submit`，16min 系统修订 + 自 approve），一次到位。
+- 观察：reviewer 自修比 operator 手修更全——它有完整 review context + 知道全貌，修时连贯。但"运动员兼裁判"，approve 必须第三方独立核（我独立 grep 确认 3 个修复点 + 矛盾扫描通过才 commit）。
+- 后续规则：plan review reject 多轮收敛不动时，派 reviewer 自修（B 流程）比 operator reactive 手修高效；但 approve 一定要独立核，不盲信自评。
+
+### 3. reviewer 标准从 plan review 滑向 code review（plan 伪代码不该逐行纠 bug）
+
+- 状态：observation（指向 reviewer bootstrap 改进，backlog #7 延伸）
+- 原始现象：5 轮 review 里，前几轮是架构/spec/文档一致性（plan review 该做的，真价值）；后几轮滑向 superpowers plan 伪代码的字段传参/dry-run 实现（`write_stub` 传参、dry-run link rewrite 等）——这些是 code review 该做的。
+- 观察：superpowers plan 的代码块是**示意/指导**（给 implementer 看思路），不是字面照抄的 production code。reviewer 把它当 production code 逐行纠 bug，标准错位——implementer 写真实代码时按真实 API 处理，不会照抄示意里的错误。
+- 后续规则：plan review 该评"架构/spec/可执行性"，逐行纠伪代码 bug 留给实现后的 code review（SDD 正确阶段划分：plan review ≠ code review）。reviewer bootstrap 对 plan review 应明确"代码块是示意，评思路不评字面 bug"，避免无限 reactive。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
