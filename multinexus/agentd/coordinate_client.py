@@ -99,6 +99,7 @@ class CoordinateRuntimeClient:
         agent_id: str,
         status: str,
         result_json: dict,
+        attempt_token: int | None = None,
     ) -> dict:
         """Report job result back to coordinate."""
         cmd = [
@@ -109,6 +110,8 @@ class CoordinateRuntimeClient:
             "--status", status,
             "--result-json", json.dumps(result_json, ensure_ascii=False),
         ]
+        if attempt_token is not None:
+            cmd.extend(["--attempt-token", str(attempt_token)])
         return await asyncio.to_thread(self._run_cli, cmd)
 
     async def record_progress(
@@ -119,6 +122,7 @@ class CoordinateRuntimeClient:
         stage: str = "",
         summary: str = "",
         session_id: str = "",
+        attempt_token: int | None = None,
     ) -> dict:
         """Record a bounded progress checkpoint for a running job."""
         cmd = [
@@ -133,6 +137,8 @@ class CoordinateRuntimeClient:
             cmd.extend(["--summary", summary])
         if session_id:
             cmd.extend(["--session-id", session_id])
+        if attempt_token is not None:
+            cmd.extend(["--attempt-token", str(attempt_token)])
         return await asyncio.to_thread(self._run_cli, cmd)
 
     async def wait_for_job_result(

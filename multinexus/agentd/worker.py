@@ -58,6 +58,7 @@ class AgentdWorker:
 
     async def _process_job(self, job: dict) -> None:
         job_id = job.get("id", "?")
+        attempt_token = job.get("attempt_count")  # 8.4.3 P1 #2: CAS token from claim
         try:
             payload = self._extract_payload(job)
         except ValueError as exc:
@@ -67,6 +68,7 @@ class AgentdWorker:
                 agent_id=self.config.id,
                 status="failed",
                 result_json={"error": str(exc)},
+                attempt_token=attempt_token,
             )
             return
 
@@ -82,6 +84,7 @@ class AgentdWorker:
         progress_callback, progress_tasks, progress_state = self._make_coordinate_progress_callback(
             job_id=job_id,
             session_scope_id=session_scope_id,
+            attempt_token=attempt_token,
         )
 
         start = time.time()
@@ -132,6 +135,7 @@ class AgentdWorker:
             agent_id=self.config.id,
             status=status,
             result_json=result_json,
+            attempt_token=attempt_token,
         )
         log.info("Job %s complete: status=%s duration=%dms", job_id, status, duration_ms)
 
@@ -140,6 +144,7 @@ class AgentdWorker:
         *,
         job_id: str,
         session_scope_id: str,
+        attempt_token: int | None = None,
     ):
         tasks: list[asyncio.Task] = []
         state: dict[str, str] = {}
@@ -175,6 +180,7 @@ class AgentdWorker:
                         stage=progress.get("stage", ""),
                         summary=progress.get("summary", ""),
                         session_id=session_id,
+                        attempt_token=attempt_token,
                     )
                 )
             )
