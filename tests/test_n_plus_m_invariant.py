@@ -1021,6 +1021,79 @@ class TestWorkerSessionResume(unittest.TestCase):
         self.assertEqual(reported[0]["status"], "failed")
         self.assertIn("not starting duplicate", reported[0]["result_json"]["response_text"])
 
+    def test_worker_existing_session_plus_recovery_is_fail_closed(self):
+        """8.4.3 P1 #3: existing session + recovery_session_id ⇒ recovery wins and is fail-closed (no fresh duplicate)."""
+        from multinexus.agentd.worker import AgentdWorker
+        from multinexus.adapters.base import AdapterResult
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class FailingRecoveryAdapter:
+            def __init__(self):
+                self.calls = []
+                self.resumes = []
+
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                return AdapterResult(text="fresh duplicate", session_id="fresh")
+
+            async def resume(self, session_id, prompt, **kw):
+                self.resumes.append((session_id, prompt))
+                return AdapterResult(text="Claude error: bad resume", session_id=session_id)
+
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FailingRecoveryAdapter()
+
+        reported = []
+
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+            reported.append({"status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report
+
+        # seed an existing session (so `existing` is truthy) — P1 #3: recovery must still win
+        worker.session_store.upsert(
+            scope_id="channel:ch-both",
+            agent_id="test-agent",
+            adapter="claude",
+            session_id="sess-existing",
+            work_dir=cfg.work_dir,
+        )
+
+        job = {
+            "id": "job-both",
+            "result": {"timeout": {"session_id": "sess-recovery"}},
+            "payload_json": json.dumps({
+                "prompt": "continue",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch-both",
+                    "session_scope_id": "channel:ch-both",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        # recovery_session_id (sess-recovery) wins over existing (sess-existing):
+        self.assertEqual(worker.adapter.resumes, [("sess-recovery", "continue")])
+        # fail-closed: no fresh duplicate
+        self.assertEqual(worker.adapter.calls, [])
+        self.assertEqual(reported[0]["status"], "failed")
+        self.assertIn("not starting duplicate", reported[0]["result_json"]["response_text"])
+
     def test_worker_falls_back_on_resume_error(self):
         """Worker falls back to fresh call when resume returns error text."""
         from multinexus.agentd.worker import AgentdWorker
