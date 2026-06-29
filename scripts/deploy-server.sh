@@ -245,6 +245,8 @@ rsync -a --delete \
   --exclude ':memory:-shm' \
   --exclude ':memory:-wal' \
   --exclude docs/project-harness/current \
+  --exclude docs/project-harness/harness-state.json \
+  --exclude docs/project-harness/events.jsonl \
   --exclude VERSION_DEPLOYED \
   '$staging'/ /opt/multinexus/
 chown -R multinexus:multinexus /opt/multinexus
