@@ -287,7 +287,11 @@ class AgentdWorker:
                 )
                 existing = None
 
-        if not existing and recovery_session_id:
+        # 8.4.3 P1 #3: recovery_session_id present ⇒ always fail-closed recoverable
+        # resume, EVEN IF an existing session is also present. The legacy existing-
+        # session resume below falls back to a fresh duplicate on error, which must
+        # never happen for a recoverable job (invariant 4: no fresh duplicate).
+        if recovery_session_id:
             return await self._resume_recoverable_session(
                 recovery_session_id,
                 prompt,
