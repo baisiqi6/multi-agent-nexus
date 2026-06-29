@@ -344,7 +344,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -397,7 +397,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -444,7 +444,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker.adapter = FailingAdapter(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -472,7 +472,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker = AgentdWorker(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -767,7 +767,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "result_json": result_json})
         worker.coordinate.report_job = mock_report
 
@@ -803,7 +803,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status})
         worker.coordinate.report_job = mock_report
 
@@ -864,7 +864,7 @@ class TestWorkerSessionResume(unittest.TestCase):
             progress.append(kwargs)
             return {"result": {}}
 
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -928,7 +928,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -990,7 +990,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1070,7 +1070,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "text": result_json.get("response_text", "")})
         worker.coordinate.report_job = mock_report
 
