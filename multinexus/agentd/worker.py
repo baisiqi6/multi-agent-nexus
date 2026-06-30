@@ -375,6 +375,7 @@ class AgentdWorker:
         "Agent error:",
         "OpenCode CLI failed", "OpenCode timed out", "OpenCode returned no text",
         "Codex CLI failed", "Codex timed out", "Codex stopped responding",
+        "Codex resume failed",
         "Hermes CLI failed", "Hermes timed out",
         "Claude CLI failed", "Claude error:", "Claude timeout",
     )
