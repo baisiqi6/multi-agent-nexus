@@ -501,7 +501,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         claim_count = 0
 
-        async def mock_claim(*, agent_id):
+        async def mock_claim(*, agent_id, recoverable=False):
             nonlocal claim_count
             claim_count += 1
             if claim_count >= 2:
@@ -515,6 +515,54 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
             loop.run_until_complete(worker.run(poll_interval=0.01))
         finally:
             loop.close()
+
+    def test_worker_run_default_does_not_pass_recoverable(self):
+        """8.4.3 P1 #3 fix: default agentd poll must NOT pass recoverable=True (no auto-reclaim)."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(coordinator_cli_path="/usr/bin/true", coordinator_db_path="/tmp/test.db")
+        worker = AgentdWorker(cfg)
+
+        seen = {}
+
+        async def mock_claim(*, agent_id, recoverable=False):
+            seen["recoverable"] = recoverable
+            worker.stop()
+            return None
+
+        worker.coordinate.claim_job = mock_claim
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker.run(poll_interval=0.01))
+        finally:
+            loop.close()
+
+        self.assertIn("recoverable", seen)
+        self.assertFalse(seen["recoverable"], "default worker.run must pass recoverable=False")
+
+    def test_worker_run_recoverable_mode_passes_recoverable(self):
+        """8.4.3 P1 #3 fix: operator recovery mode (--recoverable) passes recoverable=True to claim."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(coordinator_cli_path="/usr/bin/true", coordinator_db_path="/tmp/test.db")
+        worker = AgentdWorker(cfg)
+
+        seen = {}
+
+        async def mock_claim(*, agent_id, recoverable=False):
+            seen["recoverable"] = recoverable
+            worker.stop()
+            return None
+
+        worker.coordinate.claim_job = mock_claim
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True))
+        finally:
+            loop.close()
+
+        self.assertIn("recoverable", seen)
+        self.assertTrue(seen["recoverable"], "recovery mode worker.run must pass recoverable=True")
 
         self.assertFalse(worker._running)
 
