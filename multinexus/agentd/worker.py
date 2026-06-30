@@ -40,12 +40,20 @@ class AgentdWorker:
         self._running = False
         self._wake = asyncio.Event()
 
-    async def run(self, *, poll_interval: float = 2.0) -> None:
-        """Main worker loop: claim jobs, execute, report."""
+    async def run(self, *, poll_interval: float = 2.0, recoverable: bool = False) -> None:
+        """Main worker loop: claim jobs, execute, report.
+
+        recoverable=True (operator recovery mode only) claims timed_out+recoverable
+        jobs to resume them. Default False = normal launchd poll, only pending jobs
+        (8.4.3 P1 #1: never auto-reclaim stuck timed_out jobs).
+        """
         self._running = True
-        log.info("Agentd worker started: agent=%s", self.config.id)
+        if recoverable:
+            log.warning("Agentd worker started in RECOVERY mode: agent=%s (will claim timed_out+recoverable jobs)", self.config.id)
+        else:
+            log.info("Agentd worker started: agent=%s", self.config.id)
         while self._running:
-            job = await self.coordinate.claim_job(agent_id=self.config.id)
+            job = await self.coordinate.claim_job(agent_id=self.config.id, recoverable=recoverable)
             if job is None:
                 try:
                     await asyncio.wait_for(self._wake.wait(), timeout=poll_interval)

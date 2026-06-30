@@ -80,13 +80,20 @@ class CoordinateRuntimeClient:
         result = await asyncio.to_thread(self._run_cli, cmd)
         return result
 
-    async def claim_job(self, *, agent_id: str) -> dict | None:
-        """Claim the next pending job for this agent. Returns job dict or None."""
+    async def claim_job(self, *, agent_id: str, recoverable: bool = False) -> dict | None:
+        """Claim the next pending job for this agent. Returns job dict or None.
+
+        recoverable=True (operator recovery mode only) also claims timed_out+
+        recoverable jobs (appends --recoverable). Default False = only pending,
+        so normal launchd agentd never auto-reclaims a stuck timed_out job (8.4.3 P1 #1).
+        """
         cmd = [
             *self._base_cmd,
             "runtime", "job", "claim",
             "--agent-id", agent_id,
         ]
+        if recoverable:
+            cmd.append("--recoverable")
         result = await asyncio.to_thread(self._run_cli, cmd)
         if result.get("result", {}).get("claimed"):
             return result["result"]["job"]
