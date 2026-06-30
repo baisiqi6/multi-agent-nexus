@@ -563,8 +563,14 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         self.assertIn("recoverable", seen)
         self.assertTrue(seen["recoverable"], "recovery mode worker.run must pass recoverable=True")
-
         self.assertFalse(worker._running)
+
+    def test_is_error_recognizes_codex_resume_failed(self):
+        """8.4.3 P1 #3: 'Codex resume failed' must be recognized as error so recovery resume fail-closes (not reported as done)."""
+        from multinexus.agentd.worker import AgentdWorker
+        self.assertTrue(AgentdWorker._is_error("Codex resume failed (1): stream disconnected"))
+        self.assertTrue(AgentdWorker._is_error("Codex CLI failed: x"))
+        self.assertFalse(AgentdWorker._is_error("OK done"))
 
     def test_worker_shutdown_is_testable(self):
         """Worker stop() sets _running=False and wakes the event for immediate exit."""
