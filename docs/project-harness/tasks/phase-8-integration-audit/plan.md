@@ -101,26 +101,31 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    test-isolation blocker fixed (multinexus `13a3d2e`, test-only). Durable:
    closeout.requested `785d4ed2` → review.completed approved `984d6339` →
    task.done `eb4ff989`. Step 1 milestone closed.
-2. ⏳ **Bring 8.4.3 recovery commits** (coordinate `16a0b81`, multinexus `04aee04`)
-   onto the long integration branch. **Open as a separate task next session.**
-   Prefer cherry-pick of the actual recovery fixes over blind whole-branch merge
-   (avoid dragging in 8.4.3's stale closeout/docs noise). Resolve conflicts on a
-   **feature/integration branch, NOT on main**; expect to touch coordinate
-   `runtime.py`/`cli.py` (CAS, claim, reply platform) and multinexus `agentd/*`
-   (claim recoverable, attempt_token, fail-closed).
+2. ✅ **Bring 8.4.3 recovery commits** onto the long integration branch — DONE
+   2026-07-01. Cherry-picked onto feature branch `agents/mac-codex/phase-8-integration`
+   (local-only): coordinate `baacc0f`/`161d941`/`e37f16a`/`16a0b81` → HEAD `4ac774e`;
+   multinexus `bc90695`/`b659b0f`/`5b69e61`/`19298e3`/`04aee04` → HEAD `c91631a`. Skipped 3
+   multinexus noise commits (`4b28c5f` plan, `c57acc5` task-materialize, `3e1fdba` docs).
+   One conflict (coordinate `tests/test_runtime.py`, both-sides test additions → kept both).
+   Validation: coordinate 1200 passed, multinexus 341 passed/2 skipped, `harnessctl
+   validate`/`doctor` clean (only pre-existing warnings). Details:
+   `step-2-integration-report.md`. Step 2 milestone closed.
 3. **Full validation on the integration branch** — coordinate full suite,
    multinexus full suite, harness `validate` / `doctor`.
 4. **Lightweight re-verify** recovery smoke on the integrated code.
 5. **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
    split out already-done tasks and merge in batches.
 
-### Pre-state for Step 2 (next session)
+### Pre-state for Step 3 (next session)
 
-- Step 1 done: `phase-8.4.2-contracts-function-decomposition` durable done.
-- coordinate 8.4.2 branch HEAD: `cbab1c5`
-- multinexus 8.4.2 branch HEAD: `13a3d2e` (test-only fix applied; was `cc3d6ed`)
-- 8.4.3 done branch: coordinate `16a0b81`, multinexus `04aee04` (parallel, not
-  yet integrated)
+- Step 2 done: 8.4.3 recovery fixes integrated on `agents/mac-codex/phase-8-integration`
+  (local-only): coordinate HEAD `4ac774e`, multinexus HEAD `c91631a`. See
+  `step-2-integration-report.md`.
+- coordinate 8.4.2 long branch HEAD: `cbab1c5` (unchanged — Step 2 used a feature branch).
+- multinexus 8.4.2 long branch HEAD: `1c5c798` + this audit-doc update.
+- Integration branches NOT pushed; NOT merged; pending Step 4 merge-strategy decision.
+- Step 3 = lightweight recovery smoke re-verify against the **integrated** branches
+  (the fail-closed path was previously validated only on the standalone 8.4.3 branches).
 
 ## 6. Prohibitions (this task)
 
