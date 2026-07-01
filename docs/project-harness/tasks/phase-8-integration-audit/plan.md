@@ -97,16 +97,30 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
 
 ## 5. Integration plan
 
-1. **Close 8.4.2 lifecycle** — audit A/B/C code + tests are sound, then walk
-   closeout → review → done (reuse the 8.4.3 flow). This unblocks the chain.
-2. **Bring 8.4.3 recovery commits** (coordinate `16a0b81`, multinexus `04aee04`)
-   onto the long integration branch; resolve conflicts (`runtime.py` / `cli.py`)
-   on a **feature/integration branch, NOT on main**.
+1. ✅ **Close 8.4.2 lifecycle** — DONE 2026-06-30. A/B/C code verified coherent;
+   test-isolation blocker fixed (multinexus `13a3d2e`, test-only). Durable:
+   closeout.requested `785d4ed2` → review.completed approved `984d6339` →
+   task.done `eb4ff989`. Step 1 milestone closed.
+2. ⏳ **Bring 8.4.3 recovery commits** (coordinate `16a0b81`, multinexus `04aee04`)
+   onto the long integration branch. **Open as a separate task next session.**
+   Prefer cherry-pick of the actual recovery fixes over blind whole-branch merge
+   (avoid dragging in 8.4.3's stale closeout/docs noise). Resolve conflicts on a
+   **feature/integration branch, NOT on main**; expect to touch coordinate
+   `runtime.py`/`cli.py` (CAS, claim, reply platform) and multinexus `agentd/*`
+   (claim recoverable, attempt_token, fail-closed).
 3. **Full validation on the integration branch** — coordinate full suite,
    multinexus full suite, harness `validate` / `doctor`.
 4. **Lightweight re-verify** recovery smoke on the integrated code.
 5. **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
    split out already-done tasks and merge in batches.
+
+### Pre-state for Step 2 (next session)
+
+- Step 1 done: `phase-8.4.2-contracts-function-decomposition` durable done.
+- coordinate 8.4.2 branch HEAD: `cbab1c5`
+- multinexus 8.4.2 branch HEAD: `13a3d2e` (test-only fix applied; was `cc3d6ed`)
+- 8.4.3 done branch: coordinate `16a0b81`, multinexus `04aee04` (parallel, not
+  yet integrated)
 
 ## 6. Prohibitions (this task)
 
