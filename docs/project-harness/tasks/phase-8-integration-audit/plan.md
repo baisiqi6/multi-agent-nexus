@@ -110,22 +110,30 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    Validation: coordinate 1200 passed, multinexus 341 passed/2 skipped, `harnessctl
    validate`/`doctor` clean (only pre-existing warnings). Details:
    `step-2-integration-report.md`. Step 2 milestone closed.
-3. **Full validation on the integration branch** — coordinate full suite,
-   multinexus full suite, harness `validate` / `doctor`.
-4. **Lightweight re-verify** recovery smoke on the integrated code.
-5. **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
-   split out already-done tasks and merge in batches.
+3. ✅ **Full validation on the integration branch** — DONE 2026-07-01 (as part of Step 2).
+   coordinate full suite 1200 passed, multinexus full suite 341 passed/2 skipped, `harnessctl
+   validate`/`doctor` clean. See `step-2-integration-report.md` §3.
+4. ✅ **Lightweight re-verify** recovery smoke on the integrated code — DONE 2026-07-01.
+   All 7 conditions pass on `4ac774e`/`c91631a`: default poll never reclaims timed_out;
+   `--recoverable` resumes recorded session; resume failure fails closed (no fresh duplicate,
+   no `job.completed`); stale attempt-token report/progress rejected by SQL CAS (job not
+   overwritten). No code modified (smoke-only). Production launchd restored, no `--recoverable`
+   lingering. Details: `step-3-recovery-smoke-report.md`.
+5. ⏳ **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
+   split out already-done tasks and merge in batches. Pending codex review of Step 2/3
+   outputs and the decision to push the integration branches.
 
-### Pre-state for Step 3 (next session)
+### Pre-state for Step 4 (next session)
 
-- Step 2 done: 8.4.3 recovery fixes integrated on `agents/mac-codex/phase-8-integration`
-  (local-only): coordinate HEAD `4ac774e`, multinexus HEAD `c91631a`. See
-  `step-2-integration-report.md`.
-- coordinate 8.4.2 long branch HEAD: `cbab1c5` (unchanged — Step 2 used a feature branch).
-- multinexus 8.4.2 long branch HEAD: `1c5c798` + this audit-doc update.
+- Steps 2+3 done: 8.4.3 recovery fixes integrated AND smoke-verified on
+  `agents/mac-codex/phase-8-integration` (local-only): coordinate HEAD `4ac774e`,
+  multinexus HEAD `c91631a`. See `step-2-integration-report.md` and
+  `step-3-recovery-smoke-report.md`.
+- coordinate 8.4.2 long branch HEAD: `cbab1c5` (unchanged — Steps 2/3 used feature branches).
+- multinexus 8.4.2 long branch HEAD: `dc47361` (+ this Step 3 audit-doc update; local-only).
 - Integration branches NOT pushed; NOT merged; pending Step 4 merge-strategy decision.
-- Step 3 = lightweight recovery smoke re-verify against the **integrated** branches
-  (the fail-closed path was previously validated only on the standalone 8.4.3 branches).
+- Step 4 = decide merge strategy (whole Phase 8 integration merge into `main` vs batched
+  split). Drive from this document; do not merge/deploy without explicit review.
 
 ## 6. Prohibitions (this task)
 
