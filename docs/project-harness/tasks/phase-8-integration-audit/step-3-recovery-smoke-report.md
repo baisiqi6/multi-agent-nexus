@@ -117,5 +117,5 @@ Step 3 PASS. The 8.4.3 recovery fixes behave identically on the Phase 8 long int
 branch as on the standalone 8.4.3 branch: ordinary polls never reclaim stuck timed_out jobs,
 explicit `--recoverable` recovery resumes the recorded session, resume failure fails closed
 without a fresh duplicate, and stale attempt-token writes are rejected by SQL CAS. Ready for
-codex review to decide whether to push the integration branches (Step 4 merge-strategy
-decision still pending).
+Step 4 merge-strategy review. Follow-up note: the integration branches were pushed after this
+smoke report was first written; they remain unmerged and undeployed.

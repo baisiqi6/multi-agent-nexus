@@ -103,7 +103,7 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    task.done `eb4ff989`. Step 1 milestone closed.
 2. ✅ **Bring 8.4.3 recovery commits** onto the long integration branch — DONE
    2026-07-01. Cherry-picked onto feature branch `agents/mac-codex/phase-8-integration`
-   (local-only): coordinate `baacc0f`/`161d941`/`e37f16a`/`16a0b81` → HEAD `4ac774e`;
+   (pushed to origin): coordinate `baacc0f`/`161d941`/`e37f16a`/`16a0b81` → HEAD `4ac774e`;
    multinexus `bc90695`/`b659b0f`/`5b69e61`/`19298e3`/`04aee04` → HEAD `c91631a`. Skipped 3
    multinexus noise commits (`4b28c5f` plan, `c57acc5` task-materialize, `3e1fdba` docs).
    One conflict (coordinate `tests/test_runtime.py`, both-sides test additions → kept both).
@@ -121,17 +121,17 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    lingering. Details: `step-3-recovery-smoke-report.md`.
 5. ⏳ **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
    split out already-done tasks and merge in batches. Pending codex review of Step 2/3
-   outputs and the decision to push the integration branches.
+   outputs and merge-strategy decision.
 
 ### Pre-state for Step 4 (next session)
 
 - Steps 2+3 done: 8.4.3 recovery fixes integrated AND smoke-verified on
-  `agents/mac-codex/phase-8-integration` (local-only): coordinate HEAD `4ac774e`,
+  `agents/mac-codex/phase-8-integration` (pushed to origin): coordinate HEAD `4ac774e`,
   multinexus HEAD `c91631a`. See `step-2-integration-report.md` and
   `step-3-recovery-smoke-report.md`.
 - coordinate 8.4.2 long branch HEAD: `cbab1c5` (unchanged — Steps 2/3 used feature branches).
-- multinexus 8.4.2 long branch HEAD: `dc47361` (+ this Step 3 audit-doc update; local-only).
-- Integration branches NOT pushed; NOT merged; pending Step 4 merge-strategy decision.
+- multinexus 8.4.2 long branch contains Step 2/3 audit docs plus push-state correction.
+- Integration branches pushed; NOT merged; pending Step 4 merge-strategy decision.
 - Step 4 = decide merge strategy (whole Phase 8 integration merge into `main` vs batched
   split). Drive from this document; do not merge/deploy without explicit review.
 
