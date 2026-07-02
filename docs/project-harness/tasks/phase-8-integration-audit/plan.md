@@ -35,26 +35,32 @@ task and will span sessions; without persistence the context will be lost.
 ## 2. Branch facts
 
 ### coordinate
-- `main`  = `6e8a4a1`
-- 8.4.2   = `cbab1c5`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`)
-- 8.4.3   = `16a0b81`  (`agents/mac-codex/phase-8.4.3-long-running-job-recovery`)
-- 8.4.2 ahead of main: **+90 commits**
-- 8.4.3 ahead of main: **+64 commits**
-- 8.4.2 unique (not in 8.4.3): **30 commits**
-- 8.4.3 unique (not in 8.4.2): **4 commits**
-- merge-base: `63cdafb5c` (`fix: reject harness publish identity rebind`)
+- `main` (origin) = `595d6ea` (was recorded as `6e8a4a1`; main advanced — local main ref stale)
+- long  = `cbab1c5`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`)
+- INT   = `4ac774e`  (`agents/mac-codex/phase-8-integration` = long + 4 recovery; long is an ancestor of INT)
+- 8.4.3 (orig, superseded by Step 2 cherry-pick) = `16a0b81`
+- long ahead of main: **+131**; INT ahead of main: **+135**
+- main↔long divergence (main's own commits not in long): **0** → main is a pure ancestor of long/INT
+- long history main..long: **0 merge commits** (fully linear)
+- (historical 8.4.2↔8.4.3) merge-base: `63cdafb5c`; 8.4.3 unique vs 8.4.2: 4 commits
 
 ### multinexus
-- `main`  = `28fd018`
-- 8.4.2   = `3ffd93a`
-- 8.4.3   = `04aee04`
-- 8.4.2 ahead of main: **+222 commits**
-- 8.4.3 ahead of main: **+197 commits**
-- 8.4.2 unique (not in 8.4.3): **33 commits**
-- 8.4.3 unique (not in 8.4.2): **8 commits**
-- merge-base: `2cc9b21b5` (`harness: materialize Phase 8.4.2 task files`)
+- `main` (origin) = `28fd018`
+- long  = `57083c9`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`; was `3ffd93a` — advanced via Step 1/2/3 audit docs)
+- INT   = `c91631a`  (`agents/mac-codex/phase-8-integration` = `1c5c798` + 5 recovery)
+- 8.4.3 (orig, superseded by Step 2 cherry-pick) = `04aee04`
+- long ahead of main: **+228**; INT ahead of main: **+230**
+- main↔long divergence: **0** → main is a pure ancestor of long
+- long history main..long: 4 merge commits / 228
+- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 3 audit-docs INT lacks
+- (historical 8.4.2↔8.4.3) merge-base: `2cc9b21b5`
 
-### Merge conflict risk (files both branches touch)
+### Merge conflict risk — 8.4.2 ↔ 8.4.3 only (RESOLVED in Step 2)
+
+The files below are where the 8.4.2 long branch and the 8.4.3 branch BOTH touched. Step 2
+already resolved these during cherry-pick onto the INT branch. **This is NOT a main-merge
+risk**: main is a pure ancestor of long/INT on both repos (0 divergence), so merging
+long/INT into main is a fast-forward with no possible main-side conflicts.
 - coordinate: `src/coordinate/cli.py`, `src/coordinate/runtime.py`,
   `tests/test_cli.py`, `tests/test_runtime.py`
 - multinexus: `multinexus/client.py` (8.4.3's core `agentd/*` and `adapters/*`
@@ -121,19 +127,44 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    lingering. Details: `step-3-recovery-smoke-report.md`.
 5. ⏳ **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
    split out already-done tasks and merge in batches. Pending codex review of Step 2/3
-   outputs and merge-strategy decision.
+   outputs and the merge-strategy decision.
+
+### Step 4 decision inputs (git facts, not strategy — landed 2026-07-02)
+
+Verifiable git facts (not preferences), recorded now so the next round does not start
+from a stale plan.md. Strategy conclusions are appended after review.
+
+- **main is a pure ancestor of long/INT on both repos** (`merge-base --is-ancestor`
+  rc=0; main's own commits not in long = 0 on both). Merging long/INT into main is
+  mechanically a **fast-forward** — no possible main-side conflicts.
+- coordinate: INT (`4ac774e`) = long (`cbab1c5`) + 4 recovery; long is an ancestor of
+  INT (no divergence). INT is the complete branch; main can FF directly to INT (+135).
+- multinexus: long history has 4 merge commits; INT (`c91631a`) and long (`57083c9`)
+  **diverged** from `1c5c798`.
+- The §2 "merge conflict risk" files were 8.4.2↔8.4.3 overlap, resolved in Step 2 —
+  not a main-merge risk.
+
+**multinexus wrinkle (must resolve before merging to main):** INT and long diverged
+from `1c5c798`. INT has 5 recovery commits long lacks (`2473883`/`7cfde2d`/`343fa64`/
+`159c3b3`/`c91631a`); long has 3 audit-docs INT lacks (`dc47361`/`f70fc24`/`57083c9`).
+Neither alone FFs to a complete state. Reconcile first, then FF main.
+
+**Three pending decisions (status: pending — NOT decided here):**
+1. Whole-branch FF vs batched FF (staging/risk-appetite, not conflict-avoidance —
+   there are no main-side conflicts either way).
+2. multinexus INT↔LONG reconciliation method (merge INT→long / merge docs→INT / rebase
+   INT's recovery onto long).
+3. FF vs `--no-FF` (linear history vs an explicit integration merge commit for audit/rollback).
 
 ### Pre-state for Step 4 (next session)
 
-- Steps 2+3 done: 8.4.3 recovery fixes integrated AND smoke-verified on
-  `agents/mac-codex/phase-8-integration` (pushed to origin): coordinate HEAD `4ac774e`,
-  multinexus HEAD `c91631a`. See `step-2-integration-report.md` and
+- Steps 2+3 done and pushed: `agents/mac-codex/phase-8-integration` coordinate `4ac774e`
+  / multinexus `c91631a` (smoke-verified). See `step-2-integration-report.md` and
   `step-3-recovery-smoke-report.md`.
-- coordinate 8.4.2 long branch HEAD: `cbab1c5` (unchanged — Steps 2/3 used feature branches).
-- multinexus 8.4.2 long branch contains Step 2/3 audit docs plus push-state correction.
-- Integration branches pushed; NOT merged; pending Step 4 merge-strategy decision.
-- Step 4 = decide merge strategy (whole Phase 8 integration merge into `main` vs batched
-  split). Drive from this document; do not merge/deploy without explicit review.
+- coordinate long `cbab1c5` (synced); multinexus long `57083c9` (synced, includes audit docs).
+- Nothing merged to main; nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
+- Step 4 = decide the 3 pending items above (drive from this document; do not merge/deploy
+  without explicit review). Codex review of Step 2/3 outputs is the stated prerequisite.
 
 ## 6. Prohibitions (this task)
 
