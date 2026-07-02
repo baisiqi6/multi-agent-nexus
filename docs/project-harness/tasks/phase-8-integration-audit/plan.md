@@ -46,13 +46,13 @@ task and will span sessions; without persistence the context will be lost.
 
 ### multinexus
 - `main` (origin) = `28fd018`
-- long  = `57083c9`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`; was `3ffd93a` — advanced via Step 1/2/3 audit docs)
+- long  = `57083c9` + Step 4 docs-only fact commits (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`; was `3ffd93a` — advanced via Step 1/2/3 audit docs and Step 4 pre-state docs)
 - INT   = `c91631a`  (`agents/mac-codex/phase-8-integration` = `1c5c798` + 5 recovery)
 - 8.4.3 (orig, superseded by Step 2 cherry-pick) = `04aee04`
-- long ahead of main: **+228**; INT ahead of main: **+230**
+- long ahead of main: **+230**; INT ahead of main: **+230**
 - main↔long divergence: **0** → main is a pure ancestor of long
-- long history main..long: 4 merge commits / 228
-- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 3 audit-docs INT lacks
+- long history main..long: 4 merge commits / 230
+- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 5 audit-docs INT lacks
 - (historical 8.4.2↔8.4.3) merge-base: `2cc9b21b5`
 
 ### Merge conflict risk — 8.4.2 ↔ 8.4.3 only (RESOLVED in Step 2)
@@ -146,7 +146,8 @@ from a stale plan.md. Strategy conclusions are appended after review.
 
 **multinexus wrinkle (must resolve before merging to main):** INT and long diverged
 from `1c5c798`. INT has 5 recovery commits long lacks (`2473883`/`7cfde2d`/`343fa64`/
-`159c3b3`/`c91631a`); long has 3 audit-docs INT lacks (`dc47361`/`f70fc24`/`57083c9`).
+`159c3b3`/`c91631a`); long has 5 audit-docs INT lacks (`dc47361`/`f70fc24`/`57083c9`/
+`ff14aab` plus this docs-only count correction).
 Neither alone FFs to a complete state. Reconcile first, then FF main.
 
 **Three pending decisions (status: pending — NOT decided here):**
@@ -161,7 +162,8 @@ Neither alone FFs to a complete state. Reconcile first, then FF main.
 - Steps 2+3 done and pushed: `agents/mac-codex/phase-8-integration` coordinate `4ac774e`
   / multinexus `c91631a` (smoke-verified). See `step-2-integration-report.md` and
   `step-3-recovery-smoke-report.md`.
-- coordinate long `cbab1c5` (synced); multinexus long `57083c9` (synced, includes audit docs).
+- coordinate long `cbab1c5` (synced); multinexus long includes Step 2/3 audit docs plus
+  Step 4 decision-input docs (synced after push).
 - Nothing merged to main; nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
 - Step 4 = decide the 3 pending items above (drive from this document; do not merge/deploy
   without explicit review). Codex review of Step 2/3 outputs is the stated prerequisite.
