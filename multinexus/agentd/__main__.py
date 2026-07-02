@@ -28,6 +28,13 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--config", default="agents.toml")
     parser.add_argument("--agent", required=True, help="Agent ID to run agentd for")
     parser.add_argument("--poll-interval", type=float, default=2.0, help="Job poll interval (seconds)")
+    parser.add_argument(
+        "--recoverable",
+        action="store_true",
+        default=False,
+        help="OPERATOR RECOVERY MODE: also claim timed_out+recoverable jobs to resume them. "
+             "Normal launchd agentd must NOT set this (8.4.3 P1 #1: prevent auto-reclaim of stuck jobs).",
+    )
     args = parser.parse_args(argv)
 
     config = load_config(
@@ -47,8 +54,8 @@ def main(argv: list[str] | None = None) -> None:
         loop.add_signal_handler(signal.SIGTERM, _shutdown)
 
     try:
-        log.info("agentd worker starting: agent=%s", config.id)
-        loop.run_until_complete(worker.run(poll_interval=args.poll_interval))
+        log.info("agentd worker starting: agent=%s recoverable=%s", config.id, args.recoverable)
+        loop.run_until_complete(worker.run(poll_interval=args.poll_interval, recoverable=args.recoverable))
     except (KeyboardInterrupt, RuntimeError):
         pass
     finally:

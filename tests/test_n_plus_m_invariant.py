@@ -344,7 +344,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -397,7 +397,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -444,7 +444,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker.adapter = FailingAdapter(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -472,7 +472,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker = AgentdWorker(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -501,7 +501,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         claim_count = 0
 
-        async def mock_claim(*, agent_id):
+        async def mock_claim(*, agent_id, recoverable=False):
             nonlocal claim_count
             claim_count += 1
             if claim_count >= 2:
@@ -516,7 +516,61 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         finally:
             loop.close()
 
+    def test_worker_run_default_does_not_pass_recoverable(self):
+        """8.4.3 P1 #3 fix: default agentd poll must NOT pass recoverable=True (no auto-reclaim)."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(coordinator_cli_path="/usr/bin/true", coordinator_db_path="/tmp/test.db")
+        worker = AgentdWorker(cfg)
+
+        seen = {}
+
+        async def mock_claim(*, agent_id, recoverable=False):
+            seen["recoverable"] = recoverable
+            worker.stop()
+            return None
+
+        worker.coordinate.claim_job = mock_claim
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker.run(poll_interval=0.01))
+        finally:
+            loop.close()
+
+        self.assertIn("recoverable", seen)
+        self.assertFalse(seen["recoverable"], "default worker.run must pass recoverable=False")
+
+    def test_worker_run_recoverable_mode_passes_recoverable(self):
+        """8.4.3 P1 #3 fix: operator recovery mode (--recoverable) passes recoverable=True to claim."""
+        from multinexus.agentd.worker import AgentdWorker
+
+        cfg = _config(coordinator_cli_path="/usr/bin/true", coordinator_db_path="/tmp/test.db")
+        worker = AgentdWorker(cfg)
+
+        seen = {}
+
+        async def mock_claim(*, agent_id, recoverable=False):
+            seen["recoverable"] = recoverable
+            worker.stop()
+            return None
+
+        worker.coordinate.claim_job = mock_claim
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True))
+        finally:
+            loop.close()
+
+        self.assertIn("recoverable", seen)
+        self.assertTrue(seen["recoverable"], "recovery mode worker.run must pass recoverable=True")
         self.assertFalse(worker._running)
+
+    def test_is_error_recognizes_codex_resume_failed(self):
+        """8.4.3 P1 #3: 'Codex resume failed' must be recognized as error so recovery resume fail-closes (not reported as done)."""
+        from multinexus.agentd.worker import AgentdWorker
+        self.assertTrue(AgentdWorker._is_error("Codex resume failed (1): stream disconnected"))
+        self.assertTrue(AgentdWorker._is_error("Codex CLI failed: x"))
+        self.assertFalse(AgentdWorker._is_error("OK done"))
 
     def test_worker_shutdown_is_testable(self):
         """Worker stop() sets _running=False and wakes the event for immediate exit."""
@@ -767,7 +821,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "result_json": result_json})
         worker.coordinate.report_job = mock_report
 
@@ -803,7 +857,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status})
         worker.coordinate.report_job = mock_report
 
@@ -815,6 +869,284 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         self.assertEqual(len(worker.adapter.calls), 1)
         self.assertEqual(len(worker.adapter.resumes), 0)
+
+    def test_worker_reports_recoverable_timeout_with_progress_checkpoint(self):
+        """Worker persists adapter progress and reports Claude timeouts as recoverable."""
+        from multinexus.agentd.worker import AgentdWorker
+        from multinexus.adapters.base import AdapterResult
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class ProgressTimeoutAdapter:
+            async def call(self, prompt, **kw):
+                kw["on_progress"](
+                    {
+                        "stage": "session",
+                        "summary": "Claude session initialized",
+                        "session_id": "sess-progress",
+                    }
+                )
+                return AdapterResult(
+                    text="Claude timeout:activity after 120s (total budget 600s). Aborted, no handoff.",
+                    session_id="sess-progress",
+                    metadata={
+                        "timeout": {
+                            "kind": "activity",
+                            "configured_budget_seconds": 600,
+                            "session_id": "sess-progress",
+                            "resume_allowed": True,
+                        }
+                    },
+                )
+
+            async def resume(self, session_id, prompt, **kw):
+                raise AssertionError("resume should not be used")
+
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = ProgressTimeoutAdapter()
+
+        progress = []
+        reported = []
+
+        async def mock_progress(**kwargs):
+            progress.append(kwargs)
+            return {"result": {}}
+
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+            reported.append({"status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.record_progress = mock_progress
+        worker.coordinate.report_job = mock_report
+
+        job = {
+            "id": "job-timeout",
+            "payload_json": json.dumps({
+                "prompt": "work a long time",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch-timeout",
+                    "session_scope_id": "channel:ch-timeout",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(progress[0]["session_id"], "sess-progress")
+        self.assertEqual(reported[0]["status"], "timed_out")
+        self.assertEqual(reported[0]["result_json"]["session_id"], "sess-progress")
+        self.assertEqual(reported[0]["result_json"]["timeout"]["kind"], "activity")
+        stored = worker.session_store.get(scope_id="channel:ch-timeout", agent_id="test-agent")
+        self.assertEqual(stored["session_id"], "sess-progress")
+
+    def test_worker_resumes_recoverable_job_session_without_fresh_duplicate(self):
+        """Recoverable timed-out jobs use the recorded session id when no local session exists."""
+        from multinexus.agentd.worker import AgentdWorker
+        from multinexus.adapters.base import AdapterResult
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class RecoveryAdapter:
+            def __init__(self):
+                self.calls = []
+                self.resumes = []
+
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                return AdapterResult(text="fresh duplicate", session_id="fresh")
+
+            async def resume(self, session_id, prompt, **kw):
+                self.resumes.append((session_id, prompt))
+                return AdapterResult(text="resumed work", session_id=session_id, resumed=True)
+
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = RecoveryAdapter()
+
+        reported = []
+
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+            reported.append({"status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report
+
+        job = {
+            "id": "job-recover",
+            "terminal_session_id": "sess-recover",
+            "payload_json": json.dumps({
+                "prompt": "continue",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch-recover",
+                    "session_scope_id": "channel:ch-recover",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(worker.adapter.resumes, [("sess-recover", "continue")])
+        self.assertEqual(worker.adapter.calls, [])
+        self.assertEqual(reported[0]["status"], "done")
+        self.assertEqual(reported[0]["result_json"]["session_id"], "sess-recover")
+
+    def test_worker_recoverable_resume_failure_does_not_start_fresh_call(self):
+        """Recoverable resume failure is operator-visible and does not duplicate work."""
+        from multinexus.agentd.worker import AgentdWorker
+        from multinexus.adapters.base import AdapterResult
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class FailingRecoveryAdapter:
+            def __init__(self):
+                self.calls = []
+                self.resumes = []
+
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                return AdapterResult(text="fresh duplicate", session_id="fresh")
+
+            async def resume(self, session_id, prompt, **kw):
+                self.resumes.append((session_id, prompt))
+                return AdapterResult(text="Claude error: bad resume", session_id=session_id)
+
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FailingRecoveryAdapter()
+
+        reported = []
+
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+            reported.append({"status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report
+
+        job = {
+            "id": "job-recover-fail",
+            "result": {"timeout": {"session_id": "sess-fail"}},
+            "payload_json": json.dumps({
+                "prompt": "continue",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch-recover",
+                    "session_scope_id": "channel:ch-recover",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        self.assertEqual(worker.adapter.resumes, [("sess-fail", "continue")])
+        self.assertEqual(worker.adapter.calls, [])
+        self.assertEqual(reported[0]["status"], "failed")
+        self.assertIn("not starting duplicate", reported[0]["result_json"]["response_text"])
+
+    def test_worker_existing_session_plus_recovery_is_fail_closed(self):
+        """8.4.3 P1 #3: existing session + recovery_session_id ⇒ recovery wins and is fail-closed (no fresh duplicate)."""
+        from multinexus.agentd.worker import AgentdWorker
+        from multinexus.adapters.base import AdapterResult
+
+        cfg = _config(
+            coordinator_cli_path="/usr/bin/true",
+            coordinator_db_path="/tmp/test.db",
+        )
+
+        class FailingRecoveryAdapter:
+            def __init__(self):
+                self.calls = []
+                self.resumes = []
+
+            async def call(self, prompt, **kw):
+                self.calls.append(prompt)
+                return AdapterResult(text="fresh duplicate", session_id="fresh")
+
+            async def resume(self, session_id, prompt, **kw):
+                self.resumes.append((session_id, prompt))
+                return AdapterResult(text="Claude error: bad resume", session_id=session_id)
+
+            async def health_check(self):
+                return {"adapter": "fake", "available": True}
+
+        worker = AgentdWorker(cfg)
+        worker.adapter = FailingRecoveryAdapter()
+
+        reported = []
+
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+            reported.append({"status": status, "result_json": result_json})
+            return {"result": {}}
+
+        worker.coordinate.report_job = mock_report
+
+        # seed an existing session (so `existing` is truthy) — P1 #3: recovery must still win
+        worker.session_store.upsert(
+            scope_id="channel:ch-both",
+            agent_id="test-agent",
+            adapter="claude",
+            session_id="sess-existing",
+            work_dir=cfg.work_dir,
+        )
+
+        job = {
+            "id": "job-both",
+            "result": {"timeout": {"session_id": "sess-recovery"}},
+            "payload_json": json.dumps({
+                "prompt": "continue",
+                "origin": {
+                    "platform": "discord",
+                    "destination": "ch-both",
+                    "session_scope_id": "channel:ch-both",
+                    "legacy_scope_ids": [],
+                },
+            }),
+        }
+
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(worker._process_job(job))
+        finally:
+            loop.close()
+
+        # recovery_session_id (sess-recovery) wins over existing (sess-existing):
+        self.assertEqual(worker.adapter.resumes, [("sess-recovery", "continue")])
+        # fail-closed: no fresh duplicate
+        self.assertEqual(worker.adapter.calls, [])
+        self.assertEqual(reported[0]["status"], "failed")
+        self.assertIn("not starting duplicate", reported[0]["result_json"]["response_text"])
 
     def test_worker_falls_back_on_resume_error(self):
         """Worker falls back to fresh call when resume returns error text."""
@@ -865,7 +1197,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
             reported.append({"status": status, "text": result_json.get("response_text", "")})
         worker.coordinate.report_job = mock_report
 

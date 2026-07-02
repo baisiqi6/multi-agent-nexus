@@ -80,13 +80,20 @@ class CoordinateRuntimeClient:
         result = await asyncio.to_thread(self._run_cli, cmd)
         return result
 
-    async def claim_job(self, *, agent_id: str) -> dict | None:
-        """Claim the next pending job for this agent. Returns job dict or None."""
+    async def claim_job(self, *, agent_id: str, recoverable: bool = False) -> dict | None:
+        """Claim the next pending job for this agent. Returns job dict or None.
+
+        recoverable=True (operator recovery mode only) also claims timed_out+
+        recoverable jobs (appends --recoverable). Default False = only pending,
+        so normal launchd agentd never auto-reclaims a stuck timed_out job (8.4.3 P1 #1).
+        """
         cmd = [
             *self._base_cmd,
             "runtime", "job", "claim",
             "--agent-id", agent_id,
         ]
+        if recoverable:
+            cmd.append("--recoverable")
         result = await asyncio.to_thread(self._run_cli, cmd)
         if result.get("result", {}).get("claimed"):
             return result["result"]["job"]
@@ -99,6 +106,7 @@ class CoordinateRuntimeClient:
         agent_id: str,
         status: str,
         result_json: dict,
+        attempt_token: int | None = None,
     ) -> dict:
         """Report job result back to coordinate."""
         cmd = [
@@ -109,6 +117,35 @@ class CoordinateRuntimeClient:
             "--status", status,
             "--result-json", json.dumps(result_json, ensure_ascii=False),
         ]
+        if attempt_token is not None:
+            cmd.extend(["--attempt-token", str(attempt_token)])
+        return await asyncio.to_thread(self._run_cli, cmd)
+
+    async def record_progress(
+        self,
+        *,
+        job_id: str,
+        agent_id: str,
+        stage: str = "",
+        summary: str = "",
+        session_id: str = "",
+        attempt_token: int | None = None,
+    ) -> dict:
+        """Record a bounded progress checkpoint for a running job."""
+        cmd = [
+            *self._base_cmd,
+            "runtime", "job", "progress",
+            job_id,
+            "--agent-id", agent_id,
+        ]
+        if stage:
+            cmd.extend(["--stage", stage])
+        if summary:
+            cmd.extend(["--summary", summary])
+        if session_id:
+            cmd.extend(["--session-id", session_id])
+        if attempt_token is not None:
+            cmd.extend(["--attempt-token", str(attempt_token)])
         return await asyncio.to_thread(self._run_cli, cmd)
 
     async def wait_for_job_result(
@@ -132,7 +169,7 @@ class CoordinateRuntimeClient:
                 await asyncio.sleep(poll_interval)
                 continue
             status = job.get("status", "")
-            if status in ("done", "failed"):
+            if status in ("done", "failed", "timed_out"):
                 return job
             await asyncio.sleep(poll_interval)
         return None

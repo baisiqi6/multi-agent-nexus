@@ -15,10 +15,10 @@ import asyncio
 import json
 import logging
 import time
+from typing import Any
 
 from ..adapters.base import AdapterResult
 from ..adapters.factory import make_adapter
-from ..config import load_config
 from ..models import AgentConfig
 from ..sessions.store import SessionStore
 from .coordinate_client import CoordinateRuntimeClient
@@ -40,12 +40,20 @@ class AgentdWorker:
         self._running = False
         self._wake = asyncio.Event()
 
-    async def run(self, *, poll_interval: float = 2.0) -> None:
-        """Main worker loop: claim jobs, execute, report."""
+    async def run(self, *, poll_interval: float = 2.0, recoverable: bool = False) -> None:
+        """Main worker loop: claim jobs, execute, report.
+
+        recoverable=True (operator recovery mode only) claims timed_out+recoverable
+        jobs to resume them. Default False = normal launchd poll, only pending jobs
+        (8.4.3 P1 #1: never auto-reclaim stuck timed_out jobs).
+        """
         self._running = True
-        log.info("Agentd worker started: agent=%s", self.config.id)
+        if recoverable:
+            log.warning("Agentd worker started in RECOVERY mode: agent=%s (will claim timed_out+recoverable jobs)", self.config.id)
+        else:
+            log.info("Agentd worker started: agent=%s", self.config.id)
         while self._running:
-            job = await self.coordinate.claim_job(agent_id=self.config.id)
+            job = await self.coordinate.claim_job(agent_id=self.config.id, recoverable=recoverable)
             if job is None:
                 try:
                     await asyncio.wait_for(self._wake.wait(), timeout=poll_interval)
@@ -58,6 +66,7 @@ class AgentdWorker:
 
     async def _process_job(self, job: dict) -> None:
         job_id = job.get("id", "?")
+        attempt_token = job.get("attempt_count")  # 8.4.3 P1 #2: CAS token from claim
         try:
             payload = self._extract_payload(job)
         except ValueError as exc:
@@ -67,6 +76,7 @@ class AgentdWorker:
                 agent_id=self.config.id,
                 status="failed",
                 result_json={"error": str(exc)},
+                attempt_token=attempt_token,
             )
             return
 
@@ -78,17 +88,30 @@ class AgentdWorker:
         session_scope_id = origin.get("session_scope_id", "")
         legacy_scope_ids = tuple(origin.get("legacy_scope_ids", []))
         work_dir = self.config.work_dir
+        recovery_session_id = self._recovery_session_id(job)
+        progress_callback, progress_tasks, progress_state = self._make_coordinate_progress_callback(
+            job_id=job_id,
+            session_scope_id=session_scope_id,
+            attempt_token=attempt_token,
+        )
 
         start = time.time()
         try:
-            result = await asyncio.wait_for(
-                self._call_or_resume(prompt, session_scope_id, legacy_scope_ids, work_dir),
-                timeout=self.config.timeout,
+            result = await self._call_or_resume(
+                prompt,
+                session_scope_id,
+                legacy_scope_ids,
+                work_dir,
+                on_progress=progress_callback,
+                recovery_session_id=recovery_session_id,
             )
-        except asyncio.TimeoutError:
-            result = AdapterResult(text=f"Agent error: timed out after {self.config.timeout}s")
+        except asyncio.CancelledError:
+            raise
         except Exception as exc:
             result = AdapterResult(text=f"Agent error: {exc}")
+
+        if progress_tasks:
+            await asyncio.gather(*progress_tasks, return_exceptions=True)
 
         duration_ms = int((time.time() - start) * 1000)
 
@@ -101,20 +124,104 @@ class AgentdWorker:
                 work_dir=work_dir,
             )
 
-        status = "done" if not self._is_error(result.text) else "failed"
+        status = self._status_for_result(result)
         result_json = {
             "response_text": result.text,
             "session_id": result.session_id or "",
             "duration_ms": duration_ms,
         }
+        if progress_state:
+            result_json["progress"] = dict(progress_state)
+        if "timeout" in result.metadata:
+            result_json["timeout"] = {
+                **result.metadata["timeout"],
+                "progress": dict(progress_state),
+            }
 
         await self.coordinate.report_job(
             job_id=job_id,
             agent_id=self.config.id,
             status=status,
             result_json=result_json,
+            attempt_token=attempt_token,
         )
         log.info("Job %s complete: status=%s duration=%dms", job_id, status, duration_ms)
+
+    def _make_coordinate_progress_callback(
+        self,
+        *,
+        job_id: str,
+        session_scope_id: str,
+        attempt_token: int | None = None,
+    ):
+        tasks: list[asyncio.Task] = []
+        state: dict[str, str] = {}
+        sent: dict[str, float | str] = {"at": 0.0, "session_id": ""}
+
+        def _record(update: str | dict[str, Any]) -> None:
+            progress = self._normalize_progress(update)
+            if not progress:
+                return
+            state.update({k: v for k, v in progress.items() if v})
+            session_id = progress.get("session_id", "")
+            if session_id and session_scope_id:
+                self.session_store.upsert(
+                    scope_id=session_scope_id,
+                    agent_id=self.config.id,
+                    adapter=self.config.adapter,
+                    session_id=session_id,
+                    work_dir=self.config.work_dir,
+                )
+            now = time.monotonic()
+            should_send = bool(session_id and session_id != sent.get("session_id"))
+            should_send = should_send or (now - float(sent.get("at", 0.0)) >= 10.0)
+            if not should_send:
+                return
+            sent["at"] = now
+            if session_id:
+                sent["session_id"] = session_id
+            tasks.append(
+                asyncio.create_task(
+                    self.coordinate.record_progress(
+                        job_id=job_id,
+                        agent_id=self.config.id,
+                        stage=progress.get("stage", ""),
+                        summary=progress.get("summary", ""),
+                        session_id=session_id,
+                        attempt_token=attempt_token,
+                    )
+                )
+            )
+
+        return _record, tasks, state
+
+    @staticmethod
+    def _normalize_progress(update: str | dict[str, Any]) -> dict[str, str]:
+        if isinstance(update, dict):
+            progress: dict[str, str] = {}
+            for key in ("stage", "summary", "session_id"):
+                value = update.get(key)
+                if isinstance(value, str) and value.strip():
+                    limit = 200 if key == "session_id" else 1000
+                    progress[key] = value.strip()[:limit]
+            return progress
+        if isinstance(update, str) and update.strip():
+            return {"summary": update.strip()[:1000]}
+        return {}
+
+    @staticmethod
+    def _recovery_session_id(job: dict) -> str:
+        for candidate in (
+            job.get("terminal_session_id"),
+            (job.get("progress") or {}).get("session_id") if isinstance(job.get("progress"), dict) else "",
+            ((job.get("result") or {}).get("timeout") or {}).get("session_id")
+            if isinstance(job.get("result"), dict) and isinstance((job.get("result") or {}).get("timeout"), dict)
+            else "",
+            (job.get("result") or {}).get("session_id") if isinstance(job.get("result"), dict) else "",
+        ):
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        return ""
 
     @staticmethod
     def _extract_payload(job: dict) -> dict:
@@ -146,10 +253,25 @@ class AgentdWorker:
         session_scope_id: str,
         legacy_scope_ids: tuple[str, ...],
         work_dir: str | None,
+        *,
+        on_progress=None,
+        recovery_session_id: str = "",
     ) -> AdapterResult:
         """Check session store for existing session; resume if found, else fresh call."""
         if not session_scope_id:
-            return await self.adapter.call(prompt, work_dir=work_dir)
+            if recovery_session_id:
+                return await self._resume_recoverable_session(
+                    recovery_session_id,
+                    prompt,
+                    work_dir=work_dir,
+                    on_progress=on_progress,
+                )
+            return await self.adapter.call(
+                prompt,
+                timeout=self.config.timeout,
+                work_dir=work_dir,
+                on_progress=on_progress,
+            )
 
         existing = self.session_store.get_first_active(
             scope_ids=(session_scope_id, *legacy_scope_ids),
@@ -173,6 +295,18 @@ class AgentdWorker:
                 )
                 existing = None
 
+        # 8.4.3 P1 #3: recovery_session_id present ⇒ always fail-closed recoverable
+        # resume, EVEN IF an existing session is also present. The legacy existing-
+        # session resume below falls back to a fresh duplicate on error, which must
+        # never happen for a recoverable job (invariant 4: no fresh duplicate).
+        if recovery_session_id:
+            return await self._resume_recoverable_session(
+                recovery_session_id,
+                prompt,
+                work_dir=work_dir,
+                on_progress=on_progress,
+            )
+
         if existing:
             log.info(
                 "Resuming session %s for scope=%s",
@@ -181,7 +315,9 @@ class AgentdWorker:
             result: AdapterResult = await self.adapter.resume(
                 existing["session_id"],
                 prompt,
+                timeout=self.config.timeout,
                 work_dir=work_dir,
+                on_progress=on_progress,
             )
             if self._is_error(result.text):
                 log.warning("Resume failed for %s, falling back to fresh call", existing["session_id"])
@@ -189,10 +325,47 @@ class AgentdWorker:
                     scope_id=existing["scope_id"],
                     agent_id=self.config.id,
                 )
-                result = await self.adapter.call(prompt, work_dir=work_dir)
+                result = await self.adapter.call(
+                    prompt,
+                    timeout=self.config.timeout,
+                    work_dir=work_dir,
+                    on_progress=on_progress,
+                )
             return result
 
-        return await self.adapter.call(prompt, work_dir=work_dir)
+        return await self.adapter.call(
+            prompt,
+            timeout=self.config.timeout,
+            work_dir=work_dir,
+            on_progress=on_progress,
+        )
+
+    async def _resume_recoverable_session(
+        self,
+        session_id: str,
+        prompt: str,
+        *,
+        work_dir: str | None,
+        on_progress=None,
+    ) -> AdapterResult:
+        log.info("Resuming recoverable session %s", session_id)
+        result: AdapterResult = await self.adapter.resume(
+            session_id,
+            prompt,
+            timeout=self.config.timeout,
+            work_dir=work_dir,
+            on_progress=on_progress,
+        )
+        if self._is_error(result.text):
+            return AdapterResult(
+                text=(
+                    "Agent error: recoverable session resume failed; "
+                    "not starting duplicate fresh execution"
+                ),
+                session_id=session_id,
+                resumed=True,
+            )
+        return result
 
     def stop(self) -> None:
         self._running = False
@@ -202,6 +375,7 @@ class AgentdWorker:
         "Agent error:",
         "OpenCode CLI failed", "OpenCode timed out", "OpenCode returned no text",
         "Codex CLI failed", "Codex timed out", "Codex stopped responding",
+        "Codex resume failed",
         "Hermes CLI failed", "Hermes timed out",
         "Claude CLI failed", "Claude error:", "Claude timeout",
     )
@@ -209,3 +383,11 @@ class AgentdWorker:
     @classmethod
     def _is_error(cls, text: str) -> bool:
         return any(text.startswith(p) for p in cls._ERROR_PREFIXES)
+
+    @classmethod
+    def _status_for_result(cls, result: AdapterResult) -> str:
+        if result.metadata.get("timeout"):
+            return "timed_out"
+        if result.text.startswith("Claude timeout:"):
+            return "timed_out"
+        return "done" if not cls._is_error(result.text) else "failed"
