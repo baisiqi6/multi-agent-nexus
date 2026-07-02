@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to discord-nexus are documented here.
+All notable changes to multinexus are documented here.
 
 ---
 

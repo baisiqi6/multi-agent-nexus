@@ -1,0 +1,137 @@
+# MultiNexus agent registry template.
+#
+# Copy this file to agents.toml, then fill in local paths, Discord IDs, and
+# token_env names for the host where the process runs. Keep agents.toml local
+# and uncommitted; real tokens belong in .env, systemd env files, launchd env,
+# or the service manager environment.
+
+[defaults]
+# Bridge and agentd both use agentd_mode in the N+M runtime:
+# - Bridge process: connects to the IM platform and submits jobs to coordinate.
+# - Agentd process: one process per agent identity, claims jobs from coordinate.
+agentd_mode = true
+
+# Pick the wrapper for the host running this process.
+#
+# Tencent Cloud bridge:
+# coordinator_cli_path = "/usr/local/bin/coord-local"
+#
+# Mac agentd:
+# coordinator_cli_path = "/Users/<you>/.local/bin/coord-ssh"
+#
+# Windows agentd:
+# coordinator_cli_path = 'C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py'
+coordinator_cli_path = "/usr/local/bin/coord-local"
+
+# Local fallback only. In the multi-host A0 deployment, wrappers pass --db on
+# the remote side; do not point multiple hosts at a shared local SQLite path.
+coordinator_db_path = "data/coordinator.sqlite3"
+
+context_db_path = "data/discord_context.sqlite3"
+context_recent_messages = 40
+context_budget_chars = 12000
+context_max_message_chars = 500
+context_ttl_seconds = 86400
+handoff_dedupe_seconds = 600
+respond_to_bots = true
+wiki_enabled = false
+wiki_path = "wiki"
+
+timeout = 360
+first_byte_timeout = 120
+activity_timeout = 120
+
+# Optional safety gates. Fill with real Discord snowflakes in agents.toml.
+channels = []
+allowed_user_ids = []
+# coordinator_bot_id = 123456789012345678
+
+system_prompt = """
+You are {self_id}, a coding agent in the MultiNexus roster.
+
+Available peers: {available_peers}
+
+Use the project handoff protocol when delegating work to another agent. Never
+include secrets, private tokens, or local-only credentials in reports.
+"""
+
+[[agents]]
+id = "mac-claude"
+adapter = "claude"
+display_name = "Mac Claude"
+aliases = ["Claude", "mac-claude"]
+token_env = "DISCORD_MAC_CLAUDE_TOKEN"
+work_dir = "/Users/<you>/projects"
+claude_bin = "claude"
+
+[[agents]]
+id = "mac-codex"
+adapter = "codex"
+display_name = "Mac Codex"
+aliases = ["Codex", "mac-codex"]
+token_env = "DISCORD_MAC_CODEX_TOKEN"
+work_dir = "/Users/<you>/projects"
+codex_bin = "codex"
+
+[[agents]]
+id = "mac-opencode"
+adapter = "opencode"
+display_name = "Mac OpenCode"
+aliases = ["OpenCode", "mac-opencode"]
+token_env = "DISCORD_MAC_OPENCODE_TOKEN"
+work_dir = "/Users/<you>/projects"
+opencode_bin = "opencode"
+
+[[agents]]
+id = "mac-omp"
+adapter = "omp"
+display_name = "Mac OMP"
+aliases = ["OhmyPi", "mac-omp"]
+token_env = "DISCORD_MAC_OMP_TOKEN"
+work_dir = "/Users/<you>/projects"
+omp_bin = "omp"
+
+[[agents]]
+id = "win-claude"
+adapter = "claude"
+display_name = "Win Claude"
+aliases = ["win-claude"]
+token_env = "DISCORD_WIN_CLAUDE_TOKEN"
+work_dir = 'C:\Users\ADMIN\projects'
+claude_bin = "claude"
+# Windows agentd should usually override defaults with the Python wrapper path.
+coordinator_cli_path = 'C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py'
+
+[[agents]]
+id = "win-opencode"
+adapter = "opencode"
+display_name = "Win OpenCode"
+aliases = ["win-opencode"]
+token_env = "DISCORD_WIN_OPENCODE_TOKEN"
+work_dir = 'C:\Users\ADMIN\projects'
+opencode_bin = "opencode"
+coordinator_cli_path = 'C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py'
+
+[[agents]]
+id = "win-openclaw"
+adapter = "openclaw"
+display_name = "Win OpenClaw"
+aliases = ["win-openclaw"]
+token_env = "DISCORD_WIN_OPENCLAW_TOKEN"
+work_dir = 'C:\Users\ADMIN\projects'
+openclaw_bin = "openclaw"
+coordinator_cli_path = 'C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py'
+
+# External agents are mentioned/routed but not managed by this MultiNexus
+# bridge process.
+[[external_agents]]
+id = "mac-openclaw"
+display_name = "Mac OpenClaw"
+aliases = ["OpenClaw"]
+# discord_user_id = 123456789012345678
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+aliases = ["Hermes"]
+# discord_user_id = 123456789012345678

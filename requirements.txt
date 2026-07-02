@@ -4,3 +4,4 @@ aiosqlite>=0.19.0
 pyyaml>=6.0
 python-dotenv>=1.0.0
 croniter>=2.0
+khl>=0.4.0

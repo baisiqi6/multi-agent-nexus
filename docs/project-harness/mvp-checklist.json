@@ -1,0 +1,1026 @@
+{
+  "project": "multinexus",
+  "harness_root": "docs/project-harness",
+  "version": 1,
+  "updated_at": "2026-06-25",
+  "items": [
+    {
+      "id": "phase-3.3-runtime-launchd",
+      "title": "Phase 3.3 Managed Bots runtime launchd",
+      "status": "done",
+      "priority": "p1",
+      "owner": "worker",
+      "human_gate_required": true,
+      "plan_path": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md",
+      "acceptance": "Use the Phase 3.3 plan acceptance criteria as the source of truth (docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md#验收标准)",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-05-29T01:12:00Z",
+      "workflow": {
+        "status": "closed",
+        "branch": "feature/multi-bot",
+        "updated_at": "2026-05-29T01:15:24Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-3.3-runtime-launchd/plan.md",
+        "source_plan": "docs/discord-multibot-plan/phase3.3-runtime-launchd-plan.md"
+      },
+      "verification": "plutil 3/3 OK, bash -n all pass, 106 tests OK, manual runtime check: start/stop/status/uninstall all 3 bots + Discord health check passed",
+      "review": {
+        "decision": "approved",
+        "human_gate_required": false
+      }
+    },
+    {
+      "id": "phase-4-coordinator-integration",
+      "title": "Phase 4: Coordinator Integration (WebhookBus + system prompt + agent handoff)",
+      "status": "done",
+      "priority": "p0",
+      "owner": "mac-codex",
+      "human_gate_required": false,
+      "plan_path": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
+      "acceptance": "WebhookBus sends to Discord channel, worker bootstrap generated on handoff, agent handoff delivery with targeted mention, 597+ tests OK",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-3.3-runtime-launchd"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "mac-codex-20260530-001",
+      "updated_at": "2026-05-31",
+      "workflow": {
+        "status": "closed",
+        "branch": "feature/multi-bot",
+        "updated_at": "2026-05-31"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-4-coordinator-integration/plan.md",
+        "branch": "feature/multi-bot",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "605+ coordinator tests OK, 120 nexus tests OK, E2E: coordinator daemon → Discord handoff → mac-claude auto-accept → agent.reported event ingested",
+      "review": {
+        "decision": "approved",
+        "reviewer": "operator"
+      },
+      "lease": null
+    },
+    {
+      "id": "dogfood-doc-sync",
+      "title": "Dogfood: sync coordinator integration docs",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/dogfood-doc-sync/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/dogfood-doc-sync/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-05-31",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-codex/dogfood-doc-sync",
+        "updated_at": "2026-05-31"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/dogfood-doc-sync/plan.md",
+        "branch": "agents/mac-codex/dogfood-doc-sync",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "git diff --check passed; scripts/harness/harnessctl validate passed before closeout; scripts/harness/harnessctl doctor exited 0 with only existing optional/current file misses; reviewer rechecked docs and approved coordinator bot daemon, targeted handoff, auto-accept, and coordinator-owned lifecycle wording.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-05-31",
+        "summary": "Documentation sync reviewed: current coordinator bot daemon, targeted handoff, auto-accept, and coordinator-owned lifecycle boundaries are reflected. Validation passed."
+      },
+      "lease": {
+        "owner": "mac-codex",
+        "session": "auto-mac-codex-1780240587",
+        "acquired_at": "2026-05-31T15:16:28Z",
+        "expires_at": "2026-05-31T17:16:28Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-05-31T15:24:55Z"
+      }
+    },
+    {
+      "id": "phase-5.1-handoff-runtime-hardening",
+      "title": "Phase 5.1: Handoff Runtime Hardening And Agent-Report Protocol",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+        "updated_at": "2026-06-01"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5-hardening-roadmap/plan.md",
+        "branch": "agents/mac-claude/phase-5.1-handoff-runtime-hardening",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Phase 5.1 reviewed. multinexus runtime tests and agent-report docs pass; coordinator daemon parser fixed in ad73bb0 and backlog updated for pump-events backfill guard. Validation: multinexus 134 tests OK, harness validate/doctor OK except expected current/init optional misses; coordinator 619 tests OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Restored approval after lifecycle-prefix dogfood cleanup; original Phase 5.1 review remains approved."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780246205",
+        "acquired_at": "2026-05-31T16:50:05Z",
+        "expires_at": "2026-05-31T18:50:05Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-05-31T17:11:28Z"
+      }
+    },
+    {
+      "id": "phase-5.2-task-scoped-session-lifecycle",
+      "title": "Phase 5.2: Task-Scoped Session Lifecycle",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
+        "updated_at": "2026-06-01"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.2-task-scoped-session-lifecycle/plan.md",
+        "branch": "agents/mac-codex/phase-5.2-task-scoped-session-lifecycle",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and multinexus backfills a progress report if an adapter omits structured [agent-report]. Validation: multinexus 163 tests OK, coordinator 623 tests OK, harness validate OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Phase 5.2 reviewed and amended during dogfood. Task-scoped channel/thread/task session behavior is implemented, coordinator lifecycle notices now target the task owner, and multinexus backfills a progress report if an adapter omits structured [agent-report]. Validation: multinexus 163 tests OK, coordinator 623 tests OK, harness validate OK."
+      },
+      "lease": {
+        "owner": "mac-codex",
+        "session": "auto-mac-codex-1780311828",
+        "acquired_at": "2026-06-01T11:03:48Z",
+        "expires_at": "2026-06-01T13:03:48Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-01T11:28:21Z"
+      }
+    },
+    {
+      "id": "phase-5.3-agent-registry-auto-sync",
+      "title": "Phase 5.3 Agent Registry Auto-Sync",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+        "updated_at": "2026-06-01",
+        "handoff_from": "mac-codex"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.3-agent-registry-auto-sync/plan.md",
+        "branch": "agents/mac-codex/phase-5.3-agent-registry-auto-sync",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in multinexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, multinexus 167 tests OK, harness validate OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Phase 5.3 reviewed and amended. Implemented workspace agent sync from agents.toml in coordinator, added docs in multinexus, verified real sync against local agents.toml. Reviewer added hardening so parse errors do not echo raw TOML entries and duplicate IDs are detected even when an entry is skipped. Validation: coordinator 642 tests OK, multinexus 167 tests OK, harness validate OK."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780314531",
+        "acquired_at": "2026-06-01T11:48:51Z",
+        "expires_at": "2026-06-01T13:48:51Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-01T12:02:04Z"
+      }
+    },
+    {
+      "id": "phase-5.4-workspace-doctor-harness-init",
+      "title": "Phase 5.4 Workspace Doctor And Full Harness Init",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-01",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
+        "updated_at": "2026-06-01"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.4-workspace-doctor-harness-init/plan.md",
+        "branch": "agents/mac-claude/phase-5.4-workspace-doctor-harness-init",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-01",
+        "summary": "Phase 5.4 reviewed and amended. Implemented workspace doctor and full harness init in coordinator, plus multinexus onboarding docs. Reviewer fixed doctor exit semantics so harnessctl validation/doctor failures are not green. Validation: coordinator 665 tests OK, multinexus 167 tests OK, harness validate OK, real workspace doctor rc=0."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780315772",
+        "acquired_at": "2026-06-01T12:09:32Z",
+        "expires_at": "2026-06-01T14:09:32Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-01T12:28:18Z"
+      }
+    },
+    {
+      "id": "phase-5.5-discord-message-rendering",
+      "title": "Phase 5.5 Discord 消息渲染",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-5.5-discord-message-rendering/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-5.5-discord-message-rendering/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "closed",
+        "branch": null,
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-5.5-discord-message-rendering/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Approved. Reviewed mac-opencode commit 7548dda: doc-only multinexus sync for Phase 5.5, preserving protocol-in-content rules and marking dogfood feedback item #6 fixed. Validation observed: multinexus tests 224 OK in current shared worktree, harness validate OK, coordinate 727 OK before/after handoff guard work. Note: worker reported 184 multinexus tests on its isolated baseline; current count includes Phase 7.1 WIP tests.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved. Reviewed mac-opencode commit 7548dda: doc-only multinexus sync for Phase 5.5, preserving protocol-in-content rules and marking dogfood feedback item #6 fixed. Validation observed: multinexus tests 224 OK in current shared worktree, harness validate OK, coordinate 727 OK before/after handoff guard work. Note: worker reported 184 multinexus tests on its isolated baseline; current count includes Phase 7.1 WIP tests."
+      },
+      "lease": null
+    },
+    {
+      "id": "phase-6.1-omp-smoke",
+      "title": "mac-omp smoke test: 验证 omp agent 端到端链路",
+      "status": "done",
+      "priority": "p1",
+      "owner": "mac-omp",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": "auto-mac-omp-1780422963",
+      "updated_at": "2026-06-05",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+        "updated_at": "2026-06-05"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-6-fleet-expansion/plan.md",
+        "branch": "agents/mac-omp/phase-6.1-omp-smoke",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Closed by codex-operator after approved review.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-05"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "auto-mac-omp-1780422963",
+        "acquired_at": "2026-06-02T17:56:04Z",
+        "expires_at": "2026-06-02T19:56:04Z",
+        "ttl_minutes": 120
+      },
+      "phase": "done"
+    },
+    {
+      "id": "phase-7-n-plus-m-runtime",
+      "title": "Phase 7 N+M Runtime Architecture",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-5.5-discord-message-rendering"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7-n-plus-m-runtime/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-7.1-single-host-n-plus-m-runtime",
+      "title": "Phase 7.1 Single-Host N+M Runtime",
+      "status": "done",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+      "blocked_by": [],
+      "blocked_reason": null,
+      "dependencies": [
+        "phase-5.5-discord-message-rendering"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime",
+        "updated_at": "2026-06-08",
+        "unblock_owner": "human",
+        "unblocked_by": "codex-operator",
+        "unblock_decision": "Unblock for tightly scoped mac-claude rework of round3 feedback only: fix coordinate job polling and preserve session resume behavior."
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/plan.md",
+        "branch": "agents/mac-claude/phase-7.1-single-host-n-plus-m-runtime",
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md",
+        "review_feedback": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-08-codex.md",
+        "review_feedback_round2": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-08-codex-round2.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "Approved after closeout. Reviewed mac-claude Round 3 commits 758bd8c and 5a68189; previous blockers fixed. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Separate operator fix repaired agent-report fallback/parser chain for future handoffs.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved after closeout. Reviewed mac-claude Round 3 commits 758bd8c and 5a68189; previous blockers fixed. Validation: multinexus 258 tests OK (2 skipped), harness validate OK, git diff --check OK. Separate operator fix repaired agent-report fallback/parser chain for future handoffs."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "auto-mac-claude-1780932782",
+        "acquired_at": "2026-06-08T15:33:02Z",
+        "expires_at": "2026-06-08T17:33:02Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-08T15:51:33Z"
+      }
+    },
+    {
+      "id": "phase-7.2-multi-host-agent-runtime",
+      "title": "Phase 7.2 Multi-Host Agent Runtime",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md",
+      "blocked_by": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-7.2-multi-host-agent-runtime/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-7.1.1-single-platform-bridge-process",
+      "title": "Phase 7.1.1 Single Platform Single Bridge Process",
+      "status": "done",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md",
+      "acceptance": "See plan acceptance criteria: docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md. Worker must also re-verify 7.1 plan acceptance criteria (plan 第 113-119 行) are fully satisfied after this task: 1 Discord bridge process, 1 KOOK bridge process (or explicit deferral), 1 coord process, 1 agentd process per agent, bridge code does not call make_adapter().",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.1-single-host-n-plus-m-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-08",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+        "updated_at": "2026-06-08"
+      },
+      "artifacts": {
+        "review_context": "docs/project-harness/tasks/phase-7.1-single-host-n-plus-m-runtime/review-feedback-2026-06-09-operator-postcloseout.md",
+        "branch": "agents/mac-claude/phase-7.1.1-single-platform-bridge-process",
+        "plan": "docs/project-harness/tasks/phase-7.1.1-single-platform-bridge-process/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "multinexus 269/269 pass, coord 731/731 pass, 6-process N+M topology, e2e job done in 11.6s",
+      "review": {
+        "decision": "approved",
+        "reviewer": "operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-08",
+        "summary": "Approved with documented caveats. 7.1.1 plan main goals achieved: bridge merged to 1 process per platform, agentd remains 1 process per agent. 269/269 tests pass (258 legacy + 11 new). ps shows 6 processes (1 coord + 1 discord-bridge + 4 agentd). End-to-end smoke via coord CLI request submit / agentd claim / claude CLI / report done all pass in 11.6s. KOOK bridge / cross-agent mention / Discord real-message-reply deferred per plan. Self-review caveat: codex unavailable, omp plan review was operator-authored (see review-feedback-2026-06-09-omp-plan.md); operator-needs-backlog entry filed for per-plan-criterion review checklist."
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "operator-handoff-7.1.1",
+        "acquired_at": "2026-06-08T17:15:04Z",
+        "expires_at": "2026-06-08T19:15:04Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-08T18:09:10Z"
+      }
+    },
+    {
+      "id": "phase-8-github-automation-loop",
+      "title": "Phase 8 GitHub Automation Loop",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-github-automation-loop/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-github-automation-loop/plan.md. MVP must scan own-repo GitHub issues, route them through operator triage, assign worker tasks, require the worker host to push its own branch, let coordinate verify/link/create PRs, and preserve the human merge gate.",
+      "blocked_by": [
+        "phase-7.2-multi-host-agent-runtime"
+      ],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-7.2-multi-host-agent-runtime"
+      ],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "source_plan": "/Users/yinxin/.claude/plans/frolicking-popping-llama.md",
+        "plan": "docs/project-harness/tasks/phase-8-github-automation-loop/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8-preflight-dogfood-cleanup",
+      "title": "Phase 8 Preflight Dogfood Cleanup",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md. The task must make live policy pumping safe, prevent task handoff when the target checklist item is missing or unmutable, and synchronize dogfood-feedback.md statuses without touching tokens, deployment services, or real agents.toml.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/plan.md",
+        "worker_bootstrap": "docs/project-harness/tasks/phase-8-preflight-dogfood-cleanup/worker-bootstrap.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8-host-profile-handoff-smoke",
+      "title": "Phase 8 Host Profile Handoff Smoke",
+      "status": "todo",
+      "priority": "p0",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md",
+      "acceptance": "Use the smoke acceptance criteria as source of truth: docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md. Worker must only report path/branch/bootstrap observations and must not edit files, commit, push, or restart services.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-17",
+      "workflow": {
+        "status": "released",
+        "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup",
+        "updated_at": "2026-06-17"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8-host-profile-handoff-smoke/plan.md",
+        "branch": "agents/mac-claude/phase-8-preflight-dogfood-cleanup"
+      },
+      "verification": "",
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "operator",
+        "session": "host-profile-smoke-20260617",
+        "acquired_at": "2026-06-17T10:46:37Z",
+        "expires_at": "2026-06-17T12:46:37Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-17T10:49:08Z"
+      }
+    },
+    {
+      "id": "phase-8.3.1-harness-source-boundary",
+      "title": "Phase 8.3.1 Harness Source Boundary and Sidecar Workspace Rules",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-23T02:15:33Z",
+      "workflow": {
+        "status": "closed",
+        "branch": null,
+        "updated_at": "2026-06-23T02:15:33Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.3.1-harness-source-boundary/plan.md"
+      },
+      "verification": "Reconciled 2026-06-23: cloud DB already task.done (historical), local checklist was stale todo. Fixed via host-aware mark-done (phase-8.4.4 tool).",
+      "review": {}
+    },
+    {
+      "id": "phase-8.3.2-a0-materialization-dogfood",
+      "title": "Phase 8.3.2 A0 Materialization Dogfood",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-18T05:00:51Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-18T05:00:51Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.3.2-a0-materialization-dogfood/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8.4-worker-push-pr-creation",
+      "title": "Phase 8.4 Worker Push And PR Creation",
+      "status": "todo",
+      "priority": "p1",
+      "owner": "mac-claude",
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md. MVP must let a coding host's `coordinate pr publish` verify remote ref SHA via `gh api`, idempotently create-or-link a GitHub PR (with head_owner forced equal to repo owner), and forward the PublishResult JSON to `coordinate pr publish-record --result-json` so the remote DB's tasks row gets the PR URL upserted. The remote sink is record-only and never invokes `gh`. CLI must exit non-zero on push_required/publish.blocked so CI / harnessctl can fail-fast. Existing CI/review/merge gate untouched.",
+      "blocked_by": [
+        "phase-8.3.2-a0-materialization-dogfood"
+      ],
+      "blocked_reason": "",
+      "dependencies": [
+        "phase-8.3.2-a0-materialization-dogfood"
+      ],
+      "handoff": {
+        "from": null,
+        "to": "mac-claude",
+        "reason": "Phase 8.4 vertical slice"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-18",
+      "workflow": {
+        "status": "todo",
+        "branch": "agents/mac-claude/phase-8.4-worker-push-pr-creation",
+        "updated_at": "2026-06-18"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md",
+        "worker_bootstrap": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/worker-bootstrap.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8.4-closeout-dogfood-refactor",
+      "title": "Phase 8.4 Closeout Dogfood And Boundary Refactor",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
+      "acceptance": "Use docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md as source of truth. Complete Phase 8.4 correctness with a persistent independent reviewer loop, prove the real host/server publish path with one non-merged dogfood PR plus a fresh-host idempotent replay, and refactor the identified coordinate/multinexus boundaries without changing public CLI, event, database, or adapter contracts.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": "mac-claude",
+        "to": "codex",
+        "reason": "User-authorized operator takeover for Phase 8.4 closeout, dogfood, and refactor"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-22",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/codex/phase-8.4-closeout",
+        "updated_at": "2026-06-22"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4-closeout-dogfood-refactor/plan.md",
+        "source_phase_plan": "docs/project-harness/tasks/phase-8.4-worker-push-pr-creation/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "coordinate 1087 OK; multinexus 319 OK (2 skipped); both harness validate/doctor and git diff --check clean; real PR #1 open/unmerged; reviewer approved",
+      "review": {
+        "decision": "approved",
+        "reviewer": "phase84_reviewer",
+        "phase": "closeout_requested",
+        "updated_at": "2026-06-22",
+        "summary": "Persistent reviewer approved final refactor heads bcad055 and dc02a78; no actionable P1/P2"
+      },
+      "lease": null
+    },
+    {
+      "id": "phase-8.4.2-contracts-function-decomposition",
+      "title": "Phase 8.4.2 Stable Contracts And Function Decomposition",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-22T06:18:49Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-22T06:18:49Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8.4.4-host-aware-mark-done",
+      "title": "Phase 8.4.4 Host-Aware Mark-Done (Reconcile Drift)",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md",
+      "acceptance": "Use docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md as source of truth. Add mark-done-files (local checklist write, no DB) + mark-done-record (cloud DB idempotent task.done, no local file) host-aware split, mirroring materialize-files/materialize-record. Goal: operator can reconcile drift (cloud DB done but local checklist todo) without editing JSON or bare harnessctl. Non-goal: C1 generic host-aware framework (separate task). Worker: omp. Reviewer: opencode.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood: omp as worker, opencode as reviewer"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-23T02:14:14Z",
+      "workflow": {
+        "status": "closed",
+        "branch": null,
+        "updated_at": "2026-06-23T02:14:14Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.4.4-host-aware-mark-done/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "opencode code review approved (round-1): 1141 tests, 4 must-fix resolved, 17 tests cover Workstream A/B, no correctness bugs. omp worker implementation. Reconciled via host-aware mark-done (self-bootstrap).",
+      "review": {
+        "decision": null,
+        "reviewer": "opencode"
+      }
+    },
+    {
+      "id": "phase-8.5-reviewer-handoff-role",
+      "title": "Phase 8.5 Reviewer Handoff Role (reviewer 走 handoff)",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md",
+      "acceptance": "Use docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md as source of truth. Let reviewer go via [handoff] role=reviewer (Discord visible, reviewer bot self-sends review), not runtime request submit. coordinate task handoff --role {worker,reviewer} + reviewer bootstrap; multinexus parses role=reviewer + reviewer [agent-report] decision. Non-goal: full role generalization. Worker: omp, reviewer: opencode.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood: omp worker, opencode reviewer"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-23",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-06-23"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.5-reviewer-handoff-role/plan.md"
+      },
+      "verification": "",
+      "review": {}
+    },
+    {
+      "id": "phase-8.6-return-delivery",
+      "title": "Phase 8.6 Return Delivery (agent done → pending operator action)",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.6-return-delivery/plan.md",
+      "acceptance": "Use plan as source of truth. agent done → agent.reported event + pending operator action; operator queries pending to advance (no manual job list polling). Semi-auto (human stays in loop). Non-goal: full auto operator loop. Worker: omp.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-23T08:19:29Z",
+      "workflow": {
+        "status": "closed",
+        "branch": null,
+        "updated_at": "2026-06-23T08:19:29Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.6-return-delivery/plan.md"
+      },
+      "verification": "phase-8.6 回程 delivery 自举成功 (operator pending). 2 code review bug 修 (runtime dedup + action==done). 1158 tests.",
+      "review": {}
+    },
+    {
+      "id": "phase-8.7-worker-self-test",
+      "title": "Phase 8.7 Worker Self-Test Before Closeout (根因)",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.7-worker-self-test/plan.md",
+      "acceptance": "worker closeout 前 deploy + 自举 + self_test_evidence. 解决 omp 反复没自举就 closeout 藏 bug. Worker: omp.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-24T15:18:41Z",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-opencode/phase-8.7-worker-self-test",
+        "updated_at": "2026-06-24T15:18:41Z",
+        "handoff_from": "mac-opencode",
+        "handoff_target": "mac-omp"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.7-worker-self-test/plan.md",
+        "branch": "agents/mac-opencode/phase-8.7-worker-self-test",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+      },
+      "verification": "#7 work (operator self-test: pending+bootstrap+evidence field). soft reminder insufficient → hard gate next task.",
+      "review": {
+        "decision": null,
+        "reviewer": "mac-opencode",
+        "phase": "running",
+        "updated_at": "2026-06-24",
+        "summary": "ROUND-1 APPROVE with notes. Motivation is real and well-evidenced (phase-8.5/8.6 藏 bug 是 operator 实测才发现的). Root cause analysis correct: 单测覆盖不了 daemon/bridge 长进程集成 bug. Design pragmatic: 半自动 + 证据 (不硬 gate) 适合 first version (硬 gate 留后续). WS-A/B/C 范围合理 (bootstrap 协议 + packet schema + reviewer 检查). Open questions answered: (a) e2e scope = 本 task 的新链路 (per plan); (b) e2e fail → worker 修 → re-self-test → evidence 更新, 不能修就 escalate operator; (c) 首版对所有 task 应用, plan-only/refactor 由 reviewer 在 bootstrap 显式标记 skip; (d) evidence 真实性 = reviewer spot-check (e.g., ssh kook-hermes-admin cat /opt/multinexus/VERSION_DEPLOYED) + 必填 raw e2e 输出 (非 summary). Recommended edits (must-fix before closeout, not blocking implementation): edit-1 Workstream B 加 'Self-Test Failure Handling' 子节 (worker 修+re-evidence 或 escalate, 不 auto-approve with failing e2e); edit-2 self_test_evidence schema 加 raw_e2e_output 字段 (必填, 非 summary) 让 reviewer spot-check; edit-3 在 WS-A bootstrap 加 'applies_to=code_change_tasks' 标记 (plan-only/refactor 显式 skip, reviewer 看到 skip 原因). Plan ready for implementation. Dogfood (this task self-tests) noted — watch for circular dependency."
+      },
+      "lease": {
+        "owner": "mac-opencode",
+        "session": "review-1782306652",
+        "acquired_at": "2026-06-24T13:10:57Z",
+        "expires_at": "2026-06-24T15:10:57Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-24T13:12:24Z"
+      }
+    },
+    {
+      "id": "phase-8.8-daemon-decision-runtime",
+      "title": "Phase 8.8 Daemon decision= Runtime Path (可见性核心)",
+      "status": "done",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/phase-8.8-daemon-decision-runtime/plan.md",
+      "acceptance": "runtime job [agent-report] decision= → review.completed 自动 + Discord 可见 + operator 收到 (不挖 job list). 解 report_job_result response_text decision=. Worker: omp/opencode.",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": "mac-omp",
+        "reason": "dogfood"
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-06-25T01:27:25Z",
+      "workflow": {
+        "status": "closed",
+        "branch": "agents/mac-opencode/phase-8.8-daemon-decision-runtime",
+        "updated_at": "2026-06-25T01:27:25Z",
+        "handoff_from": "mac-opencode",
+        "handoff_target": "mac-omp"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/phase-8.8-daemon-decision-runtime/plan.md",
+        "branch": "agents/mac-opencode/phase-8.8-daemon-decision-runtime",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md"
+      },
+      "verification": "phase-8.8 daemon decision= runtime. operator impl + self-test. 89 tests OK.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "mac-opencode",
+        "phase": "running",
+        "updated_at": "2026-06-24",
+        "summary": "ROUND-1 APPROVE with answers to 3 open questions + minor edits. Motivation is real and well-evidenced (phase-8.5/8.6/8.7 都实测过 review 意见埋 job result + Discord 看不到 + operator 手动挖 job list — 这是用户最初诉求的最终一块). Root cause: daemon _parse_agent_report 只解 Discord 消息, runtime report_job_result 没接同一解析. Q1 (helper 位置) = SHARED MODULE (抽 coordinate/parsing/agent_report.py 或类似, daemon + runtime 复用, 单一 source of truth). Q2 (trigger 层) = DAEMON PUMP (report_job_result 只 emit raw agent.reported with decision in payload; daemon pump 这条 event, 当 decision=approve/reject 时 emit review.completed/review.rejected — 解耦, 符合现有 daemon 路由架构, 避免 runtime 直接做 lifecycle mutation). Q3 (renderer) = EXTEND agent.reported policy renderer 加 decision 字段 (source=runtime 时显示), review.completed 保留自己 renderer (两 event 两 delivery 都渲染, 一致). WS-A/B/C 范围合理, 与 phase-8.6 awaiting_operator 协调明确 (review decision 走 review.completed, worker done 走 awaiting_operator). 推荐 edits (worker 实现前 absorb): edit-1 WS-A 加 'multiple [agent-report] blocks' 处理 (取最后一个含 decision 的; latest intent wins); edit-2 WS-A 加 strict enum validation (decision ∈ {approve, reject, blocked}; unknown → log warning + fallback no-decision, treat as action=done awaiting_operator); edit-3 worker bootstrap 加 reminder 提示 worker 仍用 [agent-report] decision= 格式 (runtime 解析依赖); edit-4 daemon pump 测试覆盖 concurrency (multiple agent.reported for same task 应 idempotent, source-specific key per phase-8.6). Non-goals 合理 (不动 Discord 路径 / reviewer handoff / awaiting_operator). dogfood (本 task 用 reviewer handoff 验证 Discord 可见 review 意见) 设计扎实."
+      },
+      "lease": {
+        "owner": "mac-opencode",
+        "session": "review-1782315152",
+        "acquired_at": "2026-06-24T15:32:34Z",
+        "expires_at": "2026-06-24T17:32:34Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-06-24T15:34:49Z"
+      }
+    }
+  ]
+}

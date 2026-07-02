@@ -1,4 +1,4 @@
-"""SQLite persistence layer with aiosqlite for discord-nexus.
+"""SQLite persistence layer with aiosqlite for multinexus.
 
 Stores conversation history, job tracking, agent workspaces, audit logs,
 session/plan state, and memory. Shared DB is in data/nexus.db by default.
@@ -33,7 +33,7 @@ def get_shared_db_path() -> Path:
 def resolve_private_db_path() -> Path:
     """Resolve PRIVATE_DB_PATH from environment.
 
-    The path must point to a file inside a directory named "discord-nexus"
+    The path must point to a file inside a directory named "multinexus"
     and must not be inside the repo root. This ensures private data is stored
     separately from git-tracked files.
 
@@ -49,10 +49,10 @@ def resolve_private_db_path() -> Path:
         inside_repo = True
     except ValueError:
         inside_repo = False
-    if inside_repo or path.parent.name != "discord-nexus":
+    if inside_repo or path.parent.name != "multinexus":
         raise RuntimeError(
             f"PRIVATE_DB_PATH invariant violated: {path}\n"
-            "Path must be outside the repo root and inside a 'discord-nexus' directory.\n"
+            "Path must be outside the repo root and inside a 'multinexus' directory.\n"
             "Example: /home/youruser/.private/discord-nexus/private.db"
         )
     return path
@@ -336,7 +336,7 @@ def _caller_value(value: Any) -> str:
 
 
 class Database:
-    """Async SQLite database wrapper for discord-nexus.
+    """Async SQLite database wrapper for multinexus.
 
     Parameters:
         db_path:              Path to the SQLite database file.

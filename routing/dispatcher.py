@@ -1,4 +1,4 @@
-"""Command parsing, agent routing, and channel resolution for discord-nexus.
+"""Command parsing, agent routing, and channel resolution for multinexus.
 
 Handles !bang command parsing (e.g. !claude, !c, !codex, !all) and resolves
 which agent(s) should respond in a given channel.

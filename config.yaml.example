@@ -1,4 +1,4 @@
-# discord-nexus config.yaml.example
+# multinexus config.yaml.example
 # Copy this to config.yaml and fill in your values.
 # Never commit config.yaml — it may contain real channel/user IDs.
 

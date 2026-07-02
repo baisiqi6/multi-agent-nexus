@@ -1,4 +1,4 @@
-"""discord-nexus — main entry point.
+"""multinexus — main entry point.
 
 A modular Discord multi-agent bot framework connecting Claude Code CLI,
 Codex CLI, and local LLMs (LM Studio, Ollama, etc.) to Discord.
@@ -49,7 +49,7 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ATTACHMENTS_TEMP_DIR = os.path.join(DATA_DIR, "temp", "attachments")
 LOG_DIR = os.path.join(DATA_DIR, "logs")
 setup_logging(LOG_DIR)
-log = logging.getLogger("discord-nexus")
+log = logging.getLogger("multinexus")
 
 # Load config
 with open("config.yaml") as f:
@@ -74,7 +74,7 @@ intents.message_content = True
 # --- Bot ---
 
 class NexusBot(discord_commands.Bot):
-    """Main bot class for discord-nexus.
+    """Main bot class for multinexus.
 
     Loads agents from config.yaml and exposes them to cogs.
     Add new agents in the __init__ agents dict below.
