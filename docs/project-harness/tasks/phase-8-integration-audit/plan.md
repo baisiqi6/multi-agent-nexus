@@ -139,7 +139,7 @@ from a stale plan.md. Strategy conclusions are appended after review.
   mechanically a **fast-forward** — no possible main-side conflicts.
 - coordinate: INT (`4ac774e`) = long (`cbab1c5`) + 4 recovery; long is an ancestor of
   INT (no divergence). INT is the complete branch; main can FF directly to INT (+135).
-- multinexus: long history has 4 merge commits; INT (`c91631a`) and long (`57083c9`)
+- multinexus: long history has 4 merge commits; INT (`c91631a`) and long (`525eba6`)
   **diverged** from `1c5c798`.
 - The §2 "merge conflict risk" files were 8.4.2↔8.4.3 overlap, resolved in Step 2 —
   not a main-merge risk.
@@ -157,16 +157,80 @@ Neither alone FFs to a complete state. Reconcile first, then FF main.
    INT's recovery onto long).
 3. FF vs `--no-FF` (linear history vs an explicit integration merge commit for audit/rollback).
 
+### Step 4 decision proposal — PENDING APPROVAL (proposed 2026-07-02; not final, not executed)
+
+Strategy recommendation for review. **Nothing below has been executed** (no merge, no push,
+no deploy, no mark-done; 8.4.3 orig branches not deleted). Becomes a final decision only
+after human + Codex approval. Resolves the three pending decisions above into recommendations.
+
+**Layer 1 — Git facts (VERIFIED 2026-07-02):**
+- main is a pure ancestor of long/INT on both repos; main-side divergence = 0; merge to
+  main is mechanically a fast-forward with no main-side conflicts.
+- coordinate: INT (`4ac774e`) = long (`cbab1c5`) + 4 recovery; long is an ancestor of INT
+  (no INT↔LONG divergence). INT history is fully linear (0 merge commits).
+- multinexus: INT (`c91631a`) ↔ long (`525eba6`) diverged from `1c5c798`; INT has 5
+  recovery commits long lacks, long has 5 audit-docs INT lacks. The two sets touch
+  **disjoint files** (recovery = code under `agentd/`/`adapters/`/`client.py`/tests; docs =
+  `project-harness/*.md`), so merging them is conflict-free (verified via file-intersection).
+
+**Layer 2 — Recommendation:**
+1. **Whole-branch single landing** (not batched). main is a pure ancestor (0 divergence ⇒
+   no conflict risk for batching to reduce); the long branch is one coherent validated unit
+   (all Phase 8 tasks durable-done; 8.4.2 lifecycle closed Step 1; 8.4.3 recovery cherry-picked
+   + smoke-validated Steps 2/3). Batched FF does not improve bisect (history preserved either
+   way) and only adds operational surface. Batching is justified only for staged deploy +
+   observation — a separate (prohibited here) deploy decision.
+2. **multinexus: merge INT → long** (feature recovery returns to the durable integration
+   trunk; not docs→INT, not rebase/cherry-pick). Conflict-free (disjoint files); reuses the
+   exact Step-2-validated recovery SHAs; consistent with long's existing merge-commit style.
+3. **main landing: `--no-FF` merge commit** (both repos). For a +131/+230 milestone on shared
+   `origin/main`, `git revert -m 1 <merge>` is the only clean non-destructive post-push
+   rollback; cost is one merge commit per repo.
+   - **Caveat / fallback:** if a repo or its branch protection enforces linear history, use
+     **FF + annotated tag** (`git tag -a phase-8-integration <HEAD>`) as the audit/rollback
+     anchor (rollback = reset to pre-tag). **Default remains `--no-FF`** — non-destructive
+     rollback of a large shared main outweighs linear-history purity.
+- Trunk tidiness (optional): advance `long` to include recovery first (coordinate: trivial
+  `--ff-only` since long is INT's ancestor; multinexus: the INT→long merge above), then land
+  main from `long`, so `long` stays the canonical integration source that production tracks.
+
+**Command plan (NOT executed — for review):**
+- coordinate: `long` ← `--ff-only INT` (optional, tidy); then `main` ← `--no-ff long`
+  ("Merge Phase 8 integration (8.4.2 trunk + 8.4.3 recovery) into main").
+- multinexus: `long` ← `--no-ff INT` ("merge Phase 8.4.3 recovery into integration trunk");
+  gate (full suite + `harnessctl validate`); then `main` ← `--no-ff long` ("Merge Phase 8
+  integration … into main").
+
+**Gates before each push (push is user-gated, separate):**
+- After multinexus reconcile: multinexus full suite (baseline 341 passed/2 skipped) +
+  `harnessctl validate`/`doctor`; confirm `merge-base --is-ancestor origin/main HEAD`.
+- After each main merge (local, pre-push): full suite + `harnessctl validate` on main tip;
+  `git show --stat <merge>` sanity; optional Step 3 smoke rerun on main tip.
+- Re-verify `origin/main` ancestry if anyone pushed main in between.
+
+**Rollback / stop conditions:**
+- Any gate red → stop, do not push main.
+- Unexpected conflict in multinexus reconcile (disjoint files, should not happen) → stop.
+- Pre-push rollback: `git reset --hard origin/main` (discards local merge commit).
+- Post-push rollback: `git revert -m 1 <merge-commit>` (the --no-FF benefit; non-destructive).
+- Deploy is a separate gated step (`deploy-server.sh`); main merge does NOT auto-deploy.
+
+**Layer 3 — Approval gate: PENDING human + Codex approval.**
+No merge / push / deploy / mark-done executed. Next action (after this proposal is landed +
+pushed): pre-execution final review, then await explicit approval before any merge.
+
 ### Pre-state for Step 4 (next session)
 
 - Steps 2+3 done and pushed: `agents/mac-codex/phase-8-integration` coordinate `4ac774e`
   / multinexus `c91631a` (smoke-verified). See `step-2-integration-report.md` and
   `step-3-recovery-smoke-report.md`.
-- coordinate long `cbab1c5` (synced); multinexus long includes Step 2/3 audit docs plus
-  Step 4 decision-input docs (synced after push).
+- coordinate long `cbab1c5` (synced); multinexus long `525eba6` (synced, includes Step 2/3
+  audit docs + Step 4 decision-input/proposal docs).
+- A Step 4 decision **proposal** is recorded above (whole-branch + multinexus INT→long +
+  main `--no-FF`), status **PENDING APPROVAL — not final, not executed**.
 - Nothing merged to main; nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
-- Step 4 = decide the 3 pending items above (drive from this document; do not merge/deploy
-  without explicit review). Codex review of Step 2/3 outputs is the stated prerequisite.
+- Next: pre-execution final review, then await explicit human + Codex approval before any
+  merge. Do not merge/deploy from chat context alone — drive from this document.
 
 ## 6. Prohibitions (this task)
 
