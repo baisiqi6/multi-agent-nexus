@@ -52,7 +52,7 @@ task and will span sessions; without persistence the context will be lost.
 - long ahead of main: **+230**; INT ahead of main: **+230**
 - main↔long divergence: **0** → main is a pure ancestor of long
 - long history main..long: 4 merge commits / 230
-- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 5 audit-docs INT lacks
+- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 6 audit-docs/proposal commits INT lacks
 - (historical 8.4.2↔8.4.3) merge-base: `2cc9b21b5`
 
 ### Merge conflict risk — 8.4.2 ↔ 8.4.3 only (RESOLVED in Step 2)
@@ -146,8 +146,8 @@ from a stale plan.md. Strategy conclusions are appended after review.
 
 **multinexus wrinkle (must resolve before merging to main):** INT and long diverged
 from `1c5c798`. INT has 5 recovery commits long lacks (`2473883`/`7cfde2d`/`343fa64`/
-`159c3b3`/`c91631a`); long has 5 audit-docs INT lacks (`dc47361`/`f70fc24`/`57083c9`/
-`ff14aab` plus this docs-only count correction).
+`159c3b3`/`c91631a`); long has 6 audit-docs/proposal commits INT lacks
+(`dc47361`/`f70fc24`/`57083c9`/`ff14aab`/`525eba6`/`e730807`).
 Neither alone FFs to a complete state. Reconcile first, then FF main.
 
 **Three pending decisions (status: pending — NOT decided here):**
@@ -168,8 +168,8 @@ after human + Codex approval. Resolves the three pending decisions above into re
   main is mechanically a fast-forward with no main-side conflicts.
 - coordinate: INT (`4ac774e`) = long (`cbab1c5`) + 4 recovery; long is an ancestor of INT
   (no INT↔LONG divergence). INT history is fully linear (0 merge commits).
-- multinexus: INT (`c91631a`) ↔ long (`525eba6`) diverged from `1c5c798`; INT has 5
-  recovery commits long lacks, long has 5 audit-docs INT lacks. The two sets touch
+- multinexus: INT (`c91631a`) ↔ long (`e730807`) diverged from `1c5c798`; INT has 5
+  recovery commits long lacks, long has 6 audit-docs/proposal commits INT lacks. The two sets touch
   **disjoint files** (recovery = code under `agentd/`/`adapters/`/`client.py`/tests; docs =
   `project-harness/*.md`), so merging them is conflict-free (verified via file-intersection).
 
@@ -224,7 +224,7 @@ pushed): pre-execution final review, then await explicit approval before any mer
 - Steps 2+3 done and pushed: `agents/mac-codex/phase-8-integration` coordinate `4ac774e`
   / multinexus `c91631a` (smoke-verified). See `step-2-integration-report.md` and
   `step-3-recovery-smoke-report.md`.
-- coordinate long `cbab1c5` (synced); multinexus long `525eba6` (synced, includes Step 2/3
+- coordinate long `cbab1c5` (synced); multinexus long `e730807` (synced, includes Step 2/3
   audit docs + Step 4 decision-input/proposal docs).
 - A Step 4 decision **proposal** is recorded above (whole-branch + multinexus INT→long +
   main `--no-FF`), status **PENDING APPROVAL — not final, not executed**.
