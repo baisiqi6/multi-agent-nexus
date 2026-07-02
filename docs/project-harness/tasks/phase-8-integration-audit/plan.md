@@ -13,7 +13,7 @@ task and will span sessions; without persistence the context will be lost.
 
 - Main integration is complete on both repos.
 - 8.4.2 lifecycle was reconciled after the main landing.
-- Do NOT deploy unless separately approved.
+- Server deployment was explicitly approved and completed on 2026-07-02.
 - Do NOT delete old 8.4.3 branches unless separately approved.
 - Do NOT rebase or rewrite shared history.
 
@@ -32,7 +32,7 @@ task and will span sessions; without persistence the context will be lost.
   branch merge.
 - 8.4.3 lifecycle is **done** (review.completed approved + task.done on 2026-06-30).
 - 8.4.2 lifecycle is **done** after post-integration reconciliation on 2026-07-02.
-- Deployment remains a separate explicit gate; no deploy was performed here.
+- Server deployment gate is **done** after explicit approval on 2026-07-02.
 
 ## 2. Branch facts
 
@@ -238,17 +238,41 @@ no deploy, no branch deletion.
   record commit; multinexus long = `1a77c65`; INT remains `c91631a`.
 - Both main landings used `--no-FF`. Long branches were pushed before main pushes.
 - 8.4.2 lifecycle was reconciled after this Step 4 merge record.
-- Nothing deployed; 8.4.3 orig branches not deleted.
-- Next: any deployment or branch cleanup must be a separate explicit decision.
+- Server deployment was completed after explicit approval; 8.4.3 orig branches not deleted.
+- Next: any branch cleanup must be a separate explicit decision.
+
+### Step 5 deployment record — DONE 2026-07-02
+
+Executed after explicit human approval to deploy. This deployment updated the Tencent Cloud
+A0 server copies and restarted server services through `scripts/deploy-server.sh`.
+
+**Server deployment:**
+- coordinate deployed from `/Users/yinxin/projects/worktrees/coordinate-main-phase8-merge`
+  at `1810fd5ff4d1e2df0aea6304783b55de61f61fd3`.
+- multinexus deployed from `/Users/yinxin/projects/worktrees/multinexus-main-phase8-merge`
+  at `8d898d4b564c09567b34d7a9ea8a528bb88a168f`.
+- `/opt/coordinate/VERSION_DEPLOYED` and `/opt/multinexus/VERSION_DEPLOYED` were updated.
+- `coordinate.service` and `multinexus-discord-bridge.service` are active.
+- `scripts/server-smoke.sh --since '1 min ago'` passed after deploy.
+
+**Local agentd deployment note:**
+- Server multinexus deploy does not update local macOS agentd processes.
+- Local `mac-codex.agentd`, `mac-omp.agentd`, and `mac-opencode.agentd` were reloaded
+  from `/Users/yinxin/projects/multinexus` and started with `recoverable=False`.
+- `mac-claude.agentd` was intentionally not loaded because the active coordinator DB still
+  contains two old `mac-claude` pending jobs from 2026-06-10 (attempt=0); loading it could
+  claim stale requests.
 
 ## 6. Remaining prohibitions after Step 4 execution
 
 Step 4 main integration is complete. Remaining actions are still explicitly out of scope
 unless separately approved:
-- no deploy
+- no further deploy
 - no branch deletion
 - no rebase / history rewrite
 - no additional main merges beyond this recorded Step 4 execution
 
-**Next step (separate approval):** decide whether to deploy and/or clean up old branches.
-Do not continue from chat context alone — drive it from this document.
+**Next step (separate approval):** decide whether to clean up old branches and whether to
+address the local agentd topology drift (`mac-claude.agentd` missing, legacy
+`multinexus.py --agent ...` processes still loaded). Do not continue from chat context alone —
+drive it from this document.

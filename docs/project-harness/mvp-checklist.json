@@ -829,7 +829,7 @@
         "plan": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "Phase 8.4.2 A/B/C verified and landed to main with 8.4.3 recovery integration: coordinate origin/main 1810fd5; multinexus main includes integration merge d405ccd and execution record cb5840d; coordinate 1200 passed/58 subtests; multinexus 343 OK/2 skipped; harness validate/doctor checked; no deploy performed.",
+      "verification": "Phase 8.4.2 A/B/C verified and landed to main with 8.4.3 recovery integration: coordinate origin/main 1810fd5; multinexus main includes integration merge d405ccd, execution record cb5840d, and closeout record 8d898d4; coordinate 1200 passed/58 subtests; multinexus 343 OK/2 skipped; harness validate/doctor checked; server deploy completed 2026-07-02 (coordinate 1810fd5, multinexus 8d898d4).",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
