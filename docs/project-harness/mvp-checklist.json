@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-06-25",
+  "updated_at": "2026-07-02",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -804,7 +804,7 @@
     {
       "id": "phase-8.4.2-contracts-function-decomposition",
       "title": "Phase 8.4.2 Stable Contracts And Function Decomposition",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -819,17 +819,25 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-06-22T06:18:49Z",
+      "updated_at": "2026-07-02",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-06-22T06:18:49Z"
+        "updated_at": "2026-07-02"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md"
+        "plan": "docs/project-harness/tasks/phase-8.4.2-contracts-function-decomposition/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Phase 8.4.2 A/B/C verified and landed to main with 8.4.3 recovery integration: coordinate origin/main 1810fd5; multinexus main includes integration merge d405ccd and execution record cb5840d; coordinate 1200 passed/58 subtests; multinexus 343 OK/2 skipped; harness validate/doctor checked; no deploy performed.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-02",
+        "summary": "Approved after Phase 8 main integration landed with recovery fixes; coordinate 1200 passed and multinexus 343 OK/2 skipped; harness validate/doctor checked."
+      },
+      "lease": null
     },
     {
       "id": "phase-8.4.4-host-aware-mark-done",

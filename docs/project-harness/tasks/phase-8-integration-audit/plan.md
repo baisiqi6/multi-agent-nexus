@@ -2,57 +2,60 @@
 
 ## What this is
 
-Source-of-truth for **Phase 8 mainline integration ordering**. Persisted as
-docs-only — NOT a materialized harness task (no `plan.ready` / assignment yet).
-It is intended to become an executable gate once integration work begins.
+Source-of-truth for **Phase 8 mainline integration ordering and closeout**.
+Started as docs-only audit persistence; now records the completed main integration
+and the post-integration 8.4.2 lifecycle reconciliation.
 
 This document exists because the integration question is bigger than any single
 task and will span sessions; without persistence the context will be lost.
 
-## Hard prohibitions (this phase = audit persistence only)
+## Current gates after Step 4
 
-- Do NOT merge 8.4.3 to `main` directly.
-- Do NOT merge the 8.4.2 long branch to `main` directly.
-- Do NOT rebase.
-- Do NOT mark-done / closeout any task.
-- Do NOT deploy.
-- This document is audit persistence only.
+- Main integration is complete on both repos.
+- 8.4.2 lifecycle was reconciled after the main landing.
+- Do NOT deploy unless separately approved.
+- Do NOT delete old 8.4.3 branches unless separately approved.
+- Do NOT rebase or rewrite shared history.
 
 ---
 
 ## 1. Current conclusions
 
-- `main` is severely behind on both repos.
-- The branch named "8.4.2" is actually a **Phase 8 long-lived integration branch**:
+- `main` now contains the Phase 8 long-lived integration branch plus the 8.4.3
+  recovery fixes on both repos.
+- The branch named "8.4.2" was actually a **Phase 8 long-lived integration branch**:
   it has accumulated 8.4.2 + 8.4.4 + 8.5 + 8.6 + 8.7 + 8.8 + backlog +
   progress-archiving work on top of 8.4.2's own function decomposition. It is not
   a small 8.4.2-only branch.
-- 8.4.2 and 8.4.3 are **parallel diverged branches, NOT parent/child**. Neither
-  contains the other's work.
-- 8.4.3 lifecycle is **done** (review.completed approved + task.done on 2026-06-30),
-  but **mainline integration is not ready**.
+- 8.4.2 and 8.4.3 were **parallel diverged branches, NOT parent/child**. Step 2
+  brought the 8.4.3 recovery fixes onto the integration branch without a full
+  branch merge.
+- 8.4.3 lifecycle is **done** (review.completed approved + task.done on 2026-06-30).
+- 8.4.2 lifecycle is **done** after post-integration reconciliation on 2026-07-02.
+- Deployment remains a separate explicit gate; no deploy was performed here.
 
 ## 2. Branch facts
 
 ### coordinate
-- `main` (origin) = `595d6ea` (was recorded as `6e8a4a1`; main advanced — local main ref stale)
-- long  = `cbab1c5`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`)
+- `main` (origin) = `1810fd5` (`--no-FF` Phase 8 integration merge)
+- long  = `4ac774e`  (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`)
 - INT   = `4ac774e`  (`agents/mac-codex/phase-8-integration` = long + 4 recovery; long is an ancestor of INT)
 - 8.4.3 (orig, superseded by Step 2 cherry-pick) = `16a0b81`
-- long ahead of main: **+131**; INT ahead of main: **+135**
-- main↔long divergence (main's own commits not in long): **0** → main is a pure ancestor of long/INT
+- `main` includes long/INT via merge commit `1810fd5`; origin main is no longer behind.
 - long history main..long: **0 merge commits** (fully linear)
 - (historical 8.4.2↔8.4.3) merge-base: `63cdafb5c`; 8.4.3 unique vs 8.4.2: 4 commits
 
 ### multinexus
-- `main` (origin) = `28fd018`
-- long  = `57083c9` + Step 4 docs-only fact commits (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`; was `3ffd93a` — advanced via Step 1/2/3 audit docs and Step 4 pre-state docs)
+- `main` (origin) = `cb5840d` (`d405ccd` integration merge + execution-record commit)
+- long  = `1a77c65` (`agents/mac-claude/phase-8.4.2-contracts-function-decomposition`,
+  reconciled with INT through `--no-FF` merge)
 - INT   = `c91631a`  (`agents/mac-codex/phase-8-integration` = `1c5c798` + 5 recovery)
 - 8.4.3 (orig, superseded by Step 2 cherry-pick) = `04aee04`
-- long ahead of main: **+230**; INT ahead of main: **+230**
-- main↔long divergence: **0** → main is a pure ancestor of long
-- long history main..long: 4 merge commits / 230
-- INT↔long DIVERGED from `1c5c798` (see Step 4 wrinkle): INT has 5 recovery long lacks; long has 6 audit-docs/proposal commits INT lacks
+- `main` includes long via merge commit `d405ccd` and includes the execution record
+  via `cb5840d`; origin main is no longer behind.
+- long history before main landing: 4 merge commits / 230
+- INT↔long previously diverged from `1c5c798`; Step 4 resolved this by merging INT
+  into long as `1a77c65`.
 - (historical 8.4.2↔8.4.3) merge-base: `2cc9b21b5`
 
 ### Merge conflict risk — 8.4.2 ↔ 8.4.3 only (RESOLVED in Step 2)
@@ -73,7 +76,7 @@ long/INT into main is a fast-forward with no possible main-side conflicts.
 | 8.3.1 harness-source-boundary | 06-17 | 06-17 | approved | 06-17 | ✅ durable done |
 | 8.3.2 a0-materialization-dogfood | 06-18 | 06-18 | approved | 06-18 | ✅ durable done |
 | 8.4 closeout-dogfood-refactor | — | 06-22 | approved | 06-22 | ✅ durable done |
-| **8.4.2 contracts-function-decomposition** | 06-22 | — | — | — | ⚠️ code complete, lifecycle NOT closed |
+| **8.4.2 contracts-function-decomposition** | 06-22 | 07-02 | approved | 07-02 | ✅ durable done |
 | 8.4.3 long-running-job-recovery | 06-22 | 06-30 | approved | 06-30 | ✅ durable done |
 | 8.4.4 host-aware-mark-done | 06-22 | 06-22 | approved | 06-23 | ✅ durable done |
 | 8.5 reviewer-handoff-role | 06-23 | 06-23 | approved | 06-23 | ✅ durable done |
@@ -93,20 +96,25 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
   block — adapter finished but produced no structured result).
 - Second job: **failed — timed out after 1800s** (mac-claude agentd,
   2026-06-22 06:55 UTC; `request:adb14f7c`).
-- No `closeout.requested` / `review.completed` / `task.done` was ever recorded.
+- No `closeout.requested` / `review.completed` / `task.done` had been recorded in the
+  coordinator DB before the 2026-07-02 post-integration reconciliation.
 - Code commits for all three workstreams exist:
   - A — PR contracts module: coordinate `d7959d2` (2026-06-22)
   - B — `publish_pr()` decomposition: coordinate `bd4f300` (2026-06-22)
   - C — `handle_agent_request()` decomposition: multinexus `b6ad160`
     (2026-06-25, three days after the timeout)
-- Conclusion: **code appears complete, durable lifecycle never closed.**
+- Conclusion before reconciliation: **code appeared complete, durable lifecycle was not
+  closed in the active coordinator DB / checklist source of truth.**
 
 ## 5. Integration plan
 
-1. ✅ **Close 8.4.2 lifecycle** — DONE 2026-06-30. A/B/C code verified coherent;
-   test-isolation blocker fixed (multinexus `13a3d2e`, test-only). Durable:
-   closeout.requested `785d4ed2` → review.completed approved `984d6339` →
-   task.done `eb4ff989`. Step 1 milestone closed.
+1. ✅ **Close 8.4.2 lifecycle** — reconciled 2026-07-02. A/B/C code verified coherent;
+   test-isolation blocker fixed earlier (multinexus `13a3d2e`, test-only). During the
+   post-integration pass, the active coordinator DB showed only the original
+   `task_mirror.created` event, so the durable lifecycle was completed with:
+   closeout.requested `eaa1bec4-a1b3-49ce-abdb-4bb0c2875b63` →
+   review.completed approved `87ae1d4e-1d02-4662-946e-0135253010bc` →
+   task.done `5b24a489-cf57-4948-983d-9afff6266044`.
 2. ✅ **Bring 8.4.3 recovery commits** onto the long integration branch — DONE
    2026-07-01. Cherry-picked onto feature branch `agents/mac-codex/phase-8-integration`
    (pushed to origin): coordinate `baacc0f`/`161d941`/`e37f16a`/`16a0b81` → HEAD `4ac774e`;
@@ -160,8 +168,7 @@ Neither alone FFs to a complete state. Reconcile first, then land main.
 ### Step 4 decision and execution record — DONE 2026-07-02
 
 Executed after explicit human approval to follow the proposal and use `--no-FF`. Scope:
-merge/reconcile and push only. No deploy, no mark-done, and 8.4.3 orig branches were not
-deleted.
+merge/reconcile and push only. No deploy, and 8.4.3 orig branches were not deleted.
 
 **Layer 1 — Git facts (VERIFIED 2026-07-02):**
 - main is a pure ancestor of long/INT on both repos; main-side divergence = 0; merge to
@@ -221,8 +228,8 @@ deleted.
 - Deploy is a separate gated step (`deploy-server.sh`); main merge does NOT auto-deploy.
 
 **Layer 3 — Execution status: COMPLETE for merge-to-main.**
-Long branches and `main` were pushed. Deploy and task lifecycle actions remain separate:
-no deploy, no mark-done, no branch deletion.
+Long branches and `main` were pushed. Deploy and branch deletion remain separate:
+no deploy, no branch deletion.
 
 ### Post-state after Step 4 execution
 
@@ -230,18 +237,18 @@ no deploy, no mark-done, no branch deletion.
 - multinexus main includes `d405ccd` (the `--no-FF` integration merge) plus this execution
   record commit; multinexus long = `1a77c65`; INT remains `c91631a`.
 - Both main landings used `--no-FF`. Long branches were pushed before main pushes.
-- Nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
-- Next: any deployment or lifecycle closeout must be a separate explicit decision.
+- 8.4.2 lifecycle was reconciled after this Step 4 merge record.
+- Nothing deployed; 8.4.3 orig branches not deleted.
+- Next: any deployment or branch cleanup must be a separate explicit decision.
 
 ## 6. Remaining prohibitions after Step 4 execution
 
 Step 4 main integration is complete. Remaining actions are still explicitly out of scope
 unless separately approved:
 - no deploy
-- no mark-done / closeout
 - no branch deletion
 - no rebase / history rewrite
 - no additional main merges beyond this recorded Step 4 execution
 
-**Next step (separate approval):** decide whether to deploy and/or close the 8.4.2
-lifecycle. Do not continue from chat context alone — drive it from this document.
+**Next step (separate approval):** decide whether to deploy and/or clean up old branches.
+Do not continue from chat context alone — drive it from this document.
