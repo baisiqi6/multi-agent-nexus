@@ -125,14 +125,14 @@ Also present: 3 empty / abandoned task mirrors with no lifecycle events —
    no `job.completed`); stale attempt-token report/progress rejected by SQL CAS (job not
    overwritten). No code modified (smoke-only). Production launchd restored, no `--recoverable`
    lingering. Details: `step-3-recovery-smoke-report.md`.
-5. ⏳ **Decide merge strategy** — whole Phase 8 integration merge into `main`, or
-   split out already-done tasks and merge in batches. Pending codex review of Step 2/3
-   outputs and the merge-strategy decision.
+5. ✅ **Decide and execute merge strategy** — DONE 2026-07-02. Strategy selected:
+   whole-branch single landing; `multinexus` INT → long; both repos landed on `main`
+   with `--no-FF` merge commits. Details in Step 4 execution record below.
 
-### Step 4 decision inputs (git facts, not strategy — landed 2026-07-02)
+### Step 4 decision inputs (historical git facts — resolved 2026-07-02)
 
 Verifiable git facts (not preferences), recorded now so the next round does not start
-from a stale plan.md. Strategy conclusions are appended after review.
+from a stale plan.md. The strategy decisions and execution record are appended below.
 
 - **main is a pure ancestor of long/INT on both repos** (`merge-base --is-ancestor`
   rc=0; main's own commits not in long = 0 on both). Merging long/INT into main is
@@ -148,20 +148,20 @@ from a stale plan.md. Strategy conclusions are appended after review.
 from `1c5c798`. INT has 5 recovery commits long lacks (`2473883`/`7cfde2d`/`343fa64`/
 `159c3b3`/`c91631a`); long has 6 audit-docs/proposal commits INT lacks
 (`dc47361`/`f70fc24`/`57083c9`/`ff14aab`/`525eba6`/`e730807`).
-Neither alone FFs to a complete state. Reconcile first, then FF main.
+Neither alone FFs to a complete state. Reconcile first, then land main.
 
-**Three pending decisions (status: pending — NOT decided here):**
+**Three decisions resolved in the execution record below:**
 1. Whole-branch FF vs batched FF (staging/risk-appetite, not conflict-avoidance —
    there are no main-side conflicts either way).
 2. multinexus INT↔LONG reconciliation method (merge INT→long / merge docs→INT / rebase
    INT's recovery onto long).
 3. FF vs `--no-FF` (linear history vs an explicit integration merge commit for audit/rollback).
 
-### Step 4 decision proposal — PENDING APPROVAL (proposed 2026-07-02; not final, not executed)
+### Step 4 decision and execution record — DONE 2026-07-02
 
-Strategy recommendation for review. **Nothing below has been executed** (no merge, no push,
-no deploy, no mark-done; 8.4.3 orig branches not deleted). Becomes a final decision only
-after human + Codex approval. Resolves the three pending decisions above into recommendations.
+Executed after explicit human approval to follow the proposal and use `--no-FF`. Scope:
+merge/reconcile and push only. No deploy, no mark-done, and 8.4.3 orig branches were not
+deleted.
 
 **Layer 1 — Git facts (VERIFIED 2026-07-02):**
 - main is a pure ancestor of long/INT on both repos; main-side divergence = 0; merge to
@@ -173,7 +173,7 @@ after human + Codex approval. Resolves the three pending decisions above into re
   **disjoint files** (recovery = code under `agentd/`/`adapters/`/`client.py`/tests; docs =
   `project-harness/*.md`), so merging them is conflict-free (verified via file-intersection).
 
-**Layer 2 — Recommendation:**
+**Layer 2 — Final decision:**
 1. **Whole-branch single landing** (not batched). main is a pure ancestor (0 divergence ⇒
    no conflict risk for batching to reduce); the long branch is one coherent validated unit
    (all Phase 8 tasks durable-done; 8.4.2 lifecycle closed Step 1; 8.4.3 recovery cherry-picked
@@ -194,19 +194,24 @@ after human + Codex approval. Resolves the three pending decisions above into re
   `--ff-only` since long is INT's ancestor; multinexus: the INT→long merge above), then land
   main from `long`, so `long` stays the canonical integration source that production tracks.
 
-**Command plan (NOT executed — for review):**
-- coordinate: `long` ← `--ff-only INT` (optional, tidy); then `main` ← `--no-ff long`
-  ("Merge Phase 8 integration (8.4.2 trunk + 8.4.3 recovery) into main").
-- multinexus: `long` ← `--no-ff INT` ("merge Phase 8.4.3 recovery into integration trunk");
-  gate (full suite + `harnessctl validate`); then `main` ← `--no-ff long` ("Merge Phase 8
-  integration … into main").
+**Executed commands / commits:**
+- coordinate: long fast-forwarded to INT (`4ac774e`), then `main` landed via `--no-FF`
+  merge commit `1810fd5` (`Merge Phase 8 integration (8.4.2 trunk + 8.4.3 recovery) into main`).
+- multinexus: long reconciled with INT via `--no-FF` merge commit `1a77c65`
+  (`merge Phase 8.4.3 recovery into integration trunk`), then `main` landed via `--no-FF`
+  merge commit `d405ccd` (`Merge Phase 8 integration (8.4.x trunk + 8.4.3 recovery) into main`).
 
-**Gates before each push (push is user-gated, separate):**
-- After multinexus reconcile: multinexus full suite (baseline 341 passed/2 skipped) +
-  `harnessctl validate`/`doctor`; confirm `merge-base --is-ancestor origin/main HEAD`.
-- After each main merge (local, pre-push): full suite + `harnessctl validate` on main tip;
-  `git show --stat <merge>` sanity; optional Step 3 smoke rerun on main tip.
-- Re-verify `origin/main` ancestry if anyone pushed main in between.
+**Gates run before push:**
+- multinexus reconcile gate: full suite **343 tests OK, 2 skipped**; `harnessctl validate`
+  passed with the known 4 pre-existing warnings; `harnessctl doctor` completed with known
+  optional/current MISS entries; `origin/main` remained an ancestor.
+- coordinate main-tip gate: full suite **1200 passed, 58 subtests passed**; `harnessctl
+  validate` passed with 0 warnings; `harnessctl doctor` completed with known optional/current
+  MISS entries.
+- multinexus main-tip gate: full suite **343 tests OK, 2 skipped**; `harnessctl validate`
+  passed with the known 4 pre-existing warnings; `harnessctl doctor` completed with known
+  optional/current MISS entries.
+- `origin/main` ancestry was rechecked immediately before push; both repos remained safe to push.
 
 **Rollback / stop conditions:**
 - Any gate red → stop, do not push main.
@@ -215,32 +220,28 @@ after human + Codex approval. Resolves the three pending decisions above into re
 - Post-push rollback: `git revert -m 1 <merge-commit>` (the --no-FF benefit; non-destructive).
 - Deploy is a separate gated step (`deploy-server.sh`); main merge does NOT auto-deploy.
 
-**Layer 3 — Approval gate: PENDING human + Codex approval.**
-No merge / push / deploy / mark-done executed. Next action (after this proposal is landed +
-pushed): pre-execution final review, then await explicit approval before any merge.
+**Layer 3 — Execution status: COMPLETE for merge-to-main.**
+Long branches and `main` were pushed. Deploy and task lifecycle actions remain separate:
+no deploy, no mark-done, no branch deletion.
 
-### Pre-state for Step 4 (next session)
+### Post-state after Step 4 execution
 
-- Steps 2+3 done and pushed: `agents/mac-codex/phase-8-integration` coordinate `4ac774e`
-  / multinexus `c91631a` (smoke-verified). See `step-2-integration-report.md` and
-  `step-3-recovery-smoke-report.md`.
-- coordinate long `cbab1c5` (synced); multinexus long `e730807` (synced, includes Step 2/3
-  audit docs + Step 4 decision-input/proposal docs).
-- A Step 4 decision **proposal** is recorded above (whole-branch + multinexus INT→long +
-  main `--no-FF`), status **PENDING APPROVAL — not final, not executed**.
-- Nothing merged to main; nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
-- Next: pre-execution final review, then await explicit human + Codex approval before any
-  merge. Do not merge/deploy from chat context alone — drive from this document.
+- coordinate `origin/main` = `1810fd5`; coordinate long = `4ac774e`; INT remains `4ac774e`.
+- multinexus main includes `d405ccd` (the `--no-FF` integration merge) plus this execution
+  record commit; multinexus long = `1a77c65`; INT remains `c91631a`.
+- Both main landings used `--no-FF`. Long branches were pushed before main pushes.
+- Nothing deployed; nothing marked done; 8.4.3 orig branches not deleted.
+- Next: any deployment or lifecycle closeout must be a separate explicit decision.
 
-## 6. Prohibitions (this task)
+## 6. Remaining prohibitions after Step 4 execution
 
-Audit persistence only. Do NOT:
-- merge 8.4.3 to `main` directly
-- merge the 8.4.2 long branch to `main` directly
-- rebase
-- mark-done / closeout any task
-- deploy
+Step 4 main integration is complete. Remaining actions are still explicitly out of scope
+unless separately approved:
+- no deploy
+- no mark-done / closeout
+- no branch deletion
+- no rebase / history rewrite
+- no additional main merges beyond this recorded Step 4 execution
 
-**Next step (B, separate session, after this document lands):** close the 8.4.2
-lifecycle. Do not continue integration on chat context alone — drive it from this
-document.
+**Next step (separate approval):** decide whether to deploy and/or close the 8.4.2
+lifecycle. Do not continue from chat context alone — drive it from this document.
