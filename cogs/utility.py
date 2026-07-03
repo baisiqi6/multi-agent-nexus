@@ -234,7 +234,7 @@ class Utility(commands.Cog):
         await self.bot._handle_new_channel(fake)
         await interaction.followup.send("Done.", ephemeral=True)
 
-    @app_commands.command(name="dashboard", description="Post the auto-updating health dashboard")
+    @app_commands.command(name="dashboard", description="发送自动刷新的健康面板")
     async def slash_dashboard(self, interaction: discord.Interaction):
         await interaction.response.defer()
         embed = await self._build_dashboard_embed()
@@ -242,7 +242,7 @@ class Utility(commands.Cog):
         if not self._dashboard_loop.is_running():
             self._dashboard_loop.start()
         await interaction.channel.send(
-            "Dashboard posted. It will auto-update every 60 seconds."
+            "面板已发送，每 60 秒自动刷新。"
         )
 
     @app_commands.command(name="stop", description="Stop the agent currently running in this channel")
@@ -284,7 +284,7 @@ class Utility(commands.Cog):
         """Build a rich embed with agent health information."""
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
         embed = discord.Embed(
-            title=f"{bot_name} Health Dashboard",
+            title=f"{bot_name} 健康面板",
             color=discord.Color.green(),
         )
 
@@ -292,7 +292,7 @@ class Utility(commands.Cog):
             elapsed = time.monotonic() - _bot_start_time
             hours, rem = divmod(int(elapsed), 3600)
             mins, _ = divmod(rem, 60)
-            embed.add_field(name="Uptime", value=f"{hours}h {mins}m", inline=True)
+            embed.add_field(name="运行时长", value=f"{hours}h {mins}m", inline=True)
 
         all_ok = True
         for name, agent in self.bot.agents.items():
@@ -301,21 +301,21 @@ class Utility(commands.Cog):
                 self.bot._agent_status[name] = True
                 model = health.get("model", "?")
                 embed.add_field(
-                    name=self._agent_label(name), value=f"Online\n`{model}`", inline=True
+                    name=self._agent_label(name), value=f"在线\n`{model}`", inline=True
                 )
             else:
                 self.bot._agent_status[name] = False
                 all_ok = False
                 embed.add_field(
                     name=self._agent_label(name),
-                    value=f"OFFLINE\n{health.get('error', '?')[:50]}",
+                    value=f"离线\n{health.get('error', '?')[:50]}",
                     inline=True,
                 )
 
         if not all_ok:
             embed.color = discord.Color.red()
 
-        embed.set_footer(text=f"Updated: {time.strftime('%H:%M:%S')}")
+        embed.set_footer(text=f"更新于：{time.strftime('%H:%M:%S')}")
         return embed
 
     @commands.command(name="dashboard")
@@ -325,7 +325,7 @@ class Utility(commands.Cog):
         self._dashboard_message = await ctx.send(embed=embed)
         if not self._dashboard_loop.is_running():
             self._dashboard_loop.start()
-        await ctx.send("Dashboard posted. It will auto-update every 60 seconds.")
+        await ctx.send("面板已发送，每 60 秒自动刷新。")
 
     @tasks.loop(seconds=60)
     async def _dashboard_loop(self):
