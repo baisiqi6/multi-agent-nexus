@@ -40,16 +40,16 @@ def build_health_embed(config, health: dict) -> discord.Embed:
         title=f"健康检查 — {config.id}",
         color=color,
     )
-    embed.add_field(name="adapter", value=health.get("adapter", "?"), inline=True)
-    embed.add_field(name="bin", value=health.get("bin", "?"), inline=True)
-    embed.add_field(name="available", value="是" if available else "否", inline=True)
-    embed.add_field(name="work_dir", value=config.work_dir or "(none)", inline=True)
-    embed.add_field(name="model", value=config.model or "(default)", inline=True)
-    embed.add_field(name="timeout", value=f"{config.timeout}s", inline=True)
+    embed.add_field(name="适配器", value=health.get("adapter", "?"), inline=True)
+    embed.add_field(name="可执行文件", value=health.get("bin", "?"), inline=True)
+    embed.add_field(name="可用", value="是" if available else "否", inline=True)
+    embed.add_field(name="工作目录", value=config.work_dir or "(none)", inline=True)
+    embed.add_field(name="模型", value=config.model or "(default)", inline=True)
+    embed.add_field(name="超时", value=f"{config.timeout}s", inline=True)
     path = health.get("path") or health.get("bin", "?")
-    embed.add_field(name="path", value=f"`{path}`", inline=False)
+    embed.add_field(name="路径", value=f"`{path}`", inline=False)
     if health.get("error"):
-        embed.add_field(name="error", value=str(health["error"])[:1024], inline=False)
+        embed.add_field(name="错误", value=str(health["error"])[:1024], inline=False)
     return embed
 
 
@@ -79,9 +79,9 @@ def build_session_status_embed(
             value=f"`{sid[:16]}...`" if len(sid) > 16 else f"`{sid}`",
             inline=True,
         )
-        embed.add_field(name="adapter", value=current["adapter"], inline=True)
-        embed.add_field(name="work_dir", value=current["work_dir"] or "(none)", inline=True)
-        embed.add_field(name="status", value=current["status"], inline=True)
+        embed.add_field(name="适配器", value=current["adapter"], inline=True)
+        embed.add_field(name="工作目录", value=current["work_dir"] or "(none)", inline=True)
+        embed.add_field(name="状态", value=current["status"], inline=True)
         embed.add_field(name="轮次", value=str(current["turn_count"]), inline=True)
         embed.add_field(
             name="更新时间",

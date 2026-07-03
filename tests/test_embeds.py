@@ -91,21 +91,21 @@ class TestBuildHealthEmbed(unittest.TestCase):
         health = {"adapter": "claude", "bin": "claude", "available": True, "path": "/usr/bin/claude"}
         embed = build_health_embed(config, health)
         names = [f.name for f in embed.fields]
-        for expected in ["adapter", "bin", "available", "work_dir", "model", "timeout"]:
+        for expected in ["适配器", "可执行文件", "可用", "工作目录", "模型", "超时"]:
             self.assertIn(expected, names)
 
     def test_available_shows_yes(self):
         config = _make_config()
         health = {"adapter": "claude", "bin": "claude", "available": True, "path": "/usr/bin/claude"}
         embed = build_health_embed(config, health)
-        avail_field = next(f for f in embed.fields if f.name == "available")
+        avail_field = next(f for f in embed.fields if f.name == "可用")
         self.assertEqual(avail_field.value, "是")
 
     def test_unavailable_shows_no(self):
         config = _make_config()
         health = {"adapter": "claude", "bin": "claude", "available": False, "path": "/usr/bin/claude"}
         embed = build_health_embed(config, health)
-        avail_field = next(f for f in embed.fields if f.name == "available")
+        avail_field = next(f for f in embed.fields if f.name == "可用")
         self.assertEqual(avail_field.value, "否")
 
     def test_title_contains_agent_id(self):
@@ -119,8 +119,8 @@ class TestBuildHealthEmbed(unittest.TestCase):
         health = {"adapter": "claude", "bin": "?", "available": False, "error": "connection refused"}
         embed = build_health_embed(config, health)
         names = [f.name for f in embed.fields]
-        self.assertIn("error", names)
-        error_field = next(f for f in embed.fields if f.name == "error")
+        self.assertIn("错误", names)
+        error_field = next(f for f in embed.fields if f.name == "错误")
         self.assertIn("connection refused", error_field.value)
 
 
@@ -142,7 +142,7 @@ class TestBuildSessionStatusEmbed(unittest.TestCase):
         )
         embed = build_session_status_embed(client, 999)
         names = [f.name for f in embed.fields]
-        for expected in ["scope", "scope_type", "session_id", "adapter", "work_dir", "轮次", "活跃会话"]:
+        for expected in ["scope", "scope_type", "session_id", "适配器", "工作目录", "轮次", "活跃会话"]:
             self.assertIn(expected, names)
 
     def test_scope_type_field_for_channel(self):
