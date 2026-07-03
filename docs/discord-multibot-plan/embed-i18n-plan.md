@@ -28,7 +28,7 @@
 | `model` | `模型` | |
 | `path` | `路径` | |
 | `scope` | `scope` | 保留，是多 agent 系统术语 |
-| `scope_type` | `scope 类型` | 同上 |
+| `scope_type` | `scope_type` | 保留，是多 agent 系统术语 |
 | `status` | `状态` | |
 | `timeout` | `超时` | |
 | `work_dir` | `工作目录` | |
