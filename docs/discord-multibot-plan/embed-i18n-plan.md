@@ -1,9 +1,11 @@
 # Discord 卡片与消息中文化计划
 
-**状态**：plan refreshed，待执行（第一轮只做 A+B）
+**状态**：A+B 已 implemented / merged / deployed；C/D 仍 optional，未启动
 **创建**：2026-06-18（commit `3812096`）
 **刷新**：2026-07-03，基于 `main` `ddafb46980df8ed7441821a225c5578461ceeef0` 核对目标文件状态
-**预估总时长**：A+B 共 45 分钟；A+B+C 共 1.5 小时；D 单独评估
+**A+B closeout**：2026-07-03，见文末「A+B 落地记录」
+**C pre-audit**：2026-07-03，见文末「C pre-audit（剩余英文清单）」
+**预估总时长**：A+B 共 45 分钟（实际约 30 分钟）；A+B+C 共 1.5 小时；D 单独评估
 
 > **本轮范围（plan refresh 确认）**：只做 A+B。C/D 保持 optional，不在第一轮内。
 
@@ -159,3 +161,94 @@ cogs/agents.py:
 ## 刷新记录
 
 - **2026-07-03**：基于 `main` `ddafb46980df8ed7441821a225c5578461ceeef0` 核对。确认 `multinexus/embeds.py` 字段名仍全英文（A 清单准确）；确认 `cogs/utility.py` `_build_dashboard_embed` 仍存在、字符串仍英文、`edit()` 刷新模式不变（B 行号此时仍为 283-319，但改为方法名主锚点以防漂移）；强化测试耦合风险——列出 `tests/test_embeds.py` 中按方法名锚点的具体断言点，明确 A 必须 lockstep 改测试。本轮 plan refresh 不改任何代码 / 配置。
+
+## A+B 落地记录（2026-07-03）
+
+| 项 | 结果 |
+|---|---|
+| A commit | `feat(i18n): translate embed field names to Chinese` (`3836607`) |
+| B commit | `feat(i18n): translate dashboard card to Chinese` (`42c6834`，含 slash_dashboard 补翻) |
+| merge commit | `Merge Discord card i18n A+B` (`e8346ee99c57f65e4bd24a864bbc68cce68b210c`，`--no-ff`) |
+| deployed | `e8346ee99c57f65e4bd24a864bbc68cce68b210c` → `/opt/multinexus`（`deployed_at=2026-07-03T15:52:11Z`）|
+| full suite | **341 passed, 2 skipped, 12 subtests passed**（pre + post merge 一致）|
+| server-smoke | `server-smoke.sh` clean pass（systemd `multinexus-discord-bridge` active + `coordinate` active + breaker scan clean）|
+
+**A 实际落地**（`multinexus/embeds.py`，9 个 name 翻译）：`adapter→适配器` / `bin→可执行文件` / `available→可用` / `work_dir→工作目录` / `model→模型` / `timeout→超时` / `path→路径` / `error→错误` / `status→状态`。保留英文：`scope` / `scope_type` / `session_id`（策略自洽，见 2026-07-03 scope_type 修复）。value 全部不动。`tests/test_embeds.py` 断言 lockstep 更新。
+
+**B 实际落地**（`cogs/utility.py`）：`_build_dashboard_embed` title/Uptime/Online/OFFLINE/footer + `dashboard_cmd` 与 `slash_dashboard` 两个入口的确认消息 + slash description。`_dashboard_loop` 的 `edit()` 刷新机制未动。
+
+**D 状态**：未启动，仍 optional。不做 post-processing 翻译钩子。
+
+## C pre-audit（2026-07-03，只读扫描，未改代码）
+
+扫描 `bot.py` / `cogs/agents.py` / `cogs/utility.py` 中剩余用户可见英文文案，按是否值得翻译分类。**plan C 原始范围是 `bot.py` + `cogs/agents.py`；本 audit 一并覆盖 `cogs/utility.py` 的非 dashboard 残留（slash 错误消息、help、get_status），因为它们同属"bot 状态/错误文案"语义。**
+
+### 1. 高频用户路径（建议翻）
+
+| 文件:行 | 当前文案 | 出现场景 | 建议译文 |
+|---|---|---|---|
+| `cogs/utility.py:50` | `**{bot_name} Status**` | `/monitor` + `!status` 标题 | `**{bot_name} 状态**` |
+| `cogs/utility.py:56` | `Uptime: {h}h {m}m {s}s` | `/monitor` 运行时长 | `运行时长：{h}时 {m}分 {s}秒` |
+| `cogs/utility.py:73` | `{label}: Online (\`{model}\`)` | `/monitor` agent 行 | `{label}：在线（\`{model}\`）` |
+| `cogs/utility.py:75` | `24h tokens: ...` | `/monitor` token 统计 | `24h token：...` |
+| `cogs/utility.py:79` | `{label}: OFFLINE ({error})` | `/monitor` agent 离线 | `{label}：离线（{error}）` |
+| `cogs/utility.py:82` | `- Database: Connected` | `/monitor` 数据库行 | `- 数据库：已连接` |
+| `cogs/utility.py:90-95` | help 文案（commands / Agents / Wiki / Utility 说明）| `!help` + `/help` | 整体翻译（slash 命令名保留）|
+| `cogs/utility.py:89` | `{bot_name} commands (use \`/help\` for...)` | help 前缀 | `{bot_name} 命令（用 \`/help\` 查看完整列表）：` |
+
+> 说明：`get_status()` 同时驱动 `/monitor`、`!status` 和 dashboard 卡片外的纯文本状态，是 C 范围里 ROI 最高的单点（改一处函数影响多条命令输出）。
+
+### 2. 错误/操作反馈路径（建议翻，低风险）
+
+| 文件:行 | 当前文案 | 场景 | 建议译文 |
+|---|---|---|---|
+| `bot.py:455` | `Back online.` | bot 启动后回主频道 | `已上线。` |
+| `bot.py:488` | `Restarting...` | `!restart` | `重启中…` |
+| `bot.py:493` | `Cleared {n} messages from context. Discord messages remain visible.` | `!clear` | `已清除上下文中 {n} 条消息。Discord 消息仍可见。` |
+| `bot.py:538` | `↩️ Cancelled — reprocessing edited message...` | 编辑消息后重处理 | `↩️ 已取消 —— 正在重新处理编辑后的消息…` |
+| `bot.py:319-322` | `<#{cid}> registered for...` / `Config updated.` / `Use !restart to fully reload.` | `!new-channel` | 整体翻译（保留 channel ID / 命令名）|
+| `bot.py:326-328` | `Live registration ok, but config write failed...` / `Add channel ID manually...` | `!new-channel` 失败 | 整体翻译（保留 `e` 错误原文 + channel ID）|
+| `cogs/utility.py:220` | `Discovery posted!` | `/discover` 成功 | `已记录发现！` |
+| `cogs/utility.py:235` | `Done.` | `/new-channel` 成功 | `完成。` |
+| `cogs/utility.py:251/269` | `Not authorized.` | `/stop` / `/restart` 权限拒绝 | `未授权。` |
+| `cogs/utility.py:255` | `Agents cog not loaded.` | `/stop` cog 缺失 | `Agents 模块未加载。` |
+| `cogs/utility.py:260` | `No agent is running in this channel.` | `/stop` 无 agent | `当前频道没有正在运行的 agent。` |
+| `cogs/utility.py:262` | `Stopping {agent.name}...` | `/stop` 执行中 | `正在停止 {agent.name}…` |
+| `cogs/utility.py:271` | `Restarting...` | `/restart` | `重启中…` |
+| `cogs/agents.py:323` | `Usage: @team <your question>` | `@team` 无参数 | `用法：@team <你的问题>` |
+| `cogs/agents.py:388` | `Usage: {names} <your question>` | `@agent` 无参数 | `用法：{names} <你的问题>` |
+| `cogs/agents.py:423/487` | `{names} isn't active in this channel.` | agent 未激活 | `{names} 在当前频道未激活。` |
+| `cogs/agents.py:242` | `⚠️ {error}` | 多 agent 流程错误 | `⚠️ {error}`（保留 error 原文）|
+
+### 3. 技术日志/告警（建议保留英文或仅翻标签）
+
+| 文件:行 | 当前文案 | 建议 |
+|---|---|---|
+| `bot.py:253` | `[ALERT] {message}` | `[告警] {message}` 或保留 `[ALERT]` 前缀（operator 频道，告警内容多变）|
+| `bot.py:559` | `[LOG] {message}` | `[日志] {message}` 或保留（同上，operator 频道）|
+| `bot.py:267-268` | `{agent} discovery: {finding}` | `{agent} 发现：{finding}`（finding 内容不翻译）|
+| `cogs/utility.py:116/129/142/155` | slash command `description="Ask X a question"` 等 | 翻译 description（slash 菜单可见）：`向 X 提问` / `发送网络研究查询` 等 |
+| `cogs/utility.py:170/186/215/223/248/266` | slash `description=`（monitor/help/discover/new-channel/stop/restart）| 翻译 description |
+| `cogs/utility.py:117/130/143/156/216/225` | `@app_commands.describe(prompt="Your question...")` | 翻译参数描述：`你的问题或 prompt` |
+
+### 4. 不建议翻译
+
+| 文件:行 | 文案 | 原因 |
+|---|---|---|
+| `cogs/agents.py:656` | `🔄 thinking...` | placeholder 状态指示，emoji 已跨语言；翻成"思考中…"可接受但收益低 |
+| `cogs/agents.py:691-702` | webhook `content={chunk}` | agent 输出本身，属 D 范畴（agent 回复语言），不在 C 内 |
+| slash command `name=`（如 `claude`/`codex`/`monitor`）| 命令名 | 命令名是协议契约，翻译会破坏 Discord slash command 注册 |
+
+### 推荐结论
+
+**建议启动 C，优先做"高频用户路径"（第 1 类）+ slash description/describe（第 3 类的 description 部分）**，因为：
+- 第 1 类（`get_status()` / help 文案）单点影响多条命令，ROI 最高。
+- slash description 在 Discord 命令菜单里中文对发现性帮助大。
+
+**第 2 类（错误/操作反馈）可一并做**，风险低（多为 send 字面量，无测试耦合，与 B 的 dashboard 文案同性质）。
+
+**第 3 类的 `[ALERT]`/`[LOG]` 前缀**：建议保留英文前缀或仅翻成 `[告警]`/`[日志]`，因为这是 operator/日志频道内容，内容多变，强翻收益不确定。
+
+**估算**：第 1+2+3(description) 约 40-50 分钟，无测试耦合风险（C 范围内无 pure embed builder 测试，文案都是 cog 运行时 send 字面量）。第 4 类不做。
+
+> 注：C 范围内没有任何测试需要 lockstep 改（`tests/test_embeds.py` 只覆盖 pure embed builder，已在 A 阶段处理完）。C 的验证靠 Discord 真实环境跑 `/monitor` / `!help` / `@team` / `/stop` 等命令肉眼检查。
