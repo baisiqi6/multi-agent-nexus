@@ -47,13 +47,13 @@ class Utility(commands.Cog):
     async def get_status(self) -> str:
         """Build a status string showing agent health and token usage."""
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
-        lines = [f"**{bot_name} Status**"]
+        lines = [f"**{bot_name} 状态**"]
 
         if _bot_start_time is not None:
             elapsed = time.monotonic() - _bot_start_time
             hours, rem = divmod(int(elapsed), 3600)
             mins, secs = divmod(rem, 60)
-            lines.append(f"Uptime: {hours}h {mins}m {secs}s")
+            lines.append(f"运行时长：{hours}时 {mins}分 {secs}秒")
 
         lines.append("")
 
@@ -66,20 +66,20 @@ class Utility(commands.Cog):
                 stats_parts = []
                 if totals["tokens_input"] or totals["tokens_output"]:
                     stats_parts.append(
-                        f"in:{totals['tokens_input']:,} out:{totals['tokens_output']:,}"
+                        f"输入：{totals['tokens_input']:,} 输出：{totals['tokens_output']:,}"
                     )
                 if totals["cost_usd"]:
                     stats_parts.append(f"${totals['cost_usd']:.4f}")
-                lines.append(f"- {self._agent_label(name)}: Online (`{model_info}`)")
+                lines.append(f"- {self._agent_label(name)}：在线（`{model_info}`）")
                 if stats_parts:
-                    lines.append(f"  24h tokens: {', '.join(stats_parts)}")
+                    lines.append(f"  24h token：{', '.join(stats_parts)}")
             else:
                 self.bot._agent_status[name] = False
                 lines.append(
-                    f"- {self._agent_label(name)}: OFFLINE ({health.get('error', 'unknown')})"
+                    f"- {self._agent_label(name)}：离线（{health.get('error', 'unknown')}）"
                 )
 
-        lines.append("- Database: Connected")
+        lines.append("- 数据库：已连接")
         return "\n".join(lines)
 
     @commands.command(name="help")
@@ -87,12 +87,12 @@ class Utility(commands.Cog):
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
         local_label = self._agent_label(LOCAL_AGENT_NAME)
         await ctx.send(
-            f"**{bot_name} commands (use `/help` for the full slash command list):**\n"
+            f"**{bot_name} 命令（用 `/help` 查看完整 slash 命令列表）：**\n"
             "\n"
-            f"**Agents** — `@Claude`, `@{local_label}`, `@Codex` role mentions or "
-            "`/claude`, `/mac-openclaw`, `/codex`, `/research`\n"
+            f"**Agent** — 用 `@Claude`、`@{local_label}`、`@Codex` 角色 mention，或 "
+            "`/claude`、`/mac-openclaw`、`/codex`、`/research`\n"
             "**Wiki** — `/wiki [action] [page]`\n"
-            "**Utility** — `/monitor`, `/dashboard`, `/discover`, `/new-channel`, `/restart`"
+            "**工具** — `/monitor`、`/dashboard`、`/discover`、`/new-channel`、`/restart`"
         )
 
     @commands.command(name="monitor")
@@ -113,8 +113,8 @@ class Utility(commands.Cog):
 
     # --- Slash commands for agents ---
 
-    @app_commands.command(name="mac-openclaw", description="Ask the Mac OpenClaw agent a question")
-    @app_commands.describe(prompt="Your question or prompt")
+    @app_commands.command(name="mac-openclaw", description="向 Mac OpenClaw agent 提问")
+    @app_commands.describe(prompt="你的问题或 prompt")
     async def slash_mac_openclaw(self, interaction: discord.Interaction, prompt: str):
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.display_name}:** {prompt}")
@@ -126,8 +126,8 @@ class Utility(commands.Cog):
             user_id=interaction.user.id,
         )
 
-    @app_commands.command(name="claude", description="Ask Claude a question")
-    @app_commands.describe(prompt="Your question or prompt for Claude")
+    @app_commands.command(name="claude", description="向 Claude 提问")
+    @app_commands.describe(prompt="你的问题或 prompt（针对 Claude）")
     async def slash_claude(self, interaction: discord.Interaction, prompt: str):
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.display_name}:** {prompt}")
@@ -139,8 +139,8 @@ class Utility(commands.Cog):
             user_id=interaction.user.id,
         )
 
-    @app_commands.command(name="codex", description="Ask Codex a question")
-    @app_commands.describe(prompt="Your question or prompt for Codex")
+    @app_commands.command(name="codex", description="向 Codex 提问")
+    @app_commands.describe(prompt="你的问题或 prompt（针对 Codex）")
     async def slash_codex(self, interaction: discord.Interaction, prompt: str):
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.display_name}:** {prompt}")
@@ -152,8 +152,8 @@ class Utility(commands.Cog):
             user_id=interaction.user.id,
         )
 
-    @app_commands.command(name="research", description="Send a web research query (requires researcher agent)")
-    @app_commands.describe(query="What to research")
+    @app_commands.command(name="research", description="发送网络研究查询（需要 researcher agent）")
+    @app_commands.describe(query="要研究的内容")
     async def slash_research(self, interaction: discord.Interaction, query: str):
         await interaction.response.defer()
         await interaction.followup.send(f"**{interaction.user.display_name}:** {query}")
@@ -167,14 +167,14 @@ class Utility(commands.Cog):
 
     # --- Utility slash commands ---
 
-    @app_commands.command(name="monitor", description="Check bot and agent status")
+    @app_commands.command(name="monitor", description="查看 bot 与 agent 状态")
     async def slash_monitor(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id or 0
         now = time.monotonic()
         last = self._monitor_last_called.get(guild_id, 0)
         if now - last < 30:
             await interaction.response.send_message(
-                f"Status was just posted — please wait {30 - int(now - last)}s.",
+                f"状态刚刚已发送 —— 请等待 {30 - int(now - last)} 秒。",
                 ephemeral=True,
             )
             return
@@ -183,46 +183,46 @@ class Utility(commands.Cog):
         status = await self.get_status()
         await interaction.followup.send(status)
 
-    @app_commands.command(name="help", description="Show all available commands")
+    @app_commands.command(name="help", description="显示所有可用命令")
     async def slash_help(self, interaction: discord.Interaction):
         bot_name = self.bot.config.get("bot", {}).get("name", "YourBot")
         local_label = self._agent_label(LOCAL_AGENT_NAME)
         await interaction.response.send_message(
-            f"**{bot_name} commands:**\n"
+            f"**{bot_name} 命令：**\n"
             "\n"
-            "**Agents**\n"
-            "`@Claude <msg>` — Claude (role mention)\n"
-            f"`@{local_label} <msg>` — local OpenClaw agent (role mention)\n"
-            "`@Codex <msg>` — Codex (role mention)\n"
-            "`/mac-openclaw <prompt>` — slash command for Mac OpenClaw\n"
-            "`/claude <prompt>` — slash command for Claude\n"
-            "`/codex <prompt>` — slash command for Codex\n"
-            "`/research <query>` — web research (requires researcher agent)\n"
+            "**Agent**\n"
+            "`@Claude <消息>` — Claude（角色 mention）\n"
+            f"`@{local_label} <消息>` — 本地 OpenClaw agent（角色 mention）\n"
+            "`@Codex <消息>` — Codex（角色 mention）\n"
+            "`/mac-openclaw <prompt>` — Mac OpenClaw 的 slash 命令\n"
+            "`/claude <prompt>` — Claude 的 slash 命令\n"
+            "`/codex <prompt>` — Codex 的 slash 命令\n"
+            "`/research <query>` — 网络研究（需要 researcher agent）\n"
             "\n"
             "**Wiki**\n"
-            "`/wiki [action] [page]` — manage the project wiki\n"
-            "`/wiki-private [action] [page]` — private wiki (Mac OpenClaw only)\n"
+            "`/wiki [action] [page]` — 管理项目 wiki\n"
+            "`/wiki-private [action] [page]` — 私有 wiki（仅 Mac OpenClaw）\n"
             "\n"
-            "**Utility**\n"
-            "`/monitor` — agent health and token usage\n"
-            "`/dashboard` — auto-updating health embed\n"
-            "`/discover <finding>` — post to #discoveries\n"
-            "`/new-channel [agents]` — register channel with agents\n"
-            "`/restart` — restart the bot",
+            "**工具**\n"
+            "`/monitor` — agent 健康与 token 用量\n"
+            "`/dashboard` — 自动刷新的健康面板\n"
+            "`/discover <发现>` — 发布到 #discoveries\n"
+            "`/new-channel [agents]` — 为当前频道注册 agent\n"
+            "`/restart` — 重启 bot",
             ephemeral=True,
         )
 
-    @app_commands.command(name="discover", description="Post a finding to #discoveries")
-    @app_commands.describe(finding="The discovery to record")
+    @app_commands.command(name="discover", description="发布一条发现到 #discoveries")
+    @app_commands.describe(finding="要记录的发现")
     async def slash_discover(self, interaction: discord.Interaction, finding: str):
         await interaction.response.defer(ephemeral=True)
         await self.bot._post_discovery(finding, "user")
-        await interaction.followup.send("Discovery posted!", ephemeral=True)
+        await interaction.followup.send("已记录发现！", ephemeral=True)
 
     @app_commands.command(
-        name="new-channel", description="Register current channel with agents"
+        name="new-channel", description="为当前频道注册 agent"
     )
-    @app_commands.describe(agents="Agent names to register (leave empty for all)")
+    @app_commands.describe(agents="要注册的 agent 名（留空则全部）")
     async def slash_new_channel(
         self, interaction: discord.Interaction, agents: str = ""
     ):
@@ -232,7 +232,7 @@ class Utility(commands.Cog):
             content, interaction.channel, interaction.user.id, interaction.guild
         )
         await self.bot._handle_new_channel(fake)
-        await interaction.followup.send("Done.", ephemeral=True)
+        await interaction.followup.send("完成。", ephemeral=True)
 
     @app_commands.command(name="dashboard", description="发送自动刷新的健康面板")
     async def slash_dashboard(self, interaction: discord.Interaction):
@@ -245,30 +245,30 @@ class Utility(commands.Cog):
             "面板已发送，每 60 秒自动刷新。"
         )
 
-    @app_commands.command(name="stop", description="Stop the agent currently running in this channel")
+    @app_commands.command(name="stop", description="停止当前频道正在运行的 agent")
     async def slash_stop(self, interaction: discord.Interaction):
         if not self.bot.allowlist.is_allowed(interaction.user.id):
-            await interaction.response.send_message("Not authorized.", ephemeral=True)
+            await interaction.response.send_message("未授权。", ephemeral=True)
             return
         agents_cog = self.bot.get_cog("Agents")
         if not agents_cog:
-            await interaction.response.send_message("Agents cog not loaded.", ephemeral=True)
+            await interaction.response.send_message("Agents 模块未加载。", ephemeral=True)
             return
         channel_key = str(interaction.channel_id)
         agent = agents_cog._active_agents.get(channel_key)
         if agent is None:
-            await interaction.response.send_message("No agent is running in this channel.", ephemeral=True)
+            await interaction.response.send_message("当前频道没有正在运行的 agent。", ephemeral=True)
             return
-        await interaction.response.send_message(f"Stopping {agent.name}...", ephemeral=True)
+        await interaction.response.send_message(f"正在停止 {agent.name}…", ephemeral=True)
         agents_cog._active_agents.pop(channel_key, None)
         await agent.kill()
 
-    @app_commands.command(name="restart", description="Restart the bot process")
+    @app_commands.command(name="restart", description="重启 bot 进程")
     async def slash_restart(self, interaction: discord.Interaction):
         if not self.bot.allowlist.is_allowed(interaction.user.id):
-            await interaction.response.send_message("Not authorized.", ephemeral=True)
+            await interaction.response.send_message("未授权。", ephemeral=True)
             return
-        await interaction.response.send_message("Restarting...")
+        await interaction.response.send_message("重启中…")
         data_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
         )
