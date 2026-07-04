@@ -57,6 +57,7 @@ class AgentConfig:
     omp_model: str | None = None
     omp_thinking: str | None = None
     omp_auto_approve: bool = True
+    jarvis_ssh_host: str = "vivoPad6p-ubuntu"
 
     allowed_user_ids: list[int] = field(default_factory=list)
     wiki_enabled: bool = False
