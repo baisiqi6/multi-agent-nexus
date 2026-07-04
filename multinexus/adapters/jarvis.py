@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import shlex
 from collections.abc import Callable
 from typing import Any
 
@@ -25,14 +24,10 @@ from .utils import filtered_env
 
 log = logging.getLogger(__name__)
 
-# SSH 到 Pad Ubuntu 的别名（Mac ~/.ssh/config 里配的）
-_JARVIS_SSH = ["ssh", "-o", "ConnectTimeout=10", "-o", "StrictHostKeyChecking=no", "vivoPad6p-ubuntu"]
-
 # 在 Pad 上调 brain 的 Python 片段
 _BRAIN_CMD = '''python3 -c "
 import sys; sys.path.insert(0, '/root')
 from jarvis_pkg.brain import brain
-import json
 prompt = sys.stdin.read()
 print(brain(prompt), end='')
 "'''
@@ -111,8 +106,19 @@ class JarvisAdapter(AgentAdapter):
             )
             stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15)
             count = int(stdout.decode().strip())
-            if count > 0:
-                return {"status": "ok", "model": "jarvis-brain", "wake_processes": count}
-            return {"status": "offline", "error": "唤醒服务未运行"}
+            available = count > 0
+            return {
+                "adapter": "jarvis",
+                "bin": "ssh",
+                "available": available,
+                "path": self.ssh_host,
+                "wake_processes": count,
+            }
         except Exception as e:
-            return {"status": "offline", "error": str(e)}
+            return {
+                "adapter": "jarvis",
+                "bin": "ssh",
+                "available": False,
+                "path": self.ssh_host,
+                "error": str(e),
+            }
