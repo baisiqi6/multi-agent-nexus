@@ -175,20 +175,12 @@ When triggered:
 
 ---
 
-## Agent Loading in bot.py
+## Agent Loading (legacy `bot.py`)
 
-The bot loads agents on startup based on what's enabled in `config.yaml`.
-
-The default loading logic in `bot.py`:
-
-```python
-# Option A: Use OpenClawRelayAgent for local LLM (via gateway)
-# Option B: Use LocalLLMAgent directly (no gateway needed)
-#
-# Uncomment the block that matches your setup.
-```
-
-Both options are present in `bot.py` as commented sections. Pick one and uncomment it.
+> **⚠️ Legacy** — `bot.py` has been removed. Production agent loading is
+> configured via `agents.toml` and handled by `multinexus/client.py`
+> (`DiscordBridge` → `DiscordClient` per agent). This section is retained
+> for historical reference only.
 
 ---
 
@@ -214,13 +206,11 @@ class MyAgent(BaseAgent):
         pass
 ```
 
-2. Register in `bot.py`:
+2. ~~Register in `bot.py`~~ (legacy — `bot.py` removed; configure in `agents.toml` instead):
 
 ```python
-from agents.my_agent import MyAgent
-
-if config.get("myagent", {}).get("enabled"):
-    self.agents["myagent"] = MyAgent(config["myagent"])
+# Legacy pattern (bot.py removed). New agents are declared as [[agents]]
+# entries in agents.toml; see agents.toml.example.
 ```
 
 3. Add to `routing/dispatcher.py`:

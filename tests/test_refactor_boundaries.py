@@ -3,9 +3,6 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-from cogs import agents as agents_facade
-from cogs.agent_request import AgentRequestMixin
-from cogs.agents import Agents
 from multinexus import client as client_facade
 from multinexus.client import DiscordClient
 from multinexus.coordinator_handoff import (
@@ -23,9 +20,6 @@ class RefactorBoundaryTests(unittest.TestCase):
             CoordinatorHandoffMixin._try_coordinator_handoff,
         )
 
-    def test_agents_cog_keeps_request_api(self):
-        self.assertTrue(issubclass(Agents, AgentRequestMixin))
-        self.assertIs(Agents.handle_agent_request, AgentRequestMixin.handle_agent_request)
 
     def test_message_chunk_boundary_preserves_empty_and_size_behavior(self):
         self.assertEqual(client_facade._MAX_DISCORD_MSG_LEN, 1900)
@@ -69,39 +63,6 @@ class RefactorBoundaryTests(unittest.TestCase):
         self.assertFalse(handled)
         patched.assert_called_once_with("ignored", my_discord_user_id=123)
 
-    def test_agents_keeps_request_import_surface_and_patch_hook(self):
-        for name in (
-            "AgentOfflineError",
-            "AgentRateLimitError",
-            "AgentTimeoutError",
-            "PrivateWikiPromoteView",
-            "set_correlation",
-            "clear_correlation",
-        ):
-            with self.subTest(name=name):
-                self.assertTrue(hasattr(agents_facade, name))
-
-        class Dummy(AgentRequestMixin):
-            MAX_HANDOFF_DEPTH = 1
-
-            async def _send_as_agent(self, *_args, **_kwargs):
-                return None
-
-            async def _stage_setup_agent_request(self, *args, **kwargs):
-                return None
-
-        channel = SimpleNamespace(id=456)
-        with mock.patch.object(agents_facade, "set_correlation") as patched:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(
-                Dummy().handle_agent_request(
-                    "researcher", "prompt", "thread", channel, 1, depth=1
-                )
-            )
-            loop.close()
-            asyncio.set_event_loop(None)
-        patched.assert_called_once_with(agent="researcher", channel="456")
 
 
 if __name__ == "__main__":

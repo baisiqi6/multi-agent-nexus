@@ -141,14 +141,18 @@ Update `config.yaml` with your chosen model name.
 
 ## Step 5: Run
 
+> **⚠️ Legacy** — `python bot.py` and the PM2 config (`ecosystem.config.js`)
+> below have been removed. Production now uses `multinexus.py` with systemd
+> (Linux) or launchd (Mac). See ["Persistent Operation with launchd"](#persistent-operation-with-launchd-new-multi-bot-multinexuspy)
+> below and the deploy scripts in `scripts/`.
+
 ```bash
-python bot.py
+python multinexus.py --platform discord --config agents.toml
 ```
 
 On first run, the bot will:
 - Create the `data/` directory
 - Create `nexus.db`
-- Harden the private DB path (if set) with restricted permissions
 - Sync slash commands with Discord (may take up to an hour to propagate globally)
 
 ---
