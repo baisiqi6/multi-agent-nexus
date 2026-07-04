@@ -317,15 +317,15 @@ class NexusBot(discord_commands.Bot):
                     _yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
             label = ", ".join(changed) if changed else "already registered"
             await channel.send(
-                f"<#{cid}> registered for: **{', '.join(targets)}**\n"
-                f"{'Config updated.' if changed else 'No config change needed.'} "
-                f"Use `!restart` to fully reload."
+                f"<#{cid}> 已注册：**{', '.join(targets)}**\n"
+                f"{'配置已更新。' if changed else '无需更改配置。'} "
+                f"用 `!restart` 完全重载。"
             )
         except Exception as e:
             log.error("!new-channel config write failed: %s", e)
             await channel.send(
-                f"Live registration ok, but config write failed: `{e}`\n"
-                f"Add channel ID `{cid}` manually to config.yaml."
+                f"实时注册成功，但配置写入失败：`{e}`\n"
+                f"请手动将频道 ID `{cid}` 添加到 config.yaml。"
             )
 
     # --- Lifecycle ---
@@ -452,7 +452,7 @@ class NexusBot(discord_commands.Bot):
                 os.remove(flag_path)
                 ch = self.get_channel(flag["channel_id"])
                 if ch:
-                    await ch.send("Back online.")
+                    await ch.send("已上线。")
             except Exception:
                 pass
 
@@ -485,12 +485,12 @@ class NexusBot(discord_commands.Bot):
 
         # !restart is handled here because it exits the process
         if message.content.strip().lower() == "!restart":
-            await message.channel.send("Restarting...")
+            await message.channel.send("重启中…")
 
         # !clear — clear conversation history for this channel
         if message.content.strip().lower() == "!clear":
             deleted = await self.db.clear_history(thread_id)
-            await message.channel.send(f"Cleared {deleted} messages from context. Discord messages remain visible.")
+            await message.channel.send(f"已清除上下文中 {deleted} 条消息。Discord 消息仍可见。")
             return
             flag_path = os.path.join(DATA_DIR, "restart_flag.json")
             with open(flag_path, "w") as f:
@@ -535,7 +535,7 @@ class NexusBot(discord_commands.Bot):
                     except Exception:
                         pass
             try:
-                await after.channel.send("↩️ Cancelled — reprocessing edited message...")
+                await after.channel.send("↩️ 已取消 —— 正在重新处理编辑后的消息…")
             except Exception:
                 pass
 

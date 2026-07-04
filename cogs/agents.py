@@ -320,7 +320,7 @@ class Agents(AgentRequestMixin, commands.Cog):
                 if _attachments and _attachments.text_block:
                     prompt = (prompt + "\n\n" + _attachments.text_block).strip()
                 if not prompt:
-                    await message.channel.send("Usage: @team <your question>")
+                    await message.channel.send("用法：@team <你的问题>")
                     return True
                 channel_id = resolve_channel_id(message.channel)
                 active_agents = [
@@ -385,7 +385,7 @@ class Agents(AgentRequestMixin, commands.Cog):
                     names = " / ".join(
                         f"@{self._agent_label(a)}" for a in mention_to_agent.values()
                     )
-                    await message.channel.send(f"Usage: {names} <your question>")
+                    await message.channel.send(f"用法：{names} <你的问题>")
                     return True
 
                 channel_id = resolve_channel_id(message.channel)
@@ -420,7 +420,7 @@ class Agents(AgentRequestMixin, commands.Cog):
                             inactive.append(agent_name)
                     if inactive:
                         names = ", ".join(self._agent_label(a) for a in inactive)
-                        await message.channel.send(f"{names} isn't active in this channel.")
+                        await message.channel.send(f"{names} 在当前频道未激活。")
                     if dispatch_list:
                         await asyncio.gather(*[
                             self.handle_agent_request(
@@ -484,7 +484,7 @@ class Agents(AgentRequestMixin, commands.Cog):
 
             if inactive_agents:
                 names = ", ".join(self._agent_label(a) for a in inactive_agents)
-                await message.channel.send(f"{names} isn't active in this channel.")
+                await message.channel.send(f"{names} 在当前频道未激活。")
 
             if not dispatch_list:
                 continue

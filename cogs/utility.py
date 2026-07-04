@@ -220,7 +220,7 @@ class Utility(commands.Cog):
         await interaction.followup.send("已记录发现！", ephemeral=True)
 
     @app_commands.command(
-        name="new-channel", description="Register current channel with agents"
+        name="new-channel", description="为当前频道注册 agent"
     )
     @app_commands.describe(agents="要注册的 agent 名（留空则全部）")
     async def slash_new_channel(
@@ -268,7 +268,7 @@ class Utility(commands.Cog):
         if not self.bot.allowlist.is_allowed(interaction.user.id):
             await interaction.response.send_message("未授权。", ephemeral=True)
             return
-        await interaction.response.send_message("Restarting...")
+        await interaction.response.send_message("重启中…")
         data_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data"
         )
