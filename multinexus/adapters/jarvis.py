@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -137,8 +138,17 @@ class LocalBrainAdapter(AgentAdapter):
         self._brain_fn = None
 
     def _get_brain(self):
-        """Lazy-import brain() on first call (jarvis_pkg may not be on PATH during tests)."""
+        """Lazy-import brain() on first call.
+
+        jarvis_pkg lives at /root/jarvis_pkg on the Pad. The agentd worker's
+        cwd is /root/multinexus, so /root must be on sys.path for the import
+        to resolve. Also honor PYTHONPATH if set.
+        """
         if self._brain_fn is None:
+            import sys
+            for candidate in ("/root", os.path.expanduser("~")):
+                if candidate not in sys.path:
+                    sys.path.insert(0, candidate)
             from jarvis_pkg.brain import brain
             self._brain_fn = brain
         return self._brain_fn
