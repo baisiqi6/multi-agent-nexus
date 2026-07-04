@@ -182,6 +182,9 @@ deploy_coordinate() {
     --exclude VERSION_DEPLOYED
 
   remote_sudo_script <<EOF
+set -euo pipefail
+mkdir -p /opt/coordinate
+rsync -a --delete \
   --exclude .venv \
   --exclude .coordinator \
   --exclude data \

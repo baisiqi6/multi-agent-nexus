@@ -229,24 +229,13 @@ tail -f logs/mac-claude.log
 
 ---
 
-## Slash Command Sync
+## Slash Command Sync (legacy — removed)
 
-Slash commands are registered globally on startup. Discord can take up to 1 hour to propagate them.
-
-To force a guild-only sync (instant, for testing):
-
-Add your server ID to `config.yaml`:
-```yaml
-bot:
-  dev_guild_id: YOUR_SERVER_ID  # instant slash command sync for this guild
-```
-
-Then in `bot.py`, add to the `on_ready` handler:
-```python
-guild = discord.Object(id=self.config["bot"]["dev_guild_id"])
-self.tree.copy_global_to(guild=guild)
-await self.tree.sync(guild=guild)
-```
+> **⚠️ Legacy** — The new `multinexus/` architecture uses text-based operator
+> commands (`agents`, `health`, `session status`, `session reset`), not Discord
+> slash commands. The `bot.py` tree-sync code and `config.yaml` `dev_guild_id`
+> shown below have been removed. This section is retained for historical
+> reference only.
 
 ---
 
@@ -284,17 +273,17 @@ On Windows, the bot applies `icacls` to restrict this file to the current user o
 
 ### Agent is offline
 
-- Run `/monitor` in Discord to check agent health
-- Check the bot logs: `pm2 logs multinexus` or `nexus.log`
+- Run `health` (text command) in Discord to check agent health
+- Check the bot logs: `journalctl -u multinexus-discord-bridge` (Linux/systemd) or the launchd plist log path (Mac)
 - For CLI agents: verify `claude --version` or `codex --version` works in the same environment
 - For local LLM: verify the server is running and the model is loaded
 
 ### Windows: console window appears when agents run
 
-This should not happen in normal operation. If it does, verify `bot.py` is loading agents
+This should not happen in normal operation. If it does, verify the adapter layer (`multinexus/adapters/`) is loading CLI agents
 with the `_NO_WINDOW` flag (set in `agents/cli.py`). This flag is only applied on `sys.platform == "win32"`.
 
 ### Rate limit fallback not working
 
 The fallback chain requires multiple agents to be configured and online.
-Check `/monitor` to see which agents are available.
+Check `agents` (text command) to see which agents are available.

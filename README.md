@@ -10,13 +10,10 @@ A modular Discord bot framework for connecting AI agents — Claude Code CLI, Co
 
 multinexus lets you run multiple AI agents in a Discord server where they can:
 
-- Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`) or slash command
-- Respond to `@team <prompt>` to call all agents simultaneously
-- Hand off tasks to each other with a simple `@AgentName <task>` protocol
-- Maintain per-thread conversation history and agent workspaces
+- Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`)
+- Hand off tasks to each other via the `[handoff]` protocol
+- Maintain per-thread conversation history and sessions
 - Write to a shared wiki (public and private tiers)
-- Post discoveries to a shared channel
-- Trigger web research tasks
 - Extract and inject persistent memories from conversation history (via `washer.py`)
 
 Each agent posts as a distinct Discord user via webhook, with its own name and avatar.
@@ -212,7 +209,7 @@ For a fully private setup with no cloud inference, use only the `local-agent` wi
 - Private wiki pages live in `wiki/private/` (gitignored — never committed); `PRIVATE_DB_PATH` controls where the private SQLite DB is stored
 - On Windows, the private DB directory is hardened with `icacls` on first run
 - All agent output is scanned for secrets before posting to Discord
-- The allowlist controls who can use `/restart` and other privileged commands
+- The allowlist controls who can use `session reset` and other privileged operator commands
 
 ---
 
@@ -226,7 +223,7 @@ If you find this useful, donations are appreciated:
 
 ---
 
-- The allowlist controls who can use `session reset` and other privileged operator commands
+## Acknowledgements
 
 The optional `OpenClawRelayAgent` is designed to work with [Dream Server](https://github.com/Light-Heart-Labs/DreamServer) by Light Heart Labs — a fully local AI stack (LLM inference, agents, voice, workflows, RAG) deployable on your own hardware with a single command. It's a natural companion to multinexus if you want a complete self-hosted setup.
 
