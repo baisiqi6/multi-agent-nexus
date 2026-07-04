@@ -122,3 +122,82 @@ class JarvisAdapter(AgentAdapter):
                 "path": self.ssh_host,
                 "error": str(e),
             }
+
+
+class LocalBrainAdapter(AgentAdapter):
+    """Jarvis agentd worker adapter — calls brain() directly (no SSH).
+
+    Runs inside the agentd worker ON the Pad. Imports jarvis_pkg.brain
+    directly and calls brain() in a thread (brain is synchronous).
+    """
+
+    def __init__(self, config: AgentConfig):
+        super().__init__(name="jarvis-local", timeout=config.timeout)
+        self.config = config
+        self._brain_fn = None
+
+    def _get_brain(self):
+        """Lazy-import brain() on first call (jarvis_pkg may not be on PATH during tests)."""
+        if self._brain_fn is None:
+            from jarvis_pkg.brain import brain
+            self._brain_fn = brain
+        return self._brain_fn
+
+    async def call(
+        self,
+        prompt: str,
+        *,
+        timeout: int | None = None,
+        work_dir: str | None = None,
+        on_progress: Callable[[str | dict[str, Any]], None] | None = None,
+    ) -> AdapterResult:
+        """Call brain() directly in a worker thread."""
+        timeout = timeout or self.config.timeout
+        brain = self._get_brain()
+
+        if on_progress:
+            on_progress({"status": "calling_brain"})
+
+        try:
+            text = await asyncio.wait_for(
+                asyncio.to_thread(brain, prompt),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            return AdapterResult(text="Jarvis brain() 响应超时", metadata={"error": "timeout"})
+        except Exception as e:
+            return AdapterResult(text=f"Jarvis brain() 调用失败: {e}", metadata={"error": "brain_fail"})
+
+        return AdapterResult(text=text or "", session_id=None, metadata={"engine": "jarvis-local"})
+
+    async def health_check(self) -> dict:
+        """Check if jarvis_pkg is importable and wake service is running."""
+        import shutil
+        try:
+            self._get_brain()
+        except Exception as e:
+            return {
+                "adapter": "jarvis-local",
+                "bin": "brain()",
+                "available": False,
+                "path": "jarvis_pkg.brain",
+                "error": f"import failed: {e}",
+            }
+        # Check wake service process count
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                "sh", "-c", "ps aux | grep 'jarvis_pkg.main' | grep -v grep | wc -l",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=10)
+            count = int(stdout.decode().strip())
+        except Exception:
+            count = 0
+        return {
+            "adapter": "jarvis-local",
+            "bin": "brain()",
+            "available": True,
+            "path": "jarvis_pkg.brain",
+            "wake_processes": count,
+        }

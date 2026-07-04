@@ -3,7 +3,7 @@ from .base import AgentAdapter
 from .claude import ClaudeAdapter
 from .codex import CodexAdapter
 from .hermes import HermesAdapter
-from .jarvis import JarvisAdapter
+from .jarvis import JarvisAdapter, LocalBrainAdapter
 from .omp import OmpAdapter
 from .opencode import OpenCodeAdapter
 
@@ -18,10 +18,12 @@ def make_adapter(config: AgentConfig) -> AgentAdapter:
         return HermesAdapter(config)
     if adapter == "jarvis":
         return JarvisAdapter(config)
+    if adapter == "jarvis-local":
+        return LocalBrainAdapter(config)
     if adapter == "omp":
         return OmpAdapter(config)
     if adapter == "opencode":
         return OpenCodeAdapter(config)
     raise SystemExit(
-        f"Unsupported adapter: {config.adapter}. Available: claude, codex, hermes, jarvis, omp, opencode."
+        f"Unsupported adapter: {config.adapter}. Available: claude, codex, hermes, jarvis, jarvis-local, omp, opencode."
     )
