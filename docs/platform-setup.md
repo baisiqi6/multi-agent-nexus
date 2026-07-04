@@ -141,66 +141,37 @@ Update `config.yaml` with your chosen model name.
 
 ## Step 5: Run
 
+> **⚠️ Legacy** — `python bot.py` and the PM2 config (`ecosystem.config.js`)
+> below have been removed. Production now uses `multinexus.py` with systemd
+> (Linux) or launchd (Mac). See ["Persistent Operation with launchd"](#persistent-operation-with-launchd-new-multi-bot-multinexuspy)
+> below and the deploy scripts in `scripts/`.
+
 ```bash
-python bot.py
+python multinexus.py --platform discord --config agents.toml
 ```
 
 On first run, the bot will:
 - Create the `data/` directory
 - Create `nexus.db`
-- Harden the private DB path (if set) with restricted permissions
 - Sync slash commands with Discord (may take up to an hour to propagate globally)
 
 ---
 
-## Persistent Operation with PM2
+## Persistent Operation (legacy PM2 — removed)
 
-PM2 keeps the bot running and restarts it on crashes or system reboots.
-
-### Install PM2
-
-```bash
-npm install -g pm2
-```
-
-### Windows
-
-```bash
-npm install -g pm2-windows-startup
-pm2-windows-startup install
-```
-
-Start the bot:
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-```
-
-### Mac/Linux
-
-```bash
-pm2 start ecosystem.config.js
-pm2 startup        # follow the printed instructions
-pm2 save
-```
-
-### PM2 Commands
-
-```bash
-pm2 status                  # check if bot is running
-pm2 logs multinexus      # view live logs
-pm2 restart multinexus   # restart
-pm2 stop multinexus      # stop
-```
-
-The bot also supports `/restart` from Discord (allowlisted users only), which calls `sys.exit(0)`
-and relies on PM2 to relaunch it automatically.
+> **⚠️ Removed** — `ecosystem.config.js` and the PM2-based persistence path have
+> been deleted. PM2 is no longer used. Production persistence is provided by:
+>
+> - **Linux**: systemd unit `multinexus-discord-bridge` (see `scripts/deploy-server.sh`)
+> - **Mac**: launchd plist (see ["Persistent Operation with launchd"](#persistent-operation-with-launchd-new-multi-bot-multinexuspy) below)
+>
+> This section is retained for historical reference only.
 
 ---
 
 ## Persistent Operation with launchd (new multi-bot multinexus.py)
 
-The legacy single-bot `bot.py` uses PM2 (see above). The new multi-bot architecture uses `multinexus.py --agent <id>` with launchd for Mac persistence.
+Production uses `multinexus.py --platform discord` with launchd for Mac persistence (or systemd on Linux — see `scripts/deploy-server.sh`). The legacy single-bot `bot.py` and its PM2 config have been removed.
 
 ### Prerequisites
 
@@ -258,24 +229,13 @@ tail -f logs/mac-claude.log
 
 ---
 
-## Slash Command Sync
+## Slash Command Sync (legacy — removed)
 
-Slash commands are registered globally on startup. Discord can take up to 1 hour to propagate them.
-
-To force a guild-only sync (instant, for testing):
-
-Add your server ID to `config.yaml`:
-```yaml
-bot:
-  dev_guild_id: YOUR_SERVER_ID  # instant slash command sync for this guild
-```
-
-Then in `bot.py`, add to the `on_ready` handler:
-```python
-guild = discord.Object(id=self.config["bot"]["dev_guild_id"])
-self.tree.copy_global_to(guild=guild)
-await self.tree.sync(guild=guild)
-```
+> **⚠️ Legacy** — The new `multinexus/` architecture uses text-based operator
+> commands (`agents`, `health`, `session status`, `session reset`), not Discord
+> slash commands. The `bot.py` tree-sync code and `config.yaml` `dev_guild_id`
+> shown below have been removed. This section is retained for historical
+> reference only.
 
 ---
 
@@ -313,17 +273,17 @@ On Windows, the bot applies `icacls` to restrict this file to the current user o
 
 ### Agent is offline
 
-- Run `/monitor` in Discord to check agent health
-- Check the bot logs: `pm2 logs multinexus` or `nexus.log`
+- Run `health` (text command) in Discord to check agent health
+- Check the bot logs: `journalctl -u multinexus-discord-bridge` (Linux/systemd) or the launchd plist log path (Mac)
 - For CLI agents: verify `claude --version` or `codex --version` works in the same environment
 - For local LLM: verify the server is running and the model is loaded
 
 ### Windows: console window appears when agents run
 
-This should not happen in normal operation. If it does, verify `bot.py` is loading agents
+This should not happen in normal operation. If it does, verify the adapter layer (`multinexus/adapters/`) is loading CLI agents
 with the `_NO_WINDOW` flag (set in `agents/cli.py`). This flag is only applied on `sys.platform == "win32"`.
 
 ### Rate limit fallback not working
 
 The fallback chain requires multiple agents to be configured and online.
-Check `/monitor` to see which agents are available.
+Check `agents` (text command) to see which agents are available.

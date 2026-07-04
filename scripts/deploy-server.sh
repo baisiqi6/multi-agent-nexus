@@ -177,6 +177,8 @@ deploy_coordinate() {
     --exclude __pycache__ \
     --exclude '*.pyc' \
     --exclude '.pytest_cache' \
+    --exclude .qoder \
+    --exclude .DS_Store \
     --exclude VERSION_DEPLOYED
 
   remote_sudo_script <<EOF
@@ -188,6 +190,8 @@ rsync -a --delete \
   --exclude data \
   --exclude logs \
   --exclude events.jsonl \
+  --exclude .qoder \
+  --exclude .DS_Store \
   --exclude VERSION_DEPLOYED \
   '$staging'/ /opt/coordinate/
 chown -R coord:coord /opt/coordinate
@@ -229,6 +233,8 @@ deploy_multinexus() {
     --exclude __pycache__ \
     --exclude '*.pyc' \
     --exclude '.pytest_cache' \
+    --exclude .qoder \
+    --exclude .DS_Store \
     --exclude VERSION_DEPLOYED
 
   remote_sudo_script <<EOF
@@ -247,6 +253,8 @@ rsync -a --delete \
   --exclude docs/project-harness/current \
   --exclude docs/project-harness/harness-state.json \
   --exclude docs/project-harness/events.jsonl \
+  --exclude .qoder \
+  --exclude .DS_Store \
   --exclude VERSION_DEPLOYED \
   '$staging'/ /opt/multinexus/
 chown -R multinexus:multinexus /opt/multinexus

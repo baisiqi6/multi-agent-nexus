@@ -10,13 +10,10 @@ A modular Discord bot framework for connecting AI agents — Claude Code CLI, Co
 
 multinexus lets you run multiple AI agents in a Discord server where they can:
 
-- Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`) or slash command
-- Respond to `@team <prompt>` to call all agents simultaneously
-- Hand off tasks to each other with a simple `@AgentName <task>` protocol
-- Maintain per-thread conversation history and agent workspaces
+- Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`)
+- Hand off tasks to each other via the `[handoff]` protocol
+- Maintain per-thread conversation history and sessions
 - Write to a shared wiki (public and private tiers)
-- Post discoveries to a shared channel
-- Trigger web research tasks
 - Extract and inject persistent memories from conversation history (via `washer.py`)
 
 Each agent posts as a distinct Discord user via webhook, with its own name and avatar.
@@ -25,34 +22,26 @@ Each agent posts as a distinct Discord user via webhook, with its own name and a
 
 ## Architecture
 
-```
-Discord Message
-      │
-      ▼
-  bot.py (NexusBot)
-      │
-      ├── routing/dispatcher.py
-      │     Determines which agent(s) to invoke
-      │
-      ├── cogs/agents.py
-      │     Dispatch, handoff extraction, and webhook facade
-      ├── cogs/agent_request.py
-      │     Agent call, tag processing, fallback, and response workflow
-      │
-      ├── agents/
-      │     ├── cli.py             ClaudeAgent, CodexAgent (subprocess)
-      │     ├── local_llm.py       LocalLLMAgent (HTTP, OpenAI-compatible)
-      │     ├── openclaw_relay.py  OpenClawRelayAgent (optional gateway)
-      │     └── researcher.py      ResearcherAgent (optional, web research)
-      │
-      ├── services/wiki.py         Flat-file wiki with public + private tiers
-      ├── persistence/db.py        SQLite (aiosqlite) — history, jobs, memory, workspaces
-      └── cogs/
-            ├── utility.py         /help, /monitor, /dashboard, /restart, /stop, slash agents
-            ├── cron.py            /cron add|list|delete|enable|disable — scheduled agent prompts
-            └── wiki.py            /wiki, /wiki-private, auto-ingest loop
+Production runs as one `DiscordBridge` process hosting N `DiscordClient`
+instances (one per agent identity). Entry point is `multinexus.py`:
 
-washer.py (scheduled, runs independently of bot.py)
+```
+multinexus.py --platform discord --config agents.toml
+      │
+      └── multinexus/client.py  DiscordBridge → [DiscordClient per agent]
+            │   each agent is its own Discord identity with its own slash
+            │   commands (/health, /agents, /session status, /session reset)
+            │
+            ├── multinexus/adapters/        Claude / Codex / OpenCode / OMP / OpenClaw gateway
+            ├── multinexus/agentd/          local agentd job protocol (coordinate runtime)
+            ├── multinexus/sessions/        per-scope session persistence
+            ├── multinexus/commands.py      operator command handlers (text + slash)
+            ├── multinexus/embeds.py        embed builders for /health /agents /session status
+            ├── multinexus/handoff.py       coordinator handoff message parsing
+            ├── persistence/db.py           SQLite (aiosqlite) — history, jobs, memory, workspaces
+            └── multinexus/wiki/            flat-file wiki with public + private tiers
+
+washer.py (scheduled independently, nightly memory extraction)
       │
       ├── Reads conversations + conversations_archive (watermark-based)
       ├── Calls local LLM (LM Studio) for memory extraction
@@ -62,6 +51,9 @@ washer.py (scheduled, runs independently of bot.py)
             ├── persistence/db.py → memory_promotions (preference/context)
             └── private DB        → review_queue      (is_private=true)
 ```
+
+> The legacy single-bot entry (`bot.py` + `cogs/`) has been removed. The
+> per-agent compatibility mode `multinexus.py --agent <id>` is retained.
 
 Agent output is scanned for structured tags (`<!-- DISCOVERY: -->`, `<!-- WIKI: -->`, etc.)
 before being chunked and posted to Discord.
@@ -105,10 +97,12 @@ See [`docs/platform-setup.md`](docs/platform-setup.md) for a full walkthrough.
 ### 4. Run
 
 ```bash
-python bot.py
+python multinexus.py --platform discord --config agents.toml
 ```
 
-For persistent operation with auto-restart, see the PM2 setup in [`docs/platform-setup.md`](docs/platform-setup.md).
+For production deployment (systemd on Linux, launchd on Mac), see
+[`docs/platform-setup.md`](docs/platform-setup.md) and the deploy scripts in
+`scripts/`.
 
 ### 5. Invite the bot
 
@@ -123,33 +117,18 @@ In the Discord Developer Portal, enable the **Message Content Intent** and gener
 
 | Feature | Description |
 |---|---|
-| Multi-agent routing | Role mentions and slash commands route to the correct agent |
-| @team broadcast | Mention a configurable team role to call all agents in parallel |
-| **THEN barriers** | Sequential multi-agent execution: `@claude do X THEN @codex do Y` — stages run in order, agents within a stage run in parallel |
-| **Per-agent prompt splitting** | Multi-agent messages give each agent only its own section |
-| **List-reference expansion** | `do (1)`, `#2`, `step 3` auto-expand to numbered items from the last assistant message |
-| Agent handoffs | Agents hand off tasks to each other via `@AgentName <task>` in responses |
-| **Session persistence** | Claude and Codex sessions persist per thread — subsequent messages resume the same CLI session |
-| **Claude shell access** | Claude has full tool access (Bash, Edit, Read) — can run commands, commit code, edit files |
-| Per-thread history | Conversation history stored per thread in SQLite |
-| Agent workspaces | Per-thread scratch state preserved across turns |
-| Live streaming | Claude and Codex stream partial output to a Discord placeholder as they generate |
-| **Activity timeout override** | Per-command `-t <seconds>` flag for long-running Codex tasks (e.g. `!g -t 1800 ./gradlew test`) |
-| Thread support | Agents work correctly in forum posts and thread channels via webhook routing |
-| /stop | Cancel a running agent mid-generation with a slash command |
-| Cron jobs | `/cron add` schedules recurring agent prompts on a cron expression |
+| Multi-agent routing | Each agent is its own Discord identity; messages route to the configured agent |
+| `[handoff]` protocol | Agents hand tasks to each other via `[handoff] <@agent>` lines in responses |
+| **Session persistence** | Per-scope Claude/Codex sessions resume on subsequent messages |
+| Per-thread history | Conversation history stored per thread/channel in SQLite |
+| Chunked output | Responses are split into Discord-sized chunks before posting |
+| Operator commands | Text commands: `agents` (list), `health` (check), `session status`, `session reset` |
 | Public wiki | Shared Markdown wiki, written by agents or users |
 | Private wiki | Separate tier for sensitive content, stored outside the repo |
 | Persistent memory | `washer.py` extracts facts/preferences/context from history via local LLM |
 | Private review queue | Sensitive extractions held for manual approval before injection |
-| Discoveries | Agents post notable findings to a shared channel |
-| Web research | Optional researcher agent triggers search queries |
-| Attachment processing | Text extraction and vision blocks for file attachments across all routing paths |
 | Secret redaction | Output is scanned for secrets before posting |
-| Health dashboard | `/dashboard` posts a live-updating embed with agent status |
-| Rate-limit fallback | If Claude is rate-limited, falls back to Codex, then local LLM |
 | Cross-platform | Windows and Mac/Linux supported |
-| PM2 ready | `ecosystem.config.js` included for persistent operation |
 
 ---
 
@@ -202,7 +181,7 @@ At least one agent must be configured and online. See [`docs/agents.md`](docs/ag
 - [Multi-Agent Collaboration](docs/multi-agent-collaboration.md) — Discord/KOOK as visible message bus, harness-backed workflow, coordinator design
 - [Agents](docs/agents.md) — configuring each agent type, adding custom agents
 - [Wiki System](docs/wiki-system.md) — wiki structure, tags, private tier, curation
-- [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, PM2
+- [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, systemd/launchd persistence
 
 ---
 
@@ -230,7 +209,7 @@ For a fully private setup with no cloud inference, use only the `local-agent` wi
 - Private wiki pages live in `wiki/private/` (gitignored — never committed); `PRIVATE_DB_PATH` controls where the private SQLite DB is stored
 - On Windows, the private DB directory is hardened with `icacls` on first run
 - All agent output is scanned for secrets before posting to Discord
-- The allowlist controls who can use `/restart` and other privileged commands
+- The allowlist controls who can use `session reset` and other privileged operator commands
 
 ---
 

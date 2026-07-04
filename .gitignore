@@ -37,6 +37,9 @@ env/
 .tt/
 .discuss/
 
+# Qoder project knowledge base (local, not for commit)
+.qoder/
+
 # Editor
 .vscode/
 .idea/

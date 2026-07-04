@@ -1,5 +1,11 @@
 # Architecture
 
+> **⚠️ Legacy architecture document** — this describes the removed single-bot
+> (`bot.py` + `cogs/`) topology. The production entry is now `multinexus.py
+> --platform discord` → `multinexus/client.py` (`DiscordBridge` /
+> `DiscordClient`). See `README.md` "Architecture" section for the current
+> topology. This file is retained for historical reference.
+
 ## System Overview
 
 ```

@@ -128,7 +128,7 @@ Private pages are only accessible to agents configured with `include_private_wik
 ## Draft System
 
 Pages can be written to `wiki/drafts/` before being promoted to `wiki/pages/`.
-This is used by the auto-ingest loop in `cogs/wiki.py`.
+This was used by the auto-ingest loop in the legacy `cogs/wiki.py` (removed); the new `multinexus/wiki/` package handles wiki ingestion.
 
 ### Promotion
 
