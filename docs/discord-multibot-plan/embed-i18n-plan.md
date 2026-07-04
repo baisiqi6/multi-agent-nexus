@@ -252,3 +252,25 @@ cogs/agents.py:
 **估算**：第 1+2+3(description) 约 40-50 分钟，无测试耦合风险（C 范围内无 pure embed builder 测试，文案都是 cog 运行时 send 字面量）。第 4 类不做。
 
 > 注：C 范围内没有任何测试需要 lockstep 改（`tests/test_embeds.py` 只覆盖 pure embed builder，已在 A 阶段处理完）。C 的验证靠 Discord 真实环境跑 `/monitor` / `!help` / `@team` / `/stop` 等命令肉眼检查。
+
+## #16 B/C 有效性纠偏（2026-07-04）
+
+**背景**：dogfood 验收阶段发现 `/monitor` `/dashboard` `/help` 等 slash command 属于旧 single-bot（"multiagent" Application），而生产 systemd 跑的是 `multinexus.py --platform discord` → `multinexus/client.py`（`DiscordBridge`/`DiscordClient`），两者是不同的 Application / 不同的 slash command 注册集。
+
+**代码事实**（grep 验证）：
+
+| 阶段 | 改的文件 | 生产 `multinexus/client.py` 是否 import | 真实生效 | 结论 |
+|---|---|---|---|---|
+| A | `multinexus/embeds.py`（field name）| ✅ `client.py:48` import，`/health` `/agents` `/session status` 调用 | ✅ **production-effective** | 保留 |
+| B | `cogs/utility.py`（`_build_dashboard_embed` + dashboard 文案）| ❌ `cogs/` 整个目录不被 `multinexus.py` / `multinexus/` import | ❌ **legacy-only，生产无效果** | 随 legacy single-bot cleanup 删除 |
+| C | `bot.py` + `cogs/utility.py`（get_status/help）+ `cogs/agents.py`| ❌ 同上 | ❌ **legacy-only，生产无效果** | 随 legacy single-bot cleanup 删除 |
+
+**为什么 B/C 的 deploy + server-smoke 仍然 clean pass**：`deploy-server.sh` 把整个 repo tar 到 `/opt/multinexus/`，`cogs/` 文件确实被部署了，但生产 systemd 只 `python multinexus.py`，不 import `cogs/`。`server-smoke.sh` 校验 systemd active + VERSION_DEPLOYED + breaker scan，不会发现"改的代码没被 import"。
+
+**纠偏动作**：
+- B/C 的代码改动保留在 git 历史（merge commit `e8346ee` / `fe825f1`），不 revert。
+- B/C 改的 `bot.py` / `cogs/utility.py` / `cogs/agents.py` 在 legacy single-bot cleanup 中整体删除（这些文件本就是死代码，B/C 只是把死代码的中文化一并带走）。
+- A 的改动（`multinexus/embeds.py`）保留，是本次 i18n 唯一在生产环境生效的部分。
+- 新架构（`multinexus/client.py`）的 operator command 文案（`/health` `/agents` `/session status` `/session reset`）在 `multinexus/commands.py` 里**早就是中文**（如"无权限：此命令需要 operator 权限。"），无需额外 i18n。
+
+**教训**：架构治理类任务（i18n / refactor）在动手前必须先确认目标代码是否属于生产路径。本次 B/C 基于过时的 plan（plan 创建于 2026-06-18，当时 single-bot 还在用），未在 implementation 前重新核对生产入口，导致两轮 commit 改的是死代码。`server-smoke.sh` 的 clean pass 不能等同于"改动生效"。

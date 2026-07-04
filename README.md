@@ -25,34 +25,26 @@ Each agent posts as a distinct Discord user via webhook, with its own name and a
 
 ## Architecture
 
-```
-Discord Message
-      │
-      ▼
-  bot.py (NexusBot)
-      │
-      ├── routing/dispatcher.py
-      │     Determines which agent(s) to invoke
-      │
-      ├── cogs/agents.py
-      │     Dispatch, handoff extraction, and webhook facade
-      ├── cogs/agent_request.py
-      │     Agent call, tag processing, fallback, and response workflow
-      │
-      ├── agents/
-      │     ├── cli.py             ClaudeAgent, CodexAgent (subprocess)
-      │     ├── local_llm.py       LocalLLMAgent (HTTP, OpenAI-compatible)
-      │     ├── openclaw_relay.py  OpenClawRelayAgent (optional gateway)
-      │     └── researcher.py      ResearcherAgent (optional, web research)
-      │
-      ├── services/wiki.py         Flat-file wiki with public + private tiers
-      ├── persistence/db.py        SQLite (aiosqlite) — history, jobs, memory, workspaces
-      └── cogs/
-            ├── utility.py         /help, /monitor, /dashboard, /restart, /stop, slash agents
-            ├── cron.py            /cron add|list|delete|enable|disable — scheduled agent prompts
-            └── wiki.py            /wiki, /wiki-private, auto-ingest loop
+Production runs as one `DiscordBridge` process hosting N `DiscordClient`
+instances (one per agent identity). Entry point is `multinexus.py`:
 
-washer.py (scheduled, runs independently of bot.py)
+```
+multinexus.py --platform discord --config agents.toml
+      │
+      └── multinexus/client.py  DiscordBridge → [DiscordClient per agent]
+            │   each agent is its own Discord identity with its own slash
+            │   commands (/health, /agents, /session status, /session reset)
+            │
+            ├── multinexus/adapters/        Claude / Codex / OpenCode / OMP / OpenClaw gateway
+            ├── multinexus/agentd/          local agentd job protocol (coordinate runtime)
+            ├── multinexus/sessions/        per-scope session persistence
+            ├── multinexus/commands.py      operator command handlers (text + slash)
+            ├── multinexus/embeds.py        embed builders for /health /agents /session status
+            ├── multinexus/handoff.py       coordinator handoff message parsing
+            ├── persistence/db.py           SQLite (aiosqlite) — history, jobs, memory, workspaces
+            └── multinexus/wiki/            flat-file wiki with public + private tiers
+
+washer.py (scheduled independently, nightly memory extraction)
       │
       ├── Reads conversations + conversations_archive (watermark-based)
       ├── Calls local LLM (LM Studio) for memory extraction
@@ -62,6 +54,9 @@ washer.py (scheduled, runs independently of bot.py)
             ├── persistence/db.py → memory_promotions (preference/context)
             └── private DB        → review_queue      (is_private=true)
 ```
+
+> The legacy single-bot entry (`bot.py` + `cogs/`) has been removed. The
+> per-agent compatibility mode `multinexus.py --agent <id>` is retained.
 
 Agent output is scanned for structured tags (`<!-- DISCOVERY: -->`, `<!-- WIKI: -->`, etc.)
 before being chunked and posted to Discord.
@@ -105,10 +100,12 @@ See [`docs/platform-setup.md`](docs/platform-setup.md) for a full walkthrough.
 ### 4. Run
 
 ```bash
-python bot.py
+python multinexus.py --platform discord --config agents.toml
 ```
 
-For persistent operation with auto-restart, see the PM2 setup in [`docs/platform-setup.md`](docs/platform-setup.md).
+For production deployment (systemd on Linux, launchd on Mac), see
+[`docs/platform-setup.md`](docs/platform-setup.md) and the deploy scripts in
+`scripts/`.
 
 ### 5. Invite the bot
 
@@ -149,7 +146,6 @@ In the Discord Developer Portal, enable the **Message Content Intent** and gener
 | Health dashboard | `/dashboard` posts a live-updating embed with agent status |
 | Rate-limit fallback | If Claude is rate-limited, falls back to Codex, then local LLM |
 | Cross-platform | Windows and Mac/Linux supported |
-| PM2 ready | `ecosystem.config.js` included for persistent operation |
 
 ---
 

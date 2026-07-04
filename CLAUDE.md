@@ -308,7 +308,7 @@ Bot 在 system prompt 顶部注入：
 
 | 层 | 职责 | 不做什么 |
 |---|---|---|
-| `multinexus` (bot / cog) | Discord 交互、路由、渲染、用户限流 | 不直接改 coordinate DB；不内联模型调用 |
+| `multinexus` (DiscordBridge / DiscordClient) | Discord 交互、路由、渲染、用户限流 | 不直接改 coordinate DB；不内联模型调用 |
 | `coordinate` runtime / API | job 生命周期、agent 注册、事件总线 | 不渲染 Discord 消息；不解析 Markdown |
 | `coordinate` daemon / policy | 事件消费、状态推导、delivery 创建 | 不直接执行子进程 agent |
 | adapters / runner profiles | 子进程 / agentd / bridge 调用 | 不决定 lifecycle |
@@ -327,7 +327,9 @@ Bot 在 system prompt 顶部注入：
 
 ### 3.9 以 phase-8.4.2 与 phase-8.8 为模板
 
-`multinexus/cogs/agent_request.py` 的 `handle_agent_request` 原本约 687 行，重构后：
+> 历史案例（legacy `cogs/agent_request.py`，已随 single-bot cleanup 删除，仅作重构方法论参考）：
+
+`cogs/agent_request.py` 的 `handle_agent_request` 原本约 687 行，重构后：
 
 - `handle_agent_request` ≈ 50 行，只负责锁 + 4 个 stage 调用顺序。
 - 4 个 stage：`_stage_setup_agent_request`、`_stage_invoke_agent`、`_stage_process_response_tags`、`_stage_follow_up`。
