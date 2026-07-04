@@ -412,7 +412,13 @@ class DiscordClient(CoordinatorHandoffMixin, discord.Client):
                 return
             await interaction.response.defer(ephemeral=True)
             try:
-                health = await self.adapter.health_check()
+                if self._agentd_mode:
+                    health = {
+                        "adapter": cfg.adapter, "bin": "(agentd)",
+                        "available": True, "agentd_mode": True,
+                    }
+                else:
+                    health = await self.adapter.health_check()
             except Exception as exc:
                 health = {
                     "adapter": cfg.adapter, "bin": "?",

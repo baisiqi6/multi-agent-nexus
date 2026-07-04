@@ -123,6 +123,17 @@ class TestBuildHealthEmbed(unittest.TestCase):
         error_field = next(f for f in embed.fields if f.name == "错误")
         self.assertIn("connection refused", error_field.value)
 
+    def test_agentd_mode_blurple_and_managed_status(self):
+        config = _make_config()
+        health = {"adapter": "codex", "bin": "(agentd)", "available": True, "agentd_mode": True}
+        embed = build_health_embed(config, health)
+        self.assertEqual(embed.color.value, discord.Color.blurple().value)
+        self.assertIn("agentd 模式", embed.title)
+        names = [f.name for f in embed.fields]
+        self.assertNotIn("可用", names)
+        self.assertIn("状态", names)
+        self.assertNotIn("路径", names)
+
 
 class TestBuildSessionStatusEmbed(unittest.TestCase):
     def test_active_session_green(self):
@@ -195,6 +206,16 @@ class TestBuildSessionStatusEmbed(unittest.TestCase):
         client = _make_client()
         embed = build_session_status_embed(client, 999)
         self.assertIn("test-agent", embed.title)
+
+    def test_agentd_mode_none_session_store(self):
+        config = _make_config()
+        client = MagicMock()
+        client.agent_config = config
+        client.session_store = None
+        embed = build_session_status_embed(client, 999)
+        self.assertEqual(embed.color.value, discord.Color.blurple().value)
+        self.assertIn("agentd 模式", embed.title)
+        self.assertIn("coordinate runtime", embed.description)
 
 
 if __name__ == "__main__":

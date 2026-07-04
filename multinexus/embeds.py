@@ -31,23 +31,31 @@ def build_agents_embed(config) -> discord.Embed:
 
 
 def build_health_embed(config, health: dict) -> discord.Embed:
+    agentd_mode = health.get("agentd_mode", False)
     available = health.get("available", False)
-    if available:
+    if agentd_mode:
+        color = discord.Color.blurple()
+    elif available:
         color = discord.Color.green()
     else:
         color = discord.Color.red()
+    suffix = "（agentd 模式）" if agentd_mode else ""
     embed = discord.Embed(
-        title=f"健康检查 — {config.id}",
+        title=f"健康检查{suffix} — {config.id}",
         color=color,
     )
     embed.add_field(name="适配器", value=health.get("adapter", "?"), inline=True)
     embed.add_field(name="可执行文件", value=health.get("bin", "?"), inline=True)
-    embed.add_field(name="可用", value="是" if available else "否", inline=True)
+    if agentd_mode:
+        embed.add_field(name="状态", value="由 coordinate runtime 管理", inline=True)
+    else:
+        embed.add_field(name="可用", value="是" if available else "否", inline=True)
     embed.add_field(name="工作目录", value=config.work_dir or "(none)", inline=True)
     embed.add_field(name="模型", value=config.model or "(default)", inline=True)
     embed.add_field(name="超时", value=f"{config.timeout}s", inline=True)
-    path = health.get("path") or health.get("bin", "?")
-    embed.add_field(name="路径", value=f"`{path}`", inline=False)
+    if not agentd_mode:
+        path = health.get("path") or health.get("bin", "?")
+        embed.add_field(name="路径", value=f"`{path}`", inline=False)
     if health.get("error"):
         embed.add_field(name="错误", value=str(health["error"])[:1024], inline=False)
     return embed
@@ -59,6 +67,16 @@ def build_session_status_embed(
     scope_id = scope_for_channel_id(channel_id, is_thread=is_thread)
     legacy_scope_id = legacy_scope_for_channel_id(channel_id)
     agent_id = client.agent_config.id
+    if client.session_store is None:
+        scope_desc = describe_scope(scope_id)
+        embed = discord.Embed(
+            title=f"会话状态（agentd 模式） — {agent_id}",
+            description="agentd 模式下会话由 coordinate runtime 管理，本地不维护 session store。",
+            color=discord.Color.blurple(),
+        )
+        embed.add_field(name="scope", value=scope_id, inline=True)
+        embed.add_field(name="scope_type", value=scope_desc.label, inline=True)
+        return embed
     current = client.session_store.get_first_active(
         scope_ids=(scope_id, legacy_scope_id),
         agent_id=agent_id,
