@@ -120,31 +120,17 @@ In the Discord Developer Portal, enable the **Message Content Intent** and gener
 
 | Feature | Description |
 |---|---|
-| Multi-agent routing | Role mentions and slash commands route to the correct agent |
-| @team broadcast | Mention a configurable team role to call all agents in parallel |
-| **THEN barriers** | Sequential multi-agent execution: `@claude do X THEN @codex do Y` — stages run in order, agents within a stage run in parallel |
-| **Per-agent prompt splitting** | Multi-agent messages give each agent only its own section |
-| **List-reference expansion** | `do (1)`, `#2`, `step 3` auto-expand to numbered items from the last assistant message |
-| Agent handoffs | Agents hand off tasks to each other via `@AgentName <task>` in responses |
-| **Session persistence** | Claude and Codex sessions persist per thread — subsequent messages resume the same CLI session |
-| **Claude shell access** | Claude has full tool access (Bash, Edit, Read) — can run commands, commit code, edit files |
-| Per-thread history | Conversation history stored per thread in SQLite |
-| Agent workspaces | Per-thread scratch state preserved across turns |
-| Live streaming | Claude and Codex stream partial output to a Discord placeholder as they generate |
-| **Activity timeout override** | Per-command `-t <seconds>` flag for long-running Codex tasks (e.g. `!g -t 1800 ./gradlew test`) |
-| Thread support | Agents work correctly in forum posts and thread channels via webhook routing |
-| /stop | Cancel a running agent mid-generation with a slash command |
-| Cron jobs | `/cron add` schedules recurring agent prompts on a cron expression |
+| Multi-agent routing | Each agent is its own Discord identity; messages route to the configured agent |
+| `[handoff]` protocol | Agents hand tasks to each other via `[handoff] <@agent>` lines in responses |
+| **Session persistence** | Per-scope Claude/Codex sessions resume on subsequent messages |
+| Per-thread history | Conversation history stored per thread/channel in SQLite |
+| Chunked output | Responses are split into Discord-sized chunks before posting |
+| Operator commands | Text commands: `agents` (list), `health` (check), `session status`, `session reset` |
 | Public wiki | Shared Markdown wiki, written by agents or users |
 | Private wiki | Separate tier for sensitive content, stored outside the repo |
 | Persistent memory | `washer.py` extracts facts/preferences/context from history via local LLM |
 | Private review queue | Sensitive extractions held for manual approval before injection |
-| Discoveries | Agents post notable findings to a shared channel |
-| Web research | Optional researcher agent triggers search queries |
-| Attachment processing | Text extraction and vision blocks for file attachments across all routing paths |
 | Secret redaction | Output is scanned for secrets before posting |
-| Health dashboard | `/dashboard` posts a live-updating embed with agent status |
-| Rate-limit fallback | If Claude is rate-limited, falls back to Codex, then local LLM |
 | Cross-platform | Windows and Mac/Linux supported |
 
 ---
@@ -198,7 +184,7 @@ At least one agent must be configured and online. See [`docs/agents.md`](docs/ag
 - [Multi-Agent Collaboration](docs/multi-agent-collaboration.md) — Discord/KOOK as visible message bus, harness-backed workflow, coordinator design
 - [Agents](docs/agents.md) — configuring each agent type, adding custom agents
 - [Wiki System](docs/wiki-system.md) — wiki structure, tags, private tier, curation
-- [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, PM2
+- [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, systemd/launchd persistence
 
 ---
 
@@ -240,7 +226,7 @@ If you find this useful, donations are appreciated:
 
 ---
 
-## Acknowledgements
+- The allowlist controls who can use `session reset` and other privileged operator commands
 
 The optional `OpenClawRelayAgent` is designed to work with [Dream Server](https://github.com/Light-Heart-Labs/DreamServer) by Light Heart Labs — a fully local AI stack (LLM inference, agents, voice, workflows, RAG) deployable on your own hardware with a single command. It's a natural companion to multinexus if you want a complete self-hosted setup.
 

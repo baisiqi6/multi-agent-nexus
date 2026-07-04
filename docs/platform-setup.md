@@ -157,54 +157,21 @@ On first run, the bot will:
 
 ---
 
-## Persistent Operation with PM2
+## Persistent Operation (legacy PM2 — removed)
 
-PM2 keeps the bot running and restarts it on crashes or system reboots.
-
-### Install PM2
-
-```bash
-npm install -g pm2
-```
-
-### Windows
-
-```bash
-npm install -g pm2-windows-startup
-pm2-windows-startup install
-```
-
-Start the bot:
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-```
-
-### Mac/Linux
-
-```bash
-pm2 start ecosystem.config.js
-pm2 startup        # follow the printed instructions
-pm2 save
-```
-
-### PM2 Commands
-
-```bash
-pm2 status                  # check if bot is running
-pm2 logs multinexus      # view live logs
-pm2 restart multinexus   # restart
-pm2 stop multinexus      # stop
-```
-
-The bot also supports `/restart` from Discord (allowlisted users only), which calls `sys.exit(0)`
-and relies on PM2 to relaunch it automatically.
+> **⚠️ Removed** — `ecosystem.config.js` and the PM2-based persistence path have
+> been deleted. PM2 is no longer used. Production persistence is provided by:
+>
+> - **Linux**: systemd unit `multinexus-discord-bridge` (see `scripts/deploy-server.sh`)
+> - **Mac**: launchd plist (see ["Persistent Operation with launchd"](#persistent-operation-with-launchd-new-multi-bot-multinexuspy) below)
+>
+> This section is retained for historical reference only.
 
 ---
 
 ## Persistent Operation with launchd (new multi-bot multinexus.py)
 
-The legacy single-bot `bot.py` uses PM2 (see above). The new multi-bot architecture uses `multinexus.py --agent <id>` with launchd for Mac persistence.
+Production uses `multinexus.py --platform discord` with launchd for Mac persistence (or systemd on Linux — see `scripts/deploy-server.sh`). The legacy single-bot `bot.py` and its PM2 config have been removed.
 
 ### Prerequisites
 

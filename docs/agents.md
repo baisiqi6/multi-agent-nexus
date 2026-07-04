@@ -120,7 +120,7 @@ lmstudio:
     You are a helpful local AI assistant...
 ```
 
-The `lmstudio` config key is used by default. You can rename it — just update `bot.py` to match.
+The `lmstudio` config key is used by default. You can rename it — just update the matching `[[agents]]` entry in `agents.toml`.
 
 ### health_check
 
@@ -236,7 +236,7 @@ If `claude` raises `AgentRateLimitError`, the bot tries agents in this order:
 claude → codex → local-agent
 ```
 
-This fallback chain is defined in `cogs/agents.py`. Adjust it to match your enabled agents.
+This fallback chain was defined in the legacy `cogs/agents.py` (removed). The new `multinexus/` architecture does not implement automatic rate-limit fallback; each agent is invoked independently per its `agents.toml` configuration.
 
 ---
 
