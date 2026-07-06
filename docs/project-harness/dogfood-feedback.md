@@ -387,6 +387,26 @@
 - 观察：superpowers plan 的代码块是**示意/指导**（给 implementer 看思路），不是字面照抄的 production code。reviewer 把它当 production code 逐行纠 bug，标准错位——implementer 写真实代码时按真实 API 处理，不会照抄示意里的错误。
 - 后续规则：plan review 该评"架构/spec/可执行性"，逐行纠伪代码 bug 留给实现后的 code review（SDD 正确阶段划分：plan review ≠ code review）。reviewer bootstrap 对 plan review 应明确"代码块是示意，评思路不评字面 bug"，避免无限 reactive。
 
+## 2026-07-06（Jarvis Pad dogfood / agentd bridge）
+
+### 1. `reply.platform=none` 会留下永久 pending delivery
+
+- 状态：open（非阻塞 cleanup）。
+- 原始现象：为避免 `agentd_mode` 下 bridge 自己回复 Discord 后，coordinate
+  daemon 再通过 `discord_webhook` 重复发送同一结果，multinexus bridge 把 runtime
+  request 的 `reply_json.platform` 设为 `"none"`。coordinate runtime 仍会创建
+  delivery row，因此 DB 中出现 `platform=none,status=pending` 的记录。
+- 当前行为：daemon 只 pump `discord_webhook`，所以这些 `none` delivery 不会被发送；
+  用户侧不会重复收到消息。2026-07-06 dogfood 中确认 `pad-jarvis` 最新 job 已
+  `done`，对应 `none/pending` delivery 仅作为抑制发送后的 outbox 残留。
+- 影响：功能路径可接受，但 pending delivery 指标会被污染；未来如果 doctor、
+  dashboard、告警或人工排查只按 `status=pending` 统计，可能误报"有待发送消息"。
+- 待修方向：
+  - 首选：coordinate `_create_response_delivery()` 将 `reply.platform == "none"`
+    视为显式 suppress，直接 `return None, False`，不创建 delivery row。
+  - 如果需要保留审计：引入明确的 suppressed 语义（例如 `status="suppressed"` 或
+    专门过滤 `platform="none"`），不要让它计入普通 pending delivery。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
@@ -397,3 +417,5 @@
 6. Maintenance: Mac Claude CLI proxy / agentd launchd 健康检查
 7. Maintenance: win-opencode per-user runner / service account stabilization
 8. Phase 8: GitHub PR / CI / review automation loop
+9. Maintenance: suppress `reply.platform=none` without creating permanent
+   pending delivery rows
