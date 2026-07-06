@@ -663,8 +663,14 @@ class DiscordClient(CoordinatorHandoffMixin, discord.Client):
             "session_scope_id": session_scope_id,
             "legacy_scope_ids": list(legacy_scope_ids),
         }
+        # agentd_mode: bridge posts the response itself via the agent's
+        # DiscordClient. Set reply platform to "none" so coordinate creates
+        # a delivery record (for audit) but daemon does not pump it
+        # (daemon only pumps discord_webhook). This prevents the coordinator
+        # bot from duplicate-posting the agent's response.
+        reply_platform = "none" if self._agentd_mode else "discord"
         reply = {
-            "platform": "discord",
+            "platform": reply_platform,
             "destination": thread_id or channel_id,
         }
 
