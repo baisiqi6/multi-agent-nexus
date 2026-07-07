@@ -407,6 +407,54 @@
   - 如果需要保留审计：引入明确的 suppressed 语义（例如 `status="suppressed"` 或
     专门过滤 `platform="none"`），不要让它计入普通 pending delivery。
 
+## 2026-07-07（Host profile handoff smoke / mac-omp dogfood）
+
+### 1. `agentd_mode` bridge 的 lifecycle handler 仍假设有 `session_store`
+
+- 状态：open（bug）。
+- 原始现象：对 `phase-8-host-profile-handoff-smoke` 执行真实 handoff dogfood，
+  target `mac-omp`。handoff delivery 成功发送并被 agent 自动 accept；随后 coordinate
+  daemon broad pump 又补发了历史 `[lifecycle] action=assignment.closeout` /
+  `action=task.done` 消息。`mac-omp` 收到这些 lifecycle mention 后，
+  `multinexus/coordinator_handoff.py:_try_coordinator_lifecycle()` 调用
+  `self.session_store.mark_task_archived(...)`，但 `agentd_mode` 下 bridge 的
+  `session_store` 是 `None`，因此抛出：
+  `AttributeError: 'NoneType' object has no attribute 'mark_task_archived'`。
+- 证据：
+  - handoff event：`4f0bf522-830b-4a21-a6cd-c45d0bcc0c30`
+  - lifecycle trace 时间：2026-07-07 21:52:29/21:52:30 +08:00
+  - 代码位置：`multinexus/coordinator_handoff.py:462`
+- 影响：服务仍 active，但 Discord client 对 lifecycle 消息抛 traceback；如果历史
+  lifecycle 被补发，会重复触发错误。它与之前 `/session status` 的
+  `session_store=None` 修复同类，但遗漏在 lifecycle handler。
+- 待修方向：`_try_coordinator_lifecycle()` 在 `session_store is None` 时应
+  fail-soft：不 archive local session，并可发送/记录一条简短 progress（或直接返回
+  handled），避免 agentd bridge 因没有 local session store 而 traceback。
+
+### 2. `mac-omp` handoff accepted，但 worker job 返回 `omp CLI failed`
+
+- 状态：open（worker adapter/execution failure；handoff 控制面已通）。
+- 真实链路结果：
+  - `worker.handoff.prepared` created：`4f0bf522-830b-4a21-a6cd-c45d0bcc0c30`
+  - handoff status + targeted `[handoff] <@mac-omp>` delivery sent：
+    `14e0fd60-...` / `fd4a7966-...`
+  - `assignment.accepted` created：`8fb6b670-6f20-4360-ab90-54ed91a6ad77`
+  - runtime request/job：`request:4ac290a4-7928-44e3-9165-36cdc15bd89e`
+  - job claimed/completed by `mac-omp` within one attempt.
+- 失败点：job status 是 `done`，但 `response_text` 是
+  `omp CLI failed (1): ... Streaming edit aborted due to patch preview failure ...`；
+  daemon 因缺少结构化成功 report 又补了一条 `progress.reported` fallback：
+  `adapter completed without a structured agent-report; operator should inspect the visible response`。
+- 影响：handoff/control-plane path 基本打通，但 worker execution 没完成 smoke plan，
+  因此不能算端到端 PASS。
+- 待修方向：
+  - 先复核 `mac-omp` adapter/CLI 失败是否可复现；需要保留原始 stderr/log，不要只截断
+    500 字符。
+  - `agent.reported action=done` 不应把明显的 adapter failure 当作成功语义；如果
+    adapter 返回 `omp CLI failed`，runtime/bridge 应优先产生 blocker/failed 信号。
+  - 修复后重跑同一 smoke，验收要求 worker 真正报告 cwd/branch/bootstrap path，而不是
+    fallback progress。
+
 ## 后续建议排期
 
 1. Phase 5.5: Discord Message Rendering
@@ -419,3 +467,7 @@
 8. Phase 8: GitHub PR / CI / review automation loop
 9. Maintenance: suppress `reply.platform=none` without creating permanent
    pending delivery rows
+10. Maintenance: guard coordinator lifecycle handling when `agentd_mode` has no
+    local session store
+11. Maintenance: diagnose `mac-omp` handoff worker `omp CLI failed` result and
+    preserve full adapter stderr
