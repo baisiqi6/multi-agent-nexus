@@ -736,5 +736,27 @@ class TestActionScopeConstraint(unittest.TestCase):
         self.assertEqual(result.action, "assignment.accept")
 
 
+class TestLifecycleSessionStoreNone(unittest.TestCase):
+    """agentd_mode bridge with session_store=None must not traceback on lifecycle."""
+
+    def test_lifecycle_no_session_store_returns_handled(self):
+        instance = _make_runtime_client()
+        instance.session_store = None
+        lifecycle_msg = _make_handoff_message(
+            content=(
+                "[lifecycle] <@111> workspace_id=multinexus "
+                "task_id=phase-5.1 action=task.done"
+            )
+        )
+        loop = asyncio.new_event_loop()
+        try:
+            handled = loop.run_until_complete(
+                instance._try_coordinator_lifecycle(lifecycle_msg)
+            )
+        finally:
+            loop.close()
+        self.assertTrue(handled)
+
+
 if __name__ == "__main__":
     unittest.main()

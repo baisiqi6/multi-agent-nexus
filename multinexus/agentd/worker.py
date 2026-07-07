@@ -378,6 +378,7 @@ class AgentdWorker:
         "Codex resume failed",
         "Hermes CLI failed", "Hermes timed out",
         "Claude CLI failed", "Claude error:", "Claude timeout",
+        "omp CLI failed", "omp timed out",
     )
 
     @classmethod
