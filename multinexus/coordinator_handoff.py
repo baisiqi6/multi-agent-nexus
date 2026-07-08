@@ -459,6 +459,14 @@ class CoordinatorHandoffMixin:
         if event is None:
             return False
 
+        if self.session_store is None:
+            # agentd_mode bridge has no local session store; skip archive.
+            log.info(
+                "Lifecycle event handled (no local session store): task=%s agent=%s action=%s",
+                event.task_id, cfg.id, event.action,
+            )
+            return True
+
         archived = self.session_store.mark_task_archived(
             workspace_id=event.workspace_id,
             task_id=event.task_id,

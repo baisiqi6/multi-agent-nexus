@@ -572,6 +572,15 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         self.assertTrue(AgentdWorker._is_error("Codex CLI failed: x"))
         self.assertFalse(AgentdWorker._is_error("OK done"))
 
+    def test_is_error_recognizes_omp_adapter_failures(self):
+        """omp CLI failed/timed out must be recognized as error, not reported as done."""
+        from multinexus.agentd.worker import AgentdWorker
+        self.assertTrue(AgentdWorker._is_error("omp CLI failed (1): Streaming edit aborted due to patch preview failure"))
+        self.assertTrue(AgentdWorker._is_error("omp timed out after 120s"))
+        self.assertEqual(AgentdWorker._status_for_result(
+            type("R", (), {"text": "omp CLI failed (1): err", "metadata": {}})()
+        ), "failed")
+
     def test_worker_shutdown_is_testable(self):
         """Worker stop() sets _running=False and wakes the event for immediate exit."""
         from multinexus.agentd.worker import AgentdWorker
