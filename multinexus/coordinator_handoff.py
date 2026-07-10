@@ -177,14 +177,15 @@ class CoordinatorHandoffMixin:
             except discord.HTTPException:
                 pass
 
-        for report_line in report_lines:
-            try:
-                await channel.send(
-                    report_line,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            except discord.HTTPException:
-                pass
+        if not self._agentd_mode:
+            for report_line in report_lines:
+                try:
+                    await channel.send(
+                        report_line,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+                except discord.HTTPException:
+                    pass
 
         if not is_error:
             self.context_store.record_message(
@@ -313,14 +314,15 @@ class CoordinatorHandoffMixin:
             except discord.HTTPException:
                 pass
 
-        for report_line in report_lines:
-            try:
-                await channel.send(
-                    report_line,
-                    allowed_mentions=discord.AllowedMentions.none(),
-                )
-            except discord.HTTPException:
-                pass
+        if not self._agentd_mode:
+            for report_line in report_lines:
+                try:
+                    await channel.send(
+                        report_line,
+                        allowed_mentions=discord.AllowedMentions.none(),
+                    )
+                except discord.HTTPException:
+                    pass
 
         if not is_error:
             self.context_store.record_message(
@@ -374,7 +376,7 @@ class CoordinatorHandoffMixin:
             },
         }
         reply = {
-            "platform": "discord",
+            "platform": "none",
             "destination": destination,
         }
 
@@ -422,6 +424,8 @@ class CoordinatorHandoffMixin:
         """Emit a structured report if the adapter forgot to include one."""
         from . import client as client_facade
 
+        if self._agentd_mode:
+            return
         if client_facade.contains_execution_agent_report(response_text):
             return
         if is_error:

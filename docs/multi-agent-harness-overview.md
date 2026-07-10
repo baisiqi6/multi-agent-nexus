@@ -1,4 +1,10 @@
-# Multi-Agent Harness 工程体系
+> **Historical overview.** This document describes an earlier three-layer model in
+> which Coordinate was presented as the coordinator and MultiNexus as only a message
+> layer. Current authority: [`project-harness/product-definition.md`](project-harness/product-definition.md),
+> [`project-harness/scope.md`](project-harness/scope.md), and
+> [`project-harness/architecture.md`](project-harness/architecture.md).
+
+# Multi-Agent Harness 工程体系（历史）
 
 ## 一句话概括
 

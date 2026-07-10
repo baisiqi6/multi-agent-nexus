@@ -53,8 +53,11 @@ _AGENT_REPORT_LINE_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 _STRICT_AGENT_REPORT_LINE_RE = re.compile(
-    r"^\s*\[agent-report\]\s+action=",
+    r"^\s*\[agent-report\](?=\s|$)",
     re.IGNORECASE,
+)
+_AGENT_REPORT_FIELD_LINE_RE = re.compile(
+    r"^\s*[A-Za-z_][A-Za-z0-9_-]*=",
 )
 
 
@@ -334,33 +337,54 @@ def contains_execution_agent_report(text: str) -> bool:
     report proves the handoff was accepted, but it is not an execution update
     and must not suppress the missing-report fallback after the adapter returns.
     """
-    for line in (text or "").splitlines():
-        if not _STRICT_AGENT_REPORT_LINE_RE.match(line):
-            continue
-        try:
-            fields = _parse_key_values(line)
-        except ValueError:
-            continue
+    report_lines, _ = split_agent_report_lines(text)
+    for report in report_lines:
+        fields = _parse_key_values(report)
         action = (fields.get("action") or "").lower()
         if action in {"blocker", "done", "progress"}:
+            return True
+        if (fields.get("decision") or "").lower() in {"approve", "reject"}:
             return True
     return False
 
 
 def split_agent_report_lines(text: str) -> tuple[list[str], str]:
-    """Extract strict ``[agent-report] action=...`` lines from an agent response.
+    """Extract parseable action or review-decision report blocks.
 
     Coordinator watches message-create events. Runtime responses may edit a
-    placeholder message, so report lines must be sent separately as new
-    messages to be ingested reliably.
+    placeholder message, so direct-adapter reports must be sent separately as
+    new messages to be ingested reliably. Both single-line reports and the
+    readable multiline review form are supported.
     """
     report_lines: list[str] = []
     display_lines: list[str] = []
-    for line in (text or "").splitlines():
-        if _STRICT_AGENT_REPORT_LINE_RE.match(line):
-            report_lines.append(line.strip())
-        else:
+    lines = (text or "").splitlines()
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if not _STRICT_AGENT_REPORT_LINE_RE.match(line):
             display_lines.append(line)
+            index += 1
+            continue
+
+        block = [line.strip()]
+        next_index = index + 1
+        while (
+            next_index < len(lines)
+            and _AGENT_REPORT_FIELD_LINE_RE.match(lines[next_index])
+        ):
+            block.append(lines[next_index].strip())
+            next_index += 1
+
+        candidate = "\n".join(block)
+        fields = _parse_key_values(candidate)
+        action = (fields.get("action") or "").lower()
+        decision = (fields.get("decision") or "").lower()
+        if action in _REPORT_ACTIONS or decision in {"approve", "reject"}:
+            report_lines.append(candidate)
+        else:
+            display_lines.extend(lines[index:next_index])
+        index = next_index
     return report_lines, "\n".join(display_lines).strip()
 
 

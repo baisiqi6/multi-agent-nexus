@@ -1,92 +1,96 @@
-# Domain Model
+# MultiNexus Domain Model
 
-## Core Entities
+> **Status: current MultiNexus-owned runtime entities.** Product-level Operator,
+> Coordinate, Harness, and Executor definitions live in [product-definition.md](product-definition.md).
+
+## Runtime entities
 
 ### AgentConfig
 
-Per-agent configuration loaded from `agents.toml`. Key fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | str | Unique identifier (e.g. "mac-claude") |
-| `adapter` | str | "claude", "codex", "opencode", "hermes", "omp" |
-| `token_env` | str | Env var name holding Discord bot token |
-| `display_name` | str | Human-visible name |
-| `channels` | list[int] | Discord channel IDs this agent listens in |
-| `work_dir` | str | Default CWD for adapter subprocess |
-| `discord_user_id` | int | Discord bot user ID for mention resolution |
-| `system_prompt` | str | Injected into every adapter call |
-| `timeout` | int | Total adapter timeout (default 360s) |
-| `known_agents` | list[KnownAgentMention] | Peer agents for routing |
-| `agentd_mode` | bool | Enable bridge mode (submit to agentd) |
-| `agentd_port` | int | Agentd HTTP port (0 = auto-assign) |
-| `kook_poll_channel_ids` | list[int] | KOOK channel IDs for polling fallback |
+Configuration for one managed agent identity and adapter. It includes runtime identity,
+adapter type, work directory, timeout, platform identity, known peers, session behavior,
+and agentd settings. Configuration does not grant project-level Operator authority.
 
 ### KnownAgentMention
 
-A peer agent known to this agent for routing purposes.
+Platform routing identity for a managed or external peer. Aliases and platform IDs allow
+handoffs to resolve to native mentions. This is routing metadata, not an agent registry
+for durable project ownership.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | str | Agent identifier |
-| `primary_name` | str | Display name |
-| `names` | set[str] | All matchable names (id + aliases + display_name) |
-| `discord_user_id` | int | Discord user ID |
-| `role_ids` | set[str] | KOOK role IDs |
-| `kind` | str | "managed" (started by nexus) or "external" (own Gateway) |
+### AgentRequest
 
-### AgentRequest / AgentResponse
+Platform-neutral invocation envelope. It carries a request ID, target agent, prompt,
+origin/destination metadata, author, session scope, and optional managed-handoff context.
 
-Platform-agnostic envelope for bridge → agentd communication. See `multinexus/protocol.py`.
+### AgentResponse
 
-**AgentRequest** key fields: `request_id`, `agent_id`, `prompt`, `origin` (PlatformOrigin), `destination` (PlatformDestination), `author_id`, `session_scope`, `handoff_*` fields.
-
-**AgentResponse** key fields: `request_id`, `agent_id`, `text`, `session_id`, `success`, `handoff_lines`, `report_lines`, `duration_ms`.
+Platform-neutral result envelope. It carries request/agent identity, output text,
+session ID, success classification, handoff/report lines, timing, and structured runtime
+metadata. It is execution evidence, not automatic acceptance or completion.
 
 ### AdapterResult
 
-Returned by every adapter call.
+Executor-specific call/resume result normalized by an adapter. Current common fields
+include text, session ID, resumed status, and metadata. Adapters may preserve richer
+vendor capabilities in metadata rather than flattening every executor to prompt/text.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `text` | str | Response text |
-| `session_id` | str | CLI session ID for resume |
-| `resumed` | bool | Whether this was a resumed session |
-| `metadata` | dict | Extensible metadata |
+### AgentdWorker
 
-## Data Stores
+Long-running worker for one managed agent identity. It registers with Coordinate,
+claims eligible jobs, invokes the adapter, reports liveness/progress, and returns a
+structured terminal result. Coordinate remains authoritative for the managed job.
 
-### Context Store (SQLite)
+### Bridge
 
-Table: `messages`
-- PK: `message_id TEXT`
-- Key cols: `channel_id`, `author_id`, `author_name`, `author_is_bot`, `content`, `created_at_ms`, `source`
-- Index: `(channel_id, created_at_ms)`
-- Cleanup: TTL-based on every `record_message()` call
+Platform-specific ingress and egress runtime. A bridge handles Gateway or polling,
+identity, allowlists, mention resolution, message formatting, and visible delivery.
+It does not own project workflow state.
 
-### Session Store (SQLite)
+### Session
 
-Table: `sessions`
-- PK: `(scope_id, agent_id)`
-- Key cols: `adapter`, `session_id`, `work_dir`, `status`, `turn_count`, `created_at`, `updated_at`
-- Upsert: increments `turn_count` on match, resets to 1 on new session
+Mapping from `(scope_id, agent_id)` to an executor-native session identifier and runtime
+metadata. It supports resume across visible turns but remains replaceable scratch state;
+the project must still be recoverable without it.
 
-## Handoff Protocol
+### ContextMessage
 
-- Regex: `^\[handoff\]\s*(?:<@!?(\d+)>\s*(.*)|@([^\n]+))$`
-- Resolution: text `@AgentName` → longest alias match → `<@discord_user_id>`
-- Delivery: handoff lines sent as separate Discord messages to trigger target bot
+Visible conversation record stored for prompt construction with TTL and budget limits.
+It may improve continuity but is not a source of truth for project completion.
 
-## Agent Types
+## Agent kinds
 
-| Type | Launch | Session | Examples |
-|------|--------|---------|----------|
-| Managed | `multinexus.py --agent <id>` | Yes (resume supported) | mac-claude, mac-codex, mac-opencode |
-| External | Own process | N/A | 小龙虾 (OpenClaw), Hermes |
+| Kind | Invocation ownership | Session handling | Examples |
+|---|---|---|---|
+| Managed | MultiNexus adapter/agentd | MultiNexus plus executor-native session | Claude Code, Codex, OpenCode, OMP |
+| External gateway | External runtime | External runtime | OpenClaw, Hermes gateway |
+| Compound executor | Parent managed/external runtime | Executor-defined internally | Agent team, subagent graph, native workflow |
 
-## Runtime Modes
+## Relationships
 
-| Mode | Adapter | Session | Use Case |
-|------|---------|---------|----------|
-| Legacy (`agentd_mode=false`) | Direct call in bridge | Bridge-managed | Single Discord only |
-| Bridge (`agentd_mode=true`) | Via agentd HTTP | Agentd-managed | Multi-platform (Discord + KOOK) |
+```text
+AgentConfig
+  ├── selects Adapter
+  ├── identifies AgentdWorker
+  ├── owns scoped Sessions
+  └── references KnownAgentMention peers
+
+Bridge
+  ├── creates AgentRequest
+  ├── may submit a managed job through Coordinate
+  └── renders AgentResponse to a platform
+
+AgentdWorker
+  ├── claims Coordinate Job
+  ├── invokes Adapter
+  └── reports progress and AgentResponse
+```
+
+## Ownership summary
+
+| Fact | Authority |
+|---|---|
+| Adapter invocation, resume, native session, local runtime health | MultiNexus/runtime |
+| Managed job and attempt lifecycle | Coordinate DB |
+| Platform identity and routing configuration | MultiNexus configuration |
+| Project plan, acceptance, task completion | Harness plus required evidence |
+| Internal compound-agent graph | Owning Executor unless promoted to managed delegation |

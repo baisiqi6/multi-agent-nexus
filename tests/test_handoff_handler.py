@@ -361,6 +361,45 @@ class TestAgentReport(unittest.TestCase):
         )
         self.assertEqual(display_text, "Done.\nSee commit abc123.")
 
+    def test_splits_review_decision_report_from_display_text(self):
+        report_lines, display_text = split_agent_report_lines(
+            "Review approved.\n"
+            "[agent-report] decision=approve workspace_id=multinexus "
+            "task_id=phase-5.1 summary='looks good'"
+        )
+
+        self.assertEqual(
+            report_lines,
+            [
+                "[agent-report] decision=approve workspace_id=multinexus "
+                "task_id=phase-5.1 summary='looks good'"
+            ],
+        )
+        self.assertEqual(display_text, "Review approved.")
+
+    def test_splits_multiline_review_report_block(self):
+        report_lines, display_text = split_agent_report_lines(
+            "Review rejected.\n"
+            "[agent-report]\n"
+            "decision=reject\n"
+            "workspace_id=multinexus\n"
+            "task_id=phase-5.1\n"
+            "reason='missing tests'\n"
+            "Please revise."
+        )
+
+        self.assertEqual(
+            report_lines,
+            [
+                "[agent-report]\n"
+                "decision=reject\n"
+                "workspace_id=multinexus\n"
+                "task_id=phase-5.1\n"
+                "reason='missing tests'"
+            ],
+        )
+        self.assertEqual(display_text, "Review rejected.\nPlease revise.")
+
     def test_split_ignores_non_strict_report_examples(self):
         report_lines, display_text = split_agent_report_lines(
             "Example:\n"

@@ -2,13 +2,15 @@
 
 > 本仓库基于 [baisiqi6/discord-nexus](https://github.com/baisiqi6/discord-nexus) 继续维护，原项目 README 标注为 MIT License。本分支保留原始 Git 历史，并在此基础上加入 OpenClaw CLI、managed context、KOOK 接入规划和多主机 agent routing 等定制能力。来源与维护说明见 [docs/provenance.md](docs/provenance.md)。
 
-A modular Discord bot framework for connecting AI agents — Claude Code CLI, Codex CLI, and local LLMs (LM Studio, Ollama, vLLM) — to Discord as a collaborative multi-agent system.
+MultiNexus is an agent execution fabric for connecting replaceable managed and external agent runtimes — including Claude Code, Codex, OpenCode, OpenClaw, Hermes, OMP, and local LLMs — to durable project work.
+
+Discord and KOOK are visible interaction adapters, not the product boundary. MultiNexus owns runtime invocation, resume, health, session context, platform-neutral envelopes, and bridge delivery. Coordinate provides the deterministic control-plane mechanics; the current human or agent **Operator** makes decisions. The canonical cross-repository position is [Coordinate + MultiNexus Product Definition](docs/project-harness/product-definition.md).
 
 ---
 
 ## What It Is
 
-multinexus lets you run multiple AI agents in a Discord server where they can:
+MultiNexus lets an Operator or Coordinate-managed job invoke compound agent runtimes while preserving their native capabilities. Through the current Discord/KOOK surfaces, agents can:
 
 - Respond to messages via role mention (`@Claude`, `@Local Agent`, `@Codex`)
 - Hand off tasks to each other via the `[handoff]` protocol
@@ -16,7 +18,7 @@ multinexus lets you run multiple AI agents in a Discord server where they can:
 - Write to a shared wiki (public and private tiers)
 - Extract and inject persistent memories from conversation history (via `washer.py`)
 
-Each agent posts as a distinct Discord user via webhook, with its own name and avatar.
+Each agent may appear as a distinct platform identity, but the runtime is not limited to chat-driven execution. Direct CLI, API, plugin, and future bridge entry points can use the same adapter and agentd layer.
 
 ---
 
@@ -177,11 +179,14 @@ At least one agent must be configured and online. See [`docs/agents.md`](docs/ag
 
 ## Documentation
 
-- [Architecture](docs/architecture.md) — system diagram, data flow, component overview
-- [Multi-Agent Collaboration](docs/multi-agent-collaboration.md) — Discord/KOOK as visible message bus, harness-backed workflow, coordinator design
+- [Product Definition](docs/project-harness/product-definition.md) — shared mission, roles, delegation boundary, and source-of-truth ownership
+- [Runtime Architecture](docs/project-harness/architecture.md) — execution fabric, agentd, adapters, bridges, and managed execution
+- [Scope](docs/project-harness/scope.md) / [Domain Model](docs/project-harness/domain-model.md) — repository boundary and runtime entities
+- [Multi-Agent Collaboration](docs/multi-agent-collaboration.md) — current documentation entry points for collaborative workflows
 - [Agents](docs/agents.md) — configuring each agent type, adding custom agents
 - [Wiki System](docs/wiki-system.md) — wiki structure, tags, private tier, curation
 - [Platform Setup](docs/platform-setup.md) — Windows and Mac/Linux install guides, systemd/launchd persistence
+- [Legacy Architecture](docs/architecture.md) — removed single-bot topology, retained for historical reference
 
 ---
 
