@@ -1130,6 +1130,36 @@
       },
       "verification": "",
       "review": {}
+    },
+    {
+      "id": "slice-3-c1-audit-integration-plan",
+      "title": "S3-C1 Durable Audit And Integration Plan",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-3-c1-audit-integration-plan/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-3-c1-audit-integration-plan/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-11T18:38:19Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-11T18:38:19Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-3-c1-audit-integration-plan/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
