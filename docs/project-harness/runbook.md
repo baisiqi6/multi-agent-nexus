@@ -72,6 +72,74 @@ Session status output includes the current scope type:
 
 ## Harness Operations
 
+### Plan review before worker handoff
+
+Roadmap and stage overview plans define scope but do not authorize implementation.
+Before every executable work package:
+
+1. Create `tasks/<package-id>/plan.md` from
+   `templates/detailed-execution-plan.md`.
+2. Refresh current repository, branch, runtime, schema, test, and harness facts.
+3. Assign a plan reviewer who is not the intended coding worker.
+4. Store the review verdict beside the package plan. Resolve every must-fix and repeat
+   review until the exact plan revision is explicitly `approved`.
+5. Record the approved plan path and Git commit or SHA-256 in the review artifact.
+6. Only then generate `worker-bootstrap.md`. The bootstrap must cite the approved
+   plan revision and review artifact and must preserve worktree, permissions,
+   non-goals, validation, reporting, and stop boundaries.
+7. If the plan changes materially, invalidate the bootstrap and approval, return the
+   plan to review, and generate a new bootstrap only after re-approval.
+
+The coding worker cannot approve its own plan or result. Worker completion still
+requires independent code/result review and any separately authorized integration,
+deployment, runtime smoke, and durable closeout gates.
+
+The concrete Coordinate flow is:
+
+```bash
+# 1. Register the package plan and emit plan.ready.
+$MAC_SH task create multinexus \
+  --task-id <package-id> \
+  --plan-doc docs/project-harness/tasks/<package-id>/plan.md \
+  --title "<package title>"
+
+# 2. Request plan review and generate a read-only reviewer bootstrap.
+$MAC_SH plan review-request multinexus --task-id <package-id>
+$MAC_SH task handoff multinexus \
+  --task-id <package-id> \
+  --role reviewer \
+  --review-type plan \
+  --target-agent <plan-reviewer> \
+  --write-bootstrap
+
+# 3. Record the independent verdict. Rejection returns the plan to revision/review.
+$MAC_SH plan approve multinexus \
+  --task-id <package-id> \
+  --scope "implementation plan" \
+  --reviewer <plan-reviewer> \
+  --notes "review artifact: <path>; reviewed revision: <commit-or-sha256>"
+
+# Or:
+$MAC_SH plan reject multinexus \
+  --task-id <package-id> \
+  --scope "implementation plan" \
+  --reviewer <plan-reviewer> \
+  --reason "review artifact: <path>; must-fix summary: <summary>"
+
+# 4. Only an approved current plan may produce the coding-worker bootstrap/handoff.
+$MAC_SH task handoff multinexus \
+  --task-id <package-id> \
+  --role worker \
+  --required-scope "implementation plan" \
+  --target-agent <coding-worker> \
+  --write-bootstrap
+```
+
+The reviewer bootstrap in step 2 exists to perform plan review and is intentionally
+generated before approval. The coding-worker bootstrap in step 4 is the artifact that
+is forbidden before approval. Coordinate binds approval to the current `plan.ready`;
+re-register a material plan revision so a stale approval cannot authorize handoff.
+
 ```bash
 # Validate checklist schema
 bash scripts/harness/harnessctl validate

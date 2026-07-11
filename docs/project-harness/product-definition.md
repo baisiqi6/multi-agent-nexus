@@ -7,6 +7,10 @@
 > detail, but they must not redefine these terms or duplicate this document as a
 > second editable source of truth.
 
+Current cross-stage sequencing and execution gates are defined in
+[roadmap.md](roadmap.md). The roadmap may schedule work but cannot redefine the
+product roles or authority rules in this document.
+
 ## Mission
 
 Coordinate and MultiNexus form an agent-independent project execution layer.

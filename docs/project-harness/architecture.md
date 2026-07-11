@@ -119,6 +119,7 @@ Coordinate-managed job.
 ## Key references
 
 - Shared product definition: `docs/project-harness/product-definition.md`
+- Cross-stage roadmap and plan gates: `docs/project-harness/roadmap.md`
 - Repository scope: `docs/project-harness/scope.md`
 - Runtime entities: `docs/project-harness/domain-model.md`
 - Agent configuration: `docs/agents.md`

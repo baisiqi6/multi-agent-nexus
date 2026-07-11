@@ -2,6 +2,24 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-11
+
+### Post-Slice-3 roadmap and plan-gate protocol
+
+- Added `roadmap.md` as the canonical cross-stage sequence for Slice 3 closeout,
+  Slice 4 hardening, and Phase 9 multi-project execution isolation.
+- Added roadmap-level overview plans for all three stages. These plans intentionally
+  constrain goals, dependencies, work packages, non-goals, and acceptance gates; they
+  are not executable worker plans.
+- Added `templates/detailed-execution-plan.md` for package-level implementation plans.
+- Made independent plan review mandatory before bootstrap generation and worker
+  assignment. Approval is bound to a stable plan revision; material edits invalidate
+  both approval and bootstrap.
+- Recorded the 2026-07-11 planning snapshot: MultiNexus `4e2fa46`, Coordinate `main`
+  `46a75da`, and Coordinate Slice 3 worker checkpoint `1b86212`.
+- No runtime code, service, deployment, production DB, worker assignment, or lifecycle
+  state was changed while establishing this roadmap.
+
 ## 2026-06-24
 
 ### Phase 8.7 Worker Self-Test Before Closeout
