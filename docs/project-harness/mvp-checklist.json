@@ -1714,17 +1714,22 @@
       "selected_in_session": "omp-p9-0a4b-kimi",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "running",
+        "status": "review_approved",
         "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli",
         "updated_at": "2026-07-12"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
-        "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli"
+        "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after correction 882c2a1; exact six paths; 21/75/99; seven rewinds; 91 boundary; 440 service-focused; 1555 full; no must-fix remains."
       },
       "lease": {
         "owner": "mac-omp",
