@@ -1748,7 +1748,7 @@
     {
       "id": "p9-0a5-event-presentation-registry",
       "title": "P9-0A5 Event Presentation Registry Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1763,18 +1763,18 @@
         "reason": null
       },
       "selected_in_session": "p9-0a5-kimi-direct",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T17:45:32Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a5-event-presentation-registry",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T17:45:32Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a5-event-presentation-registry/plan.md",
         "branch": "agents/mac-omp/p9-0a5-event-presentation-registry",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 084419c; Codex result review approved; Python 3.14 focused 264/264, full 1572/1572.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
@@ -1788,6 +1788,12 @@
         "acquired_at": "2026-07-12T17:43:52Z",
         "expires_at": "2026-07-12T19:43:52Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "8529a3be-3226-4723-a7e5-584eea24d6ea",
+        "before_fingerprint": "214282dfcb42024e92ddb900b99102728b5db34437ea17b4647753df60046082",
+        "after_fingerprint": "9ec79aec6fe57e3aaaf4c497eb5bb76211a97febf9766543d15ae3f5aa5edfb1",
+        "applied_at": "2026-07-12T17:45:32Z"
       }
     }
   ]
