@@ -1538,3 +1538,24 @@ evidence package. The same session spans two provider/model intervals:
 - Exact evidence: `tasks/p9-0a4b-workflow-assignment-cli/closeout.md`. Next package:
   P9-0A5 event presentation; it requires refreshed measurement, a detailed plan,
   independent non-Codex review, and a fresh worker bootstrap.
+
+## 2026-07-13 — P9-0A5 event presentation durable closeout
+
+- Kimi Round 2 approved exact plan SHA `f8507735...3c1c2`; worker session
+  `019f5760-6411-7000-8b40-45d5cd2e7ec7` produced `fa79fa6`. Codex removed two
+  untracked shell artifacts and added correction `084419c` to close the boundary
+  test's SQLite connection.
+- Integrated and pushed Coordinate `main`/`origin/main` at `084419c`. Exact three-path
+  scope, 44 + 1 portable witnesses, 34/34/31/3 partition, three cold import orders,
+  264 focused, and 1,572 full tests pass under the known-good Python 3.14 baseline.
+- Receipt `8529a3be-3226-4723-a7e5-584eea24d6ea` completed the authorized/claimed/
+  applied/task.done/consumed chain with `214282df...` -> `9ec79aec...`; deployed
+  MultiNexus `b562533` was verified done/closed before terminal record.
+- One pre-replay receipt was rejected before claim on a source/deployed fingerprint
+  mismatch. Source lifecycle replay, commit and deploy restored equality without direct
+  JSON or DB repair.
+- Generic handoff identity, control-vs-harness workspace identity, split-operation UX,
+  pending direct assignment delivery, and recovered pump-race breaker behavior are
+  routed to Slice 4/runtime hardening.
+- Exact evidence: `tasks/p9-0a5-event-presentation-registry/closeout.md`. Next stage:
+  refresh and independently review the Slice 4 detailed plan before any worker runs.

@@ -810,3 +810,50 @@
 - Receipt：`1c9269e9-e7b5-442c-b856-d0216d62bdab`，fingerprint
   `dfceae7e... -> 74282c7c...`。
 - Closeout：`tasks/p9-0a4b-workflow-assignment-cli/closeout.md`。
+
+## 2026-07-13（P9-0A5 event presentation / split-operation dogfood）
+
+### 1. generic handoff仍会把实现者投影到错误仓库
+
+- 状态：source-controlled bootstrap mitigated / protocol gap open。
+- `worker.handoff.prepared`的通用文本仍指向`/opt/multinexus`和历史workspace branch，
+  但本包真正实现位置是Coordinate隔离worktree。Operator明确声明版本化
+  `worker-bootstrap.md`为唯一authority，Kimi因此没有误改MultiNexus。
+- Route：Slice 4应让handoff payload显式携带control workspace、code workspace、exact
+  worktree/branch/start SHA，并拒绝互相矛盾的projection。
+
+### 2. files half不能通过remote wrapper在服务器执行
+
+- 状态：fail-fast validated / UX gap open。
+- 首次把`mark-done-files`交给`coord-ssh`后，服务器尝试寻找Mac路径
+  `/Users/yinxin/.local/bin/coord-ssh`并在preflight前失败。正确路径是本机Coordinate CLI
+  修改canonical files，同时用`coord-ssh`做远端preflight/claim/apply。
+- Route：split-operation命令应标明execution host与mutation target，并在错误host上启动前
+  直接给出可执行修正命令。
+
+### 3. fingerprint mismatch再次证明source/deployed顺序必须产品化
+
+- 状态：fail-closed validated / Slice 4 gap open。
+- 在source lifecycle replay前签发的receipt `98ecaa84...`以fingerprint mismatch拒绝，且
+  没有claim或文件变更。source assign/accept/closeout/review、commit/deploy后，两侧
+  fingerprint同为`214282df...`，新receipt `8529a3be...`才完成terminal chain。
+- Route：preflight应一次返回control DB gate、source item fingerprint、deployed item
+  fingerprint和下一安全动作，避免先签发必然不可用的receipt。
+
+### 4. identity与delivery breaker仍有重复证据
+
+- host files结果再次显示`workspace_id=local`，而control workspace是`discord-nexus`。
+- deploy breaker因已恢复的`sending` race和历史Discord连接日志退出1；对应delivery
+  `124750ce...`最终`sent`、有platform message id、`last_error=null`，VERSION和服务正常。
+- direct assignment delivery `394df085...`仍`pending`；A5 review deliveries
+  `dc914163...`、`4c3b2a8b...`均已`sent`。
+- Route：Slice 4拆分`control_workspace_id`/`harness_project_id`；runtime hardening给delivery
+  pump增加claim/lease，并让breaker判断最终权威状态而非旧日志窗口。
+
+### 5. provider与result-review evidence
+
+- Kimi Highspeed正常完成Round 2 review与coding；GLM fallback未触发。
+- JSONL证明44 + 1 witness在首次source edit前生成；Codex仍发现worker自报clean与真实
+  untracked artifacts不符，并修复SQLite `ResourceWarning`。绿测试和最终文字都不能替代
+  Operator对JSONL、git status和warnings的交叉验证。
+- Closeout：`tasks/p9-0a5-event-presentation-registry/closeout.md`。

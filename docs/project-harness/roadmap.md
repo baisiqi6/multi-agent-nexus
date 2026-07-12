@@ -89,15 +89,18 @@ now lives in `workflow_cli`, while receipt leaves remain in `completion_cli`. Ex
 evidence is in
 [tasks/p9-0a4b-workflow-assignment-cli/closeout.md](tasks/p9-0a4b-workflow-assignment-cli/closeout.md).
 
+P9-0A5 is durably closed. Coordinate `main`/`origin/main` are
+`084419c`; pure event presentation and the 34-key renderer registry now live in
+`event_presentation`, while `policy` remains the orchestration facade. Exact evidence
+is in
+[tasks/p9-0a5-event-presentation-registry/closeout.md](tasks/p9-0a5-event-presentation-registry/closeout.md).
+
 The active architecture alignment now governs:
 
 1. **Slice 3 durable closeout** — complete.
-2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1,
-   all P9-0A2a/b/c packages, and both P9-0A3a/b are complete; measured P9-0A4a receipt
-   completion and P9-0A4b workflow/assignment are complete; P9-0A5 event presentation
-   is next. Every
-   refined package requires a fresh detailed plan/review/bootstrap.
-3. **Slice 4 projection/split-operation hardening** after P9-0A5.
+2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — complete.
+3. **Slice 4 projection/split-operation hardening** — next; refresh its detailed plan,
+   obtain independent review, then issue a fresh worker bootstrap.
 4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
    remains acceptable.
 5. **Phase 9 runtime isolation packages (P9-1+)** after Slice 4 acceptance and the
@@ -171,7 +174,7 @@ Slice 3 durable closeout
         |
         v
 P9-0A1 through P9-0A5 structural decoupling
-(P9-0A1, P9-0A2a/b/c, P9-0A3a/b, and P9-0A4a/b done; P9-0A5 next)
+(all bounded packages done/closed)
         |
         v
 Slice 4 projection and split-operation hardening
@@ -207,8 +210,7 @@ Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
-runtime isolation. Status: P9-0A1, P9-0A2a/b/c, both P9-0A3a/b, and both P9-0A4a/b
-are durably closed. P9-0A5 event presentation is next.
+runtime isolation. Status: P9-0A1 through P9-0A5 are durably closed. Slice 4 is next.
 P9-0A6 remains ordered after Slice 4.
 
 ### 3. Slice 4 projection and split-operation hardening

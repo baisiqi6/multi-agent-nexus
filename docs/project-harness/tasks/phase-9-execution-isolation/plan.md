@@ -52,11 +52,13 @@ indexed in `../p9-0a1-cli-boundary-extraction/closeout.md` and
 `../p9-0a3a-runner-job-runtime-cli/closeout.md` plus
 `../p9-0a3b-delivery-policy-worker-cli/closeout.md` plus
 `../p9-0a4a-receipt-completion-cli/closeout.md` plus
-`../p9-0a4b-workflow-assignment-cli/closeout.md`. Measured post-closeout scope
+`../p9-0a4b-workflow-assignment-cli/closeout.md` plus
+`../p9-0a5-event-presentation-registry/closeout.md`. Measured post-closeout scope
 split the former combined P9-0A2 into P9-0A2a/b/c. Fresh measurement similarly splits
 the former combined P9-0A3 into P9-0A3a/b and the former P9-0A4 into P9-0A4a/b.
-P9-0A5 is the next executable package; prior approvals/bootstrap do not authorize it
-or its siblings.
+P9-0A1 through P9-0A5 are now durably closed. Slice 4 is the next executable stage;
+its historical overview is not worker authorization until refreshed detailed planning,
+independent review, Coordinate approval, and a fresh bootstrap complete.
 
 Bounded packages:
 
@@ -81,10 +83,10 @@ Bounded packages:
 8. `p9-0a4b-workflow-assignment-cli` — **done/closed**: moved branch/CI/review/merge and assignment;
    `workflow_cli` owns the assignment parser and invokes the already extracted
    `completion_cli` registrar with its supplied subparser.
-9. `p9-0a5-event-presentation-registry` — **detailed plan drafted, not authorized**:
-   keep `policy.py` as the orchestration facade;
-   extract only the pure event text/base-payload renderer registry and lock supported,
-   rendered, and explicitly unstyled event-key relationships.
+9. `p9-0a5-event-presentation-registry` — **done/closed**: `event_presentation.py`
+   owns the 44 pure text/base-payload functions and 34-key renderer registry; `policy`
+   remains the facade and the 34 supported = 34 rendered = 31 styled + exact 3
+   explicitly unstyled relationship is executable evidence.
 10. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
    Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
    proven stable transaction/repository/mutation seam; a documented no-change decision
