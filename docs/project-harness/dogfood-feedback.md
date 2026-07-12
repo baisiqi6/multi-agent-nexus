@@ -763,3 +763,50 @@
 - 历史Phase 8.7 branch冲突继续全局阻塞reconcile，导致本包task mirror停在`ready`，
   尽管canonical checklist与receipt chain已terminal。
 - Kimi额度正常；GLM fallback未触发。
+
+## 2026-07-13（P9-0A4b workflow CLI / receipt closeout dogfood）
+
+### 1. 绿测试未覆盖 fresh import order
+
+- 状态：fixed by Codex result review。
+- Worker 的91项前边界测试之前只检查已加载模块源码没有 backedge；旧 import-order
+  matrix 未包含新 `workflow_cli`，因此无法证明 `completion -> workflow -> root` 等冷启动
+  顺序都可用。
+- Codex correction `882c2a1` 增加三个隔离 interpreter 顺序与 root global exception
+  tuple AST lock；full suite从1,553增至1,555。
+- 结论：模块拆分验收不能把“没有文本 backedge”当成“所有 import order 可启动”。
+
+### 2. 文档 deploy 会诚实恢复 canonical 的旧 lifecycle 投影
+
+- 状态：fail-closed/replay validated；Slice 4 protocol gap open。
+- result-review 文档首次 deploy 时，canonical checklist中的A4b仍是`todo`，所以
+  `/opt`运行副本正确回到`todo`；控制面已有 assignment事件并不能替代 canonical file。
+- Operator通过 source `harnessctl assign/accept`重放、commit/deploy，再在source与production
+  分别重放closeout/review，最后才prepare/claim receipt。没有直接JSON或SQLite修复。
+- Route：split-operation应把 source state、deployed state、control DB state及下一安全动作
+  一次性展示，而不是依赖Operator记住部署顺序。
+
+### 3. control workspace与harness project id混在一个结果面
+
+- 状态：terminal chain正确；identity UX gap open。
+- `mark-done-files`明确传入`--workspace-id discord-nexus`，远端receipt事件也使用
+  `discord-nexus`，但host-side结果envelope报告`workspace_id=local`，来自harness config的
+  project id。
+- Route：Slice 4应拆成`control_workspace_id`与`harness_project_id`，并在preflight/claim/
+  apply结果中同时显示，避免顶层Operator把identity差异误判为跨项目写入。
+
+### 4. concurrent pump race再次可重复出现
+
+- 状态：open / repeated；deliveries最终sent。
+- `b35a6365...`、`e468a6e5...`和`9c9f4f4d...`都被并发pump观察为`sending`，后续权威
+  查询均为`sent`、有platform message id、`last_error=null`。
+- Route：Slice 4/runtime hardening需要claim/lease或幂等sending处理；deploy breaker不应把
+  已恢复的并发race永久当成部署失败。
+
+### 5. provider与closeout evidence
+
+- Kimi Highspeed正常完成worker，GLM fallback未触发；JSONL session
+  `019f5735-f0ab-7000-9588-8e694e5c662a`是执行与自纠证据。
+- Receipt：`1c9269e9-e7b5-442c-b856-d0216d62bdab`，fingerprint
+  `dfceae7e... -> 74282c7c...`。
+- Closeout：`tasks/p9-0a4b-workflow-assignment-cli/closeout.md`。

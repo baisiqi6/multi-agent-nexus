@@ -1489,3 +1489,26 @@ evidence package. The same session spans two provider/model intervals:
   and other completion tests remain forbidden.
 - No implementation/bootstrap is authorized until a new exact SHA receives independent
   approval.
+
+## 2026-07-13 — P9-0A4b workflow/assignment CLI durable closeout
+
+- Kimi Round 2 approved exact revised plan SHA `62a7f267...2f7c`; worker session
+  `019f5735-f0ab-7000-9588-8e694e5c662a` produced `009533f`. Codex required
+  correction `882c2a1` because the green suite did not yet prove fresh import orders
+  across completion/workflow/root or lock the global dispatch tuple at the new boundary.
+- Integrated and pushed Coordinate `main`/`origin/main` at `882c2a1`. Exact six-path
+  scope, 21/75/99, fixture `43e18104...`, seven rewinds, 12 AST body equalities, 91
+  boundary/contract, 440 service-focused, and 1,555 full tests pass.
+- Receipt `1c9269e9-e7b5-442c-b856-d0216d62bdab` completed one authorized/claimed/
+  applied/task.done/consumed chain with `dfceae7e...` -> `74282c7c...`; deployed
+  MultiNexus `9ebf442` was verified done/closed before the terminal record.
+- Dogfood required explicit source/deploy lifecycle replay after a documentation deploy
+  correctly restored the still-`todo` canonical source projection. It also exposed that
+  host-side completion reports harness project id `local` while the control workspace
+  is `discord-nexus`; Slice 4 should represent both identities explicitly.
+- Three observed concurrent-pump races ended `sent` with no last error. No direct
+  JSON/DB repair, legacy mark-done, duplicate terminal event, or provider fallback was
+  used.
+- Exact evidence: `tasks/p9-0a4b-workflow-assignment-cli/closeout.md`. Next package:
+  P9-0A5 event presentation; it requires refreshed measurement, a detailed plan,
+  independent non-Codex review, and a fresh worker bootstrap.
