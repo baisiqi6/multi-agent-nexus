@@ -31,6 +31,33 @@ Define and review the minimum domain separation:
 Do not add schema or abstractions until the contract identifies current concrete
 callers, compatibility mappings, and migration order.
 
+### P9-0A — Coordinate internal boundary hardening
+
+Reduce change concentration before Phase 9 adds execution identity, context, routing,
+and lease commands. This is a behavior-preserving modularization stage, not a package,
+service, schema, or framework rewrite.
+
+Architecture plans may be reviewed while Slice 4 is active. Coding-worker bootstrap and
+implementation remain blocked until Slice 4 is accepted and a refreshed drift check
+confirms that the reviewed source boundaries still match current Coordinate `main`.
+
+Bounded packages:
+
+1. `p9-0a1-cli-boundary-extraction` — keep `coordinate.cli:main` as the facade while
+   moving argparse registration and handlers behind domain-level CLI modules. Preserve
+   the complete public command tree, flags, output, exit codes, and existing injection
+   compatibility.
+2. `p9-0a2-event-presentation-registry` — replace the remaining Discord event-field
+   branch concentrator with a small renderer registry and lock key-set relationships
+   among supported events, base renderers, and explicitly unstyled events.
+3. `p9-0a3-post-closeout-module-review` — after Slice 3/4 closeout, remeasure
+   `completion.py`, `db.py`, and transition boundaries. Extract only a proven stable
+   transaction or repository seam; a no-change decision is acceptable.
+
+P9-0A must not alter lifecycle authority, completion receipt semantics, DB schema,
+delivery defaults, runtime behavior, or public CLI contracts. Each package requires its
+own detailed plan and independent review.
+
 ### P9-1 — Job-scoped execution context
 
 Coordinate claim/handoff returns authoritative host-resolved workspace, worktree,

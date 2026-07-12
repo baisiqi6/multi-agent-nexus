@@ -1176,6 +1176,39 @@
         "ttl_minutes": 120,
         "released_at": "2026-07-12T00:45:06Z"
       }
+    },
+    {
+      "id": "p9-0a1-cli-boundary-extraction",
+      "title": "P9-0A1 CLI Boundary Extraction",
+      "status": "blocked",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "Dependency gate: architecture plan may be reviewed now, but worker bootstrap and implementation are blocked until slice-4-projection-hardening is accepted and a refreshed relevant-file drift check passes.",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12",
+      "workflow": {
+        "status": "blocked",
+        "branch": null,
+        "updated_at": "2026-07-12",
+        "unblock_owner": "human"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md"
+      },
+      "verification": "",
+      "review": {},
+      "lease": null
     }
   ]
 }

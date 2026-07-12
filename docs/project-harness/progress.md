@@ -1077,3 +1077,20 @@ Human performed terminal and Discord validation:
 - Synced wording around coordinator Discord daemon, targeted agent handoff delivery, multinexus coordinator handoff auto-accept, and the rule that task lifecycle state changes go through coordinator CLI rather than direct harness JSON edits.
 - Sanity-checked documented coordinator commands against current `mac.sh --help` output.
 - Validation: `git diff --check` passed; `scripts/harness/harnessctl validate` passed; `scripts/harness/harnessctl doctor` exited 0 with existing optional/current file misses (`current/task_plan.md`, `init.sh`).
+
+## 2026-07-12 — P9-0A1 plan review
+
+- Added the detailed `p9-0a1-cli-boundary-extraction` plan under the Phase 9
+  architecture-hardening prelude and registered its SHA256 with Coordinate.
+- Independent read-only review approved the exact registered revision with no must-fix
+  findings; review evidence is preserved in
+  `docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan-review-round-1.md`.
+- The review ran through Claude Code CLI, while provider JSONL identified the effective
+  assistant response model as `glm-5.2`; the evidence records both facts explicitly.
+- Package execution remains fail-closed: no coding-worker bootstrap or implementation
+  is authorized until `slice-4-projection-hardening` is accepted and a fresh drift,
+  command-contract, focused-test, full-suite, and import-boundary preflight passes.
+- Harness validation passed with six warnings: four historical completed-item review
+  warnings plus two P9-0A1 blocked-task shape warnings (`blocked_by` and `handoff`) that
+  the current Coordinate blocker transition does not populate. No checklist JSON was
+  edited directly to conceal that lifecycle/tooling gap.
