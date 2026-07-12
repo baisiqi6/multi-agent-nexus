@@ -45,7 +45,7 @@ Snapshot refreshed on 2026-07-12 after durable Slice 3 closeout:
 - `src/coordinate/cli.py`: 2,700 lines, 83 top-level functions, one parser builder from
   line 238 through the shared-connection seam at line 1,034, and imports from 25
   Coordinate modules.
-- Current parser contract: 22 top-level commands and 75 ordered leaf command paths.
+- Current parser contract: 21 top-level commands and 75 ordered leaf command paths.
 - `tests/test_cli.py`: 5,360 lines; refreshed focused baseline is 169 tests passed.
 - Current accepted full Coordinate baseline is 1,347 tests on the same `e0cc1561`
   source identity. The worker must rerun it before and after implementation.
@@ -140,13 +140,26 @@ The normalized snapshot must cover:
   text;
 - each leaf has exactly one callable handler;
 - root and every top-level/leaf `format_help()` output after stable `prog`
-  normalization;
+  normalization and with `COLUMNS=100` pinned before formatting;
 - no duplicate command path.
 
-Normalization rules must be explicit in the test. Function/callable defaults are stored
-as a stable callable name or excluded when they are implementation-only handler wiring;
-arbitrary repr values and memory addresses are forbidden in the fixture. The test must
-fail when a public flag/default/help/ordering value changes.
+Normalization rules must be explicit in the test:
+
+- action classes use `type(action).__name__`, never class repr;
+- callable handler/default identity uses `__module__ + "." + __qualname__` when it is
+  part of the recorded contract, never object repr;
+- a default equal to the exact current `str(DEFAULT_DB_PATH)` is recorded as the
+  semantic token `<DEFAULT_DB_PATH>`, and a separate assertion proves both that the
+  parser default equals `str(DEFAULT_DB_PATH)` and that `DEFAULT_DB_PATH` resolves to
+  `<coordinate checkout>/data/coordinator.sqlite3`;
+- no other arbitrary local path, repr value, memory address, locale-dependent value, or
+  environment-dependent wrapping may enter the fixture;
+- both clean contract-generation subprocesses set `COLUMNS=100`, `LANG=C`, and
+  `LC_ALL=C` before importing/building the parser.
+
+Function/callable defaults may be excluded only when they are implementation-only
+handler wiring already covered by the one-callable-per-leaf assertion. The test must fail
+when a public flag/default/help/ordering value changes.
 
 The fixture is a reviewed baseline, not auto-regenerated during ordinary test runs. A
 future intentional CLI change updates it only through a separately reviewed contract
@@ -171,6 +184,9 @@ _print_json = print_json
 
 The existing root handlers continue using those aliases in this package. Do not move or
 otherwise rewrite handler bodies. Do not introduce a generalized context/service object.
+`pr_cli.py` remains unchanged and retains its existing private `_conn`/`_print_json`
+helpers in this package; sharing those helpers is outside P9-0A1 and requires a later
+reviewed package if still worthwhile.
 
 ### 3. Boundary tests
 
@@ -181,6 +197,8 @@ The new test module must additionally prove:
   subprocesses succeeds in more than one order;
 - `coordinate.cli._conn`, `_print_json`, and `DEFAULT_DB_PATH` remain present and point
   to the support seam;
+- the root parser `--db` default remains exactly `str(DEFAULT_DB_PATH)`, while the
+  committed fixture contains only `<DEFAULT_DB_PATH>` and no checkout-specific path;
 - connection close-on-success and close-on-exception behavior is unchanged;
 - JSON output bytes for representative Unicode/nested values are unchanged;
 - the existing `pr_cli` lazy compatibility surface still passes its focused tests.
@@ -222,7 +240,7 @@ review.
 
 | Case | Setup | Expected result | Evidence |
 |---|---|---|---|
-| Current tree inventory | Build parser from clean `e0cc1561` | 22 top-level commands, 75 ordered leaf paths, no duplicates | committed contract snapshot + test |
+| Current tree inventory | Build parser from clean `e0cc1561` | 21 top-level commands, 75 ordered leaf paths, no duplicates | committed contract snapshot + test |
 | Determinism | Generate normalized contract twice in clean subprocesses | Byte-identical normalized JSON/help evidence | focused test |
 | Public parser coverage | Inspect every parser action and help surface | Flags/defaults/order/help represented; one callable per leaf | contract test/fixture review |
 | Support behavior | Exercise Unicode JSON and temp DB success/exception paths | Exact serialization and close semantics preserved | focused tests |
@@ -257,7 +275,7 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover tests
 Also record:
 
 - exact start/worker commit SHAs and changed paths;
-- pre/post 22 top-level and 75 leaf counts;
+- pre/post 21 top-level and 75 leaf counts;
 - two independently generated contract hashes;
 - pre/post focused and full test counts;
 - clean import-order subprocess results and import-graph cycle result;
@@ -297,12 +315,20 @@ Push, merge, lifecycle closeout, and real runtime/DB/delivery work remain Operat
 
 ## Plan review record
 
-- Historical review artifact: `plan-review-round-1.md`, explicitly stale for execution
-- New review artifact: pending
-- Reviewer: pending independent non-Codex reviewer
-- Verdict: pending
-- Reviewed plan revision: pending fresh `plan.ready` event and full SHA-256
-- Must-fix findings/resolution: pending
+- Historical approval artifact: `plan-review-round-1.md`, explicitly stale for execution
+- Round 2 artifact: `plan-review-round-2.md`
+- Round 2 reviewer: Kimi Code Highspeed through Oh-My-Pi
+- Round 2 verdict: `changes_requested` on SHA-256
+  `167ef44cfc48db5b74a99db811a9e8847e2740c07fee4fbe9c2d2bf869c95a8a`
+- Round 2 must-fix resolution in this revision:
+  - corrected the measured top-level command count from 22 to 21;
+  - defined semantic normalization plus an independent assertion for the
+    checkout-dependent `DEFAULT_DB_PATH`;
+  - pinned `COLUMNS`, locale, action-class identity, and callable identity for
+    deterministic contract generation;
+  - explicitly retained `pr_cli.py` private helpers outside this package.
+- Current revision review artifact/reviewer/verdict: pending fresh `plan.ready` and
+  independent Round 3 review
 
 Any material edit after approval creates a new `plan.ready`, invalidates the current
 review/bootstrap, and requires fresh independent review.

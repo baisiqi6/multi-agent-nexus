@@ -24,7 +24,7 @@ Control-plane recorded the plan at `docs/project-harness/tasks/p9-0a1-cli-bounda
 ## Review Assignment
 
 - **Task**: p9-0a1-cli-boundary-extraction
-- **Title**: P9-0A1 CLI Boundary Extraction
+- **Title**: P9-0A1 CLI Contract And Support Seam
 - **Source Plan**: openspec/changes/p9-0a1-cli-boundary-extraction/proposal.md (relative; server copy: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md)
 - **Role**: reviewer (plan review — read-only, you do NOT own this task, do NOT mutate code or branches)
 
