@@ -1,8 +1,8 @@
 # Source-of-Truth Write-Path Audit
 
-> **Status: audit and Slice 1-2 implementation snapshot, 2026-07-10.**
+> **Status: audit plus Slice 1-2 implementation and Slice 3 local-checkpoint snapshot, 2026-07-12.**
 >
-> This document is diagnostic evidence and a remediation proposal. It does not replace
+> This document is diagnostic evidence and a remediation record. It does not replace
 > [product-definition.md](product-definition.md), the project checklist, Coordinate DB,
 > Git, GitHub, or runtime configuration as an authority.
 
@@ -23,22 +23,28 @@ It distinguishes:
 
 ## Verdict
 
-**Request changes remain after Slice 2.** The overall authority split is viable and does
-not require a rewrite. Three originally identified violations are resolved; one P1
-correctness path remains:
+**Slice 1 and Slice 2 are implemented; Slice 3 is accepted as a local code checkpoint and
+is not yet integrated, deployed, or proven through real multi-host execution.** The
+overall authority split is viable and does not require a rewrite. Three originally
+identified violations are resolved; the host-aware completion receipt gap is now closed at
+code-review and local-test level and remains open for integration and deployment:
 
-1. Host-aware completion can advance harness and DB completion independently without
-   a shared authorization receipt.
+1. Host-aware completion can advance harness and DB completion independently without a
+   shared authorization receipt — the receipt protocol is now implemented and
+   reviewer-accepted at the local checkpoint (see the finding below); integration,
+   deployment, and multi-host smoke are separate gates.
+
 Slice 1 and Slice 2 were implemented on 2026-07-10 without a schema migration. They scope
-Discord authorization by workspace, remove the agentd-to-Discord report command loop,
-keep task phase harness-owned, and derive Operator attention from deterministic events.
+Discord authorization by workspace, remove the agentd-to-Discord report command loop, keep
+task phase harness-owned, and derive Operator attention from deterministic events. Slice 3
+added a one-time completion authorization receipt at the local checkpoint on 2026-07-11.
 
 ## Authority inventory
 
 | Fact category | Intended authority | Current writers | Projections / scratch | Audit result |
 |---|---|---|---|---|
 | Shared product mission and roles | `product-definition.md` | Human-reviewed docs | README summaries | Clean after documentation repair |
-| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; host-aware completion still lacks one shared authorization receipt |
+| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; completion receipt accepted at local checkpoint, not yet integrated/deployed (see Slice 3 finding) |
 | Runtime job, claim, attempt, liveness, result, delivery | Coordinate DB | `coordinate.runtime`, `coordinate.jobs`, `coordinate.bus` | CLI/UI/platform views | Clean core ownership; CAS protections are present |
 | Runtime agent result and review evidence | Coordinate DB event ledger | Agentd result ingestion; Discord daemon ingestion in legacy direct mode | Visible report lines/cards | Resolved: managed agentd results are not re-posted as Discord commands |
 | Static runtime agent configuration | Deployed MultiNexus `agents.toml` | Runtime operator/config deployment | Parsed `AgentConfig` and peer roster | Clear for invocation configuration |
@@ -122,37 +128,71 @@ Implemented behavior:
 - Tests now assert no raw worker or reviewer report line and do assert the human-visible
   summary.
 
-### [P1] Require one completion authorization receipt across host-aware mark-done
+### [P1][Local checkpoint accepted 2026-07-11; integration and deployment remain open]
 
-Evidence:
+The host-aware completion gap documented below is now closed at code-review and local-test
+level by the Slice 3 worker checkpoint. It is not yet integrated onto Coordinate `main`,
+deployed, or verified through real multi-host execution.
 
-- `coordinate/src/coordinate/transitions.py:1193-1212` documents that
-  `mark_done_files` bypasses `_check_mark_done_gate`.
-- `coordinate/src/coordinate/transitions.py:1267-1286` directly writes canonical
-  `status=done` and `workflow.status=closed`.
-- `coordinate/src/coordinate/transitions.py:1299-1323` states that
-  `mark_done_record` does not read harness state or validate a gate.
-- `coordinate/src/coordinate/transitions.py:1345-1364` independently appends
-  `task.done`; `verification` is optional.
+Pre-Slice-3 divergence evidence (context retained):
 
-Divergence sequence:
+- `coordinate/src/coordinate/transitions.py` documented that `mark_done_files` bypassed
+  `_check_mark_done_gate`.
+- `mark_done_files` directly wrote canonical `status=done` and `workflow.status=closed`.
+- `mark_done_record` did not read harness state or validate a gate.
+- `mark_done_record` independently appended `task.done`; `verification` was optional.
+- Running only `mark-done-files` made the canonical harness done while Coordinate lacked
+  the completion event; running only `mark-done-record` did the reverse; neither proved
+  that the same review/gate evidence authorized both writes.
 
-- Running only `mark-done-files` makes the canonical harness done while Coordinate lacks
-  the completion event.
-- Running only `mark-done-record` makes Coordinate say done while the harness remains open.
-- Neither command proves that the same review/gate evidence authorized both writes.
+Accepted local receipt protocol (reviewer-approved at the checkpoint):
 
-Required target protocol:
+```text
+completion.authorized
+  -> completion.claimed        # remote reserve before canonical write
+  -> completion.applied        # remote acknowledgement after verified write
+  -> task.done + completion.consumed   # atomic server terminal
+```
 
-1. `mark-done-prepare` validates the current closeout/review/forge gate in Coordinate and
-   creates a one-time `completion.authorized` receipt.
-2. `mark-done-files --receipt ...` updates the canonical harness and records the receipt ID
-   plus harness fingerprint in verification metadata.
-3. After commit/deploy, `mark-done-record --receipt ...` verifies the same authorization
-   and deployed harness state before appending `task.done`.
+The receipt binds workspace, task, authorized actor, expiry, gate/forge evidence, and
+lifecycle fingerprints. The coding host must use the online remote CLI path; no-receipt
+split commands are repair-only and require a non-empty reason.
 
-Until that protocol exists, the two commands should be clearly namespaced as privileged
-repair operations and require an explicit reason.
+Checkpoint identity (re-verified during the S3-C1 audit session, 2026-07-12):
+
+- Worker checkpoint commit `1b862129897be001e5a9078b7b4fad48d90d89c2` on branch
+  `agents/mac-claude/slice-3-completion-receipt`, parent and merge-base against Coordinate
+  `main` `a2ad92d2bf13ec894979c082897a713f3870d130`, stable patch ID
+  `eb204296bd6a09e4caccabfe4bb05802e7ef7b37`.
+- Reviewer verdict (Codex, independent code/result reviewer): approve for a local
+  checkpoint only.
+- Accepted prior-review evidence rechecked against the review report by this audit
+  worker (the suites were not rerun here): full suite `1347 passed, 58 subtests passed`;
+  focus counts transitions 131, CLI 169, completion 42; `git diff --check` and harness
+  checklist validation passed; the final adversarial retry returned
+  `before_fingerprint_mismatch` and left the canonical item `doing/blocked`.
+- Reviewed file set, accepted protocol, adversarial rounds, and the provider session
+  handle are recorded durably in
+  [tasks/slice-3-completion-closeout/local-code-review.md](tasks/slice-3-completion-closeout/local-code-review.md).
+
+Boundary this audit must not overstate:
+
+- The receipt is accepted as local code, not as integrated, deployed, or multi-host PASS.
+- Integration is owned by S3-C2 from the then-current Coordinate `main`; the proposed
+  method and preconditions are recorded in
+  [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
+- The refreshed snapshot shows no changed-path overlap between Coordinate `main` and the
+  Slice 3 checkpoint, but that is current-state evidence, not a guarantee that the actual
+  cherry-pick will be conflict-free; S3-C2 must inspect the real result.
+- Real `coord-ssh`, SSH, and remote-DB behavior is covered only through mocked subprocess
+  boundaries in the local suite.
+
+Non-blocking maintainability notes retained for follow-up (not S3-C1 scope):
+
+- `src/coordinate/completion.py` is large; state authority is centralized, not
+  duplicated, so this is a simplification opportunity rather than a correctness blocker.
+- `latest_event()` materializes all matching rows; a later slice can use
+  `ORDER BY rowid DESC LIMIT 1`.
 
 ### [P1][Resolved 2026-07-10] Separate harness phase from Operator-attention state
 
@@ -279,11 +319,20 @@ Implemented as an event-derived query without a schema migration. Runtime and pl
 decisions no longer overwrite harness phase; terminal tasks cannot be reopened by late
 reports; CLI output states that it did not refresh the harness and exposes its DB version.
 
-### Slice 3 — Authorize completion once
+### Slice 3 — Authorize completion once — local checkpoint accepted 2026-07-11
 
-1. Introduce a completion authorization receipt.
-2. Bind host-side and server-side mark-done operations to that receipt.
-3. Demote current split commands to explicit repair-only compatibility paths.
+1. Introduce a completion authorization receipt. — done at checkpoint.
+2. Bind host-side and server-side mark-done operations to that receipt. — done at
+   checkpoint.
+3. Demote current split commands to explicit repair-only compatibility paths. — done at
+   checkpoint.
+
+Local code acceptance is recorded in
+[tasks/slice-3-completion-closeout/local-code-review.md](tasks/slice-3-completion-closeout/local-code-review.md).
+The proposed local integration method and preconditions for S3-C2 are recorded in
+[tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
+Deployment, real multi-host smoke, and durable closeout remain separate, explicitly
+authorized gates (S3-C3, S3-C4).
 
 ### Slice 4 — Harden projections and split operations
 
@@ -329,3 +378,27 @@ All criteria passed on 2026-07-10. Validation evidence:
 - Slice 2 focused suites: 213 tests passed across operator, runtime, reconcile, plan gate,
   and CLI.
 - Coordinate full suite: 1,263 tests passed.
+
+## Acceptance criteria for the third implementation slice (local checkpoint)
+
+- A completion authorization receipt is issued once and binds workspace, task, authorized
+  actor, expiry, and lifecycle fingerprints.
+- Host-side files and server-side record operations are bound to the same receipt; the
+  no-receipt split commands are repair-only and require a non-empty reason.
+- Forge, actor binding, fingerprint drift, expiry, replay, fail-after-write, and
+  idempotent retry drift are covered by adversarial probes.
+- The receipt lifecycle is `completion.authorized -> completion.claimed ->
+  completion.applied -> task.done + completion.consumed`.
+Criteria met at the local checkpoint on 2026-07-11 (re-verified 2026-07-12). The counts
+below are accepted prior independent-review evidence recorded by the Codex reviewer and
+rechecked against that report by this audit worker; the suites were not rerun here:
+
+- Full local suite: `1347 passed, 58 subtests passed`.
+- Focus counts: transitions 131, CLI 169, completion 42.
+- `git diff --check`: passed. Harness checklist validation for the Slice 3 change set:
+  passed with 0 warnings.
+- Final adversarial retry probe returned `before_fingerprint_mismatch` and left the
+  canonical item `doing/blocked`.
+
+This is a local code-review and local-test PASS only. It is not integration, deployment,
+or real multi-host PASS; those remain the S3-C2 through S3-C4 gates.
