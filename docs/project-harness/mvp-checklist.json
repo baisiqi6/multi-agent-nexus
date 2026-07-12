@@ -1390,7 +1390,7 @@
     {
       "id": "p9-0a2a-workspace-state-reconcile-cli",
       "title": "P9-0A2a Workspace State Reconcile CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1405,19 +1405,24 @@
         "reason": null
       },
       "selected_in_session": "p9-0a2a-kimi-20260712T1008Z",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T10:26:46Z",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a2a-workspace-state-reconcile-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T10:26:46Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
-        "branch": "agents/mac-omp/p9-0a2a-workspace-state-reconcile-cli"
+        "branch": "agents/mac-omp/p9-0a2a-workspace-state-reconcile-cli",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "P9-0A2a integrated/pushed at Coordinate 10862d9; result-review-round-2 approved; canonical 37 contract/boundary and 1384 full tests; exact five-path scope; 11 AST-identical bodies; full contract baseline rewind proves only 11 handler mappings.",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved result-review-round-2 at exact tip 10862d9 (worker e4c98ea + verifier correction 10862d9). Exact five-path scope; 21/75/99; old/new fixture hashes 83c4c181/652a77d5; baseline rewind proves only 11 handlers; 11 AST-identical bodies; four env hashes; canonical 37 and 1384 tests pass; no must-fix remains."
       },
       "lease": {
         "owner": "mac-omp",
@@ -1425,6 +1430,12 @@
         "acquired_at": "2026-07-12T10:09:43Z",
         "expires_at": "2026-07-12T12:09:43Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "b2fedbf8-d54c-4586-b3f9-04d3b2e683b9",
+        "before_fingerprint": "5d22dca14de5069c01c6d0515f89a95e51d93d4245722663c224893f6967ea78",
+        "after_fingerprint": "5260600d9be9673a3f8446e3bdeed7872644f4e252ce35aaf91414b0319e901c",
+        "applied_at": "2026-07-12T10:26:46Z"
       }
     }
   ]

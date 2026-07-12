@@ -52,11 +52,17 @@ implementation, three Codex result-review rounds, four environment matrices, foc
 evidence is in
 [tasks/p9-0a1-cli-boundary-extraction/closeout.md](tasks/p9-0a1-cli-boundary-extraction/closeout.md).
 
+P9-0A2a is durably closed. Coordinate `main`/`origin/main` are
+`10862d97d02d6e20b191005f02a732c6fa44ad59`; workspace/state/reconcile ownership now
+lives in `workspace_cli` with the exact 21/75/99 contract preserved except the approved
+11 handler identities. Exact evidence is in
+[tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md](tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md).
+
 The active architecture alignment now governs:
 
 1. **Slice 3 durable closeout** — complete.
-2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1
-   complete; measured P9-0A2 is refined into P9-0A2a/b/c, with P9-0A2a next. Every
+2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1 and
+   P9-0A2a complete; measured P9-0A2 is refined into P9-0A2a/b/c, with P9-0A2b next. Every
    refined package requires a fresh detailed plan/review/bootstrap.
 3. **Slice 4 projection/split-operation hardening** after P9-0A5.
 4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
@@ -132,7 +138,7 @@ Slice 3 durable closeout
         |
         v
 P9-0A1 through P9-0A5 structural decoupling
-(P9-0A1 done; P9-0A2a next)
+(P9-0A1 and P9-0A2a done; P9-0A2b next)
         |
         v
 Slice 4 projection and split-operation hardening
@@ -168,8 +174,8 @@ Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
-runtime isolation. Status: P9-0A1 durably closed; P9-0A2 is refined into 0A2a/b/c and
-P9-0A2a is next. P9-0A6 remains ordered after Slice 4.
+runtime isolation. Status: P9-0A1 and P9-0A2a durably closed; P9-0A2 is refined into
+0A2a/b/c and P9-0A2b is next. P9-0A6 remains ordered after Slice 4.
 
 ### 3. Slice 4 projection and split-operation hardening
 

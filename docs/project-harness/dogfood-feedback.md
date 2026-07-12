@@ -636,3 +636,54 @@
   `019f5596-afcc-7000-a743-6b9f120eac62`。
 - Worker session: `019f559d-7e43-7000-87ed-84a38ee960aa`。
 - Closeout: `tasks/p9-0a1-cli-boundary-extraction/closeout.md`。
+
+## 2026-07-12（P9-0A2a plan / worker / correction / receipt dogfood）
+
+### 1. JSONL 监督再次区分“静默”与真实状态
+
+- 状态：validated。
+- Plan reviewer 初始 non-interactive `approval-mode=write` 把只读 `sha256sum`/source
+  query 也拦截；Operator 在 verdict 前终止该 session，并用受限 read/grep/glob/bash
+  新 session 重启。接受的 session 是
+  `019f55c9-38b7-7000-be88-ba0c372c3fbf`；被终止的 session 不构成审核 authority。
+- 接受的 reviewer 一度从 MultiNexus cwd 跑了错误 full suite，JSONL 显示它识别 cwd
+  错误、丢弃该结果并在 Coordinate重跑 1,366 tests。结论：不能只看最终文本；JSONL
+  对命令上下文、纠错和证据可信度仍是首要监督来源。
+
+### 2. Result review gate 拦住了“绿测试但弱证明”
+
+- 状态：validated。
+- Worker 首轮 1,383 tests 全绿，但新增 verifier 只确认 11 个 leaf当前属于
+  `workspace_cli`，无法阻止其他 parser bytes随 fixture一起漂移。Codex Round 1拒绝。
+- 同一 Kimi session新增 baseline-rewind verifier：仅回写 11 个 handler后，完整 contract
+  必须命中旧 SHA `83c4c181...`；Round 2在 1,384 tests、四环境hash和11个AST相同后批准。
+- 结论：测试数量与 fixture self-consistency 不能替代“相对已批准基线只允许什么变化”的
+  明确证明。
+
+### 3. Bootstrap authority 仍混淆 control workspace 与 implementation repo
+
+- 状态：open / repeated。
+- Reviewer bootstrap再次指向不存在的 `openspec/changes/...` 与历史
+  `feature/multi-bot`；worker bootstrap再次把 MultiNexus当 primary cwd，并携带通用
+  deploy/progress/closeout 指令。Operator必须分别添加 reviewer/worker supplement，绑定
+  exact plan hash、Coordinate worktree、allowed paths和no-deploy/no-lifecycle边界。
+- Route：handoff/bootstrap generator应从 task payload读取 implementation repo/worktree，
+  将 control workspace、source plan repo和coding repo作为三个显式字段。
+
+### 4. Semi-dogfood、pending delivery 与 provider fallback
+
+- 状态：open / semi-dogfood。
+- Plan/task/assignment/review/receipt/reconcile均走 Coordinate；reviewer和worker由本地
+  OMP直接启动，未走可用的 target-agent execution profile，故不能称 full dogfood。
+- assignment request创建 pending live delivery
+  `30aeb26b-0346-41d5-8706-40eb3e480ff2`（attempt 0、无 error）；任务已closed但仍无
+  cancel 命令，不应 pump。
+- 本包 Kimi Highspeed额度正常并完成。用户已授权：未来 Kimi额度耗尽时改用GLM；任何
+  provider/model transition必须记录在 JSONL、review artifact和progress/closeout中。
+
+### 5. 证据
+
+- Plan reviewer: `019f55c9-38b7-7000-be88-ba0c372c3fbf`。
+- Worker/correction: `019f55ce-6283-7000-be7b-0204c5d16138`。
+- Receipt: `b2fedbf8-d54c-4586-b3f9-04d3b2e683b9`。
+- Closeout: `tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md`。

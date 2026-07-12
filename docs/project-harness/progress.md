@@ -1289,3 +1289,27 @@ evidence package. The same session spans two provider/model intervals:
 - Next gate: commit the exact plan revision, record its full SHA-256 in Coordinate, and
   obtain approval from an independent non-Codex reviewer before creating a worker
   bootstrap. P9-0A2b/c and later packages remain unauthorized.
+
+## 2026-07-12 — P9-0A2a workspace/state/reconcile CLI durable closeout
+
+- Independent Kimi plan review approved exact plan SHA-256 `24197103...f3598`; reviewer
+  reproduced 231 focused and 1,366 full tests before implementation.
+- Kimi worker session `019f55ce-6283-7000-be7b-0204c5d16138` produced implementation
+  `e4c98ea` and review correction `10862d9`. Codex Round 1 rejected an ownership-only
+  contract test; Round 2 approved after the full baseline-rewind verifier was added.
+- Integrated and pushed Coordinate `main`/`origin/main` at `10862d9`. Exact scope is five
+  approved paths, including new `workspace_cli.py` and `test_workspace_cli.py`.
+- Canonical evidence: 21/75/99 unchanged; old/new fixture hashes `83c4c181...` /
+  `652a77d5...`; 11/11 handler AST bodies identical; four environment hashes identical;
+  37 contract/boundary and 1,384 full tests passed.
+- Closed through receipt `b2fedbf8-d54c-4586-b3f9-04d3b2e683b9`; one
+  authorized/claimed/applied/task.done/consumed chain exists and reconcile converged the
+  task mirror to `closed`.
+- Dogfood remained semi-full. Generated bootstraps needed exact supplements, and
+  assignment request left pending delivery `30aeb26b-0346-41d5-8706-40eb3e480ff2`.
+  Kimi completed without quota failure; GLM is the authorized fallback for future Kimi
+  quota exhaustion, with model transitions recorded in JSONL and artifacts.
+- Exact evidence index:
+  `tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md`.
+- Next package: P9-0A2b event/task/plan/operator CLI extraction; it requires its own
+  detailed plan and independent review before bootstrap.
