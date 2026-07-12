@@ -1313,3 +1313,20 @@ evidence package. The same session spans two provider/model intervals:
   `tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md`.
 - Next package: P9-0A2b event/task/plan/operator CLI extraction; it requires its own
   detailed plan and independent review before bootstrap.
+
+## 2026-07-12 — P9-0A2b detailed-plan checkpoint
+
+- Refreshed Coordinate at canonical `10862d9`: `cli.py` is 2,422 lines and the accepted
+  contract is 21 top-level / 75 leaves / 99 nodes with fixture SHA `652a77d5...`.
+- Measured P9-0A2b as 10 event/task/plan/operator leaves and 178 handler lines. Two
+  registrars are required because operator remains after assignment while event/task/
+  plan are contiguous before runner.
+- Detailed plan locks both the immediate P9-0A2a baseline (`652a77d5...`) and cumulative
+  P9-0A1 baseline (`83c4c181...`) so later fixture regeneration cannot erase earlier
+  contract proof.
+- Refreshed baselines are 289 focused and 1,384 full tests. No implementation,
+  bootstrap, lifecycle mutation, deployment, or live-state operation is authorized by
+  this checkpoint.
+- Next gate: commit the exact plan, bind its full SHA-256 in Coordinate, and obtain
+  independent non-Codex approval. Kimi Highspeed is preferred; GLM is the explicit
+  fallback if Kimi quota/auth/provider availability fails.
