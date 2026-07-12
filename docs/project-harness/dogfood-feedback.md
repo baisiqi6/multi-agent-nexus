@@ -581,6 +581,6 @@
 - 证据保留：sidecar `s3c3-smoke-20260712T062036Z-e0cc1561`（6 namespaced tasks / 89
   events）与两次失败 fingerprint-drift fixture 的证据均保留，cleanup deferred 且需
   单独 review 授权；S3-C4 不删除任何保留证据。
-- Worker session：`019f551e-3e98-7000-b745-fe111a586c2c`（`zhipu-coding-plan/glm-5.2`）。
+- Worker session：`019f5529-c817-7000-97dc-46a68600a251`（`zhipu-coding-plan/glm-5.2`）。
 - 生命周期边界：S3-C4 文档只声明 "ready for Operator closeout"；不声明 S3-C3/S3-C4/
   umbrella lifecycle 已 closed，亦不自行 mark-done。

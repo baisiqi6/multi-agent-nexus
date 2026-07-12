@@ -142,9 +142,9 @@ preserved, not erased, and routed to the CLI boundary backlog.
 ### Durable closeout (S3-C4, this worker)
 
 - Verdict: documentation ready for Operator closeout; lifecycle remains Operator-only.
-- Worker (Oh-My-Pi) session `019f551e-3e98-7000-b745-fe111a586c2c`; provider/model
+- Worker (Oh-My-Pi) session `019f5529-c817-7000-97dc-46a68600a251`; provider/model
   `zhipu-coding-plan/glm-5.2`; provider JSONL
-  `/Users/yinxin/.omp/agent/sessions/-projects-multinexus/2026-07-12T06-57-53-304Z_019f551e-3e98-7000-b745-fe111a586c2c.jsonl`.
+  `/Users/yinxin/.omp/agent/sessions/-Documents-Codex-2026-07-10-ni-work-multinexus-s3-c4-closeout/2026-07-12T07-10-29-400Z_019f5529-c817-7000-97dc-46a68600a251.jsonl`.
 - Approved plan:
   `tasks/slice-3-c4-durable-closeout/plan.md`; review
   `tasks/slice-3-c4-durable-closeout/plan-review-round-1.md` (approved, no P0/P1).
@@ -201,6 +201,11 @@ These remain open and routed; the passing smoke does not erase them:
    multi-host agent runtime package.
 
 None of these is a receipt-protocol defect or grounds to erase retained fixture evidence.
+Risks 4 and 5 route to `p9-0a1-cli-boundary-extraction`, whose existing plan/review/
+bootstrap were drafted under the old gate (worker execution after Slice 4). The active
+ordering now places P9-0A before Slice 4, so that plan bytes must be refreshed and
+independently re-reviewed before any worker bootstrap; do not silently reuse the prior
+approval.
 
 ## Rollout order (Operator-owned after result approval)
 
@@ -214,8 +219,13 @@ None of these is a receipt-protocol defect or grounds to erase retained fixture 
    task outside these IDs changed.
 5. Append the final Operator closeout record and checkpoint the lifecycle-generated
    harness artifacts.
-6. Phase 9 0A detailed package planning may begin only after Slice 3 is durably closed and
-   Slice 4 hardening is sequenced per the roadmap.
+6. After Slice 3 is durably closed, execute P9-0A bounded structural decoupling
+   (beginning with `p9-0a1-cli-boundary-extraction`) **before** Slice 4 implementation,
+   then Slice 4, then Phase 9 runtime isolation (P9-1+) after Slice 4 acceptance — per the
+   roadmap dependency order. The existing `p9-0a1-cli-boundary-extraction` plan/review/
+   bootstrap were drafted under the old gate (worker execution after Slice 4) and must be
+   refreshed and independently re-reviewed before any worker bootstrap; do not silently
+   reuse the prior approval under the new sequence.
 
 If the ordinary public lifecycle cannot represent the already-executed S3-C3 state, the
 Operator stops and records the exact gap; S3-C4 does not directly edit JSON/SQLite or use

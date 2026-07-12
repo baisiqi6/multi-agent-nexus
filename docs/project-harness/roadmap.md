@@ -44,11 +44,22 @@ CLI ergonomics, missing workspace delete, missing full-dogfood host profile) rem
 routed to their named later packages; see
 [tasks/slice-3-completion-closeout/closeout.md](tasks/slice-3-completion-closeout/closeout.md).
 
-After the Operator durably closes Slice 3, the dependency order below governs: Slice 4
-projection/split-operation hardening precedes Phase 9 multi-project execution isolation,
-and Phase 9 0A detailed package planning/execution follows the already-approved
-architecture alignment (`tasks/p9-0a1-cli-boundary-extraction/`). Phase 9 implementation
-must not bypass Slice 4 authority.
+After the Operator durably closes Slice 3, the active architecture alignment governs:
+
+1. **Slice 3 durable closeout** (Operator-only lifecycle closeout after result review).
+2. **P9-0A bounded structural decoupling** (beginning with
+   `p9-0a1-cli-boundary-extraction`) **before** Slice 4 implementation, so Slice 4
+   CLI/projection changes land in the extracted modules instead of enlarging the
+   monolithic CLI again.
+3. **Slice 4 projection/split-operation hardening** after P9-0A.
+4. **Phase 9 runtime isolation packages (P9-1+)** after Slice 4 acceptance.
+
+The existing `p9-0a1-cli-boundary-extraction` detailed plan, review, and bootstrap were
+drafted under the older gate that placed worker execution after Slice 4 acceptance. That
+ordering is now superseded by the split above. Those plan bytes, the review verdict, and
+the generated bootstrap must be refreshed against the current ordering and independently
+re-reviewed before any worker bootstrap; the prior approval must not be silently reused as
+authorization for execution under the new sequence.
 
 ## Authority hierarchy
 
@@ -112,15 +123,20 @@ Detailed plans use
 Slice 3 durable closeout
         |
         v
+P9-0A bounded structural decoupling
+(beginning with p9-0a1-cli-boundary-extraction)
+        |
+        v
 Slice 4 projection and split-operation hardening
         |
         v
-Phase 9 multi-project execution isolation
+Phase 9 runtime isolation (P9-1+)
 ```
 
-Phase 9 architecture exploration may begin while Slice 4 is being implemented, but
-Phase 9 runtime implementation must not bypass the Slice 4 authority, registry, and
-partial-operation foundations.
+P9-0A structural decoupling precedes Slice 4 so that Slice 4 CLI/projection changes land
+in the extracted modules rather than re-enlarging the monolithic CLI. Phase 9 runtime
+isolation (P9-1+) follows Slice 4 acceptance and must not bypass the Slice 4 authority,
+registry, and partial-operation foundations.
 
 ## Stage map
 
