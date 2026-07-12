@@ -1901,6 +1901,36 @@
         "after_fingerprint": "95f1e399eeddb499fe7b81bb05aa2e3577fed2231ce289311f077cbf668f91a5",
         "applied_at": "2026-07-12T19:09:48Z"
       }
+    },
+    {
+      "id": "slice-4b2-deployed-agent-registry-authority",
+      "title": "Slice 4B2 Deployed Agent Registry Authority",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T19:17:10Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T19:17:10Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
