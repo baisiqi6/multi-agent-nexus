@@ -1350,3 +1350,22 @@ evidence package. The same session spans two provider/model intervals:
   `tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md`.
 - Next package is P9-0A2c issue CLI extraction. It requires a fresh measured detailed
   plan, independent review, and new bootstrap.
+
+## 2026-07-12 — P9-0A2c implementation and durable closeout
+
+- Independent Kimi review approved exact plan SHA `d5ff4620...`; reviewer JSONL caught
+  and discarded one full-suite run launched from the wrong MultiNexus cwd, then accepted
+  1,411 Coordinate tests.
+- Kimi worker session `019f5606-3bc7-7000-9bee-ebe1c0edfe31` produced implementation
+  `3ae4f9f` and Codex-directed proof correction `d978d75`. Integrated Coordinate tip is
+  `10135bc`.
+- Exact five-path scope, `issues.py` unchanged, 21/75/99, fixture `dde4c0d7...`, three
+  rewind hashes, five stable AST hashes, 288 focused and 1,434 full canonical tests pass.
+- Receipt `2ce2cedc-33ca-4f4f-b66f-c9d6034c262a` completed one authorized/claimed/
+  applied/task.done/consumed chain with `81f817dc...` → `47e96755...`.
+- Local lifecycle replay was performed before receipt claim, avoiding the known
+  source/deploy fingerprint mismatch. Global reconcile remains blocked by the old
+  Phase 8.7 branch conflict, so the P9 task mirror remains stale while canonical files
+  and terminal receipt events are authoritative.
+- Exact evidence: `tasks/p9-0a2c-issue-cli/closeout.md`. Next package: P9-0A3; it needs
+  fresh measurement, detailed plan, independent review, and worker bootstrap.

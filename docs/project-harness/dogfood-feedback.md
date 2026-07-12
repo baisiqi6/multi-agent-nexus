@@ -727,3 +727,39 @@
   真实调用边界，不能只看1,411个绿测试。
 - Receipt：`4c85dd46-97b7-415f-85a1-450107e30112`；closeout：
   `tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md`。
+
+## 2026-07-12（P9-0A2c reviewer/worker proof portability dogfood）
+
+### 1. JSONL再次纠正错误 cwd 证据
+
+- 状态：validated。
+- Kimi plan reviewer首次 full suite从 MultiNexus cwd启动，出现缺少Discord依赖等错误；
+  它根据实际模块路径识别为错误仓库、丢弃结果，并在Coordinate重跑1,411 tests。
+- 结论：最终文字无法单独证明测试上下文；provider JSONL仍是Operator判断证据可信度的
+  第一来源。
+
+### 2. 1,433绿测试仍包含不可移植与名不副实的证明
+
+- 状态：fixed。
+- 首轮实现用 `git show 38da30f`做永久AST测试，会在shallow clone/source archive失败；
+  “root无残留定义”测试实际只看alias `__module__`，无法发现源码仍保留死 `def`。
+- Codex拒绝后，同一Kimi session改成五个稳定AST body hash常量，并真正解析root AST
+  检查 `FunctionDef` 缺失；full count为1,434。
+- 结论：result review必须检查测试是否真的证明其名字声称的性质，以及测试自身是否可移植。
+
+### 3. 提前本地重放可避免receipt fingerprint失败
+
+- 状态：validated / protocol仍需Slice 4产品化。
+- 本包在remote lifecycle成功后，Operator先通过本地 `harnessctl`重放同一
+  assign/accept/closeout/review，再申请/claim receipt；source/deploy before fingerprint
+  一致，未重复P9-0A2b的 mismatch。
+- 该顺序目前仍依赖Operator经验，后续应由split-operation协议显式表达。
+
+### 4. repeated bootstrap / delivery / reconcile gaps
+
+- generic reviewer/worker bootstrap继续指向不存在的OpenSpec或`/opt`/历史branch，仍需
+  exact supplement。
+- assignment pending delivery `0c0cde61-afd5-4f72-a129-5533549a9bb1` 保持未pump。
+- 历史Phase 8.7 branch冲突继续全局阻塞reconcile，导致本包task mirror停在`ready`，
+  尽管canonical checklist与receipt chain已terminal。
+- Kimi额度正常；GLM fallback未触发。
