@@ -1850,7 +1850,7 @@
     {
       "id": "slice-4b1-coordinate-agent-registry-model",
       "title": "Slice 4B1 Coordinate Agent Registry Model",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -1865,11 +1865,11 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T19:09:48Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/slice-4b1-coordinate-agent-registry-model",
-        "updated_at": "2026-07-12",
+        "updated_at": "2026-07-12T19:09:48Z",
         "handoff_from": "mac-omp",
         "handoff_target": "mac-omp"
       },
@@ -1879,7 +1879,7 @@
         "handoff_packet": "docs/project-harness/current/handoff-packet.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate ff6b8bf deployed; schema v10; 9 legacy identities preserved; services active; full tests 1608.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
@@ -1894,6 +1894,12 @@
         "expires_at": "2026-07-12T20:32:59Z",
         "ttl_minutes": 120,
         "released_at": "2026-07-12T18:32:59Z"
+      },
+      "completion_receipt": {
+        "receipt_id": "dca68d10-f805-4cbf-af35-1ac73a8f86d4",
+        "before_fingerprint": "3d5112f42030265bd23f346093607f3af8a1fdf9ecd01d4ec3cb29c4205b4734",
+        "after_fingerprint": "95f1e399eeddb499fe7b81bb05aa2e3577fed2231ce289311f077cbf668f91a5",
+        "applied_at": "2026-07-12T19:09:48Z"
       }
     }
   ]
