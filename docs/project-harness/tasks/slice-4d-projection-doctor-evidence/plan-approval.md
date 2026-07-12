@@ -11,12 +11,12 @@
 - Reviewer session: `019f5876-2bef-7000-b2be-9eb813266d62`.
 - Round 2 `plan.ready`: `ef80e0a4-63c5-46c1-b3d4-393949a4048f`.
 - Round 2 `plan.review_requested`: `e3939140-2154-43e5-a314-058bb10dcc39`.
-- Coordinate `plan.approved`: pending durable event.
+- Coordinate `plan.approved`: `b5176124-d930-4617-bb74-6e784006ec52`.
 
 ## Authorization boundary
 
-Implementation is authorized only after the pending Coordinate approval event is
-recorded and a new `worker-bootstrap.md` cites it. The worker is limited to the exact
+Implementation is authorized only through the fresh `worker-bootstrap.md` that cites
+this approval event. The worker is limited to the exact
 Coordinate start and paths in the approved plan. It may not change MultiNexus, deploy,
 push, use SSH/production state, invoke lifecycle transitions, or introduce any repair
 mutation. Any material plan edit invalidates this approval and requires re-review.
