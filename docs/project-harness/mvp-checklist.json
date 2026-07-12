@@ -1213,7 +1213,7 @@
     {
       "id": "slice-3-c2-local-integration",
       "title": "S3-C2 Local Integration And Regression Validation",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -1228,17 +1228,30 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-12T03:49:14Z",
+      "updated_at": "2026-07-12T04:39:04Z",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-07-12T03:49:14Z"
+        "updated_at": "2026-07-12T04:39:04Z"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-3-c2-local-integration/plan.md"
+        "plan": "docs/project-harness/tasks/slice-3-c2-local-integration/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Coordinate local main e0cc1561; reviewed patch identity exact; focused 342 and full 1347 passed on main; checklist 0 warnings; local integration only; no push/deploy/multi-host smoke",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved isolated candidate e0cc1561 and human-gated local main fast-forward; exact patch/path/schema checks, focused 342, full 1347, checklist 0 warnings; S3-C3 deploy and multi-host smoke remain out of scope"
+      },
+      "completion_receipt": {
+        "receipt_id": "2b3e7a71-e045-4da2-8458-37d97fc0fd0a",
+        "before_fingerprint": "0fd37fc800894e0f236c148f457348053d219e2cb7d0231528415e96cae6cfaa",
+        "after_fingerprint": "8e7afb535da953c3145a24ad3decbc393a96c05c41305f8e507e56391b15c22c",
+        "applied_at": "2026-07-12T04:39:04Z"
+      }
     }
   ]
 }
