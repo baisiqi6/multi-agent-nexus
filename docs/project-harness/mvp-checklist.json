@@ -1210,7 +1210,7 @@
       "selected_in_session": "p9-0a1-kimi-20260712T0915Z",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "running",
+        "status": "changes_requested",
         "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
         "updated_at": "2026-07-12",
         "unblock_owner": "human",
@@ -1220,11 +1220,16 @@
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
         "blocker_packet": "docs/project-harness/current/blocker-packet.md",
-        "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction"
+        "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
-        "decision": null
+        "decision": "changes_requested",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Result review round 1 changes requested: parent MULTI_AGENT_COORDINATOR_DB contaminates contract suite; fixture contains four /Users/yinxin paths; callable-handler test accepts non-callable strings; DEFAULT_DB_PATH relation assertion is suffix-only. Artifact: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/result-review-round-1.md"
       },
       "lease": {
         "owner": "mac-omp",
