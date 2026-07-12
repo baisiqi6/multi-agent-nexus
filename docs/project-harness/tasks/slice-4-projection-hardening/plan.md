@@ -57,8 +57,8 @@ S4-C is executed as two reviewed packages:
   `task create-files/create-record`. **Completed and terminally closed.**
 - **S4-C2 issue-materialize adoption** — adopt the same contract for
   `issue materialize-files/materialize-record`, include delivery creation in the DB
-  transaction, and run host-aware interruption/retry dogfood. **Next package; detailed
-  plan review required before worker authorization.**
+  transaction, and run host-aware interruption/retry dogfood. **Completed, deployed,
+  and terminally closed at Coordinate `a21d946`; receipt `06a7fa5c...` consumed.**
 
 `assignment mark-done-files/record` already has the stronger completion receipt,
 claim/apply and before/after-fingerprint protocol. S4-C treats it as a reference and
@@ -69,6 +69,10 @@ compatibility boundary rather than replacing it with a weaker generic operation.
 Detect stale registry projections, partial operations, orphan operations, projection
 version mismatch, and task-mirror drift. Doctor reports by default; repair requires an
 explicit, auditable Operator action and must not invent canonical state.
+
+S4-D detailed planning is active in
+`tasks/slice-4d-projection-doctor-evidence/plan.md`; independent plan review is required
+before worker authorization.
 
 ## Cross-package rules
 
