@@ -139,23 +139,29 @@ The normalized snapshot must cover:
   `nargs`, requiredness, choices, normalized default/const, metavar, type name, and help
   text;
 - each leaf has exactly one callable handler;
-- root and every top-level/leaf `format_help()` output after stable `prog`
-  normalization and with `COLUMNS=100` pinned before formatting;
+- every parser node's `format_help()` output, including root, intermediate nodes,
+  top-level commands, and leaves, after stable `prog` normalization and with
+  `COLUMNS=100` pinned before formatting;
 - no duplicate command path.
 
 Normalization rules must be explicit in the test:
 
 - action classes use `type(action).__name__`, never class repr;
-- callable handler/default identity uses `__module__ + "." + __qualname__` when it is
-  part of the recorded contract, never object repr;
+- callable handler/default/type identity uses `__module__ + "." + __qualname__` when it
+  is part of the recorded contract, never object repr;
 - a default equal to the exact current `str(DEFAULT_DB_PATH)` is recorded as the
   semantic token `<DEFAULT_DB_PATH>`, and a separate assertion proves both that the
   parser default equals `str(DEFAULT_DB_PATH)` and that `DEFAULT_DB_PATH` resolves to
   `<coordinate checkout>/data/coordinator.sqlite3`;
 - no other arbitrary local path, repr value, memory address, locale-dependent value, or
   environment-dependent wrapping may enter the fixture;
-- both clean contract-generation subprocesses set `COLUMNS=100`, `LANG=C`, and
-  `LC_ALL=C` before importing/building the parser.
+- both clean contract-generation subprocesses call `build_parser()` directly rather
+  than `main()`, use an explicit environment allowlist, omit
+  `MULTI_AGENT_COORDINATOR_DB`, set `COLUMNS=100`, `LANG=C`, `LC_ALL=C`,
+  `PYTHONDONTWRITEBYTECODE=1`, and an absolute Coordinate `PYTHONPATH`, and run from a
+  temporary working directory with no parent `.env`;
+- contract JSON bytes use `json.dumps(..., ensure_ascii=False, sort_keys=True,
+  indent=2) + "\n"` in both generation and fixture comparison.
 
 Function/callable defaults may be excluded only when they are implementation-only
 handler wiring already covered by the one-callable-per-leaf assertion. The test must fail
@@ -327,8 +333,19 @@ Push, merge, lifecycle closeout, and real runtime/DB/delivery work remain Operat
   - pinned `COLUMNS`, locale, action-class identity, and callable identity for
     deterministic contract generation;
   - explicitly retained `pr_cli.py` private helpers outside this package.
+- Round 3 artifact: `plan-review-round-3.md`
+- Round 3 reviewer: fresh Kimi Code Highspeed session through Oh-My-Pi
+- Round 3 verdict: `changes_requested` on SHA-256
+  `fed690eacb2fc99eba07899a803633a44f0dd3090422db6d71e8c777bfbca61e`
+- Round 3 must-fix resolution in this revision:
+  - contract subprocesses use an explicit environment allowlist and omit
+    `MULTI_AGENT_COORDINATOR_DB`;
+  - they call `build_parser()` directly from a temporary cwd, so `.env` loading through
+    `main()` cannot alter defaults;
+  - every intermediate parser help surface is included;
+  - JSON bytes and callable `type` identity are deterministic.
 - Current revision review artifact/reviewer/verdict: pending fresh `plan.ready` and
-  independent Round 3 review
+  independent Round 4 review
 
 Any material edit after approval creates a new `plan.ready`, invalidates the current
 review/bootstrap, and requires fresh independent review.
