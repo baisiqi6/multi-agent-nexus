@@ -149,6 +149,14 @@ No moved function body or registry expression may be rewritten for style. Use th
 `sqlite3.Row`, `Any`, and `Callable` annotations so canonical AST projections remain
 stable.
 
+The permanent proof uses the same portable projection accepted in earlier P9-0A
+packages: recursively preserve AST node type, non-empty fields, scalar values,
+contexts, and list order; drop only `None` and empty list/tuple fields; serialize the
+projection as sorted-key compact JSON; hash its UTF-8 bytes with SHA-256. Constants are
+generated once from reviewed start `882c2a1`. Permanent tests must not use whole-node
+`ast.dump`, `ast.unparse`, git history, or regenerate expected values from post-move
+code.
+
 ### 2. Keep policy as facade
 
 Update `src/coordinate/policy.py` to import and re-export the registry plus all moved
@@ -177,10 +185,11 @@ Add `tests/test_event_presentation.py` proving:
   Discord/delivery backedge;
 - fresh import orders presentation -> policy, policy -> presentation, and Discord ->
   presentation -> policy succeed in isolated interpreters;
-- all 44 moved functions match canonical AST projection hashes generated once from
-  reviewed start `882c2a1`;
-- the registry assignment matches one canonical AST projection hash generated from the
-  same start, covering ordered keys, headers, factories, lambdas, and dedicated values;
+- all 44 moved functions match portable canonical AST projection hashes generated once
+  from reviewed start `882c2a1` using the exact algorithm above;
+- the registry assignment matches one portable canonical projection hash generated
+  from the same start, covering ordered keys, headers, factories, lambdas, and dedicated
+  values;
 - `SUPPORTED_EVENT_TYPES == renderer keys` (34);
 - Discord styled keys and explicitly unstyled keys are disjoint and their union equals
   the 34 supported keys;
@@ -195,9 +204,10 @@ rewrite existing text snapshots.
 ### 4. Preserve behavior with independent structural proof
 
 Before accepting implementation, Codex independently compares all 44 moved
-`FunctionDef` ASTs and the registry assignment against start `882c2a1`, inspects exact
-paths/imports, reruns relationship calculations, and runs focused/full tests. Worker
-self-report or a regenerated expected snapshot is not sufficient.
+`FunctionDef` projections and the registry assignment projection against start
+`882c2a1`, inspects exact paths/imports, reruns relationship calculations, and runs
+focused/full tests. Worker self-report, whole-node `ast.dump`, `ast.unparse`, git-history
+lookup in permanent tests, or a regenerated expected snapshot is not sufficient.
 
 ## Allowed paths
 
@@ -223,7 +233,8 @@ worker and returns the plan for review.
 | Supported/rendered key sets differ | Restore exact 34-key equality; do not bless drift. |
 | Styled plus explicit-unstyle union differs | Restore exact 31 + 3 partition. |
 | Registry AST differs | Restore keys/order/factories/lambdas; do not regenerate proof. |
-| Moved function AST differs | Restore exact body; semantic cleanup is outside scope. |
+| Moved function projection differs | Restore exact body; semantic cleanup is outside scope. |
+| Proof uses ast.dump/unparse/git history | Replace it with the approved portable projection. |
 | Unknown event no longer raises PolicyError | Keep fallback in policy facade. |
 | Embed/text/link/output snapshot changes | Restore movement-only implementation. |
 | Presentation imports policy/DB/Discord | Stop and remove the backedge. |
@@ -240,8 +251,8 @@ worker and returns the plan for review.
 | Scope | exactly two production paths plus approved boundary tests |
 | Pure seam | 44 functions and one registry assignment moved; no DB/Discord import |
 | Compatibility | policy aliases object-identical; public orchestration remains |
-| Body stability | 44 canonical AST hashes match reviewed start |
-| Registry stability | one canonical registry AST hash matches reviewed start |
+| Body stability | 44 portable projection hashes match reviewed start |
+| Registry stability | one portable registry projection hash matches reviewed start |
 | Key authority | 34 supported = 34 rendered = 31 styled + exact 3 unstyled |
 | Error behavior | missing renderer raises exact policy `PolicyError` |
 | Import direction | policy -> presentation; no backedge; cold orders pass |
