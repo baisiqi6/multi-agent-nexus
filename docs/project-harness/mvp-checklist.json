@@ -2075,10 +2075,10 @@
     {
       "id": "slice-4d-projection-doctor-evidence",
       "title": "Slice 4D Projection Doctor and Repair Evidence",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
@@ -2090,15 +2090,16 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
+      "selected_in_session": "omp:s4d-correction-round3",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "changes_requested",
-        "branch": null,
+        "status": "running",
+        "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
         "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md"
+        "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
+        "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence"
       },
       "verification": "",
       "review": {
@@ -2121,6 +2122,13 @@
         "before_fingerprint": "619d2b37a528d077fbdf243c89d845a8a78c0df2c8ea5fec0a470a3301c4aed0",
         "after_fingerprint": "0d34d0c53fff2a6a6ef902e5cbd70b1643a16d3e60096dc289860f3bd4dcc470",
         "files_applied_at": "2026-07-12T22:24:24Z"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "omp:s4d-correction-round3",
+        "acquired_at": "2026-07-12T23:33:21Z",
+        "expires_at": "2026-07-13T01:33:21Z",
+        "ttl_minutes": 120
       }
     }
   ]
