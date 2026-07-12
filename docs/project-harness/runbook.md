@@ -102,6 +102,13 @@ not update a `src/`-layout package already installed in the venv, and service re
 itself does not prove the new migration ran. Back up the DB, install the deployed local
 package, run the migration explicitly when required, then verify integrity and smoke.
 
+Before issuing a receipt for host-aware `mark-done`, canonical source and deployed
+checklist items must be byte-identical, not merely semantically equivalent. Separately
+replayed assignment/lease timestamps, closeout, or review transitions change the task
+fingerprint. If fingerprints differ, replay the same lifecycle transitions through the
+source `harnessctl`, commit and deploy the canonical projection, and only then issue a
+fresh receipt. Never force the claim or repair the JSON/DB directly.
+
 The concrete Coordinate flow is:
 
 ```bash

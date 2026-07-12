@@ -2,6 +2,29 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — Slice 4C2 issue.materialize operation adoption closeout
+
+- Coordinate `a21d946e4d6be78f3f481d38eb2571229a4d3a9f` was approved after three
+  request-changes rounds, pushed, installed into the production venv, and deployed.
+- Worker and Codex full validation reproduced `1733 passed, 435 subtests passed` with
+  exactly nine known historical argparse/AST failures; focused clean gate was
+  `417 passed, 1 deselected, 49 subtests passed`; ruff/compileall/diff checks passed.
+- Local and deployed-wheel isolated dogfood passed files-only, before-deploy refusal,
+  atomic record, sent-delivery exact retry, injected rollback, source conflict,
+  integrity, and cleanup checks without production issue/task rows.
+- Production backup `coord.sqlite3.before-s4c2-20260712T221137Z.bak` is v11 / `ok`,
+  SHA-256 `c0fae9d...04d0`; production remained v11 / `ok` with zero
+  `issue.materialize` ledger rows.
+- First receipt `924714d9...` failed closed before claim on source/deployed fingerprint
+  mismatch. Canonical lifecycle was replayed and deployed; receipt `06a7fa5c...` then
+  completed `task.done=050f8c0c...` and `completion.consumed=680e3ec4...`, fingerprint
+  `6b25c0b3... -> 05d51ed8...`.
+- MultiNexus completion projection `6d913b64a410c7bc3950aff575a7904586e84135`
+  deployed; Coordinate PID `653825` and bridge PID `341847` stayed stable with zero
+  restarts and repeated `server smoke OK`.
+- Durable evidence:
+  `tasks/slice-4c2-issue-materialize-operation-adoption/closeout.md`.
+
 
 ## 2026-07-13
 

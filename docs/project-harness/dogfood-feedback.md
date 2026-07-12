@@ -946,3 +946,25 @@
   `task.done=948ff132-f9a8-40b9-af21-b643619d2fd8`与
   `completion.consumed=61ec9d97-3d69-49c1-8fc4-9d4d90480b76`。默认smoke再次被
   新PID启动前已恢复的Discord traceback污染；从`05:03:08 CST`稳定窗口复跑通过。
+
+## 2026-07-13（Slice 4C2 issue.materialize operation adoption）
+
+- 状态：implemented / three-round adversarial review / deployed / terminal receipt
+  consumed。Kimi Highspeed全程正常，GLM fallback未触发；provider JSONL session为
+  `019f582d-a5e4-7000-8a07-16f24cebb8eb`。
+- 绿测试最初没有证明其宣称的完整合同：Codex先后发现`HEAD~1`拓扑依赖、reason与ledger
+  output丢失、legacy combined漂移、未覆盖的mirror/event/delivery drift，以及真实的
+  no-ledger delivery collision接受缺陷。最终fresh transaction对任何existing delivery
+  key都fail closed并完整rollback。
+- Local与server使用同一isolated脚本证明`files_not_deployed -> atomic record -> delivery
+  sent -> exact retry event_created=false -> injected rollback -> source conflict`，production
+  `issue.materialize` ledger保持0，临时目录清理、integrity `ok`。
+- 首张receipt `924714d9...`在claim前以fingerprint mismatch拒绝。根因不仅是closeout/review
+  没回流source，早期source与deployed assignment replay的lease时间也相差9秒；语义相同
+  仍不是同一字节投影。Operator在source重放同一closeout/review、commit/deploy后重新签发
+  `06a7fa5c...`，才完成claimed/applied/task.done/consumed。没有直接编辑JSON或生产DB。
+- Route：receipt prepare之前应同时显示source/deployed task fingerprint与差异字段；如果
+  不同，应返回“replay canonical lifecycle + deploy”的下一安全动作，而不是先签发必然无法
+  claim的receipt。`mark-done-preflight`对已consumed receipt仍显示authorized也值得S4-D
+  doctor/diagnostic单独核查，terminal event chain仍以`completion.consumed`为权威。
+- 完整证据：`tasks/slice-4c2-issue-materialize-operation-adoption/closeout.md`。
