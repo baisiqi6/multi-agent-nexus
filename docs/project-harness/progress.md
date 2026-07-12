@@ -1457,7 +1457,7 @@ evidence package. The same session spans two provider/model intervals:
   `task create-files` + deploy + idempotent `task create-record`. Concurrent canonical
   edits were preserved in a named stash. No direct DB/JSON repair or provider fallback
   was used.
-- Two more pump races ended with sent deliveries and no last error, strengthening the
+- Three more pump races ended with sent deliveries and no last error, strengthening the
   existing Slice 4/P9 runtime-hardening evidence without changing A4a behavior.
 - Exact evidence: `tasks/p9-0a4a-receipt-completion-cli/closeout.md`. Next package:
   P9-0A4b workflow/assignment CLI extraction; it requires fresh measurement, detailed

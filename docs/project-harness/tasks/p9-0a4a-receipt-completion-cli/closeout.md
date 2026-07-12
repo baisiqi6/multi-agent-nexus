@@ -96,6 +96,8 @@ left unrelated `.qoder/` untouched. The earlier P9-0A3b safety stash also remain
 
 Deploy breaker scans observed the known concurrent-pump `sending` race on deliveries
 `fc7b140e-4287-40c7-96ce-26273853e7c2` and
-`c39a0bcc-139c-45d4-a8d8-ece666234562`. Both authoritatively became `sent` with no
-last error; the latter has a platform message id. This repeated evidence remains owned
-by Slice 4 / Phase 9 runtime hardening and was not mixed into the static extraction.
+`c39a0bcc-139c-45d4-a8d8-ece666234562`, then again on task-done delivery
+`4cbd83de-65ef-4065-aa16-c2fd073e3ff1`. All three authoritatively became `sent` with
+no last error; the latter two have platform message ids. This repeated evidence remains
+owned by Slice 4 / Phase 9 runtime hardening and was not mixed into the static
+extraction.
