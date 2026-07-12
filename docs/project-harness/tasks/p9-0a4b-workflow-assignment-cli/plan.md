@@ -203,6 +203,14 @@ Add `tests/test_workflow_cli.py` proving:
 - no test opens production DB, runs harnessctl/coord-ssh, calls GitHub, or mutates a
   real harness.
 
+Update the existing
+`tests/test_completion_cli.py::CompletionCLIOwnershipTests::test_root_retains_legacy_mark_done_and_workflow_handlers`
+boundary assertion: after A4b it must no longer require the three workflow handlers to
+be literal root `FunctionDef` nodes. Instead, prove that root still exposes
+object-identical aliases owned by `workflow_cli`, while receipt handlers remain
+object-identical aliases owned by `completion_cli`. Do not change receipt behavior,
+order, hashes, or completion delegation tests.
+
 Existing service tests remain semantic authorities; the new file proves ownership and
 delegation only.
 
@@ -218,10 +226,13 @@ Contract/tests:
 - `tests/test_cli_contract.py`;
 - `tests/fixtures/cli_contract.json`;
 - `tests/test_workflow_cli.py` (new);
+- `tests/test_completion_cli.py` only for the narrow root-definition-to-alias ownership
+  assertion described above;
 - `tests/test_cli.py` only if a narrow facade assertion cannot live in the new file.
 
-Any need to modify `completion_cli.py`, a service, existing service test, packaging,
-schema, daemon, harness, or P9-0A5 path stops the worker and returns the plan for review.
+Any need to modify `completion_cli.py`, a service, an existing service-semantic test,
+another completion boundary test, packaging, schema, daemon, harness, or P9-0A5 path
+stops the worker and returns the plan for review.
 
 ## Failure and recovery matrix
 
@@ -259,7 +270,7 @@ schema, daemon, harness, or P9-0A5 path stops the worker and returns the plan fo
 ```bash
 git diff --check
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest \
-  tests.test_workflow_cli tests.test_cli_contract
+  tests.test_workflow_cli tests.test_completion_cli tests.test_cli_contract
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest \
   tests.test_cli tests.test_assignments tests.test_branches tests.test_ci \
   tests.test_reviews tests.test_transitions tests.test_completion

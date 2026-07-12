@@ -1476,3 +1476,16 @@ evidence package. The same session spans two provider/model intervals:
 - No implementation or bootstrap is authorized. Next gate: bind the exact plan SHA and
   obtain independent Kimi review, with GLM only on documented Kimi quota/auth/provider
   failure.
+
+## 2026-07-13 — P9-0A4b plan review Round 1 rejected
+
+- Kimi session `019f572b-5869-7000-9063-ff9af65eea79` confirmed every measured source,
+  contract, seam, test-baseline, ordering, and dependency claim.
+- It rejected SHA `f331e84d...` because the existing P9-0A4a completion boundary test
+  still requires three workflow handlers to be literal root definitions, while A4b
+  moves them and preserves aliases. The allowed paths omitted that necessary test.
+- Plan revision now authorizes only that boundary assertion to change from root
+  `FunctionDef` checks to root alias/owner checks; `completion_cli.py`, receipt behavior,
+  and other completion tests remain forbidden.
+- No implementation/bootstrap is authorized until a new exact SHA receives independent
+  approval.
