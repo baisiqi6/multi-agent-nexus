@@ -30,9 +30,9 @@ ownership. P9-0A3b delivery/policy/worker and every later package remain gated.
 The roadmap formerly grouped runner/job/runtime with delivery/policy/worker. Fresh
 measurement shows two different stable authorities:
 
-- runner/job/runtime: 16 leaves, 166 handler lines, runner/job/runtime services, and
+- runner/job/runtime: 16 leaves, 159 handler lines, runner/job/runtime services, and
   three non-contiguous parser positions;
-- delivery/policy/worker: 10 leaves, 107 handler lines, bus/policy/worker services, and
+- delivery/policy/worker: 10 leaves, 114 handler lines, bus/policy/worker services, and
   one contiguous parser range.
 
 Moving all 26 handlers in one package would combine two service seams, four registrar
@@ -67,10 +67,10 @@ Snapshot on 2026-07-12:
   - `job create`, `job list`, `job run`, `job cancel`, `job retry`, `job pump`;
   - `runtime agent register`, `runtime agent heartbeat`, `runtime request submit`,
     `runtime job claim`, `runtime job report`, `runtime job progress`.
-- Handler movement is exactly 166 lines:
+- Handler movement is exactly 159 lines:
   - runner: 33;
   - job: 56;
-  - runtime: 77.
+  - runtime: 70.
 - Parser positions are intentionally non-contiguous:
   - runner follows planning and precedes reconcile;
   - job follows issue and precedes delivery;
