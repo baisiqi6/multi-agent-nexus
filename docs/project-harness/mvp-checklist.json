@@ -1437,6 +1437,36 @@
         "after_fingerprint": "5260600d9be9673a3f8446e3bdeed7872644f4e252ce35aaf91414b0319e901c",
         "applied_at": "2026-07-12T10:26:46Z"
       }
+    },
+    {
+      "id": "p9-0a2b-event-task-plan-operator-cli",
+      "title": "P9-0A2b Event Task Plan Operator CLI Extraction",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T10:33:55Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T10:33:55Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
