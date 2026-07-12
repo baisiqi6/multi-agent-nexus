@@ -1210,7 +1210,7 @@
       "selected_in_session": "p9-0a1-kimi-20260712T0915Z",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "changes_requested",
+        "status": "review_approved",
         "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
         "updated_at": "2026-07-12",
         "unblock_owner": "human",
@@ -1225,11 +1225,11 @@
       },
       "verification": "",
       "review": {
-        "decision": "changes_requested",
+        "decision": "approved",
         "reviewer": "codex-operator",
         "phase": "closeout_requested",
         "updated_at": "2026-07-12",
-        "summary": "Result review round 2 changes requested: contract generation and exact DEFAULT_DB_PATH assertion depend on caller HOME; fake HOME and fake HOME+DB override each fail two tests. Artifact: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/result-review-round-2.md"
+        "summary": "Approved result-review-round-3: accepted worker chain dfdd036+c47e899+117ff5d; exact four-path scope; 21/75/99 deterministic contract; four environment matrix, focused 350, full 1366, import/privacy/runtime override checks pass; all prior findings closed"
       },
       "lease": {
         "owner": "mac-omp",
