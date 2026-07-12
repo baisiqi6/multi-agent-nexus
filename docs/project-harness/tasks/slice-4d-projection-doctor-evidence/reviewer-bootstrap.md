@@ -24,11 +24,21 @@ matrix match reality.
 - Workspace: `discord-nexus`
 - Task: `slice-4d-projection-doctor-evidence`
 - Role: independent non-Codex plan reviewer
-- Plan commit: `892dd78e714041e8d9546d1b9c42c8066d02e254`
+- Review round: 2; Round 1 rejection and resolution are recorded in
+  `plan-review-round1.md`.
+- Plan commit: `4fe31800aa360dd43ed5ecbaa3dc9df506c7e723`
 - Exact plan SHA-256:
-  `dbe4d029b5bb0272a0002a494fb24b9bb8dcf7e31247841c7059bfb9087f8a1a`
+  `4a16f55005567a6640b98130ec9cf83391224b8e5f25622bf17cac0b0c6d4c64`
 - Coordinate implementation start: `a21d946e4d6be78f3f481d38eb2571229a4d3a9f`
-- Review request event: `c699acfe-489c-4573-aa75-33d66178f4be`
+- Superseded Round 1 review request: `c699acfe-489c-4573-aa75-33d66178f4be`.
+- Round 1 rejection: `46172b33-ca4d-4e22-ae6b-29f899261399`.
+- Fresh Round 2 `plan.ready` and review-request event: supplied by the operator prompt;
+  reject if the prompt does not bind this exact hash.
+
+For Round 2, explicitly confirm that every Round 1 must-fix item is resolved without
+introducing a new authority or mutation path. The live `apply_task_create_record`
+signature consumes owner/branch/actor/target/payload; do not repeat the Round 1 claim
+that these are absent.
 
 Before reviewing, independently compute the plan SHA-256. Reject the review as stale
 if it differs from the exact value above.
@@ -74,7 +84,7 @@ the start of its own line:
 decision=approve
 workspace_id=discord-nexus
 task_id=slice-4d-projection-doctor-evidence
-summary="Approved exact plan SHA dbe4d029...; <brief residual notes>"
+summary="Approved exact plan SHA 4a16f550...; <brief residual notes>"
 ```
 
 or:
@@ -85,7 +95,7 @@ decision=reject
 workspace_id=discord-nexus
 task_id=slice-4d-projection-doctor-evidence
 reason="<specific must-fix issue(s)>"
-summary="Rejected exact plan SHA dbe4d029...; <brief explanation>"
+summary="Rejected exact plan SHA 4a16f550...; <brief explanation>"
 ```
 
 ## Constraints
