@@ -1390,3 +1390,19 @@ evidence package. The same session spans two provider/model intervals:
 - Exact evidence: `tasks/p9-0a3a-runner-job-runtime-cli/closeout.md`. Next package:
   P9-0A3b delivery/policy/worker CLI extraction; it requires a fresh detailed plan,
   independent review, and worker bootstrap.
+
+## 2026-07-12 — P9-0A3b measured detailed-plan checkpoint
+
+- Refreshed Coordinate at canonical `533ffcb`: root `cli.py` is 1,590 lines and the
+  accepted contract remains 21/75/99 with fixture SHA `fbdb5064...`.
+- Measured P9-0A3b as exactly ten delivery/policy/worker leaves and 114 handler lines
+  (56 + 44 + 14) in one contiguous parser range after job and before runtime.
+- Detailed plan keeps `BusError`/`PolicyError` in root, preserves direct aliases and
+  output-stream/worker-loop behavior, and extends contract rewind through all five
+  accepted fixture layers.
+- Refreshed baseline is 382 focused and 1,467 full tests. The recent concurrent-pump
+  `sending` race is recorded as Slice 4/P9 evidence and explicitly excluded from this
+  behavior-preserving package.
+- No implementation or bootstrap is authorized. Next gate: bind the exact plan SHA in
+  Coordinate and obtain independent Kimi review, using GLM only on documented Kimi
+  quota/auth/provider failure.
