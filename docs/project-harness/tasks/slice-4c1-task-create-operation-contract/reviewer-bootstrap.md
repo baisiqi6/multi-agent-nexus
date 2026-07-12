@@ -28,9 +28,9 @@ Control-plane recorded the plan at `docs/project-harness/tasks/slice-4c1-task-cr
 
 ## Acceptance Criteria
 
-Use the complete `Tests and acceptance` section. Red-team the revised neutral
-target/source model, operation identity/retry, fingerprint coverage, record-before-
-deploy, lock safety, file atomicity, DB rollback and mark-done compatibility.
+Use the complete `Tests and acceptance` section. Verify all prior review findings and
+continue red-teaming authority duplication, fingerprint/retry, lock safety, file
+atomicity, DB rollback and mark-done compatibility.
 
 ## Review Focus (plan review)
 
