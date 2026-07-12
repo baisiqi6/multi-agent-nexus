@@ -1209,6 +1209,36 @@
       "verification": "",
       "review": {},
       "lease": null
+    },
+    {
+      "id": "slice-3-c2-local-integration",
+      "title": "S3-C2 Local Integration And Regression Validation",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-3-c2-local-integration/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-3-c2-local-integration/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T03:49:14Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T03:49:14Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-3-c2-local-integration/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }

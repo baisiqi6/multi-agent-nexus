@@ -1094,3 +1094,20 @@ Human performed terminal and Discord validation:
   warnings plus two P9-0A1 blocked-task shape warnings (`blocked_by` and `handoff`) that
   the current Coordinate blocker transition does not populate. No checklist JSON was
   edited directly to conceal that lifecycle/tooling gap.
+
+## 2026-07-12 — S3-C2 local-integration plan approval
+
+- Added the detailed `slice-3-c2-local-integration` execution plan, bound to
+  Coordinate `main` `8fadd687d68032cf656291e6bf537ec481fb3e25` and the reviewed
+  Slice 3 checkpoint `1b862129897be001e5a9078b7b4fad48d90d89c2`.
+- Registered plan-ready event `01f7dd53-2336-46a2-9d4e-f76908ecf038` with full
+  SHA256 `aea8b2dd7a8348904fd1ffadc3a649c79355c76eba9c2d806d8adbff78e898ee`.
+- Independent read-only review approved that exact plan revision with no must-fix
+  findings. Review evidence and the corrective reviewer supplement are preserved in
+  `docs/project-harness/tasks/slice-3-c2-local-integration/`.
+- Recorded Coordinate `plan.approved` event
+  `c13bf777-85e3-4228-8996-6fe182ce3994` for reviewer
+  `claude-code/glm-5.2`; the reviewer limitations are stated in the review artifact.
+- The approved package authorizes only an isolated single-cherry-pick integration and
+  validation worker. Coordinate `main` advancement, push, deploy, real runtime and
+  multi-host smoke remain behind separate gates.
