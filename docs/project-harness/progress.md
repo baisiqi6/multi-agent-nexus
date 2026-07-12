@@ -1111,3 +1111,20 @@ Human performed terminal and Discord validation:
 - The approved package authorizes only an isolated single-cherry-pick integration and
   validation worker. Coordinate `main` advancement, push, deploy, real runtime and
   multi-host smoke remain behind separate gates.
+
+## 2026-07-12 — S3-C2 isolated integration candidate review
+
+- Oh-My-Pi session `019f5490-4f9e-7000-a55c-7e68fc017b93` used provider/model
+  `zhipu-coding-plan/glm-5.2` and performed the single authorized cherry-pick in the
+  isolated Coordinate worktree.
+- Candidate `e0cc1561cd20b0f22389234aefe92d01273860e4` has parent `8fadd687...`;
+  its stable patch ID and raw diff SHA256 exactly match reviewed source `1b862129...`.
+- Independent Codex review passed the exact eight-path and schema boundaries, focused
+  342 tests, full 1,347 tests, checklist validation with 0 warnings, and clean-worktree
+  check. Evidence is in `result-review-round-1.md`.
+- The Operator independently located the OMP provider-native JSONL and corrected the
+  worker's mistaken N/A claim in the review artifact.
+- Result approval applies only to the isolated candidate. Coordinate `main` still points
+  to `8fadd687...` and requires an explicit human gate before a final no-drift
+  fast-forward. No push, deploy, runtime/DB/delivery mutation, SSH, or multi-host smoke
+  occurred.
