@@ -1330,3 +1330,23 @@ evidence package. The same session spans two provider/model intervals:
 - Next gate: commit the exact plan, bind its full SHA-256 in Coordinate, and obtain
   independent non-Codex approval. Kimi Highspeed is preferred; GLM is the explicit
   fallback if Kimi quota/auth/provider availability fails.
+
+## 2026-07-12 — P9-0A2b implementation and durable closeout
+
+- Kimi worker session `019f55ea-75fa-7000-949c-7d4216f9c4bc` implemented the exact
+  five-path extraction. Codex review required one test-isolation correction (`d250e47`)
+  before approving the integrated Coordinate tip `38da30f`.
+- Contract remains 21/75/99. Layered rewinds reproduce P9-0A2a SHA `652a77d5...` and
+  P9-0A1 SHA `83c4c181...`; 10 handler AST bodies are identical. Canonical 48 focused
+  and 1,411 full tests pass.
+- Receipt `4c85dd46-97b7-415f-85a1-450107e30112` completed authorized/claimed/applied/
+  task.done/consumed with fingerprints `4fffae00...` → `52198c05...`.
+- Lifecycle initially failed closed because deployed harness lacked the new task, then
+  receipt claim failed closed because local/deployed lifecycle projections differed.
+  Canonical deploy plus local replay through harnessctl aligned them; no direct JSON or
+  DB edit was used.
+- Global reconcile remains blocked by an unrelated historical Phase 8.7 branch conflict;
+  P9-0A2b itself is canonical `done/closed` with a terminal receipt chain. Exact evidence:
+  `tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md`.
+- Next package is P9-0A2c issue CLI extraction. It requires a fresh measured detailed
+  plan, independent review, and new bootstrap.

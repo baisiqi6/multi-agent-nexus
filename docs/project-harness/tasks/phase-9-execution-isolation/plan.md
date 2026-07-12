@@ -43,10 +43,11 @@ remains blocked until Slice 4 is accepted. Every structural package still requir
 fresh drift check, detailed plan, independent review, worker bootstrap, and Codex result
 review.
 
-Status on 2026-07-12: P9-0A1 and P9-0A2a are durably `done/closed`; exact evidence is
+Status on 2026-07-12: P9-0A1, P9-0A2a, and P9-0A2b are durably `done/closed`; exact evidence is
 indexed in `../p9-0a1-cli-boundary-extraction/closeout.md` and
-`../p9-0a2a-workspace-state-reconcile-cli/closeout.md`. Measured post-closeout scope
-split the former combined P9-0A2 into P9-0A2a/b/c. P9-0A2b is the next executable
+`../p9-0a2a-workspace-state-reconcile-cli/closeout.md` plus
+`../p9-0a2b-event-task-plan-operator-cli/closeout.md`. Measured post-closeout scope
+split the former combined P9-0A2 into P9-0A2a/b/c. P9-0A2c is the next executable
 package; prior approvals/bootstrap do not authorize it or its siblings.
 
 Bounded packages:
@@ -56,8 +57,8 @@ Bounded packages:
 2. `p9-0a2a-workspace-state-reconcile-cli` — **done/closed**: moved workspace/state/
    reconcile registration and 11 handlers behind `workspace_cli`; preserved exact
    command ordering and all non-handler contract bytes.
-3. `p9-0a2b-event-task-plan-operator-cli` — separately move event/task/plan/operator
-   registration and handlers behind `planning_cli`.
+3. `p9-0a2b-event-task-plan-operator-cli` — **done/closed**: separately moved
+   event/task/plan/operator registration and handlers behind `planning_cli`.
 4. `p9-0a2c-issue-cli` — separately move issue registration and handlers behind
    `issue_cli`.
 5. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and

@@ -52,17 +52,22 @@ implementation, three Codex result-review rounds, four environment matrices, foc
 evidence is in
 [tasks/p9-0a1-cli-boundary-extraction/closeout.md](tasks/p9-0a1-cli-boundary-extraction/closeout.md).
 
-P9-0A2a is durably closed. Coordinate `main`/`origin/main` are
-`10862d97d02d6e20b191005f02a732c6fa44ad59`; workspace/state/reconcile ownership now
+P9-0A2a is durably closed. workspace/state/reconcile ownership now
 lives in `workspace_cli` with the exact 21/75/99 contract preserved except the approved
 11 handler identities. Exact evidence is in
 [tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md](tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md).
 
+P9-0A2b is durably closed. Coordinate `main`/`origin/main` are
+`38da30f8bb508638e0cc30c301968153a420bdb7`; event/task/plan/operator ownership now
+lives in `planning_cli`, with layered baseline proof and 1,411 canonical tests. Exact
+evidence is in
+[tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md](tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md).
+
 The active architecture alignment now governs:
 
 1. **Slice 3 durable closeout** — complete.
-2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1 and
-   P9-0A2a complete; measured P9-0A2 is refined into P9-0A2a/b/c, with P9-0A2b next. Every
+2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1,
+   P9-0A2a, and P9-0A2b complete; measured P9-0A2 is refined into P9-0A2a/b/c, with P9-0A2c next. Every
    refined package requires a fresh detailed plan/review/bootstrap.
 3. **Slice 4 projection/split-operation hardening** after P9-0A5.
 4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
@@ -138,7 +143,7 @@ Slice 3 durable closeout
         |
         v
 P9-0A1 through P9-0A5 structural decoupling
-(P9-0A1 and P9-0A2a done; P9-0A2b next)
+(P9-0A1, P9-0A2a, and P9-0A2b done; P9-0A2c next)
         |
         v
 Slice 4 projection and split-operation hardening
@@ -174,8 +179,8 @@ Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
-runtime isolation. Status: P9-0A1 and P9-0A2a durably closed; P9-0A2 is refined into
-0A2a/b/c and P9-0A2b is next. P9-0A6 remains ordered after Slice 4.
+runtime isolation. Status: P9-0A1, P9-0A2a, and P9-0A2b durably closed; P9-0A2 is refined into
+0A2a/b/c and P9-0A2c is next. P9-0A6 remains ordered after Slice 4.
 
 ### 3. Slice 4 projection and split-operation hardening
 

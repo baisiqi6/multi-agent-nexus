@@ -687,3 +687,43 @@
 - Worker/correction: `019f55ce-6283-7000-be7b-0204c5d16138`。
 - Receipt: `b2fedbf8-d54c-4586-b3f9-04d3b2e683b9`。
 - Closeout: `tasks/p9-0a2a-workspace-state-reconcile-cli/closeout.md`。
+
+## 2026-07-12（P9-0A2b deploy/projection/receipt dogfood）
+
+### 1. lifecycle mutation依赖 deployed harness freshness
+
+- 状态：fail-closed validated / UX gap open。
+- 首次 remote closeout/review时，控制面 DB已有 P9-0A2b plan/assignment events，但
+  `/opt/multinexus` 尚无该 checklist item；两次操作均记录 `harness.mutation_failed`，
+  没有伪造 lifecycle success。部署 canonical harness后同命令成功。
+- Route：task create/closeout UI应显式显示 control DB 与 deployed harness版本/任务存在性，
+  或在 mutation前给出可操作的 deploy freshness preflight。
+
+### 2. receipt fingerprint揭示 source/deploy双投影顺序问题
+
+- 状态：fail-closed validated / workflow gap open。
+- remote closeout/review把 deployed item推进到 `review_approved`，但本地 source item仍为
+  `running`；首次 `mark-done-files` 在 claim前以 fingerprint mismatch拒绝。使用同一
+  `harnessctl closeout` + `review-result`在本地重放审核事实后，两侧 before fingerprint
+  都为 `4fffae00...`，receipt才进入 claim/apply。
+- Route：后续 Slice 4/部署 hardening需把 split-operation的投影顺序和可重放操作变成
+  显式协议，避免Operator靠经验同步 source与deploy。
+
+### 3. global reconcile被无关历史冲突全局阻塞
+
+- 状态：open。
+- P9-0A2b terminal chain完成后，`reconcile discord-nexus`因历史
+  `phase-8.7-worker-self-test` branch在 harness=`agents/mac-opencode/...`、mirror=
+  `agents/mac-omp/...`而整体失败；P9-0A2b mirror无法在同轮创建。
+- Route：reconcile需要 per-item conflict isolation/partial result，而不是一个旧任务阻断
+  所有新任务投影；这属于 Slice 4 partial-operation/projection hardening，不在本次机械拆分
+  中顺手修。
+
+### 4. provider与review证据
+
+- Kimi Highspeed额度正常；GLM fallback未触发。
+- Codex发现 handoff path test patch了未被handler调用的 `open_connection`，同一 Kimi
+  JSONL session修正为 patch模块级 `_conn`并断言调用参数；说明 result review仍需要读
+  真实调用边界，不能只看1,411个绿测试。
+- Receipt：`4c85dd46-97b7-415f-85a1-450107e30112`；closeout：
+  `tasks/p9-0a2b-event-task-plan-operator-cli/closeout.md`。
