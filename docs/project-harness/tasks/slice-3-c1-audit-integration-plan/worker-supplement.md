@@ -24,9 +24,12 @@ its current directory:
 - Worktree:
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-s3-c1-opencode`
 - Branch: `agents/mac-opencode/slice-3-c1-audit-integration-plan`
-- Worktree base: MultiNexus `0dc4185578a758764367dbd2e19cb06b3b009b5e`
+- Approved content baseline: MultiNexus
+  `0dc4185578a758764367dbd2e19cb06b3b009b5e`; the worktree `HEAD` also includes
+  the Operator-owned worker bootstrap and this supplement on top of that baseline.
 
-Stop and report a blocker if `pwd`, branch, or base does not match. Do not run
+Stop and report a blocker if `pwd` or branch does not match, or if
+`0dc4185578a758764367dbd2e19cb06b3b009b5e` is not an ancestor of `HEAD`. Do not run
 `git switch`, `git checkout`, `git reset`, `git rebase`, or `git cherry-pick`.
 
 ## Exact assignment
