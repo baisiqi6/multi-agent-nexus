@@ -43,11 +43,13 @@ Repository HEAD vs upstream vs deployed are deliberately distinct:
 - Coordinate canonical source: `/Users/yinxin/projects/coordinate` on `main`,
   `origin/main` and local `main` at
   `e0cc1561cd20b0f22389234aefe92d01273860e4`.
-- Isolated S3-C4 worker branch HEAD after the correction commit:
-  `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8` on
+- Isolated S3-C4 worker branch:
   `agents/mac-omp/slice-3-c4-durable-closeout` in the isolated worktree
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-s3-c4-closeout`.
-  The worker branch and its documentation-only commits are not pushed or deployed.
+  Commit `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8` is the round-1 correction tip and
+  pre-R2 snapshot; it is not pushed or deployed. The final accepted worker tip is owned
+  by the Codex result-review artifact after the worker stops, not by worker-authored
+  bytes.
 - Deployed runtime identities (verified during S3-C3 result review, independent of any
   local documentation commit):
   - Coordinate `VERSION_DEPLOYED`:

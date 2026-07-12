@@ -1217,7 +1217,7 @@ evidence package. The same session spans two provider/model intervals:
   `s3c3-smoke-20260712T062036Z-e0cc1561` cleanup deferred and separately reviewed.
 - Boundaries: no checklist/event/state JSON edit, no Coordinate lifecycle command, no
   SSH/deploy/restart/DB mutation, no push/merge, no Phase 9/Slice 4 implementation, no
-  sidecar cleanup. The S3-C3/S4/umbrella lifecycle remains Operator-only; this worker
+  sidecar cleanup. The S3-C3/S3-C4/umbrella lifecycle remains Operator-only; this worker
   does not claim closure and does not mark itself done.
 - R2 correction (this commit): `closeout.md` now keeps four Git authorities distinct
   (canonical `main` pre-integration `04048e1`, upstream `origin/main` `82c5613`, deployed
