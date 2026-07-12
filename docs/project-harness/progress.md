@@ -1650,8 +1650,9 @@ evidence package. The same session spans two provider/model intervals:
   `ok`. Both services and server smoke pass.
 - Local and server isolated dogfood prove files-only detection, deploy then record,
   idempotent record retry, drift refusal and cleanup with no production task row.
-- Receipt `c968e093-c5b0-4773-800c-0f17b1abd2dd` reached applied with fingerprint
-  `5204d330...` -> `cfd6fc9e...`; terminal record follows deployed done projection.
+- Receipt `c968e093-c5b0-4773-800c-0f17b1abd2dd` completed authorized/claimed/applied/
+  task.done/consumed with fingerprint `5204d330...` -> `cfd6fc9e...`;
+  `task.done=948ff132...` and `completion.consumed=61ec9d97...`.
 - Dogfood exposed two durable operator gaps: remote lifecycle state does not flow back
   into Git source automatically, and code-sync/`VERSION_DEPLOYED` does not prove the
   venv package or DB schema was upgraded. Exact evidence is in

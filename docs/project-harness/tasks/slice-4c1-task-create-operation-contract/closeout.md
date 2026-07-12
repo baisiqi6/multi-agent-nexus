@@ -40,7 +40,7 @@ operation-bound event as conflict and rolls back ledger/task state.
   `b031c2fcbfad0cbe488a98d13fe3db249b0417cd328ce878b801bd96ae43b0cb`.
 - Backup/source integrity: `ok`; predeploy schema: v10.
 - Deployed Coordinate: `1cbb547d7966c83c198125370f46bddc2d8640c9`.
-- Deployed MultiNexus review docs/checklist: `7db678ca0a9da000e61c1a15c4d4cac2d8a33fd2`.
+- Deployed MultiNexus done projection: `963b0e95e6a99ecd8ea03e807199aa60f4f4d4fb`.
 - Production schema: v11, `split_operations` present with zero production rows,
   integrity `ok`.
 - Coordinate PID after final package install/migration: `318285`; both Coordinate and
@@ -77,6 +77,11 @@ without creating a production task:
 - Claimed event: `37d7da39-5b9c-4e29-8568-e7b9237c5bf8`.
 - Applied event: `e68a827e-6e00-4d5e-8d2e-72e94cf0673d`.
 - Fingerprint: `5204d330...a5a5c1` -> `cfd6fc9e...ea90f`.
+- Terminal `task.done`: `948ff132-f9a8-40b9-af21-b643619d2fd8`.
+- `completion.consumed`: `61ec9d97-3d69-49c1-8fc4-9d4d90480b76`.
 
-The terminal `task.done` / `completion.consumed` ids are recorded after the deployed
-done projection is verified by `mark-done-record`.
+`mark-done-record` independently read the deployed done/closed projection and matched
+`cfd6fc9e...ea90f` before emitting the terminal pair. The default post-doc-deploy smoke
+returned non-zero because its ten-minute log window included already recovered Discord
+TLS/proxy tracebacks from before the new bridge PID. Re-running from the new process
+start (`2026-07-13 05:03:08 CST`) returned `server smoke OK`.

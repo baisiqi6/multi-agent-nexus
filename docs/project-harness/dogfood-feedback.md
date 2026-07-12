@@ -926,7 +926,7 @@
 
 ## 2026-07-13（Slice 4C1 split-operation contract）
 
-- 状态：implemented / adversarially reviewed / deployed；terminal receipt record pending。
+- 状态：implemented / adversarially reviewed / deployed / terminal receipt consumed。
 - Kimi Highspeed完成实现和三轮定向修正，GLM fallback未触发。Codex通过JSONL、真实
   跨秒retry、DB mirror篡改和operation-bound event碰撞探针，发现并关闭了仅靠绿测试
   没覆盖的idempotency缺口。
@@ -942,3 +942,7 @@
   schema-bearing deploy必须同时校验deployed source SHA、runtime import path、
   `SCHEMA_VERSION`和`PRAGMA user_version`，不能只看VERSION与service active。
 - 完整证据：`tasks/slice-4c1-task-create-operation-contract/closeout.md`。
+- Receipt `c968e093-c5b0-4773-800c-0f17b1abd2dd`最终产生
+  `task.done=948ff132-f9a8-40b9-af21-b643619d2fd8`与
+  `completion.consumed=61ec9d97-3d69-49c1-8fc4-9d4d90480b76`。默认smoke再次被
+  新PID启动前已恢复的Discord traceback污染；从`05:03:08 CST`稳定窗口复跑通过。
