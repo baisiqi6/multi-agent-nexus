@@ -1595,9 +1595,9 @@
     {
       "id": "p9-0a3b-delivery-policy-worker-cli",
       "title": "P9-0A3b Delivery Policy Worker CLI Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a3b-delivery-policy-worker-cli/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a3b-delivery-policy-worker-cli/plan.md",
@@ -1609,18 +1609,33 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T15:23:06Z",
+      "selected_in_session": "omp-p9-0a3b-kimi",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T15:23:06Z"
+        "status": "review_approved",
+        "branch": "agents/mac-omp/p9-0a3b-delivery-policy-worker-cli",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a3b-delivery-policy-worker-cli/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a3b-delivery-policy-worker-cli/plan.md",
+        "branch": "agents/mac-omp/p9-0a3b-delivery-policy-worker-cli",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after correction cfcb56f; exact five paths; 21/75/99; boundary 53; focused 384; full 1493; no must-fix remains"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "omp-p9-0a3b-kimi",
+        "acquired_at": "2026-07-12T15:44:57Z",
+        "expires_at": "2026-07-12T17:44:57Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
