@@ -1748,9 +1748,9 @@
     {
       "id": "p9-0a5-event-presentation-registry",
       "title": "P9-0A5 Event Presentation Registry Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a5-event-presentation-registry/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a5-event-presentation-registry/plan.md",
@@ -1762,18 +1762,33 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T17:08:53Z",
+      "selected_in_session": "p9-0a5-kimi-direct",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T17:08:53Z"
+        "status": "review_approved",
+        "branch": "agents/mac-omp/p9-0a5-event-presentation-registry",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a5-event-presentation-registry/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a5-event-presentation-registry/plan.md",
+        "branch": "agents/mac-omp/p9-0a5-event-presentation-registry",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "APPROVE_AFTER_CORRECTION: removed worker shell artifacts and closed in-memory test DB; Coordinate 084419c; 264 focused and 1572 full pass under known-good interpreter."
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a5-kimi-direct",
+        "acquired_at": "2026-07-12T17:43:52Z",
+        "expires_at": "2026-07-12T19:43:52Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
