@@ -2003,6 +2003,51 @@
         "after_fingerprint": "cfd6fc9e0e119c97a81aaa739f010e92ee68d2d5769f97e7feb92737027ea90f",
         "applied_at": "2026-07-12T21:00:09Z"
       }
+    },
+    {
+      "id": "slice-4c2-issue-materialize-operation-adoption",
+      "title": "Slice 4C2 Issue Materialize Operation Adoption",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T21:07:55Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T21:07:55Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "66616b54-2502-4981-922f-8d18e86e70c5",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "slice-4c2-issue-materialize-operation-adoption",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "f9811bda752eb05f4d7258425815b446aeecfef8060b26083842c81651b63648",
+        "before_fingerprint": "6b9f2fc25ecd6dd34a6c040ee0f0403ca7c1707d2eeac64387712d03a779300e",
+        "after_fingerprint": "a30d1db4ebd80da467d91467b982cb6e2d347b4eeb476a3a18acdf86c155e1ce",
+        "files_applied_at": "2026-07-12T21:07:55Z"
+      }
     }
   ]
 }
