@@ -1595,7 +1595,7 @@
     {
       "id": "p9-0a3b-delivery-policy-worker-cli",
       "title": "P9-0A3b Delivery Policy Worker CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1610,18 +1610,18 @@
         "reason": null
       },
       "selected_in_session": "omp-p9-0a3b-kimi",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T15:47:00Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a3b-delivery-policy-worker-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T15:47:00Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a3b-delivery-policy-worker-cli/plan.md",
         "branch": "agents/mac-omp/p9-0a3b-delivery-policy-worker-cli",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate cfcb56f; MultiNexus d60c854; Codex result review approved; boundary 53; focused 384; full 1493; no runtime deploy required",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -1635,6 +1635,12 @@
         "acquired_at": "2026-07-12T15:44:57Z",
         "expires_at": "2026-07-12T17:44:57Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "63c3543b-bf56-45f2-bb40-8c2a805ed883",
+        "before_fingerprint": "955b7c5ab80a2122fda7e9d1284df7ea935ba444b2213adc4c7094064ba41e71",
+        "after_fingerprint": "fca58d44754071bb5300fb6ff0b3e098fee03822200c6601385f0c45d8900ab3",
+        "applied_at": "2026-07-12T15:47:00Z"
       }
     }
   ]
