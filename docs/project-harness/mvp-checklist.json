@@ -1441,9 +1441,9 @@
     {
       "id": "p9-0a2b-event-task-plan-operator-cli",
       "title": "P9-0A2b Event Task Plan Operator CLI Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
@@ -1455,18 +1455,28 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T10:33:55Z",
+      "selected_in_session": "p9-0a2b-kimi-20260712T1040Z",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T10:33:55Z"
+        "status": "running",
+        "branch": "agents/mac-omp/p9-0a2b-event-task-plan-operator-cli",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
+        "branch": "agents/mac-omp/p9-0a2b-event-task-plan-operator-cli"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a2b-kimi-20260712T1040Z",
+        "acquired_at": "2026-07-12T10:40:32Z",
+        "expires_at": "2026-07-12T12:40:32Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
