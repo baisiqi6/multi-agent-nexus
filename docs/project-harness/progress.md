@@ -1406,3 +1406,21 @@ evidence package. The same session spans two provider/model intervals:
 - No implementation or bootstrap is authorized. Next gate: bind the exact plan SHA in
   Coordinate and obtain independent Kimi review, using GLM only on documented Kimi
   quota/auth/provider failure.
+
+## 2026-07-12 — P9-0A3b delivery/policy/worker CLI durable closeout
+
+- Independent Kimi plan review approved exact plan SHA `5a9438c...a2f`; worker session
+  `019f56f4-79c4-7000-888a-05cc20a49cb5` produced `f1ccf37`, and Codex required
+  correction `cfcb56f` to restore the out-of-scope removed `get_workspace` import.
+- Integrated and pushed Coordinate `main`/`origin/main` at `cfcb56f`. Exact five-path
+  scope, 21/75/99, fixture `0bb76d48...`, five layered rewinds, ten canonical AST
+  body equalities, 53 boundary/contract, 384 focused, and 1,493 full tests pass.
+- Receipt `63c3543b-bf56-45f2-bb40-8c2a805ed883` completed one authorized/claimed/
+  applied/task.done/consumed chain with `955b7c5a...` -> `fca58d44...`; deployed
+  MultiNexus `0eb1f06` was verified done/closed before the terminal record.
+- The first record attempt used local `mac.sh` and failed closed with `unknown_receipt`;
+  the required production `coord-ssh` replay succeeded idempotently. No repair, legacy
+  mark-done, direct DB edit, duplicate terminal event, or provider fallback was used.
+- Exact evidence: `tasks/p9-0a3b-delivery-policy-worker-cli/closeout.md`. Next package:
+  P9-0A4 workflow/completion CLI extraction; it requires fresh measurement, detailed
+  plan, independent non-Codex review, and a new worker bootstrap.

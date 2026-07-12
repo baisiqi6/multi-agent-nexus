@@ -43,14 +43,15 @@ remains blocked until Slice 4 is accepted. Every structural package still requir
 fresh drift check, detailed plan, independent review, worker bootstrap, and Codex result
 review.
 
-Status on 2026-07-12: P9-0A1, all P9-0A2a/b/c packages, and P9-0A3a are durably `done/closed`; exact evidence is
+Status on 2026-07-12: P9-0A1, all P9-0A2a/b/c packages, and both P9-0A3a/b are durably `done/closed`; exact evidence is
 indexed in `../p9-0a1-cli-boundary-extraction/closeout.md` and
 `../p9-0a2a-workspace-state-reconcile-cli/closeout.md` plus
 `../p9-0a2b-event-task-plan-operator-cli/closeout.md` plus
 `../p9-0a2c-issue-cli/closeout.md` plus
-`../p9-0a3a-runner-job-runtime-cli/closeout.md`. Measured post-closeout scope
+`../p9-0a3a-runner-job-runtime-cli/closeout.md` plus
+`../p9-0a3b-delivery-policy-worker-cli/closeout.md`. Measured post-closeout scope
 split the former combined P9-0A2 into P9-0A2a/b/c. Fresh measurement similarly splits
-the former combined P9-0A3 into P9-0A3a/b. P9-0A3b is the next executable
+the former combined P9-0A3 into P9-0A3a/b. P9-0A4 is the next executable
 package; prior approvals/bootstrap do not authorize it or its siblings.
 
 Bounded packages:
@@ -67,8 +68,8 @@ Bounded packages:
 5. `p9-0a3a-runner-job-runtime-cli` — **done/closed**: moved runner/job/runtime
    registration and 16 handlers behind `execution_cli` with three static registrar
    call sites.
-6. `p9-0a3b-delivery-policy-worker-cli` — separately move the contiguous delivery/
-   policy/worker registration and 10 handlers behind `delivery_cli`.
+6. `p9-0a3b-delivery-policy-worker-cli` — **done/closed**: separately moved the
+   contiguous delivery/policy/worker registration and 10 handlers behind `delivery_cli`.
 7. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
    `workflow_cli` owns the assignment parser while `completion_cli` registers the
    receipt-aware mark-done leaf commands into its supplied subparser.
