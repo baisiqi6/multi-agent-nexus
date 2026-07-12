@@ -1697,7 +1697,7 @@
     {
       "id": "p9-0a4b-workflow-assignment-cli",
       "title": "P9-0A4b Workflow and Assignment CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1712,18 +1712,18 @@
         "reason": null
       },
       "selected_in_session": "omp-p9-0a4b-kimi",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T17:00:47Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T17:00:47Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
         "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Approved Coordinate 882c2a1; result review deployed; 91 boundary, 440 service-focused, 1555 full; exact six paths and seven rewinds.",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -1737,6 +1737,12 @@
         "acquired_at": "2026-07-12T16:58:40Z",
         "expires_at": "2026-07-12T18:58:40Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "1c9269e9-e7b5-442c-b856-d0216d62bdab",
+        "before_fingerprint": "dfceae7efd659784e1b470c0c2959296f423c38f6748e32da101d8d6b4df795e",
+        "after_fingerprint": "74282c7c9c1198adc7a8232a6a7cabf8dde6666efe314720c21d09cf49fba8ae",
+        "applied_at": "2026-07-12T17:00:47Z"
       }
     }
   ]
