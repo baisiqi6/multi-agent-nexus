@@ -1952,6 +1952,36 @@
         "after_fingerprint": "49ad2177b7bd099a9a33976a9aed6e429472d46bd6a9569ac2e27d3125063a59",
         "applied_at": "2026-07-12T19:52:24Z"
       }
+    },
+    {
+      "id": "slice-4c1-task-create-operation-contract",
+      "title": "Slice 4C1 Task-Create Split Operation Contract",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T20:00:25Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T20:00:25Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }

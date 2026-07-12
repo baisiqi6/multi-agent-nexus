@@ -50,6 +50,19 @@ Add stable `operation_id` and before/after fingerprints to host-aware file/recor
 pairs. Group purely DB-side writes transactionally. Make retry distinguish not
 started, partially applied, already applied, and conflicting drift.
 
+S4-C is executed as two reviewed packages:
+
+- **S4-C1 task-create operation contract** — schema/ledger, canonical operation and
+  checklist-item fingerprints, atomic file projection, and transactional binding for
+  `task create-files/create-record`. **Next package; not yet authorized.**
+- **S4-C2 issue-materialize adoption** — adopt the same contract for
+  `issue materialize-files/materialize-record`, include delivery creation in the DB
+  transaction, and run host-aware interruption/retry dogfood. **Blocked on C1.**
+
+`assignment mark-done-files/record` already has the stronger completion receipt,
+claim/apply and before/after-fingerprint protocol. S4-C treats it as a reference and
+compatibility boundary rather than replacing it with a weaker generic operation.
+
 ### S4-D — Doctor and repair evidence
 
 Detect stale registry projections, partial operations, orphan operations, projection
