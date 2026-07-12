@@ -1229,7 +1229,7 @@
         "reviewer": "codex-operator",
         "phase": "closeout_requested",
         "updated_at": "2026-07-12",
-        "summary": "Result review round 1 changes requested: parent MULTI_AGENT_COORDINATOR_DB contaminates contract suite; fixture contains four /Users/yinxin paths; callable-handler test accepts non-callable strings; DEFAULT_DB_PATH relation assertion is suffix-only. Artifact: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/result-review-round-1.md"
+        "summary": "Result review round 2 changes requested: contract generation and exact DEFAULT_DB_PATH assertion depend on caller HOME; fake HOME and fake HOME+DB override each fail two tests. Artifact: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/result-review-round-2.md"
       },
       "lease": {
         "owner": "mac-omp",
