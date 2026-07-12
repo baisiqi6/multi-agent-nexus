@@ -1424,3 +1424,19 @@ evidence package. The same session spans two provider/model intervals:
 - Exact evidence: `tasks/p9-0a3b-delivery-policy-worker-cli/closeout.md`. Next package:
   P9-0A4 workflow/completion CLI extraction; it requires fresh measurement, detailed
   plan, independent non-Codex review, and a new worker bootstrap.
+
+## 2026-07-12 — P9-0A4 refinement and P9-0A4a detailed-plan checkpoint
+
+- Refreshed Coordinate at reviewed `origin/main@cfcb56f`: root `cli.py` is 1,369 lines;
+  contract remains 21/75/99 with fixture SHA `0bb76d48...`; focused 371 and full 1,493
+  tests pass.
+- Measurement split the former P9-0A4: receipt completion is six leaves, 14 functions,
+  510 span / 491 nonblank lines; the remaining workflow/assignment seam is 12 handlers
+  and 254 handler lines. Combining them would exceed the bounded structural review
+  surface.
+- P9-0A4a introduces `completion_cli` first while root continues to own assignment;
+  P9-0A4b later moves that parser into `workflow_cli` and calls the same completion
+  registrar. This preserves the approved final architecture without a temporary cycle.
+- No implementation or bootstrap is authorized. Next gate: bind the exact P9-0A4a plan
+  SHA in Coordinate and obtain independent Kimi review, using GLM only on documented
+  Kimi quota/auth/provider failure.

@@ -70,13 +70,16 @@ Bounded packages:
    call sites.
 6. `p9-0a3b-delivery-policy-worker-cli` — **done/closed**: separately moved the
    contiguous delivery/policy/worker registration and 10 handlers behind `delivery_cli`.
-7. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
-   `workflow_cli` owns the assignment parser while `completion_cli` registers the
-   receipt-aware mark-done leaf commands into its supplied subparser.
-8. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
+7. `p9-0a4a-receipt-completion-cli` — move the six receipt-aware assignment leaves and
+   their 14 orchestration/helper functions behind `completion_cli`; root still owns the
+   assignment parser and supplies its subparser to the registrar.
+8. `p9-0a4b-workflow-assignment-cli` — move branch/CI/review/merge and assignment;
+   `workflow_cli` owns the assignment parser and invokes the already extracted
+   `completion_cli` registrar with its supplied subparser.
+9. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
    extract only the pure event text/base-payload renderer registry and lock supported,
    rendered, and explicitly unstyled event-key relationships.
-9. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
+10. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
    Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
    proven stable transaction/repository/mutation seam; a documented no-change decision
    is acceptable.
