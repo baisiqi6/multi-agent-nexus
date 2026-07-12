@@ -16,8 +16,9 @@
 ## Identities
 
 - Approved plan hash: `871664176c514bec7b9c32c8045d5368ff382e35d44ccff4eefc2b3d54e64ecb`
-- Plan ready event: `dc9d6e33-9223-44f0-962f-4252c458cc3e`
-- Plan approved event: `44a11ddc-ae45-46a5-8a1e-2b8d6f895ec8`
+- Plan ready event: `ccdd2948-5f3d-4b16-b089-c4de7caac054`
+- Plan approved event: `fb247f22-417f-47ad-babb-87589ee5ed66`
+- Historical gate events (not the final attempt-2 authorization): `dc9d6e33-9223-44f0-962f-4252c458cc3e` / `44a11ddc-ae45-46a5-8a1e-2b8d6f895ec8`, retained in `remote-runtime-gate.md` as evidence of the earlier approval round that was superseded when the rejected recovery proposal was withdrawn and the original plan bytes were restored.
 - Coordinate target/pushed SHA: `e0cc1561cd20b0f22389234aefe92d01273860e4`
 - MultiNexus target/pushed SHA: `82c5613f9d8fcb25c5ca936a24c61536e567df50`
 - Previous Coordinate deployed SHA: `b93ab46b88f0628de2ede03dc58a8a02a4bbefe1` (attempt 1 rollback)
@@ -363,11 +364,15 @@ rm -rf /tmp/s3c3-sidecar/s3c3-smoke-20260712T062036Z-e0cc1561
   were consumed without effective drift due to CLI invocation errors. Both
   were closed cleanly, and negative evidence was not erased. This does not
   affect the verdict but adds sidecar state.
-- **Task phase not updated to `done` in `tasks` table**: the `task.done` event
-  was emitted and `completion.consumed` recorded, but the `tasks.phase` column
-  still shows `review_approved`/`doing` for completed tasks. This is because
-  the phase update depends on the daemon pump cycle, not event creation. The
-  event chain is correct and authoritative.
+- **Stale task projection for interrupted recovery**: the `task.done` event
+  and `completion.consumed` were emitted, but the `tasks.phase` projection for
+  `s3c3-smoke-interrupted-recovery` remained `review_approved` with
+  `last_event_id` still pointing to its original `plan.ready`, even after
+  multiple 30-second daemon pump intervals. The event chain itself contains
+  exactly one `task.done` and one `completion.consumed`, so the receipt
+  protocol passed per the plan's interrupted-recovery criterion (stale
+  rejection, synchronized retry, single terminal pair). The stale projection
+  is an unresolved reconciliation/backlog risk, not an event-protocol defect.
 - **No package mark-done or closeout**: per supplement, Codex performs
   independent result review first. This report does not claim package
   completion.
