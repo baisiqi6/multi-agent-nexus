@@ -2,6 +2,32 @@
 
 Harness root: `docs/project-harness/`
 
+
+## 2026-07-13
+
+### P9-0A4b Workflow and Assignment CLI Extraction
+
+- Implemented in coordinate worktree (`~/projects/coordinate-p9-0a4b-work`, branch
+  `agents/mac-omp/p9-0a4b-workflow-cli`) from reviewed start `4526d09`.
+- Extracted 12 handlers (branch allocate; ci/review/merge; assignment
+  request/accept/handoff/blocker/unblock/closeout/review-result/mark-done) and 3
+  registrars from `coordinate.cli` to new `coordinate.workflow_cli`.
+- Dependency direction: `cli -> workflow_cli -> completion_cli`; root keeps
+  object-identical aliases for all 12 handlers and 3 registrars.
+- Three static registrar calls placed at exact parser seams (branch before PR,
+  forge between PR and issue, assignment between runtime and operator).
+- Contract fixture regenerated (SHA `43e181...`); A4b rewind proves exclusive
+  12-handler ownership and matches P9-0A4a SHA `a7c6e955...`. All 7 cumulative
+  layer rewinds and 7 drift tests pass.
+- Boundary tests: `tests/test_workflow_cli.py` (37 tests) proving ownership,
+  import direction, registration seam order, canonical AST body hashes, and
+  mocked service forwarding for all 12 handlers.
+- Updated `tests/test_completion_cli.py` ownership assertion: root exposes
+  workflow handlers as workflow_cli aliases, receipt handlers as completion_cli.
+- 21 top-level commands / 75 leaves / 99 nodes unchanged. Focused 473, full 1562.
+- One worker commit `65e80c5`; no deploy (pure CLI refactoring; plan explicitly
+  waives runtime deploy).
+
 ## 2026-07-12
 
 ### S3-C1 durable audit package closed locally
