@@ -48,7 +48,8 @@ indexed in `../p9-0a1-cli-boundary-extraction/closeout.md` and
 `../p9-0a2a-workspace-state-reconcile-cli/closeout.md` plus
 `../p9-0a2b-event-task-plan-operator-cli/closeout.md` plus
 `../p9-0a2c-issue-cli/closeout.md`. Measured post-closeout scope
-split the former combined P9-0A2 into P9-0A2a/b/c. P9-0A3 is the next executable
+split the former combined P9-0A2 into P9-0A2a/b/c. Fresh measurement similarly splits
+the former combined P9-0A3 into P9-0A3a/b. P9-0A3a is the next executable
 package; prior approvals/bootstrap do not authorize it or its siblings.
 
 Bounded packages:
@@ -62,15 +63,17 @@ Bounded packages:
    event/task/plan/operator registration and handlers behind `planning_cli`.
 4. `p9-0a2c-issue-cli` — **done/closed**: separately moved issue registration and
    handlers behind `issue_cli`.
-5. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and
-   delivery/policy/worker families behind static registrars.
-6. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
+5. `p9-0a3a-runner-job-runtime-cli` — move runner/job/runtime registration and 16
+   handlers behind `execution_cli` with three static registrar call sites.
+6. `p9-0a3b-delivery-policy-worker-cli` — separately move the contiguous delivery/
+   policy/worker registration and 10 handlers behind `delivery_cli`.
+7. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
    `workflow_cli` owns the assignment parser while `completion_cli` registers the
    receipt-aware mark-done leaf commands into its supplied subparser.
-7. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
+8. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
    extract only the pure event text/base-payload renderer registry and lock supported,
    rendered, and explicitly unstyled event-key relationships.
-8. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
+9. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
    Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
    proven stable transaction/repository/mutation seam; a documented no-change decision
    is acceptable.
