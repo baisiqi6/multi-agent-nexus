@@ -1922,17 +1922,22 @@
       "selected_in_session": "s4b2-kimi-worker",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "running",
+        "status": "review_approved",
         "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority",
         "updated_at": "2026-07-12"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
-        "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority"
+        "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after Codex correction ac12396: read-only verifier, strict active-override gate, strict ID normalization/revision proof; production v1 authority 10/0, unchanged Coordinate PID, stable smoke and isolated same-process removal proof pass."
       },
       "lease": {
         "owner": "mac-omp",
