@@ -1795,6 +1795,36 @@
         "after_fingerprint": "9ec79aec6fe57e3aaaf4c497eb5bb76211a97febf9766543d15ae3f5aa5edfb1",
         "applied_at": "2026-07-12T17:45:32Z"
       }
+    },
+    {
+      "id": "slice-4a-deterministic-latest-event-reads",
+      "title": "Slice 4A Deterministic Latest-Event Reads",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T17:52:12Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T17:52:12Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
