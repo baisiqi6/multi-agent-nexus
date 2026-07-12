@@ -1697,9 +1697,9 @@
     {
       "id": "p9-0a4b-workflow-assignment-cli",
       "title": "P9-0A4b Workflow and Assignment CLI Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
@@ -1711,18 +1711,28 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T16:30:31Z",
+      "selected_in_session": "omp-p9-0a4b-kimi",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T16:30:31Z"
+        "status": "running",
+        "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
+        "branch": "agents/mac-omp/p9-0a4b-workflow-assignment-cli"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "omp-p9-0a4b-kimi",
+        "acquired_at": "2026-07-12T16:58:40Z",
+        "expires_at": "2026-07-12T18:58:40Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
