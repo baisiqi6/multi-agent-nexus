@@ -1193,9 +1193,9 @@
     {
       "id": "p9-0a1-cli-boundary-extraction",
       "title": "P9-0A1 CLI Boundary Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
@@ -1207,11 +1207,11 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
+      "selected_in_session": "p9-0a1-kimi-20260712T0915Z",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "unblocked",
-        "branch": null,
+        "status": "running",
+        "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
         "updated_at": "2026-07-12",
         "unblock_owner": "human",
         "unblocked_by": "codex-operator",
@@ -1219,13 +1219,20 @@
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
-        "blocker_packet": "docs/project-harness/current/blocker-packet.md"
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md",
+        "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction"
       },
       "verification": "",
       "review": {
         "decision": null
       },
-      "lease": null
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a1-kimi-20260712T0915Z",
+        "acquired_at": "2026-07-12T09:16:21Z",
+        "expires_at": "2026-07-12T11:16:21Z",
+        "ttl_minutes": 120
+      }
     },
     {
       "id": "slice-3-c2-local-integration",
