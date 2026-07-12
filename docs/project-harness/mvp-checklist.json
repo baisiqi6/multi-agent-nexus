@@ -1289,6 +1289,36 @@
         "decision": null
       },
       "lease": null
+    },
+    {
+      "id": "slice-3-c4-durable-closeout",
+      "title": "S3-C4 Durable Slice 3 Closeout",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T06:51:13Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T06:51:13Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
