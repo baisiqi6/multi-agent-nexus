@@ -857,3 +857,14 @@
   untracked artifacts不符，并修复SQLite `ResourceWarning`。绿测试和最终文字都不能替代
   Operator对JSONL、git status和warnings的交叉验证。
 - Closeout：`tasks/p9-0a5-event-presentation-registry/closeout.md`。
+
+## 2026-07-13（Slice 4A plan-byte freshness dogfood）
+
+- 状态：fail-closed validated / S4-C/D contract gap open。
+- revised `plan.ready`首次声明新SHA `dd4f8e5f...`，但服务器读取未部署文件所得
+  `plan_content_hash`仍是旧`4d2bbc60...`。Codex没有把payload声明当成事实，先deploy再
+  生成`fa38a7db...`，最终两个hash一致后才进入Round 2。
+- Route：plan approval preflight应强制比较declared full SHA、deployed content hash和
+  canonical source commit；不一致时直接拒绝并返回下一安全deploy/re-record动作。
+- Kimi正常完成review/worker，GLM fallback未触发；receipt
+  `f779f41b-a487-42d4-8f07-981058ec2404` terminal。

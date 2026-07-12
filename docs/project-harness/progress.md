@@ -1559,3 +1559,17 @@ evidence package. The same session spans two provider/model intervals:
   routed to Slice 4/runtime hardening.
 - Exact evidence: `tasks/p9-0a5-event-presentation-registry/closeout.md`. Next stage:
   refresh and independently review the Slice 4 detailed plan before any worker runs.
+
+## 2026-07-13 — Slice 4A deterministic latest-event reads durable closeout
+
+- Round 1 Kimi rejected a `tests.*` package-style validation command; revised plan SHA
+  `dd4f8e5f...1360` uses explicit Python 3.14 discovery and received Round 2 approval.
+- Worker Kimi session `019f577f-6121-7000-a0d3-d949c25202a9` produced `5986cc3`.
+  Codex approved without correction after 39 daemon, 152 policy, 191 focused and 1,574
+  full tests passed.
+- Receipt `f779f41b-a487-42d4-8f07-981058ec2404` completed with `01e9b0e3...` ->
+  `c151bdea...`; deployed `0b37b06` was verified done/closed.
+- Codex rejected one corrected `plan.ready` whose declared new SHA disagreed with the
+  server's old deployed content hash; docs deploy plus `fa38a7db...` restored identity.
+- Exact evidence: `tasks/slice-4a-deterministic-latest-event-reads/closeout.md`. Next:
+  detailed S4-B versioned replace-sync registry audit and plan review.

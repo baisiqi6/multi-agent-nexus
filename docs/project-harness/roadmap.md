@@ -99,8 +99,8 @@ The active architecture alignment now governs:
 
 1. **Slice 3 durable closeout** — complete.
 2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — complete.
-3. **Slice 4 projection/split-operation hardening** — next; refresh its detailed plan,
-   obtain independent review, then issue a fresh worker bootstrap.
+3. **Slice 4 projection/split-operation hardening** — S4-A deterministic latest-event
+   reads is done/closed; S4-B versioned replace-sync registry is next.
 4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
    remains acceptable.
 5. **Phase 9 runtime isolation packages (P9-1+)** after Slice 4 acceptance and the
@@ -219,7 +219,7 @@ Canonical overview:
 `tasks/slice-4-projection-hardening/plan.md`.
 
 Outcome: remove stale authorization projections and ambiguous partial operations
-before increasing execution concurrency.
+before increasing execution concurrency. Status: S4-A done/closed; S4-B next.
 
 ### 4. Phase 9 multi-project execution isolation
 
