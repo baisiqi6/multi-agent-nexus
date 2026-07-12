@@ -2,6 +2,30 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-12
+
+### S3-C1 durable audit package closed locally
+
+- Human-authorized fast-forward moved local MultiNexus `main` from `d2e7dee` to
+  `44e708f` (`docs: record Slice 3 local acceptance`); nothing was pushed.
+- Oh-My-Pi session `019f53b1-540b-7000-b0c0-678aabfd52f8` produced the three
+  approved artifacts: the source-of-truth audit update, durable local-code-review
+  summary, and proposed S3-C2 integration decision.
+- Codex approved the result after two factual-correction rounds. Local acceptance
+  remains distinct from Coordinate Slice 3 integration, deployment, real multi-host
+  smoke, and the Slice 3 umbrella closeout.
+- Coordinate lifecycle reconciliation recorded `assignment.requested`,
+  `assignment.accepted`, `closeout.requested`, `review.completed`, and `task.done`;
+  S3-C1 is `done/closed` with reviewer `codex` and owner lease released.
+- Validation: exact reviewed three-file result scope, `git diff --check`, checklist
+  validation with the same four historical warnings, and doctor with no new invalid
+  artifact. Existing missing `round-2-hardening/plan.md`, `current/task_plan.md`, and
+  optional `init.sh` remain unrelated.
+- Operator note: the assignment request implicitly created pending live delivery
+  `88e08514-f21b-47ed-8316-cebd84d28afd` from workspace defaults even without an
+  explicit platform. No sender/pump was active or invoked; the missing local-only and
+  cancel/suppress controls are recorded in Coordinate's operator backlog.
+
 ## 2026-07-11
 
 ### Post-Slice-3 roadmap and plan-gate protocol

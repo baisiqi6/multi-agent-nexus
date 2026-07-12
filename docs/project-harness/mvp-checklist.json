@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-07-11",
+  "updated_at": "2026-07-12",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -1134,7 +1134,7 @@
     {
       "id": "slice-3-c1-audit-integration-plan",
       "title": "S3-C1 Durable Audit And Integration Plan",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -1149,17 +1149,33 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-11T18:38:19Z",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-11T18:38:19Z"
+        "status": "closed",
+        "branch": "agents/mac-opencode/slice-3-c1-audit-integration-plan",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-3-c1-audit-integration-plan/plan.md"
+        "plan": "docs/project-harness/tasks/slice-3-c1-audit-integration-plan/plan.md",
+        "branch": "agents/mac-opencode/slice-3-c1-audit-integration-plan",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Approved after two correction rounds. MultiNexus local documentation checkpoint 44e708f records exact local-code acceptance and proposed S3-C2 method without claiming Coordinate integration, deploy, or multi-host smoke.",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after two correction rounds. MultiNexus local documentation checkpoint 44e708f records exact local-code acceptance and proposed S3-C2 method without claiming Coordinate integration, deploy, or multi-host smoke."
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "019f53b1-540b-7000-b0c0-678aabfd52f8",
+        "acquired_at": "2026-07-12T00:44:17Z",
+        "expires_at": "2026-07-12T02:44:17Z",
+        "ttl_minutes": 120,
+        "released_at": "2026-07-12T00:45:06Z"
+      }
     }
   ]
 }
