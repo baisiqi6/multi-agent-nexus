@@ -1154,3 +1154,24 @@ Human performed terminal and Discord validation:
   verification re-read the local canonical harness as `done/closed` with the same final
   fingerprint. Reconciliation updated the Coordinate task mirror to `closed`, and
   `operator pending` returned no S3-C2 action.
+
+## 2026-07-12 — S3-C3 attempt 2 deployment and receipt smoke
+
+- Worker verified all resume conditions: Mihomo alive upstream, Discord/PyPI probes
+  200, both services active with NRestarts=0.
+- Deployed exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`) via
+  full-install/full-restart/full-smoke path using clean detached release worktrees.
+  No `--skip-install`/`--no-restart`/`--no-smoke`/`--allow-dirty`.
+- Initial deploy exit 1 was a false positive: pre-proxy-recovery breaker traces at
+  14:09 CST fell within the smoke script's 10-minute journal window. Fresh-window
+  re-run passed `server smoke OK`.
+- Provisioned isolated sidecar workspace `s3c3-smoke-20260712T062036Z-e0cc1561`
+  with full harness copy, 6 namespaced tasks (4 original + 2 fingerprint-drift retries).
+- Receipt matrix all PASS: happy path (authorized→claimed→applied→task.done+consumed),
+  replay (idempotent, no duplicate terminal), expiry (2s TTL rejected before mutation),
+  fingerprint drift (before_fingerprint_mismatch), interrupted recovery (stale reject,
+  sync, retry succeeds).
+- Canonical `discord-nexus` zero drift: 29 tasks, 851 events unchanged.
+- DB integrity ok, backup at `coord-backup-20260712T061733Z.db` (mode 0600).
+- Evidence in `execution-report-attempt-2.md`. No package closeout or mark-done
+  (Codex performs independent result review).
