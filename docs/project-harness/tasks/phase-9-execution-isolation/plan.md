@@ -43,19 +43,20 @@ remains blocked until Slice 4 is accepted. Every structural package still requir
 fresh drift check, detailed plan, independent review, worker bootstrap, and Codex result
 review.
 
-Status on 2026-07-12: P9-0A1, all P9-0A2a/b/c packages, both P9-0A3a/b, and
-P9-0A4a are durably `done/closed`; exact evidence is
+Status on 2026-07-13: P9-0A1, all P9-0A2a/b/c packages, both P9-0A3a/b, and
+both P9-0A4a/b are durably `done/closed`; exact evidence is
 indexed in `../p9-0a1-cli-boundary-extraction/closeout.md` and
 `../p9-0a2a-workspace-state-reconcile-cli/closeout.md` plus
 `../p9-0a2b-event-task-plan-operator-cli/closeout.md` plus
 `../p9-0a2c-issue-cli/closeout.md` plus
 `../p9-0a3a-runner-job-runtime-cli/closeout.md` plus
 `../p9-0a3b-delivery-policy-worker-cli/closeout.md` plus
-`../p9-0a4a-receipt-completion-cli/closeout.md`. Measured post-closeout scope
+`../p9-0a4a-receipt-completion-cli/closeout.md` plus
+`../p9-0a4b-workflow-assignment-cli/closeout.md`. Measured post-closeout scope
 split the former combined P9-0A2 into P9-0A2a/b/c. Fresh measurement similarly splits
 the former combined P9-0A3 into P9-0A3a/b and the former P9-0A4 into P9-0A4a/b.
-P9-0A4b is the next executable
-package; prior approvals/bootstrap do not authorize it or its siblings.
+P9-0A5 is the next executable package; prior approvals/bootstrap do not authorize it
+or its siblings.
 
 Bounded packages:
 
@@ -77,10 +78,11 @@ Bounded packages:
    assignment leaves and their 14 orchestration/helper functions behind
    `completion_cli`; root still owns the assignment parser and supplies its subparser
    to the registrar.
-8. `p9-0a4b-workflow-assignment-cli` — move branch/CI/review/merge and assignment;
+8. `p9-0a4b-workflow-assignment-cli` — **done/closed**: moved branch/CI/review/merge and assignment;
    `workflow_cli` owns the assignment parser and invokes the already extracted
    `completion_cli` registrar with its supplied subparser.
-9. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
+9. `p9-0a5-event-presentation-registry` — **detailed plan drafted, not authorized**:
+   keep `policy.py` as the orchestration facade;
    extract only the pure event text/base-payload renderer registry and lock supported,
    rendered, and explicitly unstyled event-key relationships.
 10. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
