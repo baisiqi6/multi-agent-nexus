@@ -29,10 +29,8 @@ Control-plane recorded the plan at `docs/project-harness/tasks/slice-4b2-deploye
 ## Acceptance Criteria
 
 Use the complete `Tests and acceptance` section of the source plan. In particular,
-red-team the claim that a tracked secret-free authority plus parity-gated private
-runtime configurations leaves only one canonical roster, the failure ordering around
-committed sync versus version/restart failures, and whether the isolated sidecar is a
-credible same-process removal/reload proof.
+red-team the strict secret-free authority schema, the committed-state read-after-write
+gate, failure ordering, and the isolated same-process removal proof.
 
 ## Review Focus (plan review)
 

@@ -64,7 +64,7 @@ version = 1
 [[agents]]
 id = "..."
 display_name = "..."
-discord_user_id = 123
+discord_user_id = "123"
 ```
 
 and corresponding `[[external_agents]]` entries. The committed v1 roster is exactly
@@ -78,11 +78,28 @@ runtime configuration consumers and may contain additional host-specific fields,
 their registry projection must equal the committed authority before deployment.
 `agents.toml.example` remains an example, not the authority.
 
+The authority file uses a strict allow-list rather than merely ignoring unsafe fields:
+
+- the root permits only `registry`, `agents` and `external_agents`;
+- `[registry]` permits exactly `id` and `version`;
+- each roster entry permits exactly `id`, `display_name` and `discord_user_id`;
+- `discord_user_id` in the authority must be a quoted TOML string containing only
+  positive ASCII decimal digits; its canonical JSON representation is that normalized
+  string;
+- any unknown key—including `token`, `token_env`, prompt, path, channel, executable,
+  webhook or host setting—rejects the authority before copy/deploy.
+
+Private runtime config remains permissive and may represent a Discord id as a TOML
+integer or quoted ASCII-decimal string; the parity projection normalizes either to the
+same canonical string. Boolean, float, signed, whitespace-containing, Unicode-digit,
+zero and negative values are invalid on both sides.
+
 Changing any canonical roster field requires incrementing the integer authority
-version in the same reviewed commit. Reformatting, comments and unrelated unknown
-fields do not change Coordinate's canonical hash and therefore do not require a
-version bump. Reusing one version with a different canonical hash, decreasing the
-version, or changing source id is forbidden and must fail before service restart.
+version in the same reviewed commit. Reformatting and comments do not change
+Coordinate's canonical hash and therefore do not require a version bump; unknown
+authority fields are rejected rather than ignored. Reusing one version with a
+different canonical hash, decreasing the version, or changing source id is forbidden
+and must fail before service restart.
 
 ### 2. Reusable parity verifier
 
@@ -100,10 +117,11 @@ TOML entries or inspect/emit token values. Its normalization and canonical SHA-2
 must match the B1 contract exactly: trimmed non-empty ids/display names, ASCII decimal
 positive Discord IDs, fixed `managed`/`external` kinds, id-sorted canonical JSON.
 
-The authority side must require `[registry]`; the private runtime side must not require
-or trust `[registry]`. Runtime-only extra fields are ignored. Tests must prove parity
-with secrets present in the private fixture without allowing those values into stdout,
-stderr or exception text.
+The authority side must require `[registry]` and enforce the strict schema above; the
+private runtime side must not require or trust `[registry]`. Runtime-only extra fields
+are ignored. Tests must prove that every unknown/secret-bearing authority key fails and
+that parity with secrets present only in the private fixture succeeds without allowing
+those values into stdout, stderr or exception text.
 
 Avoid a new general configuration framework: the module owns only the registry
 projection/parity seam. Existing bridge/agentd config loading remains unchanged.
@@ -193,10 +211,11 @@ duplicate shell parsing. Do not create a second write path.
 Production closeout must prove the first authoritative sync converts the nine legacy
 rows to ten authoritative identities and that the running Coordinate service was not
 restarted for registry visibility. Record service PID/start timestamp before and after
-the MultiNexus-only deploy and verify they are unchanged. Correlate at least one normal
-post-sync inbound agent message with a Coordinate event/log after the committed sync;
-do not generate a privileged synthetic production identity or claim that PID stability
-alone proves message classification.
+the MultiNexus-only deploy and verify they are unchanged. If a normal inbound agent
+message naturally occurs after sync, correlate it as additional operational evidence,
+but do not block closeout on external Discord timing and do not generate a privileged
+synthetic production identity. PID stability proves only that no restart occurred;
+the deterministic same-process sidecar below is the required refresh proof.
 
 Do not temporarily remove or remap a real production identity. Instead, on the server:
 
@@ -268,7 +287,9 @@ Before worker closeout:
 
 1. focused parity tests cover normalization, exact parity, managed/external kind,
    missing/invalid/duplicate ids, missing source metadata, version typing, roster drift,
-   and redaction of secret-bearing runtime fixtures;
+   strict authority allow-list rejection for every table level, quoted ASCII-decimal
+   authority IDs, runtime integer/string equivalence, and redaction of secret-bearing
+   authority/runtime fixtures;
 2. deploy contract tests prove local mismatch performs no SSH mutation, remote mismatch
    performs no sync/restart/version write, and success orders remote parity → sync →
    evidence → version → restart → smoke;
