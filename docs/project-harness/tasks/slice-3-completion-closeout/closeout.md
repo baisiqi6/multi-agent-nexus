@@ -1,9 +1,8 @@
 # Slice 3 Completion Closeout
 
-> **Status: durable Slice 3 roll-up and evidence index. S3-C4 worker documentation is
-> ready for Operator closeout. The S3-C3, S3-C4, and umbrella lifecycle is NOT yet
-> closed; only the Operator may perform public lifecycle transitions after independent
-> result review.**
+> **Status: Slice 3 durably closed on 2026-07-12. S3-C3, S3-C4, and the umbrella are
+> reviewer-approved and `done/closed` through the public host-aware completion-receipt
+> lifecycle. Retained sidecar evidence and routed residual risks remain open.**
 
 This artifact binds the exact S3-C1 through S3-C4 evidence paths and verdicts. It links
 and summarizes immutable historical evidence rather than rewriting any prior verdict. It
@@ -18,16 +17,32 @@ isolated worker-branch HEAD.
 |---|---|---|---|
 | `slice-3-c1-audit-integration-plan` | `done/closed` | `approved` (reviewer `codex`) | closed locally; Coordinate recorded `assignment.requested` → `accepted` → `closeout.requested` → `review.completed` → `task.done` |
 | `slice-3-c2-local-integration` | `done/closed` | `approved` (independent result review) | closed locally through the completion receipt protocol on local Coordinate `main` |
-| `slice-3-c3-deployment-smoke` | `todo`, `review.decision=null` in checklist | `approved` (result-review round 2) | deployment + real receipt smoke PASS; Operator public `mark-done` still pending (see O2 below) |
-| `slice-3-c4-durable-closeout` | `todo`, `review.decision=null` in checklist | this worker result pending Codex review | documentation ready for Operator closeout |
-| `slice-3-completion-closeout` (umbrella) | `todo`, `review.decision=null` | pending | closed only after the three children above are durably closed by the Operator |
+| `slice-3-c3-deployment-smoke` | `done/closed` | `approved` (result-review round 2) | closed through receipt `ba8643c3-fdff-4d15-a8c0-a4d3c8012dcd` |
+| `slice-3-c4-durable-closeout` | `done/closed` | `approved` (result-review round 4) | closed through receipt `2539f998-a9f9-47b1-b727-102f270465cb` |
+| `slice-3-completion-closeout` (umbrella) | `done/closed` | `approved` (Codex Operator) | closed through receipt `aacafb58-f74e-4973-81f7-f8e70e96fbed` after all children closed |
 
-The durable S3-C3 result-review approval exists in
-`result-review-round-2.md`, but the checklist still records `review.decision=null` for
-S3-C3. Before `mark-done`, the Operator must submit the public
-`assignment review-result --decision approved`; if the lifecycle rejects the actual
-historical state, the Operator stops and records the product gap rather than forcing a
-green closeout (S3-C4 plan optional finding O2).
+The ordinary public lifecycle represented the historical S3-C3 execution without a
+repair path: closeout and review approval succeeded from its `unblocked` state, and the
+subsequent receipt chain atomically reconciled the canonical checklist and control-plane
+terminal record. No direct JSON/SQLite edit or repair-only transition was used.
+
+## Final Operator closeout record
+
+On 2026-07-12, after Codex result-review round 4 approved accepted worker tip
+`76137f2bd3281648ac174810abf63b7675d9bedc`, the Operator closed the remaining Slice 3
+packages in dependency order through public Coordinate commands:
+
+| Package | closeout | review approval | receipt | task.done |
+|---|---|---|---|---|
+| S3-C3 | `422e5da2-93a0-407b-90a6-81b86fd90e22` | `24ec0cd6-1d6f-4b97-baf1-1157b45a31b7` | `ba8643c3-fdff-4d15-a8c0-a4d3c8012dcd` | `f0d9ea8f-3274-444e-8769-02c1bee633d0` |
+| S3-C4 | `9d3be687-bcd1-496f-aace-05cf03bb14cd` | `b90721de-3fb1-4a67-865c-47c47be35836` | `2539f998-a9f9-47b1-b727-102f270465cb` | `81779402-7622-4596-a2b3-4aecfb51331e` |
+| umbrella | `3e60c146-cfb3-469b-8990-7127a47564db` | `eed05f2e-24bd-407d-b024-17fb2d5d5b47` | `aacafb58-f74e-4973-81f7-f8e70e96fbed` | `57f02160-3881-4bde-bc2f-4d31fb55f07c` |
+
+Each package has exactly one `completion.authorized`, `completion.claimed`,
+`completion.applied`, `task.done`, and `completion.consumed` event. Supported
+`reconcile --no-refresh` converged all three task mirrors to `closed`; refreshed harness
+state reports no pending Slice 3 Operator action. Checklist validation remains at the
+same six pre-existing warnings, and doctor has no new finding.
 
 ## Exact identities
 

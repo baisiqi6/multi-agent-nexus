@@ -1224,3 +1224,27 @@ evidence package. The same session spans two provider/model intervals:
   MultiNexus `VERSION_DEPLOYED` `82c5613`, and isolated worker branch HEAD), and all
   three worker-owned documents record the GLM-to-Kimi provider/model transition within
   the same OMP session.
+
+## 2026-07-12 — Slice 3 final Operator lifecycle closeout
+
+- Codex result-review round 4 approved accepted S3-C4 worker tip `76137f2`; review
+  artifacts are committed on canonical MultiNexus `main` through `31b5e5c`.
+- Refreshed runtime evidence immediately before approval: deployed Coordinate
+  `e0cc1561`, deployed MultiNexus `82c5613`, both services active with stable PID/start
+  identity and `NRestarts=0` across two observations, Discord/PyPI HTTP 200, production
+  DB integrity `ok`, canonical 29 tasks / 851 events, retained sidecar 6 / 89, and fresh
+  `server smoke OK`.
+- Closed S3-C3, S3-C4, and umbrella in dependency order through public Coordinate
+  `closeout` → `review-result approved` → receipt-aware `mark-done-prepare/files/record`.
+  Receipts: S3-C3 `ba8643c3-fdff-4d15-a8c0-a4d3c8012dcd`; S3-C4
+  `2539f998-a9f9-47b1-b727-102f270465cb`; umbrella
+  `aacafb58-f74e-4973-81f7-f8e70e96fbed`.
+- Each package has exactly one authorized/claimed/applied/task.done/consumed terminal
+  chain. No legacy mark-done, repair-only path, direct JSON edit, or direct SQLite edit
+  was used.
+- Supported reconciliation converged all three local Coordinate task mirrors to
+  `closed`. Refreshed harness state reports Slice 3 `done/closed`; `operator pending`
+  contains no Slice 3 action. Validation remains at the six pre-existing warnings and
+  doctor reports no new finding.
+- Retained S3-C3 sidecar evidence was not deleted. Accepted residual risks remain routed
+  to P9-0A, Slice 4, deployment hardening, and later multi-host runtime work.

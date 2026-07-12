@@ -1,6 +1,6 @@
 # Source-of-Truth Write-Path Audit
 
-> **Status: audit plus Slice 1-2 implementation and Slice 3 local-integration snapshot, 2026-07-12.**
+> **Status: audit plus Slice 1-2 implementation and durably closed Slice 3, 2026-07-12.**
 >
 > This document is diagnostic evidence and a remediation record. It does not replace
 > [product-definition.md](product-definition.md), the project checklist, Coordinate DB,
@@ -24,8 +24,8 @@ It distinguishes:
 ## Verdict
 
 **Slice 1 and Slice 2 are implemented; Slice 3 is reviewer-accepted, integrated on local
-Coordinate `main`, deployed, and proven through a real isolated-boundary receipt smoke.
-The umbrella closeout remains Operator-only.** The overall authority split is viable and
+Coordinate `main`, deployed, proven through a real isolated-boundary receipt smoke, and
+durably closed by the Operator through three public host-aware completion receipts.** The overall authority split is viable and
 does not require a rewrite. Three originally identified violations are resolved; the
 host-aware completion receipt gap is now closed at code-review, local-test,
 local-integration, control-plane, and real receipt-boundary level. Residual gaps remain
@@ -34,8 +34,8 @@ routed to later packages, not reopened:
 1. Host-aware completion can advance harness and DB completion independently without a
    shared authorization receipt — the receipt protocol is now implemented, integrated on
    local `main`, deployed, and proven through a real isolated-boundary receipt smoke (see
-   the finding below); the umbrella closeout and full-dogfood multi-host profile remain
-   open.
+   the finding below); the umbrella closeout is complete, while the full-dogfood
+   multi-host profile remains open.
 
 Slice 1 and Slice 2 were implemented on 2026-07-10 without a schema migration. They scope
 Discord authorization by workspace, remove the agentd-to-Discord report command loop, keep
@@ -47,7 +47,7 @@ added a one-time completion authorization receipt at the local checkpoint on 202
 | Fact category | Intended authority | Current writers | Projections / scratch | Audit result |
 |---|---|---|---|---|
 | Shared product mission and roles | `product-definition.md` | Human-reviewed docs | README summaries | Clean after documentation repair |
-| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; completion receipt integrated on local Coordinate `main`, not yet deployed (see Slice 3 finding) |
+| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; completion receipt integrated, deployed, real-boundary verified, and used for durable Slice 3 closeout |
 | Runtime job, claim, attempt, liveness, result, delivery | Coordinate DB | `coordinate.runtime`, `coordinate.jobs`, `coordinate.bus` | CLI/UI/platform views | Clean core ownership; CAS protections are present |
 | Runtime agent result and review evidence | Coordinate DB event ledger | Agentd result ingestion; Discord daemon ingestion in legacy direct mode | Visible report lines/cards | Resolved: managed agentd results are not re-posted as Discord commands |
 | Static runtime agent configuration | Deployed MultiNexus `agents.toml` | Runtime operator/config deployment | Parsed `AgentConfig` and peer roster | Clear for invocation configuration |
@@ -347,10 +347,10 @@ The executed local integration method and evidence for S3-C2 are recorded in
 [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
 S3-C3 deployed the exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`)
 and exercised the real five-case receipt matrix; independent result review round 2
-approved. The umbrella closeout and the residual projection/deploy-atomicity/CLI/
-full-dogfood gaps remain open and routed (see
+approved. The umbrella closeout is complete through public receipts; the residual
+projection/deploy-atomicity/CLI/full-dogfood gaps remain open and routed (see
 [tasks/slice-3-completion-closeout/closeout.md](tasks/slice-3-completion-closeout/closeout.md));
-the lifecycle is closed only by the Operator after result review.
+the lifecycle was closed by the Operator after result review.
 
 ### Slice 4 — Harden projections and split operations
 
@@ -419,5 +419,5 @@ Criteria met at the local checkpoint on 2026-07-11 and on local Coordinate `main
 
 This is a local code-review, local-test, local-integration, control-plane, and real
 isolated-boundary receipt PASS (S3-C3 result-review round 2 approved). It is not yet
-full-dogfood multi-host PASS, and the umbrella closeout is Operator-only; residual
-projection/deploy/CLI gaps remain routed to later packages.
+full-dogfood multi-host PASS; the Operator has completed the umbrella closeout, while
+residual projection/deploy/CLI gaps remain routed to later packages.

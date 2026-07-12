@@ -1033,7 +1033,7 @@
     {
       "id": "slice-3-completion-closeout",
       "title": "Slice 3 Completion Authorization Durable Closeout",
-      "status": "todo",
+      "status": "done",
       "priority": "p0",
       "owner": null,
       "human_gate_required": true,
@@ -1048,18 +1048,31 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-11",
+      "updated_at": "2026-07-12T07:47:45Z",
       "workflow": {
-        "status": "todo",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-07-11"
+        "updated_at": "2026-07-12T07:47:45Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-3-completion-closeout/plan.md",
-        "roadmap": "docs/project-harness/roadmap.md"
+        "roadmap": "docs/project-harness/roadmap.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Slice 3 umbrella approved; S3-C1 through S3-C4 closed with exact evidence; runtime/harness refresh passed; residual risks routed",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Slice 3 umbrella approved: S3-C1/C2 closed; S3-C3 and S3-C4 closed through host-aware receipts; exact evidence index and result-review-round-4 accepted; runtime/harness/isolation checks passed; residual risks remain routed"
+      },
+      "completion_receipt": {
+        "receipt_id": "aacafb58-f74e-4973-81f7-f8e70e96fbed",
+        "before_fingerprint": "f3fc16ba0c1cd2c4080da8fad95a63f31a38856cdb21d7bb46d5b6ba0becf126",
+        "after_fingerprint": "26abbc6a9b1f825a1a6de03a516c34e111872253f8ef108434f94ed7bdc4a6ef",
+        "applied_at": "2026-07-12T07:47:45Z"
+      }
     },
     {
       "id": "slice-4-projection-hardening",
@@ -1256,7 +1269,7 @@
     {
       "id": "slice-3-c3-deployment-smoke",
       "title": "S3-C3 deployment and real multi-host receipt smoke",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
@@ -1271,31 +1284,42 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T07:46:27Z",
       "workflow": {
-        "status": "unblocked",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-07-12",
+        "updated_at": "2026-07-12T07:46:27Z",
         "unblock_owner": "human",
         "unblocked_by": "codex-operator",
         "unblock_decision": "User supplied replacement Mihomo config; server validation passed; Discord and PyPI probes pass; coordinate and bridge stable active with zero restarts across two intervals; resume normal full-install plan hash 871664176c514bec"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-3-c3-deployment-smoke/plan.md",
-        "blocker_packet": "docs/project-harness/current/blocker-packet.md"
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "S3-C3 result-review-round-2 approved; deployed SHAs and five receipt cases verified; 2026-07-12 runtime refresh passed",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved by docs/project-harness/tasks/slice-3-c3-deployment-smoke/result-review-round-2.md; exact deployed SHAs, five receipt cases, canonical isolation, retained risks, and fresh runtime refresh verified"
       },
-      "lease": null
+      "lease": null,
+      "completion_receipt": {
+        "receipt_id": "ba8643c3-fdff-4d15-a8c0-a4d3c8012dcd",
+        "before_fingerprint": "4946efca3fedfaadcc958a7116d65365f78357697c98a0f049742a95643238a7",
+        "after_fingerprint": "1ab0a32e9ba60a43f70aa7deb265b924c3250b48a5a9ed7b869a199128b37bb2",
+        "applied_at": "2026-07-12T07:46:27Z"
+      }
     },
     {
       "id": "slice-3-c4-durable-closeout",
       "title": "S3-C4 Durable Slice 3 Closeout",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md",
@@ -1307,18 +1331,39 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T06:51:13Z",
+      "selected_in_session": "s3c4-omp-20260712T0710Z",
+      "updated_at": "2026-07-12T07:46:58Z",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T06:51:13Z"
+        "status": "closed",
+        "branch": "agents/mac-omp/slice-3-c4-durable-closeout",
+        "updated_at": "2026-07-12T07:46:58Z"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md"
+        "plan": "docs/project-harness/tasks/slice-3-c4-durable-closeout/plan.md",
+        "branch": "agents/mac-omp/slice-3-c4-durable-closeout",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "S3-C4 result-review-round-4 approved; accepted worker tip 76137f2; runtime and harness refresh passed",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved result-review-round-4; accepted worker tip 76137f2 and exact four-commit worker chain; all attribution, ordering, harness, runtime, isolation, and privacy checks passed"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "s3c4-omp-20260712T0710Z",
+        "acquired_at": "2026-07-12T07:10:12Z",
+        "expires_at": "2026-07-12T09:10:12Z",
+        "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "2539f998-a9f9-47b1-b727-102f270465cb",
+        "before_fingerprint": "b6276ef0882747530221d0f01bb890ba48b3bc0ab43db471e3beec57c6d85d7e",
+        "after_fingerprint": "ef5e708b83059cfb12dd50eb52f39777fee9f970e04dc3d4648a0372aa9fe7be",
+        "applied_at": "2026-07-12T07:46:58Z"
+      }
     }
   ]
 }

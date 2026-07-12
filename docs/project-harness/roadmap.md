@@ -25,20 +25,20 @@ not permission to reuse stale branches, paths, services, or runtime state.
 
 ## Current status (2026-07-12)
 
-Slice 3 now has separately attributable code-review, local-integration, control-plane,
-worker-execution (real five-case receipt matrix), and dogfood evidence sufficient for
-S3-C4 durable closeout review:
+Slice 3 is durably closed with separately attributable code-review, local-integration,
+control-plane, worker-execution (real five-case receipt matrix), dogfood, result-review,
+and Operator lifecycle evidence:
 
 - S3-C1 and S3-C2 are durably closed locally (done/closed, reviewer-approved).
-- S3-C3 deployed the exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`)
-  and passed the real isolated-boundary receipt smoke; independent result review round 2
-  approved. The checklist still records S3-C3 `todo`/`review.decision=null`; the Operator
-  performs public `mark-done` after result review.
-- S3-C4 documentation is ready for Operator closeout; the worker does not mark itself done.
+- S3-C3 deployed the exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`),
+  passed the real isolated-boundary receipt smoke, received independent result-review
+  approval, and is `done/closed` through a host-aware completion receipt.
+- S3-C4 documentation received Codex result-review round-4 approval and is `done/closed`
+  through a separate host-aware completion receipt.
 
-The umbrella `slice-3-completion-closeout` and S3-C3/S3-C4 lifecycle are closed only by
-the Operator through public Coordinate assignment commands in dependency order, after
-independent result review. The retained smoke sidecar and all accepted residual risks
+The umbrella `slice-3-completion-closeout` is also `done/closed`; the Operator used public
+Coordinate assignment and receipt commands in dependency order, with no repair or direct
+state edit. The retained smoke sidecar and all accepted residual risks
 (stale interrupted-recovery projection, deploy non-atomicity, smoke-window false positive,
 CLI ergonomics, missing workspace delete, missing full-dogfood host profile) remain
 routed to their named later packages; see
@@ -147,8 +147,8 @@ Canonical overview:
 
 Outcome: integrate and validate the completion authorization receipt without
 conflating local code approval, deployment, multi-host smoke, and durable closeout.
-Status (2026-07-12): evidence sufficient for S3-C4 review; durable roll-up at
-`tasks/slice-3-completion-closeout/closeout.md`. Operator-only lifecycle closeout pending.
+Status (2026-07-12): durably closed. Exact receipt/event identities and the final
+Operator record are in `tasks/slice-3-completion-closeout/closeout.md`.
 
 ### 2. Slice 4 projection and split-operation hardening
 
