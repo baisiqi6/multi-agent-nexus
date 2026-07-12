@@ -2091,17 +2091,23 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-12T22:24:24Z",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
+        "status": "changes_requested",
         "branch": null,
-        "updated_at": "2026-07-12T22:24:24Z"
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": "changes_requested",
+        "reviewer": "mac-codex",
+        "phase": "todo",
+        "updated_at": "2026-07-12",
+        "summary": "Round 3 rejects 313e366: applied.before and SHA format remain unchecked; evidence freeze is shallow; rewind replaces literal historical bodies; see result-review-round3.md at 89dbe5d."
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "7b393f8a-7d27-4a4e-8a68-44cd5a8923fd",
