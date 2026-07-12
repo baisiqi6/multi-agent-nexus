@@ -8,3 +8,4 @@
   `7ed001a5f200109016d79298a5cd5dc86fe995d2964559808e6178db01be7dda`.
 - Decision: approved for worker bootstrap generation; implementation remains blocked
   until Coordinate records this exact approval and Codex commits the bootstrap.
+- Coordinate plan approval: `2fa76501-8a52-48d1-83bc-9bb06a0d282f`.
