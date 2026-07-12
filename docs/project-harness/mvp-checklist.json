@@ -1492,9 +1492,9 @@
     {
       "id": "p9-0a2c-issue-cli",
       "title": "P9-0A2c Issue CLI Extraction",
-      "status": "todo",
+      "status": "done",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md",
@@ -1506,18 +1506,39 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T11:04:41Z",
+      "selected_in_session": "p9-0a2c-kimi-20260712T1109Z",
+      "updated_at": "2026-07-12T11:27:20Z",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T11:04:41Z"
+        "status": "closed",
+        "branch": "agents/mac-omp/p9-0a2c-issue-cli",
+        "updated_at": "2026-07-12T11:27:20Z"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md",
+        "branch": "agents/mac-omp/p9-0a2c-issue-cli",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
-      "review": {}
+      "verification": "Coordinate 10135bc integrated/pushed; canonical 288 focused and 1434 full tests pass; result review approved",
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after correction d978d75; integrated Coordinate 10135bc; exact five-path scope; 21/75/99; canonical 288 focused and 1434 full tests pass; no must-fix remains"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a2c-kimi-20260712T1109Z",
+        "acquired_at": "2026-07-12T11:26:57Z",
+        "expires_at": "2026-07-12T13:26:57Z",
+        "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "2ce2cedc-33ca-4f4f-b66f-c9d6034c262a",
+        "before_fingerprint": "81f817dc7b9a7161c71cc1caad94cdbac0ba9f8486aa40dd4e87a694d888012b",
+        "after_fingerprint": "47e967559414b386e6c1402242bceb0a0b51a24a45375341f0a9a4a6cde45016",
+        "applied_at": "2026-07-12T11:27:20Z"
+      }
     }
   ]
 }
