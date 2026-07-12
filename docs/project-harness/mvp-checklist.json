@@ -1543,7 +1543,7 @@
     {
       "id": "p9-0a3a-runner-job-runtime-cli",
       "title": "P9-0A3a Runner Job Runtime CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1558,18 +1558,18 @@
         "reason": null
       },
       "selected_in_session": "auto-mac-omp-1783867169",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T15:13:33Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a3a-runner-job-runtime-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T15:13:33Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a3a-runner-job-runtime-cli/plan.md",
         "branch": "agents/mac-omp/p9-0a3a-runner-job-runtime-cli",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 533ffcb; MultiNexus e0c70d8; Codex result review approved; structural 58; focused 243; full 1467; no runtime deploy required",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -1583,6 +1583,12 @@
         "acquired_at": "2026-07-12T14:39:29Z",
         "expires_at": "2026-07-12T16:39:29Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "19d917fb-fb66-49f8-91ad-92d95b8cc93f",
+        "before_fingerprint": "25f959d8ad47298cb851d7704871f5a08ba6a2855e7d4532d7ae8d9474acc827",
+        "after_fingerprint": "49c70c6d841b08d9f1545ab41975f0663d518a1eb1670887d09d411a8f9d0adc",
+        "applied_at": "2026-07-12T15:13:33Z"
       }
     }
   ]
