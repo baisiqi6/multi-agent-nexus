@@ -1369,3 +1369,24 @@ evidence package. The same session spans two provider/model intervals:
   and terminal receipt events are authoritative.
 - Exact evidence: `tasks/p9-0a2c-issue-cli/closeout.md`. Next package: P9-0A3; it needs
   fresh measurement, detailed plan, independent review, and worker bootstrap.
+
+## 2026-07-12 — P9-0A3a runner/job/runtime CLI durable closeout
+
+- Independent Kimi plan review approved exact corrected plan SHA
+  `66784772...b9b`; Round 1 measurements were corrected from 166/107 to the exact
+  P9-0A3a 159 and P9-0A3b 114 split before approval.
+- Kimi worker session `019f56c5-b9bf-7000-8d0e-8a2876dbe6ff` produced implementation
+  `d9faf1a`. Codex rejected whole-FunctionDef `ast.dump` hashes and the first
+  `ast.unparse` correction; final correction `533ffcb` uses a canonical AST projection.
+- Integrated and pushed Coordinate `main`/`origin/main` at `533ffcb`. Exact five-path
+  scope, 21/75/99, fixture `fbdb5064...`, four layered rewinds, 58 structural, 243
+  focused, and 1,467 full tests pass. Execution proof passes on Python 3.12.13/3.14.
+- Receipt `19d917fb-fb66-49f8-91ad-92d95b8cc93f` completed one authorized/claimed/
+  applied/task.done/consumed chain with `25f959d8...` -> `49c70c6d...`; deployed
+  MultiNexus `247357d` was verified done/closed before the terminal record.
+- Dogfood exposed an invalid `approve` enum attempt and a source/deployed lifecycle
+  projection mismatch. Both failed closed; source was synchronized to the reviewed
+  projection before the receipt was claimed. No repair path or direct DB edit was used.
+- Exact evidence: `tasks/p9-0a3a-runner-job-runtime-cli/closeout.md`. Next package:
+  P9-0A3b delivery/policy/worker CLI extraction; it requires a fresh detailed plan,
+  independent review, and worker bootstrap.

@@ -1567,7 +1567,8 @@
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a3a-runner-job-runtime-cli/plan.md",
         "branch": "agents/mac-omp/p9-0a3a-runner-job-runtime-cli",
-        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md",
+        "closeout": "docs/project-harness/tasks/p9-0a3a-runner-job-runtime-cli/closeout.md"
       },
       "verification": "Coordinate 533ffcb; MultiNexus e0c70d8; Codex result review approved; structural 58; focused 243; full 1467; no runtime deploy required",
       "review": {
