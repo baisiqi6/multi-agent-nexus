@@ -120,14 +120,27 @@ For a MultiNexus deployment, `scripts/deploy-server.sh` must:
    `VERSION_DEPLOYED` or restarting `multinexus-discord-bridge`;
 4. invoke production `/usr/local/bin/coord-local workspace agent sync discord-nexus
    --source /opt/multinexus/config/agent-registry.toml --replace`;
-5. verify the sync result reports source id/version/hash/revision and no skipped or
-   parse-error entries; and
+5. treat the sync result only as mutation acknowledgement, then open a new production
+   DB connection through the installed Coordinate package and independently read back
+   the committed source row, workspace revision, authoritative/legacy/override rows,
+   compatibility projection and effective resolver output; compare every canonical
+   field and hash to the deployed authority; and
 6. only then write the version marker and restart the bridge when restart is enabled.
 
 Local preflight uses the effective `MULTINEXUS_SRC/agents.toml`; a missing private file
 is a deployment error. Remote validation and sync run with the minimum account/command
-needed to read the private config and production Coordinate DB. Output must contain
-only safe registry evidence.
+needed to read the private config and production Coordinate DB. The read-after-write
+gate must use the deployed Coordinate venv and public resolver functions where
+available; a focused read-only SQL query may retrieve source/revision/entry-kind
+metadata that has no existing API. It must not call sync twice as a substitute for
+committed-state proof. Output must contain only safe registry evidence.
+
+B1 refresh is synchronous at the next inbound message: the daemon opens/resolves the
+committed DB state before classifying that message. There is no asynchronous cache
+propagation interval for the deploy script to poll. Therefore the deployment gate
+proves committed state, while closeout separately proves unchanged service PID and a
+post-sync same-process refresh. Neither the sync response nor a timed sleep may be
+reported as daemon acknowledgement.
 
 `--no-restart` still performs parity validation and authoritative sync because registry
 correctness is a data-plane deployment invariant, not a restart side effect.
@@ -141,7 +154,7 @@ Failure ordering is explicit:
 | local authority/runtime mismatch | no | no | no | no |
 | remote authority/runtime mismatch | yes | no | no | no |
 | Coordinate rejects version/hash/source | yes | no | no | no |
-| post-sync evidence mismatch | yes | possibly committed | no | no |
+| committed read-back mismatch | yes | possibly committed | no | no |
 | version write fails | yes | committed | no | no |
 | restart fails | yes | committed | yes | attempted |
 
@@ -158,7 +171,8 @@ Extend `scripts/server-smoke.sh` with read-only v10 registry checks for workspac
 `discord-nexus`:
 
 - schema is at least v10;
-- source id/version/hash exist and match the deployed tracked authority;
+- source id/version/hash and workspace revision read from a fresh connection exist and
+  match the deployed tracked authority;
 - authoritative entry count and normalized roster/hash equal the tracked authority;
 - there are no remaining `legacy` entries after the first B2 deployment;
 - compatibility `agents_json` and effective resolver output equal the authority when
@@ -179,12 +193,15 @@ duplicate shell parsing. Do not create a second write path.
 Production closeout must prove the first authoritative sync converts the nine legacy
 rows to ten authoritative identities and that the running Coordinate service was not
 restarted for registry visibility. Record service PID/start timestamp before and after
-the MultiNexus-only deploy and verify they are unchanged.
+the MultiNexus-only deploy and verify they are unchanged. Correlate at least one normal
+post-sync inbound agent message with a Coordinate event/log after the committed sync;
+do not generate a privileged synthetic production identity or claim that PID stability
+alone proves message classification.
 
 Do not temporarily remove or remap a real production identity. Instead, on the server:
 
-1. copy the deployed v10 DB to an isolated root-owned smoke directory or create an
-   isolated v10 DB and workspace;
+1. create a new empty isolated v10 DB and workspace under a root-owned smoke directory;
+   never copy production rows, credentials, event payloads or workspace state;
 2. use the deployed Coordinate binary with temporary v1 and v2 authority fixtures;
 3. keep one sidecar daemon/resolver process alive across both syncs;
 4. prove v1 authorizes two synthetic identities, v2 removes one, and the same process
