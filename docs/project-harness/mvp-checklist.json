@@ -1193,14 +1193,14 @@
     {
       "id": "p9-0a1-cli-boundary-extraction",
       "title": "P9-0A1 CLI Boundary Extraction",
-      "status": "blocked",
+      "status": "todo",
       "priority": "p1",
       "owner": null,
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
       "blocked_by": [],
-      "blocked_reason": "Dependency gate: architecture plan may be reviewed now, but worker bootstrap and implementation are blocked until slice-4-projection-hardening is accepted and a refreshed relevant-file drift check passes.",
+      "blocked_reason": null,
       "dependencies": [],
       "handoff": {
         "from": null,
@@ -1208,19 +1208,23 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-12T09:08:21Z",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "blocked",
+        "status": "unblocked",
         "branch": null,
         "updated_at": "2026-07-12",
-        "unblock_owner": "human"
+        "unblock_owner": "human",
+        "unblocked_by": "codex-operator",
+        "unblock_decision": "Proceed with bounded P9-0A1 before Slice 4 under approved roadmap and plan hash 00a52ea12a85f8e1"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a1-cli-boundary-extraction/plan.md",
         "blocker_packet": "docs/project-harness/current/blocker-packet.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": null
+      },
       "lease": null
     },
     {
