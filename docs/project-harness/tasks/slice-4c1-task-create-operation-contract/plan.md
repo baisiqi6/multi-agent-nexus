@@ -71,8 +71,7 @@ an unbound S4-C target.
 - `--operation-id`;
 - `--input-fingerprint`;
 - `--before-fingerprint`;
-- `--after-fingerprint`;
-- `--priority`, default `p1`, so both halves hash the same common request.
+- `--after-fingerprint`.
 
 Both commands validate UUID and lowercase 64-character SHA-256 values before mutation.
 The files result returns operation id/kind/contract version and all three fingerprints;
@@ -109,6 +108,13 @@ reuses the identical envelope with the same checklist-task target and
 the target id and needs no new ledger column/migration. Require `plan_doc` to
 be workspace-relative, normalized POSIX text with no `..`, no empty segment and no
 absolute path; both halves hash the deployed/source-controlled plan bytes independently.
+
+`priority` is authored only by the file half and stored in the deployed checklist item.
+The record half derives it from that item when recomputing input; it has no independent
+`--priority` argument. Likewise, record-side title/phase arguments are validation intent:
+they must equal the deployed item projection and cannot overwrite it. This keeps the
+deployed envelope/item as the sole proven cross-host input rather than asking the
+operator to restate already-bound values.
 This deliberately removes host-specific absolute paths from identity.
 
 Record-only fields (`owner`, `branch`, `actor`, `target`, extra payload) remain normal DB
@@ -212,8 +218,9 @@ Before any DB write, `create-record`:
 1. validates the supplied contract fields;
 2. resolves the registered deployed workspace/harness root read-only;
 3. loads the deployed checklist item and requires the exact operation envelope;
-4. recomputes deployed plan/input/after fingerprints and matches all supplied/envelope
-   values;
+4. derives priority and resolved title/phase from the deployed item, rejects disagreement
+   with record CLI intent, recomputes deployed plan/input/after fingerprints and matches
+   all supplied/envelope values;
 5. classifies missing item/envelope as `files_not_deployed`, different operation as
    `operation_conflict`, and projection/hash mismatch as `fingerprint_drift`.
 
