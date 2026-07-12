@@ -1956,7 +1956,7 @@
     {
       "id": "slice-4c1-task-create-operation-contract",
       "title": "Slice 4C1 Task-Create Split Operation Contract",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1971,19 +1971,24 @@
         "reason": null
       },
       "selected_in_session": "s4c1-kimi-worker",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T21:00:09Z",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "agents/mac-omp/slice-4c1-task-create-operation-contract",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T21:00:09Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
-        "branch": "agents/mac-omp/slice-4c1-task-create-operation-contract"
+        "branch": "agents/mac-omp/slice-4c1-task-create-operation-contract",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 1cbb547; MultiNexus 7db678c; Codex approved after three correction rounds; schema v11; local/server isolated dogfood and server smoke pass",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after three request-changes rounds; deployed schema v11; local/server isolated dogfood and smoke pass"
       },
       "lease": {
         "owner": "mac-omp",
@@ -1991,6 +1996,12 @@
         "acquired_at": "2026-07-12T20:07:59Z",
         "expires_at": "2026-07-12T22:07:59Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "c968e093-c5b0-4773-800c-0f17b1abd2dd",
+        "before_fingerprint": "5204d330b679c60a6a822f8c0ef2eb790ee4a0820410cc1891a6651286a5a5c1",
+        "after_fingerprint": "cfd6fc9e0e119c97a81aaa739f010e92ee68d2d5769f97e7feb92737027ea90f",
+        "applied_at": "2026-07-12T21:00:09Z"
       }
     }
   ]

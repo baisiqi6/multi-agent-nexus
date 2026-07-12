@@ -94,6 +94,14 @@ The coding worker cannot approve its own plan or result. Worker completion still
 requires independent code/result review and any separately authorized integration,
 deployment, runtime smoke, and durable closeout gates.
 
+For Coordinate changes that add a schema migration, deployment verification must check
+all four identities independently: `VERSION_DEPLOYED` source SHA, the runtime package
+import path/version inside `/opt/coordinate/.venv`, code `SCHEMA_VERSION`, and the
+production DB `PRAGMA user_version`. A source sync performed with `--skip-install` does
+not update a `src/`-layout package already installed in the venv, and service restart by
+itself does not prove the new migration ran. Back up the DB, install the deployed local
+package, run the migration explicitly when required, then verify integrity and smoke.
+
 The concrete Coordinate flow is:
 
 ```bash

@@ -923,3 +923,22 @@
 - Durable completion receipt：`1cead9e6-ecf3-4914-8813-a13684b5215a`，
   `completion.consumed=35b8dd76-08c9-4fe5-81ec-083bee7bbbd7`；fingerprint
   `f0d1840a...c1cc24`→`49ad2177...063a59`。
+
+## 2026-07-13（Slice 4C1 split-operation contract）
+
+- 状态：implemented / adversarially reviewed / deployed；terminal receipt record pending。
+- Kimi Highspeed完成实现和三轮定向修正，GLM fallback未触发。Codex通过JSONL、真实
+  跨秒retry、DB mirror篡改和operation-bound event碰撞探针，发现并关闭了仅靠绿测试
+  没覆盖的idempotency缺口。
+- Local与server isolated dogfood均证明`files_not_deployed -> record_applied -> exact retry
+  event_created=false -> fingerprint_drift`，且isolated root清理、DB integrity `ok`。
+- 首次control closeout在生产checklist尚未部署C1 item时记录
+  `harness.mutation_failed`并停止；先部署canonical checklist后重试成功。这再次证明
+  control DB中的workspace注册不等于deployed harness已经拥有同一task。
+- 本地Git source仍是`running`而remote harness已是`review_approved`；必须在source侧用
+  同一`harnessctl`转换重放，才能得到一致receipt fingerprint。不要直接编辑JSON。
+- `--skip-install`同步了`/opt/coordinate`源码和VERSION，但systemd仍从旧
+  `site-packages`加载schema v10；显式安装部署包并迁移后才真正达到v11。Route：
+  schema-bearing deploy必须同时校验deployed source SHA、runtime import path、
+  `SCHEMA_VERSION`和`PRAGMA user_version`，不能只看VERSION与service active。
+- 完整证据：`tasks/slice-4c1-task-create-operation-contract/closeout.md`。

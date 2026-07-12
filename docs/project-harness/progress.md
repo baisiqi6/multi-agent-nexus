@@ -1638,3 +1638,21 @@ evidence package. The same session spans two provider/model intervals:
   was used.
 - Exact evidence: `tasks/slice-4b1-coordinate-agent-registry-model/closeout.md`. Next:
   S4-B2 detailed plan and independent review for deployed roster authority integration.
+
+## 2026-07-13 — Slice 4C1 task-create split operation contract
+
+- Kimi session `019f5800-43f6-7000-a437-59b6aaf8d701` produced `f0fff49`; three
+  Codex request-changes rounds closed exact-retry, envelope, target-ledger,
+  persisted-intent, mirror-linkage and event-collision gaps. Final Coordinate head is
+  `1cbb547`.
+- Schema v11 and the neutral `split_operations` ledger are deployed after backup
+  `coord.sqlite3.before-s4c1-20260712T205625Z.bak` (`b031c2fc...b0cb`), integrity
+  `ok`. Both services and server smoke pass.
+- Local and server isolated dogfood prove files-only detection, deploy then record,
+  idempotent record retry, drift refusal and cleanup with no production task row.
+- Receipt `c968e093-c5b0-4773-800c-0f17b1abd2dd` reached applied with fingerprint
+  `5204d330...` -> `cfd6fc9e...`; terminal record follows deployed done projection.
+- Dogfood exposed two durable operator gaps: remote lifecycle state does not flow back
+  into Git source automatically, and code-sync/`VERSION_DEPLOYED` does not prove the
+  venv package or DB schema was upgraded. Exact evidence is in
+  `tasks/slice-4c1-task-create-operation-contract/closeout.md`.
