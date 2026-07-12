@@ -23,6 +23,33 @@ Planning snapshot recorded on 2026-07-11:
 Every detailed plan must refresh these facts. This snapshot is historical evidence,
 not permission to reuse stale branches, paths, services, or runtime state.
 
+## Current status (2026-07-12)
+
+Slice 3 now has separately attributable code-review, local-integration, control-plane,
+worker-execution (real five-case receipt matrix), and dogfood evidence sufficient for
+S3-C4 durable closeout review:
+
+- S3-C1 and S3-C2 are durably closed locally (done/closed, reviewer-approved).
+- S3-C3 deployed the exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`)
+  and passed the real isolated-boundary receipt smoke; independent result review round 2
+  approved. The checklist still records S3-C3 `todo`/`review.decision=null`; the Operator
+  performs public `mark-done` after result review.
+- S3-C4 documentation is ready for Operator closeout; the worker does not mark itself done.
+
+The umbrella `slice-3-completion-closeout` and S3-C3/S3-C4 lifecycle are closed only by
+the Operator through public Coordinate assignment commands in dependency order, after
+independent result review. The retained smoke sidecar and all accepted residual risks
+(stale interrupted-recovery projection, deploy non-atomicity, smoke-window false positive,
+CLI ergonomics, missing workspace delete, missing full-dogfood host profile) remain
+routed to their named later packages; see
+[tasks/slice-3-completion-closeout/closeout.md](tasks/slice-3-completion-closeout/closeout.md).
+
+After the Operator durably closes Slice 3, the dependency order below governs: Slice 4
+projection/split-operation hardening precedes Phase 9 multi-project execution isolation,
+and Phase 9 0A detailed package planning/execution follows the already-approved
+architecture alignment (`tasks/p9-0a1-cli-boundary-extraction/`). Phase 9 implementation
+must not bypass Slice 4 authority.
+
 ## Authority hierarchy
 
 1. `product-definition.md` owns the shared product position and role boundaries.
@@ -104,6 +131,8 @@ Canonical overview:
 
 Outcome: integrate and validate the completion authorization receipt without
 conflating local code approval, deployment, multi-host smoke, and durable closeout.
+Status (2026-07-12): evidence sufficient for S3-C4 review; durable roll-up at
+`tasks/slice-3-completion-closeout/closeout.md`. Operator-only lifecycle closeout pending.
 
 ### 2. Slice 4 projection and split-operation hardening
 

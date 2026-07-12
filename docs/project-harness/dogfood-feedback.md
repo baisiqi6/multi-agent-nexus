@@ -555,3 +555,32 @@
 - Attempt 2：`tasks/slice-3-c3-deployment-smoke/execution-report-attempt-2.md`
 - Result review：`result-review-round-1.md`、`result-review-round-2.md`
 - Provider session：`019f54f4-f5bf-7000-a922-1417edd7dabb`
+
+## 2026-07-12（S3-C4 durable closeout — dogfood grading consolidated）
+
+- 状态：closeout-level consolidation（不重复 attempt 1/2 的细节，只固化等级与路由）。
+- 狗粮等级判定（与 `tasks/slice-3-completion-closeout/closeout.md` 一致）：
+  - **Full dogfood**：plan approval / SHA 校验 / release worktree / upstream ancestry /
+    真实 `deploy-server.sh` 部署 / 部署后 CLI 起 sidecar / 跨主机 receipt happy path
+    （local → `coord-ssh` → server）/ server 端 `mark-done-record` / canonical drift 审计。
+  - **Semi-dogfood**：task lifecycle（accept/closeout/review-result）走部署后的
+    `coord-local` 直跑而非 Discord/agent 派发；checklist 转用直接 `scp`；非 Codex
+    worker 由本地 OMP 直接启动，未走 target-agent + Discord handoff。
+  - **Direct operational fallback**：preflight / drift 审计 / journal 扫描用了直接 SSH
+    与只读 SQLite，暴露 stale runbook/query contract，但不影响 receipt 判定。
+- 关键边界：S3-C3 执行等级是 **semi-dogfood，不是 full dogfood**。本机 non-Codex
+  agent 仍缺可用的 host execution profile。Route：multi-host agent runtime package。
+- Residual 风险路由（保持 open，不因 smoke 通过而抹除）：
+  1. interrupted-recovery 的 stale task projection → `slice-4-projection-hardening`。
+  2. 部署非原子（source sync 先于 install）→ deployment hardening package。
+  3. smoke 10-min journal window 误报 → deployment hardening package。
+  4. `workflow_transition.py` CLI ergonomics（`--item` 而非 `--root`/`--task-id`，
+     `project_root()` 由脚本位置派生）→ `p9-0a1-cli-boundary-extraction`。
+  5. 缺 workspace delete 命令 → `p9-0a1-cli-boundary-extraction`。
+  6. 缺 full-dogfood host profile → multi-host agent runtime package。
+- 证据保留：sidecar `s3c3-smoke-20260712T062036Z-e0cc1561`（6 namespaced tasks / 89
+  events）与两次失败 fingerprint-drift fixture 的证据均保留，cleanup deferred 且需
+  单独 review 授权；S3-C4 不删除任何保留证据。
+- Worker session：`019f551e-3e98-7000-b745-fe111a586c2c`（`zhipu-coding-plan/glm-5.2`）。
+- 生命周期边界：S3-C4 文档只声明 "ready for Operator closeout"；不声明 S3-C3/S3-C4/
+  umbrella lifecycle 已 closed，亦不自行 mark-done。

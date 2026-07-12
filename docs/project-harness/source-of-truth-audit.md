@@ -23,17 +23,19 @@ It distinguishes:
 
 ## Verdict
 
-**Slice 1 and Slice 2 are implemented; Slice 3 is reviewer-accepted and integrated on
-local Coordinate `main`, but is not pushed, deployed, or proven through real multi-host
-execution.** The
-overall authority split is viable and does not require a rewrite. Three originally
-identified violations are resolved; the host-aware completion receipt gap is now closed at
-code-review, local-test, and local-integration level and remains open for deployment:
+**Slice 1 and Slice 2 are implemented; Slice 3 is reviewer-accepted, integrated on local
+Coordinate `main`, deployed, and proven through a real isolated-boundary receipt smoke.
+The umbrella closeout remains Operator-only.** The overall authority split is viable and
+does not require a rewrite. Three originally identified violations are resolved; the
+host-aware completion receipt gap is now closed at code-review, local-test,
+local-integration, control-plane, and real receipt-boundary level. Residual gaps remain
+routed to later packages, not reopened:
 
 1. Host-aware completion can advance harness and DB completion independently without a
-   shared authorization receipt — the receipt protocol is now implemented and
-   reviewer-accepted and integrated on local `main` (see the finding below); deployment
-   and multi-host smoke remain separate gates.
+   shared authorization receipt — the receipt protocol is now implemented, integrated on
+   local `main`, deployed, and proven through a real isolated-boundary receipt smoke (see
+   the finding below); the umbrella closeout and full-dogfood multi-host profile remain
+   open.
 
 Slice 1 and Slice 2 were implemented on 2026-07-10 without a schema migration. They scope
 Discord authorization by workspace, remove the agentd-to-Discord report command loop, keep
@@ -129,11 +131,13 @@ Implemented behavior:
 - Tests now assert no raw worker or reviewer report line and do assert the human-visible
   summary.
 
-### [P1][Locally integrated 2026-07-12; deployment remains open]
+### [P1][Deployed and real receipt-boundary verified 2026-07-12; residual projection/deploy/CLI/dogfood gaps open]
 
 The host-aware completion gap documented below is now closed at code-review, local-test,
-and local-integration level. The reviewed patch is on local Coordinate `main`; it is not
-pushed, deployed, or verified through real multi-host execution.
+local-integration, control-plane, and real isolated-boundary receipt-smoke level. The
+reviewed patch is integrated on local Coordinate `main`, deployed to the Tencent Cloud
+runtime, and proven through a real five-case receipt matrix (S3-C3 result-review round 2
+approved). Residual gaps remain routed to later packages, not reopened here.
 
 Pre-Slice-3 divergence evidence (context retained):
 
@@ -185,12 +189,17 @@ Checkpoint and integration identity (re-verified during S3-C2, 2026-07-12):
 
 Boundary this audit must not overstate:
 
-- The receipt is accepted as local code and local integration, not as pushed, deployed,
-  or multi-host PASS.
+- The receipt is accepted as local code, local integration, control-plane PASS, and
+  real isolated-boundary receipt PASS (S3-C3). Full-dogfood multi-host execution is not
+  yet proven: the non-Codex worker was launched directly, not targeted through
+  Coordinate/Discord.
 - The executed S3-C2 method and evidence are recorded in
-  [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
-- Real `coord-ssh`, SSH, and remote-DB behavior is covered only through mocked subprocess
-  boundaries in the local suite.
+  [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md);
+  the S3-C3 deployment and five-case receipt evidence are recorded in
+  [tasks/slice-3-c3-deployment-smoke/execution-report-attempt-2.md](tasks/slice-3-c3-deployment-smoke/execution-report-attempt-2.md).
+- Real `coord-ssh`, SSH, and read-only remote-DB behavior is now exercised by the S3-C3
+  smoke across the actual local → server boundary; the local suite still covers the
+  mocked subprocess boundary for regression.
 
 Non-blocking maintainability notes retained for follow-up (not S3-C1 scope):
 
@@ -324,7 +333,7 @@ Implemented as an event-derived query without a schema migration. Runtime and pl
 decisions no longer overwrite harness phase; terminal tasks cannot be reopened by late
 reports; CLI output states that it did not refresh the harness and exposes its DB version.
 
-### Slice 3 — Authorize completion once — local integration accepted 2026-07-12
+### Slice 3 — Authorize completion once — deployed and real receipt-boundary verified 2026-07-12
 
 1. Introduce a completion authorization receipt. — done at checkpoint.
 2. Bind host-side and server-side mark-done operations to that receipt. — done at
@@ -336,8 +345,12 @@ Local code acceptance is recorded in
 [tasks/slice-3-completion-closeout/local-code-review.md](tasks/slice-3-completion-closeout/local-code-review.md).
 The executed local integration method and evidence for S3-C2 are recorded in
 [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
-Deployment, real multi-host smoke, and umbrella closeout remain separate, explicitly
-authorized gates (S3-C3, S3-C4).
+S3-C3 deployed the exact approved SHAs (Coordinate `e0cc1561`, MultiNexus `82c5613`)
+and exercised the real five-case receipt matrix; independent result review round 2
+approved. The umbrella closeout and the residual projection/deploy-atomicity/CLI/
+full-dogfood gaps remain open and routed (see
+[tasks/slice-3-completion-closeout/closeout.md](tasks/slice-3-completion-closeout/closeout.md));
+the lifecycle is closed only by the Operator after result review.
 
 ### Slice 4 — Harden projections and split operations
 
@@ -404,5 +417,7 @@ Criteria met at the local checkpoint on 2026-07-11 and on local Coordinate `main
 - Final adversarial retry probe returned `before_fingerprint_mismatch` and left the
   canonical item `doing/blocked`.
 
-This is a local code-review, local-test, and local-integration PASS. It is not push,
-deployment, or real multi-host PASS; those remain S3-C3/S3-C4 gates.
+This is a local code-review, local-test, local-integration, control-plane, and real
+isolated-boundary receipt PASS (S3-C3 result-review round 2 approved). It is not yet
+full-dogfood multi-host PASS, and the umbrella closeout is Operator-only; residual
+projection/deploy/CLI gaps remain routed to later packages.

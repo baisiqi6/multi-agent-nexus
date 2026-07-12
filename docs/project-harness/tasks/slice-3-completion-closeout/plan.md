@@ -47,10 +47,18 @@ the real host/server receipt sequence: prepare, files apply, record consume, rep
 expiry, fingerprint drift, and interrupted recovery. Preserve control-plane PASS and
 worker-execution PASS as separate results.
 
+Status: deployed and real receipt-boundary verified on 2026-07-12. Exact approved SHAs
+(Coordinate `e0cc1561`, MultiNexus `82c5613`) deployed via full-install path; isolated
+sidecar five-case receipt matrix all PASS; canonical `discord-nexus` zero drift
+(29 tasks / 851 events); independent result review round 2 approved.
+
 ### S3-C4 — Durable closeout
 
 Record exact deployed SHAs, runtime evidence, residual risks, and reviewer verdict;
 then update checklist/progress/audit without claiming more than the evidence proves.
+
+Status: documentation ready for Operator closeout on 2026-07-12 (worker commit pending
+Codex result review). Lifecycle remains Operator-only.
 
 ## Mandatory gates
 
@@ -77,3 +85,21 @@ then update checklist/progress/audit without claiming more than the evidence pro
 - Repair-only compatibility paths remain explicit and cannot bypass receipt authority.
 - The durable audit, progress, checklist, and runtime facts agree.
 - Reviewer and Operator verdicts are attributable and no open P0/P1 finding remains.
+
+
+## Executed closeout evidence
+
+- Durable roll-up and evidence index:
+  [closeout.md](closeout.md) (binds S3-C1 through S3-C4 exact identities, separate
+  verdicts, retained sidecar, and accepted residual-risk routing).
+- S3-C3 deployment and five-case receipt smoke:
+  `../slice-3-c3-deployment-smoke/execution-report-attempt-2.md`,
+  `../slice-3-c3-deployment-smoke/result-review-round-2.md`.
+- S3-C4 durable closeout plan/review:
+  `../slice-3-c4-durable-closeout/plan.md`,
+  `../slice-3-c4-durable-closeout/plan-review-round-1.md`.
+
+These pointers supplement, and do not rewrite, the roadmap-level work-package contract
+above. The umbrella and S3-C3/S3-C4 lifecycle is closed only by the Operator through
+public Coordinate assignment commands after independent result review; no worker marks
+itself done.

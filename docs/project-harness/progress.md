@@ -1175,3 +1175,43 @@ Human performed terminal and Discord validation:
 - DB integrity ok, backup at `coord-backup-20260712T061733Z.db` (mode 0600).
 - Evidence in `execution-report-attempt-2.md`. No package closeout or mark-done
   (Codex performs independent result review).
+
+## 2026-07-12 — S3-C4 durable closeout documentation
+
+Non-Codex documentation worker (Oh-My-Pi, provider/model
+`zhipu-coding-plan/glm-5.2`, session `019f551e-3e98-7000-b745-fe111a586c2c`) prepared
+the bounded Slice 3 durable closeout evidence package.
+
+- Verified workspace gates: worktree
+  `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-s3-c4-closeout`, branch
+  `agents/mac-omp/slice-3-c4-durable-closeout`, recomputed plan SHA-256
+  `6190b93f1ce28ed31d891019d758fddb01d1c7e01dda01b39fa2fb9b38cbe32b`, plan-review verdict
+  approved (no P0/P1), and plan-ready/plan-approved events bound in the supplement and
+  review artifact.
+- Authored/updated exactly six documentation paths:
+  - `tasks/slice-3-completion-closeout/closeout.md` (new roll-up index binding S3-C1
+    through S3-C4 identities, separate verdicts, retained sidecar, residual-risk routing).
+  - `source-of-truth-audit.md` (Slice 3 boundary: locally accepted → deployed and
+    real-boundary verified; residual gaps preserved as open).
+  - `tasks/slice-3-completion-closeout/plan.md` (appended S3-C3/S3-C4 executed status and
+    closeout evidence pointer).
+  - `roadmap.md` (current status note; preserved 2026-07-11 snapshot as historical).
+  - `progress.md` (this entry).
+  - `dogfood-feedback.md` (S3-C3/S3-C4 closeout-level dogfood grading and backlog routing).
+- Bound exact deployed identities: Coordinate
+  `e0cc1561cd20b0f22389234aefe92d01273860e4`, MultiNexus
+  `82c5613f9d8fcb25c5ca936a24c61536e567df50`; services active NRestarts=0, proxy HTTP 200,
+  DB integrity ok, server smoke OK; canonical `discord-nexus` 29 tasks / 851 events.
+- Validation: `git diff --check` clean; `jq empty mvp-checklist.json` passed;
+  `harnessctl validate` passed with the same six recorded warnings (no new warning);
+  `harnessctl doctor` introduced no new MISS/invalid finding; `git diff --name-only`
+  limited to the six allowed paths.
+- Residual risks kept open and routed: stale interrupted-recovery projection
+  (Slice 4), deploy non-atomicity and smoke-window false positive (deployment hardening),
+  CLI ergonomics and missing workspace delete (`p9-0a1-cli-boundary-extraction`), missing
+  full-dogfood host profile (multi-host agent runtime). Retained sidecar
+  `s3c3-smoke-20260712T062036Z-e0cc1561` cleanup deferred and separately reviewed.
+- Boundaries: no checklist/event/state JSON edit, no Coordinate lifecycle command, no
+  SSH/deploy/restart/DB mutation, no push/merge, no Phase 9/Slice 4 implementation, no
+  sidecar cleanup. The S3-C3/S3-C4/umbrella lifecycle remains Operator-only; this worker
+  does not claim closure and does not mark itself done.
