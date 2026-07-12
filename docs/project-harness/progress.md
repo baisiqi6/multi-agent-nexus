@@ -1440,3 +1440,25 @@ evidence package. The same session spans two provider/model intervals:
 - No implementation or bootstrap is authorized. Next gate: bind the exact P9-0A4a plan
   SHA in Coordinate and obtain independent Kimi review, using GLM only on documented
   Kimi quota/auth/provider failure.
+
+## 2026-07-13 — P9-0A4a receipt completion CLI durable closeout
+
+- Independent Kimi review approved exact plan SHA `3f060777...6b28`; worker session
+  `019f5714-06fb-7000-b60c-744542c54755` produced `41b6a9c`. Codex required
+  correction `4526d09` so the safety-order test proves preflight -> claim -> write ->
+  apply rather than omitting the write from its sequence.
+- Integrated and pushed Coordinate `main`/`origin/main` at `4526d09`. Exact five-path
+  scope, 21/75/99, fixture `a7c6e955...`, six rewinds, 14 AST body equalities, 59
+  boundary/contract, 401 total focused, and 1,523 full tests pass.
+- Receipt `23b7563a-89c7-4642-992f-5d50ebdefca0` completed one authorized/claimed/
+  applied/task.done/consumed chain with `341aebe4...` -> `123063c7...`; deployed
+  MultiNexus `92afd51` was verified done/closed before the terminal record.
+- Dogfood recovered one legacy server-only task materialization through source
+  `task create-files` + deploy + idempotent `task create-record`. Concurrent canonical
+  edits were preserved in a named stash. No direct DB/JSON repair or provider fallback
+  was used.
+- Two more pump races ended with sent deliveries and no last error, strengthening the
+  existing Slice 4/P9 runtime-hardening evidence without changing A4a behavior.
+- Exact evidence: `tasks/p9-0a4a-receipt-completion-cli/closeout.md`. Next package:
+  P9-0A4b workflow/assignment CLI extraction; it requires fresh measurement, detailed
+  plan, independent non-Codex review, and a new worker bootstrap.
