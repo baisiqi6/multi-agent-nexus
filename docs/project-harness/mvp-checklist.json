@@ -1867,7 +1867,7 @@
       "selected_in_session": null,
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "handoff_requested",
+        "status": "review_approved",
         "branch": "agents/mac-omp/slice-4b1-coordinate-agent-registry-model",
         "updated_at": "2026-07-12",
         "handoff_from": "mac-omp",
@@ -1876,11 +1876,16 @@
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4b1-coordinate-agent-registry-model/plan.md",
         "branch": "agents/mac-omp/slice-4b1-coordinate-agent-registry-model",
-        "handoff_packet": "docs/project-harness/current/handoff-packet.md"
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "APPROVE after Codex correction 2bf835f: mandatory audited overrides, atomic rollback, correct authoritative deltas/shadowed audit, strict normalization; full 1608; deployed ff6b8bf schema v10 with 9 legacy identities preserved."
       },
       "lease": {
         "owner": "mac-omp",
