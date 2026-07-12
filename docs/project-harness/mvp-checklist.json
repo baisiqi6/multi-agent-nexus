@@ -1693,6 +1693,36 @@
         "after_fingerprint": "123063c7b06c8c833ba50f42760b87f0da2f9165db5a486991d3c78a1c4ef231",
         "applied_at": "2026-07-12T16:23:51Z"
       }
+    },
+    {
+      "id": "p9-0a4b-workflow-assignment-cli",
+      "title": "P9-0A4b Workflow and Assignment CLI Extraction",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T16:30:31Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T16:30:31Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a4b-workflow-assignment-cli/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
