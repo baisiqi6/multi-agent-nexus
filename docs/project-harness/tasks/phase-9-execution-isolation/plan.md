@@ -37,26 +37,35 @@ Reduce change concentration before Phase 9 adds execution identity, context, rou
 and lease commands. This is a behavior-preserving modularization stage, not a package,
 service, schema, or framework rewrite.
 
-Architecture plans may be reviewed while Slice 4 is active. Coding-worker bootstrap and
-implementation remain blocked until Slice 4 is accepted and a refreshed drift check
-confirms that the reviewed source boundaries still match current Coordinate `main`.
+P9-0A runs after durable Slice 3 closeout and before Slice 4 so Slice 4 command and
+projection work lands in extracted domain modules. Phase 9 runtime isolation (`P9-1+`)
+remains blocked until Slice 4 is accepted. Every structural package still requires a
+fresh drift check, detailed plan, independent review, worker bootstrap, and Codex result
+review.
 
 Bounded packages:
 
-1. `p9-0a1-cli-boundary-extraction` — keep `coordinate.cli:main` as the facade while
-   moving argparse registration and handlers behind domain-level CLI modules. Preserve
-   the complete public command tree, flags, output, exit codes, and existing injection
-   compatibility.
-2. `p9-0a2-event-presentation-registry` — replace the remaining Discord event-field
-   branch concentrator with a small renderer registry and lock key-set relationships
-   among supported events, base renderers, and explicitly unstyled events.
-3. `p9-0a3-post-closeout-module-review` — after Slice 3/4 closeout, remeasure
-   `completion.py`, `db.py`, and transition boundaries. Extract only a proven stable
-   transaction or repository seam; a no-change decision is acceptable.
+1. `p9-0a1-cli-boundary-extraction` — first package only: capture the exact CLI contract
+   and extract the tiny shared `cli_support` seam. Move no domain handler yet.
+2. `p9-0a2-workspace-planning-issue-cli` — move workspace/state/reconcile,
+   event/task/plan/operator, and issue registration/handlers behind static registrars.
+3. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and
+   delivery/policy/worker families behind static registrars.
+4. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
+   `workflow_cli` owns the assignment parser while `completion_cli` registers the
+   receipt-aware mark-done leaf commands into its supplied subparser.
+5. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
+   extract only the pure event text/base-payload renderer registry and lock supported,
+   rendered, and explicitly unstyled event-key relationships.
+6. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
+   Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
+   proven stable transaction/repository/mutation seam; a documented no-change decision
+   is acceptable.
 
 P9-0A must not alter lifecycle authority, completion receipt semantics, DB schema,
-delivery defaults, runtime behavior, or public CLI contracts. Each package requires its
-own detailed plan and independent review.
+delivery defaults, runtime behavior, or public CLI contracts. Keep one Python package
+and an explicit static composition root; do not introduce plugin discovery or a DI
+framework. Each package requires its own detailed plan and independent review.
 
 ### P9-1 — Job-scoped execution context
 
