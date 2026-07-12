@@ -2007,10 +2007,10 @@
     {
       "id": "slice-4c2-issue-materialize-operation-adoption",
       "title": "Slice 4C2 Issue Materialize Operation Adoption",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md",
@@ -2022,18 +2022,23 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T21:07:55Z",
+      "selected_in_session": "s4c2-kimi-worker",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T21:07:55Z"
+        "status": "running",
+        "branch": "agents/mac-omp/slice-4c2-issue-materialize-operation-adoption",
+        "updated_at": "2026-07-12",
+        "handoff_from": "mac-omp"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md"
+        "plan": "docs/project-harness/tasks/slice-4c2-issue-materialize-operation-adoption/plan.md",
+        "branch": "agents/mac-omp/slice-4c2-issue-materialize-operation-adoption",
+        "handoff_packet": "docs/project-harness/current/handoff-packet.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": null
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "66616b54-2502-4981-922f-8d18e86e70c5",
@@ -2047,6 +2052,13 @@
         "before_fingerprint": "6b9f2fc25ecd6dd34a6c040ee0f0403ca7c1707d2eeac64387712d03a779300e",
         "after_fingerprint": "a30d1db4ebd80da467d91467b982cb6e2d347b4eeb476a3a18acdf86c155e1ce",
         "files_applied_at": "2026-07-12T21:07:55Z"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "s4c2-kimi-worker",
+        "acquired_at": "2026-07-12T21:13:09Z",
+        "expires_at": "2026-07-12T23:13:09Z",
+        "ttl_minutes": 120
       }
     }
   ]
