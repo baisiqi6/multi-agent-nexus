@@ -101,12 +101,26 @@ authoritative derived state. No generic repair executor is introduced.
 
 - Diagnostic execution performs no `INSERT`, `UPDATE`, `DELETE`, harness mutation,
   registry sync, event append, delivery creation, or repair.
-- Tests and dogfood prove DB `total_changes`, data version, task/checklist bytes, and
-  registry source bytes are unchanged.
-- Findings are deterministically ordered and use stable machine-readable kinds.
+- The projection collector never invokes `harnessctl`, `subprocess`, `refresh_state`,
+  or any `HarnessAdapter` mutation method. The caller may pass the result of the
+  file-only `HarnessAdapter.read_checklist()`; existing top-level doctor
+  `harnessctl validate/doctor` checks remain a separate pre-existing surface.
+- Tests and dogfood prove DB `total_changes`, SQLite `PRAGMA data_version`, registry
+  source bytes, and the complete harness file manifest/bytes are unchanged. The
+  harness snapshot explicitly includes `mvp-checklist.json`, `events.jsonl`,
+  `harness-state.json`, all sidecars, and the before/after relative path set.
+- Findings use the closed severity enum `error | warning | info`. The report sorts
+  them by severity rank (`error`, `warning`, `info`), then lexically by
+  `(kind, scope, workspace_id, task_id, operation_id, receipt_id, finding_id)`, with
+  absent optional identities normalized to the empty string. SQL/query order may not
+  leak into this presentation order.
 - Each finding contains: `finding_id`, `kind`, `severity`, `scope`, `workspace_id`,
   optional `task_id`/`operation_id`/`receipt_id`, `authority`, exact `evidence`,
   `repairable`, and `next_action`.
+- `finding_id` is deterministic from the finding kind and normalized scope identities;
+  it contains no timestamp, row position, process identity, or random value. Multiple
+  conflicting facts for the same scope are represented in deterministically ordered
+  `evidence`, not by unstable duplicate finding ids.
 - `repairable=true` means an existing audited authority command can be emitted with
   complete inputs. Otherwise the report must say `repairable=false` and preserve
   evidence; it may not invent actor, source path, operation intent, fingerprints, or
@@ -120,11 +134,13 @@ Add `src/coordinate/projection_doctor.py` with immutable report/finding types an
 single read-only collector, for example:
 
 ```python
-diagnose_projections(conn, workspace_id, *, adapter=None, now=None) -> ProjectionReport
+diagnose_projections(conn, workspace, *, checklist=None, now=None) -> ProjectionReport
 ```
 
-The collector must use existing DB/resolver/harness helpers and may add focused
-read-only query helpers in `db.py`. It must not import CLI owners or mutation services.
+The caller supplies an already parsed checklist or the collector uses the existing
+file-only checklist reader; it never shells out. The collector must use existing
+DB/resolver/harness read helpers and may add focused read-only query helpers in `db.py`.
+It must not import CLI owners or mutation services.
 
 ### 2. Registry findings
 
@@ -139,7 +155,9 @@ Report at least:
 - `registry_override_shadowed`: active override shadows an authoritative identity
   (auditable informational finding, not an error);
 - `registry_expired_override_retained`: expired override remains retained for audit but
-  is correctly excluded from effective authorization (informational unless projected).
+  is correctly excluded from effective authorization (informational). If that expired
+  identity is nevertheless present in compatibility `agents_json`, the separate
+  `registry_projection_stale` error is emitted.
 
 Unreadable source is not proof of stale authorization. Severity and evidence must
 distinguish “cannot verify here” from an actual mismatch.
@@ -160,9 +178,14 @@ For every v11 ledger row and every deployed checklist envelope, report at least:
 - `operation_target_conflict`: multiple ledger rows bind one target or source contrary
   to the C1/C2 contract.
 
-The doctor must reuse C1/C2 canonical fingerprint and envelope validators. It may expose
-neutral read-only helpers from `split_operations.py`, but must not fork hashing formats
-or call record/file mutation functions.
+The doctor must reuse the existing `validate_uuid`, `validate_sha256`,
+`validate_workspace_relative_path`, `build_task_create_input_fingerprint`,
+`compute_task_item_fingerprint`, `build_task_create_envelope`,
+`build_issue_materialize_input_fingerprint`, and `build_issue_materialize_envelope`
+semantics. It may expose focused public read-only wrappers around the existing private
+envelope shape/fingerprint verification logic in `split_operations.py`. It must not
+fork canonical JSON/hashing formats, import or call `apply_*`, or make a read helper
+commit/rollback/write files.
 
 Supported operation/event mapping is explicit:
 
@@ -203,6 +226,15 @@ and terminal event evidence rather than the original authorized payload. Precede
 `consumed > applied > claimed > authorized`; unknown and inconsistent chains fail
 closed. This lookup remains read-only and does not change claim/apply/consume behavior.
 
+Receipt grouping and lookup reuse the existing payload-key query semantics. Within one
+`receipt_id`, transition order is determined only by `events.rowid`; repeated transition
+types with inconsistent linkage are `receipt_chain_conflict`, and missing predecessors
+are `receipt_chain_incomplete`. “Superseded” means a distinct receipt for the same
+`workspace_id` and `task_id` has a valid `completion.consumed` row whose `rowid` is
+greater than the unused receipt's `completion.authorized` row. A newer authorization
+alone is not supersession. `receipt_terminal` is an `info` finding for every internally
+consistent consumed chain and is omitted only when no terminal receipt exists.
+
 ### 6. Doctor and audit integration
 
 - Extend `DoctorReport` additively with `projection_report` and `projection_ok`.
@@ -210,7 +242,8 @@ closed. This lookup remains read-only and does not change claim/apply/consume be
   checks. A projection `error` makes the CLI non-zero; warnings/info remain visible but
   do not fail unless an existing health gate already fails.
 - Add `--no-projections` only as a compatibility/diagnostic escape hatch; default is the
-  S4-D report. It may not be used by deployment smoke to hide errors.
+  S4-D report. It may not be used by deployment smoke, acceptance, production dogfood,
+  or release gates to hide errors, and its use is visible in output.
 - Add the new fields to the CLI fixture intentionally and provide a C2-to-D delta proof
   independent of Git topology.
 - Extend `workspace audit` only where sharing avoids duplicate mirror findings; do not
@@ -222,9 +255,14 @@ Every error/warning includes a safe next action:
 
 - registry source mismatch -> explicit authoritative `workspace agent sync ... --replace`
   only when recorded source path/id/version/hash are complete;
-- exact file-pending operation -> re-run the original record half using the recorded
-  operation/source/target/fingerprints, but do not guess record-only owner/branch/actor/
-  destination; if those are not recoverable, `repairable=false`;
+- exact file-pending operation -> report the original envelope, operation identities,
+  and fingerprints. `repairable=true` only if authoritative evidence contains every
+  argument consumed by that operation's record half. For `task.create`, this includes
+  `title`, `phase`, `owner`, `branch`, `actor`, `target`, and payload in addition to the
+  envelope identities. For `issue.materialize`, it includes the accepted source event
+  plus title/phase/owner/branch/actor/target/platform/destination intent. Missing or
+  defaultable-at-runtime values are not guessed; the normal envelope-only case is
+  `repairable=false` and emits no runnable command;
 - mirror drift -> existing `reconcile` only when deployed harness is readable and named
   as authority;
 - orphan/conflicting ledger, unsupported contract, or broken receipt chain -> preserve
@@ -253,7 +291,7 @@ S4-D does not add a second event vocabulary or execute repairs.
 | Case | Setup | Expected result |
 |---|---|---|
 | clean production-like | B2 registry + C1/C2 applied operations + later task.done | no error findings |
-| file pending | exact C1/C2 envelope, no ledger | warning + recorded record-half inputs |
+| file pending | exact C1/C2 envelope, no ledger | warning + envelope evidence; repair only with complete authoritative record-half inputs |
 | orphan ledger | ledger, missing item/envelope | deterministic error, no repair |
 | envelope drift | changed source/target/fingerprint/item | exact expected/actual evidence |
 | record event drift | missing/wrong event | error, ledger retained |
@@ -270,7 +308,9 @@ S4-D does not add a second event vocabulary or execute repairs.
 ## Validation
 
 - New focused `tests/test_projection_doctor.py` with registry, C1, C2, mirror, receipt,
-  ordering, severity, deterministic-order, no-write, and serialization cases.
+  closed severity enum, exact ordering key, duplicate/partial/superseded receipt chains,
+  deterministic serialization, no-shell-out, failure-path no-write, and complete
+  harness-manifest/byte snapshot cases.
 - Existing `tests/test_audit.py`, `tests/test_doctor.py`, workspace CLI and completion
   CLI suites.
 - C1/C2 split-operation, registry, receipt, event presentation, daemon, policy, handoff,
@@ -315,13 +355,18 @@ S4-D does not add a second event vocabulary or execute repairs.
 
 ## Plan review record
 
-- Review artifact: pending
+- Review artifact:
   `docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan-review-round1.md`.
-- Reviewer: pending non-Codex Kimi reviewer.
-- Verdict: pending.
-- Reviewed plan revision: pending exact SHA-256.
-- Must-fix findings: pending.
-- Resolution revision: pending.
+- Reviewer: independent non-Codex Kimi reviewer through Oh-My-Pi.
+- Verdict: rejected; Coordinate event
+  `46172b33-ca4d-4e22-ae6b-29f899261399`.
+- Reviewed plan revision:
+  `dbe4d029b5bb0272a0002a494fb24b9bb8dcf7e31247841c7059bfb9087f8a1a`.
+- Must-fix findings: deterministic ordering, severity enum, receipt supersession,
+  complete no-write/no-shell-out proof, explicit split-operation helper boundary,
+  expired-override wording, and operation-specific file-pending repair inputs.
+- Resolution revision: this edited plan; pending commit, exact SHA, fresh
+  `plan.ready`, and independent re-review.
 
 Any material edit after approval resets this plan to `in_review`, invalidates approval
 and worker bootstrap, and requires a new independent review.
