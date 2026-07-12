@@ -2071,6 +2071,51 @@
         "after_fingerprint": "05d51ed894b51bb7ec7a7d181a8869b3c523610c65156c7d00f597f91d58efdf",
         "applied_at": "2026-07-12T22:16:15Z"
       }
+    },
+    {
+      "id": "slice-4d-projection-doctor-evidence",
+      "title": "Slice 4D Projection Doctor and Repair Evidence",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T22:24:24Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T22:24:24Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "7b393f8a-7d27-4a4e-8a68-44cd5a8923fd",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "slice-4d-projection-doctor-evidence",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "0d2f1c3cf75ace9ffcb84fa43f15de49577b58c7848537bf45254e3c6675b767",
+        "before_fingerprint": "619d2b37a528d077fbdf243c89d845a8a78c0df2c8ea5fec0a470a3301c4aed0",
+        "after_fingerprint": "0d34d0c53fff2a6a6ef902e5cbd70b1643a16d3e60096dc289860f3bd4dcc470",
+        "files_applied_at": "2026-07-12T22:24:24Z"
+      }
     }
   ]
 }
