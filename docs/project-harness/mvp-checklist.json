@@ -1846,6 +1846,36 @@
         "after_fingerprint": "c151bdea86f1030451fc3a6df531340ac227acab3707ed5429834fa01f27f9cf",
         "applied_at": "2026-07-12T18:08:57Z"
       }
+    },
+    {
+      "id": "slice-4b1-coordinate-agent-registry-model",
+      "title": "Slice 4B1 Coordinate Agent Registry Model",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-4b1-coordinate-agent-registry-model/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4b1-coordinate-agent-registry-model/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T18:18:04Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T18:18:04Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-4b1-coordinate-agent-registry-model/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
