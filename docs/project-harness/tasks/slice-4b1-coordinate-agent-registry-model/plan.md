@@ -86,12 +86,30 @@ Rows keyed by `(workspace_id, agent_name, entry_kind)` where `entry_kind` is one
 - created/updated timestamps;
 - workspace foreign key with cascade.
 
+Add an index on `(workspace_id, entry_kind)`; the composite primary key already covers
+same-workspace name/kind lookup.
+
 Add `workspaces.agent_registry_revision INTEGER NOT NULL DEFAULT 0`.
 
 Migration backfills current `agents_json` entries as `legacy`, preserving authorization
-until the first authoritative sync. The first accepted authoritative sync deletes all
-`legacy` and previous `authoritative` rows, then writes the new roster. It never
-silently promotes legacy rows into overrides.
+until the first authoritative sync. Exact migration rules:
+
+- missing column, SQL `NULL`, or an empty JSON object means no legacy rows;
+- top-level JSON must be an object; invalid JSON or another type fails migration with a
+  clear error, writes no legacy rows and does not advance `user_version`;
+- decode the top-level object with duplicate-key detection; duplicate agent names fail
+  rather than silently taking the last value;
+- each value must be an object with a non-empty valid Discord id; malformed entries
+  fail the whole backfill rather than silently removing authorization;
+- the top-level key is the agent name; unknown entry fields are ignored;
+- missing/empty display name defaults to the agent name, and missing agent type becomes
+  `legacy` metadata;
+- v10 reopen creates no duplicate legacy rows or revision increment.
+
+Validate all legacy rows before backfill writes. On failure, user version and legacy
+rows remain unchanged even if idempotent empty v10 tables already exist. The first
+accepted authoritative sync deletes all `legacy` and previous `authoritative` rows,
+then writes the new roster. It never silently promotes legacy rows into overrides.
 
 ### 2. Source identity and canonical hash
 
@@ -103,11 +121,20 @@ id = "multinexus.discord"
 version = 1
 ```
 
-The source hash is SHA-256 of sorted-key compact JSON containing only the parsed
-registry-relevant entries (`id`, normalized string `discord_user_id`, `display_name`,
-`agent_type`) in deterministic order. It must not hash or expose tokens, environment
-keys, prompts, binary paths, work directories, channel configuration, comments, or raw
-file bytes.
+Before hashing, normalize every parsed entry:
+
+- `id`: `str(value).strip()`, non-empty;
+- `discord_user_id`: `str(value).strip()`, ASCII decimal digits only and integer > 0;
+- `display_name`: `str(value).strip()`, default to normalized id when missing/empty;
+- `agent_type`: fixed lowercase literal `managed` or `external` selected by TOML
+  section, never a free-form source value.
+
+The canonical hash input is a top-level JSON list sorted by normalized `id` ascending
+using Python Unicode code-point ordering. Each item is exactly an object with keys
+`id`, `discord_user_id`, `display_name`, `agent_type`. Serialize with
+`json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`, encode
+UTF-8, then SHA-256. Exclude source id/version/path, tokens, environment keys, prompts,
+binary paths, work directories, channels, comments, unknown fields and raw file bytes.
 
 For authoritative sync, missing/invalid id or version is an error. Rules for an existing
 source:
@@ -155,6 +182,13 @@ than decoding `agents_json`.
 - `--actor` (default `operator`);
 - optional UTC `--expires-at`.
 
+Expiry uses exactly `YYYY-MM-DDTHH:MM:SSZ` UTC at whole-second precision. Other offsets,
+fractional seconds, naive timestamps and malformed values are rejected. Add/update
+rejects `expires_at <= utc_now()`. Effective resolution evaluates expiry at read time;
+an override is inactive when `expires_at <= now`, remains stored for audit, and reveals
+the same-name authoritative/legacy entry. Tests inject/control the clock rather than
+sleeping.
+
 The mutation writes/updates only `entry_kind=override`, increments revision,
 regenerates the compatibility projection, and appends one
 `workspace.agent_override.set` event atomically. Invalid/past expiry is rejected; an
@@ -162,27 +196,39 @@ explicit `workspace agent remove-override` command requires workspace, name, act
 non-empty reason; it removes only the override row, reveals any same-name authoritative
 entry, increments revision, regenerates projection and appends
 `workspace.agent_override.removed` in one transaction. Removing a missing override
-fails without mutation.
+fails with non-zero CLI status and no mutation; it never deletes authoritative/legacy
+rows.
 
 The DB API used by production must require actor and reason; no new silent legacy write
 path is allowed. Tests may use explicit fixture reasons.
 
 ### 5. Immediate daemon refresh
 
-The daemon keeps a cached resolved map plus last-seen per-workspace registry revisions.
-Before classifying any inbound message as an agent report, it checks revisions and
-reloads the effective map if they changed. Authorization must therefore reflect a
-committed sync/override without daemon restart.
+Before the `is_agent` branch for every inbound channel message, `on_message` performs
+one `asyncio.to_thread` read that opens/migrates the DB, resolves all currently effective
+workspace memberships using the current UTC clock, and atomically replaces the
+in-memory map. This deliberately favors fail-closed correctness over a revision-only
+cache: an override can expire without any DB write or revision change.
+
+`on_ready` may still perform the initial load for observability, but cached membership
+is never used for a later message without the per-message refresh. `_open_db` runs v10
+migration before resolution. If migration or resolution fails, the daemon logs the
+error and treats the author as unauthorized for that message; it must not fall back to
+the previous cache. Refresh occurs before testing `author_id in registry`, not inside
+`_ingest_agent_message` after classification.
 
 Tests must prove:
 
 - an added effective agent is accepted after revision change without calling
   `on_ready`/manual reload;
 - a removed authoritative agent is rejected immediately;
-- an expired override is rejected even if it existed in the previous cache; and
+- an expired override is rejected on the first message at/after expiry even if no
+  revision changed and it existed in the previous cache; and
 - cross-workspace membership remains scoped.
 
-No background thread, signal handler or deployment restart is required by B1.
+No background thread, signal handler, polling timer or deployment restart is required
+by B1. `agent_registry_revision` remains audit/projection metadata for S4-D and API
+results, not the sole cache invalidation clock.
 
 ## Compatibility projection
 

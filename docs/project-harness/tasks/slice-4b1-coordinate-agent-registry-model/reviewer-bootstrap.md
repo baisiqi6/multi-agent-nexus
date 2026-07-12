@@ -8,15 +8,15 @@
 - Plan:
   `/Users/yinxin/projects/multinexus/docs/project-harness/tasks/slice-4b1-coordinate-agent-registry-model/plan.md`.
 - Exact plan SHA-256:
-  `aea4baf2e880c48e278fb4cbbc29a97897761d72e6f3f18ea206ebe554722f61`.
+  `f23210ee9986e4e8d737a43d3abe155f900a59aec7fde117e1bb5b7e63f97fb8`.
 - Coordinate checkout:
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-s4b1-plan-review`.
 - Required HEAD:
   `5986cc38d8fa7a46c1cdd1dcb195fcc7043314d9`.
 
-核验SHA/cwd/HEAD/clean后，完整读取plan和当前schema/db/agent_registry/workspace_cli/
-daemon及相关tests。只可read/grep/glob/bash；禁止edit、subagent、SSH、deploy、真实DB/
-config/harness/lifecycle。
+核验SHA/cwd/HEAD/clean后，完整读取plan、`plan-review-round-1.md`和当前
+schema/db/agent_registry/workspace_cli/daemon及相关tests。只可read/grep/glob/bash；
+禁止edit、subagent、SSH、deploy、真实DB/config/harness/lifecycle。
 
 ## Red-team questions
 
