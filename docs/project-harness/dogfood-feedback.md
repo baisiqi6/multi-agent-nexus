@@ -920,3 +920,6 @@
   same-version conflict与rollback均拒绝且状态不变；revision 2、integrity ok、目录清理完成。
 - Slice 4B2 accepted/closed；完整证据见
   `tasks/slice-4b2-deployed-agent-registry-authority/closeout.md`。
+- Durable completion receipt：`1cead9e6-ecf3-4914-8813-a13684b5215a`，
+  `completion.consumed=35b8dd76-08c9-4fe5-81ec-083bee7bbbd7`；fingerprint
+  `f0d1840a...c1cc24`→`49ad2177...063a59`。

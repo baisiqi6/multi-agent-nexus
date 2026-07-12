@@ -1905,7 +1905,7 @@
     {
       "id": "slice-4b2-deployed-agent-registry-authority",
       "title": "Slice 4B2 Deployed Agent Registry Authority",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1920,18 +1920,18 @@
         "reason": null
       },
       "selected_in_session": "s4b2-kimi-worker",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T19:52:24Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T19:52:24Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
         "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Plan b9cd5c80 approved; Kimi worker 1441ad9 + Codex correction ac12396; 39 focused, 391 full (2 skipped), 83 Coordinate; deployed v1 10 authoritative/0 legacy revision1; unchanged Coordinate PID; stable smoke and isolated same-process removal/conflict/rollback/cleanup PASS.",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
@@ -1945,6 +1945,12 @@
         "acquired_at": "2026-07-12T19:27:15Z",
         "expires_at": "2026-07-12T21:27:15Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "1cead9e6-ecf3-4914-8813-a13684b5215a",
+        "before_fingerprint": "f0d1840a1a58aa58cc2974052f4a40b344a436ad5aa11c909c53107984c1cc24",
+        "after_fingerprint": "49ad2177b7bd099a9a33976a9aed6e429472d46bd6a9569ac2e27d3125063a59",
+        "applied_at": "2026-07-12T19:52:24Z"
       }
     }
   ]

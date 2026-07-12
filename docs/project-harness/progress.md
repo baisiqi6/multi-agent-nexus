@@ -18,6 +18,8 @@ Harness root: `docs/project-harness/`
 - Empty isolated server sidecar proved same-process v1-to-v2 removal plus conflict and
   rollback rejection, then removed all sidecar artifacts.
 - S4-B is closed. Next package: S4-C bound split operations.
+- Completion receipt `1cead9e6-ecf3-4914-8813-a13684b5215a` was authorized,
+  claimed, applied and consumed; checklist is terminal done/closed.
 
 
 ## 2026-07-13

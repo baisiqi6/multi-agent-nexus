@@ -101,3 +101,19 @@ a production workspace/source row.
 S4-B is closed. S4-D will later diagnose stale projections and partial repair evidence;
 this package deliberately adds no automatic source takeover, rollback or repair. The
 next Slice 4 package is S4-C bound split operations.
+
+## Durable lifecycle
+
+- closeout requested: `4f0086e2-d873-4f64-b827-9e8a1b1f5893`;
+- result approved: `a9ba054e-38b2-4ff3-9a22-abe27345dcb0`;
+- completion receipt: `1cead9e6-ecf3-4914-8813-a13684b5215a`;
+- authorized: `be99d519-e9cb-47eb-8d96-cad360512fcc`;
+- claimed: `e1d236e5-5f56-44ca-a859-adf6e252c037`;
+- applied: `574feeb8-f97e-4f98-b655-393c9f33fc99`;
+- task done: `3779f387-2929-451f-bbbd-6d6c439fcd28`;
+- consumed: `35b8dd76-08c9-4fe5-81ec-083bee7bbbd7`;
+- checklist fingerprint:
+  `f0d1840a1a58aa58cc2974052f4a40b344a436ad5aa11c909c53107984c1cc24`
+  to `49ad2177b7bd099a9a33976a9aed6e429472d46bd6a9569ac2e27d3125063a59`.
+
+The checklist is terminal `done` / workflow `closed` and the receipt is consumed.
