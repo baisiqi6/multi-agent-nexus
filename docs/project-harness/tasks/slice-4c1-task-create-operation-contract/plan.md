@@ -92,7 +92,8 @@ the UTF-8 SHA-256 of compact, key-sorted, `ensure_ascii=False` JSON:
   "contract_version": 1,
   "operation_kind": "task.create",
   "workspace_id": "...",
-  "task_id": "...",
+  "target": {"kind": "checklist_task", "id": "..."},
+  "source": null,
   "plan_doc": "workspace/relative/normalized/path",
   "plan_sha256": "full lowercase file SHA-256",
   "title": "resolved title",
@@ -101,7 +102,11 @@ the UTF-8 SHA-256 of compact, key-sorted, `ensure_ascii=False` JSON:
 }
 ```
 
-Resolve title exactly as the files half does (`title or task_id`). Require `plan_doc` to
+Resolve title exactly as the files half does (`title or task_id`). `target.id` is the
+CLI task id; C1 always uses `target.kind=checklist_task`. `source` is null in C1. C2
+reuses the identical envelope with the same checklist-task target and
+`source={"kind":"issue_triaged_event","id":event_id}`; issue identity never overloads
+the target id and needs no new ledger column/migration. Require `plan_doc` to
 be workspace-relative, normalized POSIX text with no `..`, no empty segment and no
 absolute path; both halves hash the deployed/source-controlled plan bytes independently.
 This deliberately removes host-specific absolute paths from identity.
@@ -116,7 +121,7 @@ projection and rejects a conflicting retry.
 Define a separate task-item projection, not the coarse completion lifecycle fingerprint.
 
 - before absent: canonical object
-  `{"state":"absent","task_id":"..."}`;
+  `{"state":"absent","target":{"kind":"checklist_task","id":"..."}}`;
 - present item: recursively canonicalize the full task item while excluding only
   `updated_at`, `workflow.updated_at`, `split_operation`, `completion_receipt`, and
   descriptive `verification`;
@@ -141,7 +146,10 @@ The created checklist item carries:
   "operation_id": "uuid",
   "operation_kind": "task.create",
   "workspace_id": "discord-nexus",
-  "task_id": "...",
+  "target_kind": "checklist_task",
+  "target_id": "...",
+  "source_kind": null,
+  "source_id": null,
   "input_fingerprint": "...",
   "before_fingerprint": "...",
   "after_fingerprint": "...",
@@ -176,14 +184,22 @@ Advance Coordinate schema to v11 with table `split_operations`:
 - `contract_version` integer, initially 1;
 - `operation_kind` (`task.create` now; schema permits reviewed `issue.materialize` for
   C2 without a migration);
-- `workspace_id`, `task_id` and optional `source_event_id`;
+- `workspace_id`, `target_kind`, `target_id`, optional `source_kind` and optional
+  `source_id`;
 - input/before/after fingerprints;
 - `status`, currently only `record_applied`;
 - `record_event_id` and timestamps.
 
-Add workspace/task/status indexes and foreign keys where existing deletion semantics are
-clear. Migration is additive and does not fabricate rows for legacy split operations.
+Add workspace/target/status indexes and foreign keys where existing deletion semantics
+are clear. Do not foreign-key neutral target/source ids to one domain table. Migration
+is additive and does not fabricate rows for legacy split operations.
 S4-D must later ignore pre-v11 history rather than diagnose every legacy task as orphaned.
+
+The neutral target is not abstraction for its own sake: every current split file half
+mutates a checklist task item, including issue materialization. C2 uses
+`operation_kind=issue.materialize`, the same `checklist_task` target, and binds the
+accepted issue through `source_kind=issue_triaged_event` / `source_id=<event UUID>`.
+No `issue_id` column, C2-only table or second fingerprint format is permitted.
 
 The table is the record-side ledger; files-only partial state remains visible through the
 deployed checklist envelope with no matching row. That asymmetry is intentional and is
@@ -220,7 +236,7 @@ Retry classification:
   idempotent already-applied result, no new event/revision/timestamp;
 - same operation id with any changed field, missing promised DB artifact or deployed
   drift: conflict, no repair;
-- different operation for the same C1 task: conflict.
+- different operation for the same C1 checklist-task target: conflict.
 
 The `plan.ready` idempotency key is operation-bound. Its payload and task mirror include
 contract version, operation id/kind and all fingerprints so audit does not depend only
