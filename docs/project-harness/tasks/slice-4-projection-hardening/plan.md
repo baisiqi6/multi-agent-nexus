@@ -28,6 +28,18 @@ Declare the approved deployed roster authority; record source identity/version/h
 make authoritative sync remove absent identities; keep manual additions as explicit,
 auditable overrides with reason/expiry; define reload and reconciliation behavior.
 
+S4-B is executed as two reviewed packages:
+
+- **S4-B1 Coordinate registry model** — normalized authoritative roster, auditable
+  overrides, version/hash rules, effective resolver, compatibility projection, and
+  daemon refresh without restart;
+- **S4-B2 deployed authority integration** — version the deployed MultiNexus roster,
+  wire authoritative sync into deployment/operations, verify live removal/reload, and
+  update cross-repository runbooks.
+
+This split prevents host-specific deployment mechanics and real ignored configuration
+from being mixed into the schema/resolver transaction package.
+
 ### S4-C — Bound split operations
 
 Add stable `operation_id` and before/after fingerprints to host-aware file/record
