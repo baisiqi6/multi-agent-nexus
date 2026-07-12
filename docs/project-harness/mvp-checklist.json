@@ -1646,7 +1646,7 @@
     {
       "id": "p9-0a4a-receipt-completion-cli",
       "title": "P9-0A4a Receipt Completion CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1661,18 +1661,18 @@
         "reason": null
       },
       "selected_in_session": "omp-p9-0a4a-kimi",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T16:23:51Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a4a-receipt-completion-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T16:23:51Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a4a-receipt-completion-cli/plan.md",
         "branch": "agents/mac-omp/p9-0a4a-receipt-completion-cli",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 4526d09; MultiNexus 778de23; Codex result review approved; boundary 59; total focused 401; full 1523; no Coordinate runtime deploy required",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -1686,6 +1686,12 @@
         "acquired_at": "2026-07-12T16:23:13Z",
         "expires_at": "2026-07-12T18:23:13Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "23b7563a-89c7-4642-992f-5d50ebdefca0",
+        "before_fingerprint": "341aebe44e84c9439d25524ed0ac6830628739e0196321991ace44a5f80b6148",
+        "after_fingerprint": "123063c7b06c8c833ba50f42760b87f0da2f9165db5a486991d3c78a1c4ef231",
+        "applied_at": "2026-07-12T16:23:51Z"
       }
     }
   ]
