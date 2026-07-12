@@ -1386,6 +1386,36 @@
         "after_fingerprint": "ef5e708b83059cfb12dd50eb52f39777fee9f970e04dc3d4648a0372aa9fe7be",
         "applied_at": "2026-07-12T07:46:58Z"
       }
+    },
+    {
+      "id": "p9-0a2a-workspace-state-reconcile-cli",
+      "title": "P9-0A2a Workspace State Reconcile CLI Extraction",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T10:02:29Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T10:02:29Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
