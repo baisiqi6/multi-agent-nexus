@@ -1905,9 +1905,9 @@
     {
       "id": "slice-4b2-deployed-agent-registry-authority",
       "title": "Slice 4B2 Deployed Agent Registry Authority",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
@@ -1919,18 +1919,28 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T19:24:31Z",
+      "selected_in_session": "s4b2-kimi-worker",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T19:17:10Z"
+        "status": "running",
+        "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md"
+        "plan": "docs/project-harness/tasks/slice-4b2-deployed-agent-registry-authority/plan.md",
+        "branch": "agents/mac-omp/slice-4b2-deployed-agent-registry-authority"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "s4b2-kimi-worker",
+        "acquired_at": "2026-07-12T19:27:15Z",
+        "expires_at": "2026-07-12T21:27:15Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
