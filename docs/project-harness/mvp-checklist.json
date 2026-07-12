@@ -1488,6 +1488,36 @@
         "after_fingerprint": "52198c058cecb2c49df6fb0acfd9880ddad822839344b5da9beefac60a24089c",
         "applied_at": "2026-07-12T10:58:19Z"
       }
+    },
+    {
+      "id": "p9-0a2c-issue-cli",
+      "title": "P9-0A2c Issue CLI Extraction",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12T11:04:41Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-12T11:04:41Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a2c-issue-cli/plan.md"
+      },
+      "verification": "",
+      "review": {}
     }
   ]
 }
