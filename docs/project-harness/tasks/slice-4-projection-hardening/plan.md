@@ -32,10 +32,11 @@ S4-B is executed as two reviewed packages:
 
 - **S4-B1 Coordinate registry model** — normalized authoritative roster, auditable
   overrides, version/hash rules, effective resolver, compatibility projection, and
-  daemon refresh without restart;
+  daemon refresh without restart. **Completed and deployed at Coordinate
+  `ff6b8bf`; receipt `dca68d10-f805-4cbf-af35-1ac73a8f86d4` consumed.**
 - **S4-B2 deployed authority integration** — version the deployed MultiNexus roster,
   wire authoritative sync into deployment/operations, verify live removal/reload, and
-  update cross-repository runbooks.
+  update cross-repository runbooks. **Next package; not yet authorized.**
 
 This split prevents host-specific deployment mechanics and real ignored configuration
 from being mixed into the schema/resolver transaction package.

@@ -1573,3 +1573,24 @@ evidence package. The same session spans two provider/model intervals:
   server's old deployed content hash; docs deploy plus `fa38a7db...` restored identity.
 - Exact evidence: `tasks/slice-4a-deterministic-latest-event-reads/closeout.md`. Next:
   detailed S4-B versioned replace-sync registry audit and plan review.
+
+## 2026-07-13 — Slice 4B1 Coordinate agent registry model durable closeout
+
+- Kimi worker session `019f579b-9317-7000-879a-acfa73577120` produced `6c340d4`.
+  Codex rejected a silent no-audit compatibility shim, incorrect durable shadowed
+  evidence and missing audit-failure rollback, then integrated correction `2bf835f` as
+  Coordinate `ff6b8bf`.
+- Final evidence is 40 agent-registry, 21 DB, 19 workspace CLI, 43 daemon, 33 contract,
+  169 root CLI and 1,608 full tests; fixture `0c54732c...` rewinds to reviewed
+  `43e18104...`.
+- Production migrated v9 -> v10 after backup, preserving nine legacy/projected
+  identities with zero authoritative sources before S4-B2. Both services are active
+  and the daemon loaded the same nine effective identities.
+- Receipt `dca68d10-f805-4cbf-af35-1ac73a8f86d4` completed authorized/claimed/applied/
+  task.done/consumed with `3d5112f4...` -> `95f1e399...`.
+- Dogfood recorded exact-plan gate recovery, relative harness-root fail-closed,
+  `approve` vs `approved` vocabulary, `local` vs `discord-nexus` host identity and
+  local-vs-server review evidence split. No direct DB/JSON repair or provider fallback
+  was used.
+- Exact evidence: `tasks/slice-4b1-coordinate-agent-registry-model/closeout.md`. Next:
+  S4-B2 detailed plan and independent review for deployed roster authority integration.
