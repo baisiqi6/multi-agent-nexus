@@ -2093,7 +2093,7 @@
       "selected_in_session": "omp:s4d-correction-round3",
       "updated_at": "2026-07-12",
       "workflow": {
-        "status": "running",
+        "status": "changes_requested",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
         "updated_at": "2026-07-12"
       },
@@ -2105,9 +2105,9 @@
       "review": {
         "decision": "changes_requested",
         "reviewer": "mac-codex",
-        "phase": "todo",
+        "phase": "running",
         "updated_at": "2026-07-12",
-        "summary": "Round 3 rejects 313e366: applied.before and SHA format remain unchecked; evidence freeze is shallow; rewind replaces literal historical bodies; see result-review-round3.md at 89dbe5d."
+        "summary": "Round 4 closes receipt and AST gaps; rejects 21bfb88 only because pre-frozen MappingProxyType inputs retain mutable nested values. See result-review-round4.md at bc657c6."
       },
       "split_operation": {
         "contract_version": 1,
