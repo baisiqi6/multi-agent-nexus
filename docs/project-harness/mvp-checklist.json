@@ -1956,9 +1956,9 @@
     {
       "id": "slice-4c1-task-create-operation-contract",
       "title": "Slice 4C1 Task-Create Split Operation Contract",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
@@ -1970,18 +1970,28 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T20:05:36Z",
+      "selected_in_session": "s4c1-kimi-worker",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T20:00:25Z"
+        "status": "running",
+        "branch": "agents/mac-omp/slice-4c1-task-create-operation-contract",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md"
+        "plan": "docs/project-harness/tasks/slice-4c1-task-create-operation-contract/plan.md",
+        "branch": "agents/mac-omp/slice-4c1-task-create-operation-contract"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "s4c1-kimi-worker",
+        "acquired_at": "2026-07-12T20:07:59Z",
+        "expires_at": "2026-07-12T22:07:59Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
