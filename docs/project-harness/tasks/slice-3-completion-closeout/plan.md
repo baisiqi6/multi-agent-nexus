@@ -17,9 +17,12 @@ execution, and project closeout.
 - Independent full validation reported `1347 passed, 58 subtests passed`.
 - Independent adversarial review covered receipt forgery, actor binding,
   fingerprint drift, expiry, replay, fail-after-write, and idempotent retry drift.
+- S3-C2 integrated the exact reviewed patch on local Coordinate `main` as `e0cc1561`
+  after independent result review and an explicit human gate; main-side focused 342,
+  full 1,347, and checklist validation passed.
 
-These are local planning facts. They do not assert that the branch is integrated,
-deployed, or proven through real `coord-ssh` execution.
+These are local integration facts. They do not assert push, deployment, or proof through
+real `coord-ssh` execution.
 
 ## Work packages
 
@@ -34,6 +37,8 @@ documentation/integration planning only.
 Integrate the approved Slice 3 checkpoint with current Coordinate `main` in an
 isolated branch or worktree. Re-run focused/full tests, schema compatibility,
 `git diff --check`, harness validation, and adversarial receipt probes.
+
+Status: complete locally on 2026-07-12; integrated commit `e0cc1561`.
 
 ### S3-C3 — Authorized deployment and multi-host smoke
 

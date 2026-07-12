@@ -72,3 +72,17 @@ yet on Coordinate `main`; `main` remains at
 `8fadd687d68032cf656291e6bf537ec481fb3e25`. Advancing it requires an explicit human
 gate and a final no-drift/fast-forward check. Push and S3-C3 deploy/multi-host validation
 remain separately unauthorized.
+
+## Human gate and local main integration
+
+The user explicitly authorized local main advancement on 2026-07-12. The Operator then:
+
+- re-verified that local Coordinate `main` was still `8fadd687...` and that candidate
+  `e0cc1561...` was its clean single-commit descendant;
+- ran `git merge --ff-only e0cc1561cd20b0f22389234aefe92d01273860e4`;
+- verified local Coordinate `main == e0cc1561...` and candidate/main identity;
+- reran focused 342 tests, full 1,347 tests, checklist validation with 0 warnings, and
+  `git diff --check` on main successfully.
+
+The approved scope remains local-only. No push, deploy, service/runtime mutation,
+real DB/delivery, SSH, or multi-host smoke was performed.

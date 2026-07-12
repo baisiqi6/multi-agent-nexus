@@ -1128,3 +1128,21 @@ Human performed terminal and Discord validation:
   to `8fadd687...` and requires an explicit human gate before a final no-drift
   fast-forward. No push, deploy, runtime/DB/delivery mutation, SSH, or multi-host smoke
   occurred.
+
+## 2026-07-12 — S3-C2 human-gated local main integration
+
+- The user explicitly authorized advancing local Coordinate `main` to the independently
+  reviewed S3-C2 candidate.
+- Final no-drift checks confirmed main `8fadd687...`, candidate `e0cc1561...`,
+  candidate parent equal to main, unchanged patch identity, exact eight paths, and clean
+  candidate state.
+- `git merge --ff-only e0cc1561cd20b0f22389234aefe92d01273860e4` advanced local
+  Coordinate `main` without creating a new merge commit.
+- Main-side validation passed: focused 342, full 1,347, checklist validation with 0
+  warnings, and `git diff --check`. Coordinate `main` and the candidate branch now point
+  to the same commit; `.qoder/` remains the only unrelated untracked path.
+- Updated the durable audit, code-review summary, integration decision, result review,
+  and stage overview to distinguish local-integration PASS from S3-C3 deployment and
+  real multi-host PASS.
+- No push, deploy, service/process control, real DB/delivery, SSH, or multi-host smoke
+  occurred.

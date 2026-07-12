@@ -1,9 +1,8 @@
-# Slice 3 Integration Decision (Proposed S3-C2 Method)
+# Slice 3 Integration Decision (Executed S3-C2 Method)
 
-> **Status: proposed integration method and preconditions.** This document does not
-> authorize a cherry-pick, merge, push, deploy, or any runtime mutation. S3-C2 must
-> refresh all SHAs, write its own detailed plan, and receive its own independent plan
-> review before any integration action.
+> **Status: S3-C2 local integration executed and reviewer-accepted on 2026-07-12.**
+> This evidence does not authorize push, deploy, service/runtime mutation, or real
+> multi-host smoke.
 
 ## Scope of this decision
 
@@ -81,6 +80,27 @@ S3-C2 must satisfy all of the following before local integration is accepted:
   replay, fail-after-write, and idempotent retry drift are re-probed and behave as
   accepted at the checkpoint; the final retry returns `before_fingerprint_mismatch` and
   leaves the canonical item `doing/blocked`.
+
+## Executed S3-C2 result
+
+- Detailed plan SHA256:
+  `aea8b2dd7a8348904fd1ffadc3a649c79355c76eba9c2d806d8adbff78e898ee`.
+- Independent plan review: approved with no must-fix findings.
+- Integration base: `8fadd687d68032cf656291e6bf537ec481fb3e25`.
+- Integration candidate: `e0cc1561cd20b0f22389234aefe92d01273860e4`.
+- Candidate parent equals the base; source and candidate stable patch IDs both equal
+  `eb204296bd6a09e4caccabfe4bb05802e7ef7b37`.
+- Source and candidate raw diff SHA256 both equal
+  `9ab40d51b9ba512143710df0f087d24d245e686b9fd983a01940fbbc4a5fc088`.
+- Exact eight-path, schema, focused 342, full 1,347, checklist 0-warning, and
+  adversarial coverage checks passed in the isolated candidate review.
+- After explicit human authorization, Coordinate local `main` fast-forwarded from the
+  base to `e0cc1561`; main-side focused 342, full 1,347, checklist validation, and
+  `git diff --check` passed again.
+- Result review:
+  `../slice-3-c2-local-integration/result-review-round-1.md`.
+- No push, deploy, service/process control, real DB/delivery, SSH, or multi-host action
+  occurred.
 
 Local integration acceptance is still not deployment or multi-host PASS. S3-C3 owns the
 explicitly authorized deploy and real `coord-ssh` smoke; S3-C4 owns durable closeout.

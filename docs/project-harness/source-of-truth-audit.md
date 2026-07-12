@@ -1,6 +1,6 @@
 # Source-of-Truth Write-Path Audit
 
-> **Status: audit plus Slice 1-2 implementation and Slice 3 local-checkpoint snapshot, 2026-07-12.**
+> **Status: audit plus Slice 1-2 implementation and Slice 3 local-integration snapshot, 2026-07-12.**
 >
 > This document is diagnostic evidence and a remediation record. It does not replace
 > [product-definition.md](product-definition.md), the project checklist, Coordinate DB,
@@ -23,16 +23,17 @@ It distinguishes:
 
 ## Verdict
 
-**Slice 1 and Slice 2 are implemented; Slice 3 is accepted as a local code checkpoint and
-is not yet integrated, deployed, or proven through real multi-host execution.** The
+**Slice 1 and Slice 2 are implemented; Slice 3 is reviewer-accepted and integrated on
+local Coordinate `main`, but is not pushed, deployed, or proven through real multi-host
+execution.** The
 overall authority split is viable and does not require a rewrite. Three originally
 identified violations are resolved; the host-aware completion receipt gap is now closed at
-code-review and local-test level and remains open for integration and deployment:
+code-review, local-test, and local-integration level and remains open for deployment:
 
 1. Host-aware completion can advance harness and DB completion independently without a
    shared authorization receipt — the receipt protocol is now implemented and
-   reviewer-accepted at the local checkpoint (see the finding below); integration,
-   deployment, and multi-host smoke are separate gates.
+   reviewer-accepted and integrated on local `main` (see the finding below); deployment
+   and multi-host smoke remain separate gates.
 
 Slice 1 and Slice 2 were implemented on 2026-07-10 without a schema migration. They scope
 Discord authorization by workspace, remove the agentd-to-Discord report command loop, keep
@@ -44,7 +45,7 @@ added a one-time completion authorization receipt at the local checkpoint on 202
 | Fact category | Intended authority | Current writers | Projections / scratch | Audit result |
 |---|---|---|---|---|
 | Shared product mission and roles | `product-definition.md` | Human-reviewed docs | README summaries | Clean after documentation repair |
-| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; completion receipt accepted at local checkpoint, not yet integrated/deployed (see Slice 3 finding) |
+| Project scope, plan, acceptance, task workflow, assignment owner/lease | Canonical harness files | `harnessctl`; Coordinate `HarnessAdapter`; host-side `*-files` commands | `harness-state.json`; Coordinate task rows | Phase projection repaired; completion receipt integrated on local Coordinate `main`, not yet deployed (see Slice 3 finding) |
 | Runtime job, claim, attempt, liveness, result, delivery | Coordinate DB | `coordinate.runtime`, `coordinate.jobs`, `coordinate.bus` | CLI/UI/platform views | Clean core ownership; CAS protections are present |
 | Runtime agent result and review evidence | Coordinate DB event ledger | Agentd result ingestion; Discord daemon ingestion in legacy direct mode | Visible report lines/cards | Resolved: managed agentd results are not re-posted as Discord commands |
 | Static runtime agent configuration | Deployed MultiNexus `agents.toml` | Runtime operator/config deployment | Parsed `AgentConfig` and peer roster | Clear for invocation configuration |
@@ -128,11 +129,11 @@ Implemented behavior:
 - Tests now assert no raw worker or reviewer report line and do assert the human-visible
   summary.
 
-### [P1][Local checkpoint accepted 2026-07-11; integration and deployment remain open]
+### [P1][Locally integrated 2026-07-12; deployment remains open]
 
-The host-aware completion gap documented below is now closed at code-review and local-test
-level by the Slice 3 worker checkpoint. It is not yet integrated onto Coordinate `main`,
-deployed, or verified through real multi-host execution.
+The host-aware completion gap documented below is now closed at code-review, local-test,
+and local-integration level. The reviewed patch is on local Coordinate `main`; it is not
+pushed, deployed, or verified through real multi-host execution.
 
 Pre-Slice-3 divergence evidence (context retained):
 
@@ -158,7 +159,7 @@ The receipt binds workspace, task, authorized actor, expiry, gate/forge evidence
 lifecycle fingerprints. The coding host must use the online remote CLI path; no-receipt
 split commands are repair-only and require a non-empty reason.
 
-Checkpoint identity (re-verified during the S3-C1 audit session, 2026-07-12):
+Checkpoint and integration identity (re-verified during S3-C2, 2026-07-12):
 
 - Worker checkpoint commit `1b862129897be001e5a9078b7b4fad48d90d89c2` on branch
   `agents/mac-claude/slice-3-completion-receipt`, parent and merge-base against Coordinate
@@ -174,16 +175,20 @@ Checkpoint identity (re-verified during the S3-C1 audit session, 2026-07-12):
 - Reviewed file set, accepted protocol, adversarial rounds, and the provider session
   handle are recorded durably in
   [tasks/slice-3-completion-closeout/local-code-review.md](tasks/slice-3-completion-closeout/local-code-review.md).
+- S3-C2 cherry-picked the reviewed patch onto base
+  `8fadd687d68032cf656291e6bf537ec481fb3e25`, producing
+  `e0cc1561cd20b0f22389234aefe92d01273860e4`. Source and integrated stable patch IDs
+  both equal `eb204296bd6a09e4caccabfe4bb05802e7ef7b37`; raw diff SHA256 is identical.
+- After explicit human authorization, local Coordinate `main` fast-forwarded to
+  `e0cc1561`. Main-side verification passed: focused 342, full 1,347, checklist 0
+  warnings, exact eight paths, and no DDL/schema-version change.
 
 Boundary this audit must not overstate:
 
-- The receipt is accepted as local code, not as integrated, deployed, or multi-host PASS.
-- Integration is owned by S3-C2 from the then-current Coordinate `main`; the proposed
-  method and preconditions are recorded in
+- The receipt is accepted as local code and local integration, not as pushed, deployed,
+  or multi-host PASS.
+- The executed S3-C2 method and evidence are recorded in
   [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
-- The refreshed snapshot shows no changed-path overlap between Coordinate `main` and the
-  Slice 3 checkpoint, but that is current-state evidence, not a guarantee that the actual
-  cherry-pick will be conflict-free; S3-C2 must inspect the real result.
 - Real `coord-ssh`, SSH, and remote-DB behavior is covered only through mocked subprocess
   boundaries in the local suite.
 
@@ -319,7 +324,7 @@ Implemented as an event-derived query without a schema migration. Runtime and pl
 decisions no longer overwrite harness phase; terminal tasks cannot be reopened by late
 reports; CLI output states that it did not refresh the harness and exposes its DB version.
 
-### Slice 3 — Authorize completion once — local checkpoint accepted 2026-07-11
+### Slice 3 — Authorize completion once — local integration accepted 2026-07-12
 
 1. Introduce a completion authorization receipt. — done at checkpoint.
 2. Bind host-side and server-side mark-done operations to that receipt. — done at
@@ -329,9 +334,9 @@ reports; CLI output states that it did not refresh the harness and exposes its D
 
 Local code acceptance is recorded in
 [tasks/slice-3-completion-closeout/local-code-review.md](tasks/slice-3-completion-closeout/local-code-review.md).
-The proposed local integration method and preconditions for S3-C2 are recorded in
+The executed local integration method and evidence for S3-C2 are recorded in
 [tasks/slice-3-completion-closeout/integration-decision.md](tasks/slice-3-completion-closeout/integration-decision.md).
-Deployment, real multi-host smoke, and durable closeout remain separate, explicitly
+Deployment, real multi-host smoke, and umbrella closeout remain separate, explicitly
 authorized gates (S3-C3, S3-C4).
 
 ### Slice 4 — Harden projections and split operations
@@ -379,7 +384,7 @@ All criteria passed on 2026-07-10. Validation evidence:
   and CLI.
 - Coordinate full suite: 1,263 tests passed.
 
-## Acceptance criteria for the third implementation slice (local checkpoint)
+## Acceptance criteria for the third implementation slice (local integration)
 
 - A completion authorization receipt is issued once and binds workspace, task, authorized
   actor, expiry, and lifecycle fingerprints.
@@ -389,16 +394,15 @@ All criteria passed on 2026-07-10. Validation evidence:
   idempotent retry drift are covered by adversarial probes.
 - The receipt lifecycle is `completion.authorized -> completion.claimed ->
   completion.applied -> task.done + completion.consumed`.
-Criteria met at the local checkpoint on 2026-07-11 (re-verified 2026-07-12). The counts
-below are accepted prior independent-review evidence recorded by the Codex reviewer and
-rechecked against that report by this audit worker; the suites were not rerun here:
+Criteria met at the local checkpoint on 2026-07-11 and on local Coordinate `main` on
+2026-07-12. Final main-side reviewer evidence:
 
-- Full local suite: `1347 passed, 58 subtests passed`.
+- Full local suite: 1,347 passed.
 - Focus counts: transitions 131, CLI 169, completion 42.
 - `git diff --check`: passed. Harness checklist validation for the Slice 3 change set:
   passed with 0 warnings.
 - Final adversarial retry probe returned `before_fingerprint_mismatch` and left the
   canonical item `doing/blocked`.
 
-This is a local code-review and local-test PASS only. It is not integration, deployment,
-or real multi-host PASS; those remain the S3-C2 through S3-C4 gates.
+This is a local code-review, local-test, and local-integration PASS. It is not push,
+deployment, or real multi-host PASS; those remain S3-C3/S3-C4 gates.

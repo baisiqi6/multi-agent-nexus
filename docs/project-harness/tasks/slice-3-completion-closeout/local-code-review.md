@@ -1,15 +1,14 @@
 # Slice 3 Completion Authorization — Local Code Review
 
-> **Status: durable summary of the accepted local code review.** This artifact records
+> **Status: durable summary of the accepted code review and S3-C2 local integration.** This artifact records
 > reviewer evidence without copying raw provider JSONL, prompts, tokens, or private
 > reasoning. It does not assert integration, deployment, or multi-host PASS.
 
 ## Verdict
 
-**Approve for local checkpoint only.** The completion authorization receipt implementation
-is accepted at code-review and local-test level in the isolated Slice 3 worker worktree.
-It is not yet integrated onto Coordinate `main`, deployed, or approved as real multi-host
-behavior.
+**Approve for local integration.** The completion authorization receipt implementation
+is accepted at code-review and local-test level and is now integrated on local Coordinate
+`main` as `e0cc1561`. It is not pushed, deployed, or approved as real multi-host behavior.
 
 ## Review identity and sources
 - Coding worker: Claude Code
@@ -111,14 +110,20 @@ that report; it did not rerun the test suites.
 
 ## Boundary and required next step
 
-This is a local code-review and local-test PASS. The separate gates that remain:
+S3-C2 completed after an independently reviewed candidate and explicit human gate:
 
-- **Local integration** (S3-C2): integrate the checkpoint with then-current Coordinate
-  `main` in an isolated branch; method and preconditions in
-  [integration-decision.md](integration-decision.md).
+- integrated commit: `e0cc1561cd20b0f22389234aefe92d01273860e4`;
+- base/parent: `8fadd687d68032cf656291e6bf537ec481fb3e25`;
+- stable patch ID: `eb204296bd6a09e4caccabfe4bb05802e7ef7b37` on both source and integration;
+- main-side focused 342, full 1,347, checklist 0 warnings;
+- no push, deploy, service, DB, delivery, SSH, or multi-host action.
+
+This is a local code-review, local-test, and local-integration PASS. The separate gates
+that remain:
+
 - **Deployment and real multi-host smoke** (S3-C3): explicit Operator authorization
   required; control-plane PASS and worker-execution PASS must be reported separately.
 - **Durable closeout** (S3-C4): Operator action only, after reviewer acceptance.
 
-No worker may mark Slice 3 or S3-C1 done. Local acceptance must never be reported as
+No worker may mark the Slice 3 umbrella done. Local integration must never be reported as
 deployed or multi-host completion.
