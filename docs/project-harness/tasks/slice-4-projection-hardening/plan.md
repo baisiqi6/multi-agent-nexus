@@ -54,10 +54,11 @@ S4-C is executed as two reviewed packages:
 
 - **S4-C1 task-create operation contract** — schema/ledger, canonical operation and
   checklist-item fingerprints, atomic file projection, and transactional binding for
-  `task create-files/create-record`. **Next package; not yet authorized.**
+  `task create-files/create-record`. **Completed and terminally closed.**
 - **S4-C2 issue-materialize adoption** — adopt the same contract for
   `issue materialize-files/materialize-record`, include delivery creation in the DB
-  transaction, and run host-aware interruption/retry dogfood. **Blocked on C1.**
+  transaction, and run host-aware interruption/retry dogfood. **Next package; detailed
+  plan review required before worker authorization.**
 
 `assignment mark-done-files/record` already has the stronger completion receipt,
 claim/apply and before/after-fingerprint protocol. S4-C treats it as a reference and
