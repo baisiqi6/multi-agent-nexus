@@ -43,10 +43,15 @@ remains blocked until Slice 4 is accepted. Every structural package still requir
 fresh drift check, detailed plan, independent review, worker bootstrap, and Codex result
 review.
 
+Status on 2026-07-12: P9-0A1 is durably `done/closed`; exact implementation, review,
+integration, validation, receipt, and dogfood evidence is indexed in
+`../p9-0a1-cli-boundary-extraction/closeout.md`. P9-0A2 is the next executable package;
+P9-0A1 approval/bootstrap does not authorize it.
+
 Bounded packages:
 
-1. `p9-0a1-cli-boundary-extraction` — first package only: capture the exact CLI contract
-   and extract the tiny shared `cli_support` seam. Move no domain handler yet.
+1. `p9-0a1-cli-boundary-extraction` — **done/closed**: captured the exact CLI contract
+   and extracted the tiny shared `cli_support` seam. No domain handler moved.
 2. `p9-0a2-workspace-planning-issue-cli` — move workspace/state/reconcile,
    event/task/plan/operator, and issue registration/handlers behind static registrars.
 3. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and

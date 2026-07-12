@@ -1248,3 +1248,26 @@ evidence package. The same session spans two provider/model intervals:
   doctor reports no new finding.
 - Retained S3-C3 sidecar evidence was not deleted. Accepted residual risks remain routed
   to P9-0A, Slice 4, deployment hardening, and later multi-host runtime work.
+
+## 2026-07-12 — P9-0A1 CLI contract and support seam durable closeout
+
+- Refreshed and independently reviewed the P9-0A1 plan through four Kimi rounds; exact
+  approved SHA-256 is `00a52ea12a85f8e18aa6b9e56224ea5478b0ca7e21d3d2fc7e1ead0f540a3796`.
+- Kimi worker session `019f559d-7e43-7000-87ed-84a38ee960aa` implemented three
+  attributable commits (`dfdd036`, `c47e899`, `117ff5d`) in an isolated Coordinate
+  worktree. Codex requested two correction rounds and approved Round 3.
+- Integrated and pushed Coordinate `main`/`origin/main` at `117ff5d`. Exact scope is
+  `cli.py`, new `cli_support.py`, contract test, and fixture; no domain handler moved.
+- Canonical validation: four contract environment cases 19 passed each, alternate-HOME
+  dump byte-identical, focused 350 passed, full 1,366 passed, fixture hash `83c4c181...`,
+  no private path/import backedge/runtime-default regression.
+- Closed through receipt `f1f8da57-57c9-4bc4-8f40-76e0c8158f4c`; event chain contains
+  one authorized/claimed/applied/task.done/consumed sequence and reconcile converged to
+  `closed`. Harness validate remains at the four historical review warnings.
+- Dogfood remained semi-full: target-agent handoff failed on missing `macbook-local`
+  execution profile, so the Operator used local OMP plus generated bootstrap/supplement.
+  Also recorded stale pending delivery, cross-repo bootstrap, relative harness-root UX,
+  and post-consumed preflight-status gaps.
+- Exact evidence index: `tasks/p9-0a1-cli-boundary-extraction/closeout.md`.
+- Next package: P9-0A2 workspace/planning/issue CLI extraction; it requires a fresh
+  detailed plan and independent plan review before bootstrap.

@@ -589,3 +589,50 @@
     `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8`。
 - 生命周期边界：S3-C4 文档只声明 "ready for Operator closeout"；不声明 S3-C3/S3-C4/
   umbrella lifecycle 已 closed，亦不自行 mark-done。
+
+## 2026-07-12（P9-0A1 plan / worker / review / receipt dogfood）
+
+### 1. 审核 gate 证明有实际价值
+
+- 状态：validated。
+- 独立 Kimi plan review 连续发现错误的 22→21 顶层计数、checkout DB path 泄漏、
+  `format_help()` 宽度不稳定和 inherited DB override；Round 4 才批准。
+- Codex result review又发现 fixture 私有路径、假 callable 断言、父进程 DB 污染和
+  caller `HOME` 跨主机失败；worker 两次返修后才批准。
+- 结论：绿色 full suite 不是 contract correctness；计划审核、provider JSONL、
+  adversarial environment matrix 和独立 result review 都不可省略。
+
+### 2. targeted handoff 仍被 host profile 阻塞
+
+- 状态：open / semi-dogfood fallback。
+- `task handoff --target-agent mac-omp` 正确识别 agent 在 `macbook-local`，但
+  `discord-nexus` 没有该 host execution profile，因此 fail closed。
+- 本包改用 Coordinate assignment/lifecycle + 本地 OMP worker + generated bootstrap /
+  exact supplement；不能称 full target-agent dogfood。
+- 同时 assignment request 创建了一条 live Discord pending delivery；targeted
+  handoff失败后没有 cancel 命令，任务已关闭但该 delivery仍 pending，不应再 pump。
+
+### 3. cross-repo bootstrap 仍需要 supplement
+
+- 状态：open。
+- worker bootstrap把 MultiNexus误当 implementation cwd/primary repo，并带通用 deploy /
+  progress 指令；真实代码 worktree在 Coordinate。
+- Operator必须补充 exact Coordinate worktree/start SHA/allowed paths/no-deploy/no-lifecycle
+  supplement。后续应让 handoff payload显式区分 control workspace与implementation repo。
+
+### 4. receipt terminal projection / path UX
+
+- 状态：open，不影响本次 terminal event chain。
+- `mark-done-files` 第一次收到 relative harness root 时在调用者 cwd查找并 fail；错误
+  没有显示解析后的 workspace关系。该次在 claim前失败，文件未变；absolute path重试成功。
+- receipt已有 authorized/claimed/applied/task.done/consumed完整链，但随后只读
+  `mark-done-preflight` 仍显示原始 `authorized`。事件链和task mirror为 terminal，
+  preflight status projection语义需要单独修复/澄清。
+
+### 5. 证据
+
+- Plan reviewer sessions: `019f558a-42ec-7000-af9b-aeb45fd49a27`,
+  `019f5590-f3d4-7000-8a77-e1a801138cac`,
+  `019f5596-afcc-7000-a743-6b9f120eac62`。
+- Worker session: `019f559d-7e43-7000-87ed-84a38ee960aa`。
+- Closeout: `tasks/p9-0a1-cli-boundary-extraction/closeout.md`。

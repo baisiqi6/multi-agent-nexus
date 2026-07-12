@@ -1193,7 +1193,7 @@
     {
       "id": "p9-0a1-cli-boundary-extraction",
       "title": "P9-0A1 CLI Boundary Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1208,11 +1208,11 @@
         "reason": null
       },
       "selected_in_session": "p9-0a1-kimi-20260712T0915Z",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T09:48:46Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
-        "updated_at": "2026-07-12",
+        "updated_at": "2026-07-12T09:48:46Z",
         "unblock_owner": "human",
         "unblocked_by": "codex-operator",
         "unblock_decision": "Proceed with bounded P9-0A1 before Slice 4 under approved roadmap and plan hash 00a52ea12a85f8e1"
@@ -1223,7 +1223,7 @@
         "branch": "agents/mac-omp/p9-0a1-cli-boundary-extraction",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "P9-0A1 integrated and pushed at Coordinate 117ff5d; result-review-round-3 approved; four-env contract matrix, focused 350, full 1366, import/privacy/runtime override checks passed",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -1237,6 +1237,12 @@
         "acquired_at": "2026-07-12T09:16:21Z",
         "expires_at": "2026-07-12T11:16:21Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "f1f8da57-57c9-4bc4-8f40-76e0c8158f4c",
+        "before_fingerprint": "3388bd5ea45ac9af67398db1f183fefa33aa32b1dbb9c78b0f6d8cd03bdf55e5",
+        "after_fingerprint": "eba9600714481a87be16f17a903fe7a0b034a1e5824ed2e597f86de86b9b56c8",
+        "applied_at": "2026-07-12T09:48:46Z"
       }
     },
     {

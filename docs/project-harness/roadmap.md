@@ -44,22 +44,29 @@ CLI ergonomics, missing workspace delete, missing full-dogfood host profile) rem
 routed to their named later packages; see
 [tasks/slice-3-completion-closeout/closeout.md](tasks/slice-3-completion-closeout/closeout.md).
 
-After the Operator durably closes Slice 3, the active architecture alignment governs:
+P9-0A1 is now also durably closed. Coordinate `main`/`origin/main` are
+`117ff5d9f98272ff0d740588708b357dc955b205`; the exact 21-top-level / 75-leaf /
+99-node CLI contract and `cli_support` seam passed independent Kimi plan review, Kimi
+implementation, three Codex result-review rounds, four environment matrices, focused
+350 and full 1,366 tests, fast-forward integration, and receipt-aware closeout. Exact
+evidence is in
+[tasks/p9-0a1-cli-boundary-extraction/closeout.md](tasks/p9-0a1-cli-boundary-extraction/closeout.md).
 
-1. **Slice 3 durable closeout** (Operator-only lifecycle closeout after result review).
-2. **P9-0A bounded structural decoupling** (beginning with
-   `p9-0a1-cli-boundary-extraction`) **before** Slice 4 implementation, so Slice 4
-   CLI/projection changes land in the extracted modules instead of enlarging the
-   monolithic CLI again.
-3. **Slice 4 projection/split-operation hardening** after P9-0A.
-4. **Phase 9 runtime isolation packages (P9-1+)** after Slice 4 acceptance.
+The active architecture alignment now governs:
 
-The existing `p9-0a1-cli-boundary-extraction` detailed plan, review, and bootstrap were
-drafted under the older gate that placed worker execution after Slice 4 acceptance. That
-ordering is now superseded by the split above. Those plan bytes, the review verdict, and
-the generated bootstrap must be refreshed against the current ordering and independently
-re-reviewed before any worker bootstrap; the prior approval must not be silently reused as
-authorization for execution under the new sequence.
+1. **Slice 3 durable closeout** — complete.
+2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1
+   complete; P9-0A2 is next and requires a fresh detailed plan/review/bootstrap.
+3. **Slice 4 projection/split-operation hardening** after P9-0A5.
+4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
+   remains acceptable.
+5. **Phase 9 runtime isolation packages (P9-1+)** after Slice 4 acceptance and the
+   bounded post-closeout review.
+
+The stale Slice-4-first P9-0A1 plan approval/bootstrap remains historical evidence only.
+It was superseded by exact plan SHA-256
+`00a52ea12a85f8e18aa6b9e56224ea5478b0ca7e21d3d2fc7e1ead0f540a3796`
+and Round 4 approval. That approval does not authorize P9-0A2 or any later package.
 
 ## Authority hierarchy
 
@@ -123,20 +130,24 @@ Detailed plans use
 Slice 3 durable closeout
         |
         v
-P9-0A bounded structural decoupling
-(beginning with p9-0a1-cli-boundary-extraction)
+P9-0A1 through P9-0A5 structural decoupling
+(P9-0A1 done; P9-0A2 next)
         |
         v
 Slice 4 projection and split-operation hardening
         |
         v
+P9-0A6 post-closeout module review
+        |
+        v
 Phase 9 runtime isolation (P9-1+)
 ```
 
-P9-0A structural decoupling precedes Slice 4 so that Slice 4 CLI/projection changes land
-in the extracted modules rather than re-enlarging the monolithic CLI. Phase 9 runtime
-isolation (P9-1+) follows Slice 4 acceptance and must not bypass the Slice 4 authority,
-registry, and partial-operation foundations.
+P9-0A1 through P9-0A5 precede Slice 4 so that Slice 4 CLI/projection changes land in
+extracted modules rather than re-enlarging the monolithic CLI. P9-0A6 intentionally
+follows Slice 4 because it remeasures the resulting completion/DB/transition boundaries.
+Phase 9 runtime isolation (P9-1+) must not bypass Slice 4 authority, registry, and
+partial-operation foundations.
 
 ## Stage map
 
@@ -150,7 +161,16 @@ conflating local code approval, deployment, multi-host smoke, and durable closeo
 Status (2026-07-12): durably closed. Exact receipt/event identities and the final
 Operator record are in `tasks/slice-3-completion-closeout/closeout.md`.
 
-### 2. Slice 4 projection and split-operation hardening
+### 2. P9-0A Coordinate internal boundary hardening
+
+Canonical overview:
+`tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
+
+Outcome: reduce proven change concentration with static, behavior-preserving seams before
+runtime isolation. Status: P9-0A1 durably closed; P9-0A2 is next. P9-0A6 remains ordered
+after Slice 4.
+
+### 3. Slice 4 projection and split-operation hardening
 
 Canonical overview:
 `tasks/slice-4-projection-hardening/plan.md`.
@@ -158,7 +178,7 @@ Canonical overview:
 Outcome: remove stale authorization projections and ambiguous partial operations
 before increasing execution concurrency.
 
-### 3. Phase 9 multi-project execution isolation
+### 4. Phase 9 multi-project execution isolation
 
 Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md`.
@@ -173,6 +193,7 @@ Scheduling is dependency- and gate-based, not a promise of calendar dates:
 | Stage | Expected planning/review windows | Expected execution/validation windows |
 |---|---:|---:|
 | Slice 3 closeout | 1 | 1-2 plus an explicitly authorized runtime window |
+| P9-0A structural packages | 1 per package | 1-3 per package, including correction loops |
 | Slice 4 | 1 per work package | 3-5 across four packages |
 | Phase 9 architecture | 1-2 | none until the contract is approved |
 | Phase 9 implementation and dogfood | 1 per work package | 5-8 across foundation and dogfood packages |
