@@ -2007,7 +2007,7 @@
     {
       "id": "slice-4c2-issue-materialize-operation-adoption",
       "title": "Slice 4C2 Issue Materialize Operation Adoption",
-      "status": "doing",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": "mac-omp",
@@ -2023,11 +2023,11 @@
         "reason": null
       },
       "selected_in_session": "s4c2-kimi-worker",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T22:16:15Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/slice-4c2-issue-materialize-operation-adoption",
-        "updated_at": "2026-07-12",
+        "updated_at": "2026-07-12T22:16:15Z",
         "handoff_from": "mac-omp"
       },
       "artifacts": {
@@ -2036,7 +2036,7 @@
         "handoff_packet": "docs/project-harness/current/handoff-packet.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate a21d946; Codex full 1733/435; local+server isolated dogfood; server smoke stable",
       "review": {
         "decision": "approved",
         "reviewer": "codex",
@@ -2064,6 +2064,12 @@
         "acquired_at": "2026-07-12T21:13:09Z",
         "expires_at": "2026-07-12T23:13:09Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "06a7fa5c-b6de-487a-9c93-36f85660beca",
+        "before_fingerprint": "6b25c0b31f32a7dfb2c51497bc467d2e00cb718eb921f67b75d1023cbb20ebd1",
+        "after_fingerprint": "05d51ed894b51bb7ec7a7d181a8869b3c523610c65156c7d00f597f91d58efdf",
+        "applied_at": "2026-07-12T22:16:15Z"
       }
     }
   ]
