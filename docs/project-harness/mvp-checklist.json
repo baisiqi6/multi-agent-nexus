@@ -1390,9 +1390,9 @@
     {
       "id": "p9-0a2a-workspace-state-reconcile-cli",
       "title": "P9-0A2a Workspace State Reconcile CLI Extraction",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
@@ -1404,18 +1404,28 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T10:02:29Z",
+      "selected_in_session": "p9-0a2a-kimi-20260712T1008Z",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T10:02:29Z"
+        "status": "running",
+        "branch": "agents/mac-omp/p9-0a2a-workspace-state-reconcile-cli",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a2a-workspace-state-reconcile-cli/plan.md",
+        "branch": "agents/mac-omp/p9-0a2a-workspace-state-reconcile-cli"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": null
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a2a-kimi-20260712T1008Z",
+        "acquired_at": "2026-07-12T10:09:43Z",
+        "expires_at": "2026-07-12T12:09:43Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
