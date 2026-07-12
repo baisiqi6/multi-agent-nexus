@@ -1252,6 +1252,43 @@
         "after_fingerprint": "8e7afb535da953c3145a24ad3decbc393a96c05c41305f8e507e56391b15c22c",
         "applied_at": "2026-07-12T04:39:04Z"
       }
+    },
+    {
+      "id": "slice-3-c3-deployment-smoke",
+      "title": "S3-C3 deployment and real multi-host receipt smoke",
+      "status": "todo",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/slice-3-c3-deployment-smoke/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-3-c3-deployment-smoke/plan.md",
+      "blocked_by": [],
+      "blocked_reason": null,
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-12",
+      "workflow": {
+        "status": "unblocked",
+        "branch": null,
+        "updated_at": "2026-07-12",
+        "unblock_owner": "human",
+        "unblocked_by": "codex-operator",
+        "unblock_decision": "User supplied replacement Mihomo config; server validation passed; Discord and PyPI probes pass; coordinate and bridge stable active with zero restarts across two intervals; resume normal full-install plan hash 871664176c514bec"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/slice-3-c3-deployment-smoke/plan.md",
+        "blocker_packet": "docs/project-harness/current/blocker-packet.md"
+      },
+      "verification": "",
+      "review": {
+        "decision": null
+      },
+      "lease": null
     }
   ]
 }

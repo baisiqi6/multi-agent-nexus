@@ -494,3 +494,64 @@
     local session store~~ — **resolved, deployed `24022a4`, smoke verified**
 11. Maintenance: diagnose `mac-omp` handoff worker `omp CLI failed` result and
     preserve full adapter stderr（错误分类已修复并 smoke verified；OMP CLI 执行失败本身仍 open）
+
+## 2026-07-12（S3-C3 production deploy / receipt smoke attempt 1）
+
+### 1. 部署在 source sync 后才发现代理/依赖不可用
+
+- 状态：open，阻塞 S3-C3。
+- 现象：`deploy-server.sh` 已把新 Coordinate source 同步到 `/opt/coordinate`，随后
+  pip 因 `127.0.0.1:7890` 的全部上游 TLS 失败而无法安装 build dependency。
+  `VERSION_DEPLOYED` 和 service 尚未更新，但磁盘代码一度与两者不一致。
+- 回滚：已用旧 SHA `b93ab46` 的 clean worktree 恢复代码/version；DB integrity
+  仍为 `ok`。没有创建 sidecar，也没有 receipt mutation。
+- 产品缺口：部署不是 transactional。应在任何 source sync 前验证代理、package
+  availability 和安装路径；staging install/smoke 成功后再切换 `/opt` 与 version，
+  并保留显式 rollback snapshot。
+
+### 2. Mihomo active 不等于代理健康
+
+- 状态：external blocker / operational gap。
+- 现象：mihomo systemd active、7890/9090 正常监听，但自动选择组的 alive node
+  数为 0；Discord、PyPI 和 Google TLS 均失败。一次 mihomo restart 未恢复。
+- 影响：不仅阻塞依赖安装；Coordinate 一旦重启也无法重新登录 Discord，进入
+  systemd restart cycle。
+- 后续：部署 preflight 必须验证实际目标域名 TLS，而不是只看进程/端口；需要先
+  恢复或更换有效上游，再重跑 S3-C3。
+
+### 3. S3-C3 仍是 semi-dogfood
+
+- Coordinate 负责 plan approval/bootstrap/event，真实生产 deploy/DB backup/rollback
+  也走现有脚本；worker 活跃度通过 OMP JSONL 监督。
+- 但 worker 是本地直接启动 OMP，不是通过 target-agent + Discord 全链路 handoff，
+  因此不能称 full dogfood。缺口仍是本机 non-Codex agent 的 workspace host profile。
+- 详细证据见
+  `tasks/slice-3-c3-deployment-smoke/execution-report.md`。
+
+## 2026-07-12（S3-C3 attempt 2 / independent result review）
+
+### 1. 全安装部署与真实 receipt 边界已通过
+
+- 新 Mihomo 配置通过语法校验并恢复 Discord/PyPI HTTP 200；完整安装路径部署
+  Coordinate `e0cc1561` 与 MultiNexus `82c5613`，未使用任何 skip flag。
+- 独立复核确认两个服务 active、`NRestarts=0`、DB integrity `ok`、最新窗口
+  `server smoke OK`。
+- 隔离 sidecar 的 happy/replay/expiry/fingerprint-drift/interrupted-recovery 全部满足
+  计划判据；canonical `discord-nexus` 保持 29 tasks / 851 events，零漂移。
+
+### 2. 通过不抹掉 fixture 与 projection 缺口
+
+- 前两次 fingerprint-drift fixture 因误用 `workflow_transition.py` 的
+  `--root`/`--task-id` 参数而消耗 receipt；第三次使用真实 `--item` contract 后才
+  得到 `before_fingerprint_mismatch`。路由到 Phase 9 0A CLI boundary。
+- interrupted-recovery 已有且仅有一组 `task.done` + `completion.consumed`，但
+  `tasks.phase` 在多个 pump interval 后仍为 `review_approved`，`last_event_id` 仍指向
+  `plan.ready`。receipt protocol 判定 PASS，projection/reconciliation 风险保持 open。
+- worker 仍由本地 OMP 直接启动，未走 Coordinate + Discord target-agent handoff；
+  因此执行等级仍是 semi-dogfood，而不是 full dogfood。
+
+### 3. 证据入口
+
+- Attempt 2：`tasks/slice-3-c3-deployment-smoke/execution-report-attempt-2.md`
+- Result review：`result-review-round-1.md`、`result-review-round-2.md`
+- Provider session：`019f54f4-f5bf-7000-a922-1417edd7dabb`
