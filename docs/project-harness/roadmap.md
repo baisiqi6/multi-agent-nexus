@@ -56,7 +56,8 @@ The active architecture alignment now governs:
 
 1. **Slice 3 durable closeout** — complete.
 2. **P9-0A1 through P9-0A5 bounded structural decoupling before Slice 4** — P9-0A1
-   complete; P9-0A2 is next and requires a fresh detailed plan/review/bootstrap.
+   complete; measured P9-0A2 is refined into P9-0A2a/b/c, with P9-0A2a next. Every
+   refined package requires a fresh detailed plan/review/bootstrap.
 3. **Slice 4 projection/split-operation hardening** after P9-0A5.
 4. **P9-0A6 post-closeout module review** after Slice 4; a documented no-change decision
    remains acceptable.
@@ -131,7 +132,7 @@ Slice 3 durable closeout
         |
         v
 P9-0A1 through P9-0A5 structural decoupling
-(P9-0A1 done; P9-0A2 next)
+(P9-0A1 done; P9-0A2a next)
         |
         v
 Slice 4 projection and split-operation hardening
@@ -167,8 +168,8 @@ Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
-runtime isolation. Status: P9-0A1 durably closed; P9-0A2 is next. P9-0A6 remains ordered
-after Slice 4.
+runtime isolation. Status: P9-0A1 durably closed; P9-0A2 is refined into 0A2a/b/c and
+P9-0A2a is next. P9-0A6 remains ordered after Slice 4.
 
 ### 3. Slice 4 projection and split-operation hardening
 

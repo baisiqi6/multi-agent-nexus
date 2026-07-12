@@ -1271,3 +1271,21 @@ evidence package. The same session spans two provider/model intervals:
 - Exact evidence index: `tasks/p9-0a1-cli-boundary-extraction/closeout.md`.
 - Next package: P9-0A2 workspace/planning/issue CLI extraction; it requires a fresh
   detailed plan and independent plan review before bootstrap.
+
+## 2026-07-12 — P9-0A2 measured refinement and P9-0A2a plan checkpoint
+
+- Refreshed the post-P9-0A1 Coordinate source at canonical `947368a`; `cli.py` is 2,688
+  lines and the deterministic CLI contract remains 21 top-level commands, 75 leaves,
+  and 99 parser nodes.
+- Refined the former combined P9-0A2 package after measuring three separate service
+  authorities: P9-0A2a workspace/state/reconcile, P9-0A2b event/task/plan/operator, and
+  P9-0A2c issue. The split changes package boundaries, not the parent scope.
+- P9-0A2a owns exactly 11 leaves and approximately 178 handler plus 91 registration
+  lines. Its detailed plan preserves root handler aliases, ordered registration, and an
+  exact contract delta limited to those 11 handler qualified names.
+- Refreshed baselines are 231 focused tests and 1,366 full tests. No implementation,
+  bootstrap, lifecycle mutation, deployment, or live-state operation is authorized by
+  this checkpoint.
+- Next gate: commit the exact plan revision, record its full SHA-256 in Coordinate, and
+  obtain approval from an independent non-Codex reviewer before creating a worker
+  bootstrap. P9-0A2b/c and later packages remain unauthorized.

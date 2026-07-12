@@ -45,24 +45,29 @@ review.
 
 Status on 2026-07-12: P9-0A1 is durably `done/closed`; exact implementation, review,
 integration, validation, receipt, and dogfood evidence is indexed in
-`../p9-0a1-cli-boundary-extraction/closeout.md`. P9-0A2 is the next executable package;
-P9-0A1 approval/bootstrap does not authorize it.
+`../p9-0a1-cli-boundary-extraction/closeout.md`. Measured post-closeout scope split the
+former combined P9-0A2 into P9-0A2a/b/c. P9-0A2a is the next executable package;
+P9-0A1 approval/bootstrap does not authorize it or its siblings.
 
 Bounded packages:
 
 1. `p9-0a1-cli-boundary-extraction` — **done/closed**: captured the exact CLI contract
    and extracted the tiny shared `cli_support` seam. No domain handler moved.
-2. `p9-0a2-workspace-planning-issue-cli` — move workspace/state/reconcile,
-   event/task/plan/operator, and issue registration/handlers behind static registrars.
-3. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and
+2. `p9-0a2a-workspace-state-reconcile-cli` — move workspace/state/reconcile registration
+   and 11 handlers behind `workspace_cli`; preserve exact command ordering.
+3. `p9-0a2b-event-task-plan-operator-cli` — separately move event/task/plan/operator
+   registration and handlers behind `planning_cli`.
+4. `p9-0a2c-issue-cli` — separately move issue registration and handlers behind
+   `issue_cli`.
+5. `p9-0a3-execution-delivery-cli` — move runner/job/runtime and
    delivery/policy/worker families behind static registrars.
-4. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
+6. `p9-0a4-workflow-completion-cli` — move branch/CI/review/merge and assignment;
    `workflow_cli` owns the assignment parser while `completion_cli` registers the
    receipt-aware mark-done leaf commands into its supplied subparser.
-5. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
+7. `p9-0a5-event-presentation-registry` — keep `policy.py` as the orchestration facade;
    extract only the pure event text/base-payload renderer registry and lock supported,
    rendered, and explicitly unstyled event-key relationships.
-6. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
+8. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
    Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
    proven stable transaction/repository/mutation seam; a documented no-change decision
    is acceptable.
