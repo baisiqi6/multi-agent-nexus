@@ -347,6 +347,8 @@ discord_user_id = "1507329791982833775"
         self.assertLess(sync_pos, verify_pos, log)
         self.assertLess(verify_pos, version_pos, log)
         self.assertLess(version_pos, restart_pos, log)
+        self.assertIn("agent_registry_deploy_verify.py", log)
+        self.assertIn("--strict-effective", log)
         version_file = self.remote_opt / "VERSION_DEPLOYED"
         self.assertTrue(version_file.exists())
 

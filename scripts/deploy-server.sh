@@ -248,7 +248,8 @@ verify_committed_registry() {
       /opt/multinexus/scripts/agent_registry_deploy_verify.py \
       --db /var/lib/coordinate/coord.sqlite3 \
       --workspace-id discord-nexus \
-      --authority /opt/multinexus/config/agent-registry.toml" >/dev/null; then
+      --authority /opt/multinexus/config/agent-registry.toml \
+      --strict-effective" >/dev/null; then
     echo "error: committed registry does not match deployed authority (stage: committed-state)" >&2
     return 1
   fi

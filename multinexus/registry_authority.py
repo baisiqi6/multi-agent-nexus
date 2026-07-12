@@ -94,7 +94,10 @@ def _validate_discord_user_id(value: Any, *, require_string: bool = False) -> st
         raise ValueError("missing discord_user_id")
     if require_string and not isinstance(value, str):
         raise ValueError("invalid discord_user_id: must be a quoted string")
-    did = str(value).strip()
+    raw = str(value)
+    if raw != raw.strip():
+        raise ValueError("invalid discord_user_id: surrounding whitespace is not allowed")
+    did = raw
     if not _is_ascii_decimal_positive(did):
         raise ValueError("invalid discord_user_id")
     return did

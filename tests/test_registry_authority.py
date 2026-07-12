@@ -173,6 +173,8 @@ discord_user_id = 100000000000000001
             '"12a"',
             '"１２"',
             '"12 34"',
+            '" 12"',
+            '"12 "',
             "12.5",
         ]
         for value in values:
@@ -293,6 +295,16 @@ discord_user_id = "100000000000000002"
         self.assertEqual(errors, [])
         self.assertEqual(len(entries), 2)
         self.assertEqual(entries[0].discord_user_id, "100000000000000001")
+
+    def test_runtime_discord_id_rejects_surrounding_whitespace(self):
+        path = self._write('''
+[[agents]]
+id = "a"
+discord_user_id = " 100000000000000001 "
+''')
+        entries, errors = project_runtime_roster(path)
+        self.assertEqual(entries, [])
+        self.assertTrue(any("surrounding whitespace" in error for error in errors))
 
     def test_runtime_extra_fields_ignored(self):
         path = self._write("""

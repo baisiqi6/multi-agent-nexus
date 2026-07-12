@@ -299,6 +299,36 @@ class SmokeContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stderr)
         self.assertIn("registry authority smoke failed", result.stderr)
 
+    def test_smoke_below_v10_fails_without_migrating_database(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("PRAGMA user_version = 9")
+        conn.commit()
+        conn.close()
+
+        result = self._run_smoke()
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("registry authority smoke failed", result.stderr)
+
+        conn = sqlite3.connect(self.db_path)
+        try:
+            version = conn.execute("PRAGMA user_version").fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(version, 9, "read-only smoke must not migrate production DB")
+
+    def test_smoke_fails_when_registry_revision_is_zero(self):
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "UPDATE workspaces SET agent_registry_revision = 0 WHERE id = ?",
+            ("discord-nexus",),
+        )
+        conn.commit()
+        conn.close()
+
+        result = self._run_smoke()
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("registry authority smoke failed", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

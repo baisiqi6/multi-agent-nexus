@@ -17,8 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from coordinate.db import connect, resolve_effective_agents
-from coordinate.schema import migrate
+from coordinate.db import resolve_effective_agents
 
 # MultiNexus authority loader is safe to import (no Coordinate dependency).
 from multinexus.registry_authority import load_authority
@@ -29,8 +28,10 @@ def _utc_now() -> str:
 
 
 def _load_db(db_path: str) -> sqlite3.Connection:
-    conn = connect(db_path)
-    migrate(conn)
+    path = Path(db_path).expanduser().resolve()
+    conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA query_only = ON")
     return conn
 
 
@@ -109,6 +110,8 @@ def verify(conn: sqlite3.Connection, workspace_id: str, authority_path: str, *, 
     try:
         revision = _get_revision(conn, workspace_id)
         diagnostics["revision"] = revision
+        if not isinstance(revision, int) or revision < 1:
+            errors.append(f"invalid registry revision: {revision!r}")
     except ValueError as exc:
         errors.append(str(exc))
         revision = None
