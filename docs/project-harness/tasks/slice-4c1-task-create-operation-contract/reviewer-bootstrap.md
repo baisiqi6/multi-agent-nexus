@@ -28,9 +28,9 @@ Control-plane recorded the plan at `docs/project-harness/tasks/slice-4c1-task-cr
 
 ## Acceptance Criteria
 
-Use the complete `Tests and acceptance` section. Red-team operation identity/retry,
-fingerprint coverage, record-before-deploy, cross-platform lock safety, file atomicity,
-DB rollback, mark-done compatibility and whether C2 can reuse the contract unchanged.
+Use the complete `Tests and acceptance` section. Red-team the revised neutral
+target/source model, operation identity/retry, fingerprint coverage, record-before-
+deploy, lock safety, file atomicity, DB rollback and mark-done compatibility.
 
 ## Review Focus (plan review)
 
