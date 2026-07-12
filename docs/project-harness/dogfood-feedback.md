@@ -868,3 +868,38 @@
   canonical source commit；不一致时直接拒绝并返回下一安全deploy/re-record动作。
 - Kimi正常完成review/worker，GLM fallback未触发；receipt
   `f779f41b-a487-42d4-8f07-981058ec2404` terminal。
+
+## 2026-07-13（Slice 4B2 deployed agent registry authority — implementation）
+
+- 状态：implemented / tested locally；production deploy + sidecar closeout evidence pending Codex operator.
+- Approved plan SHA-256：`b9cd5c80b8d84c3e011863a7f2b526ab72c2ec083d664c46b76ad00345299811`
+- Coordinate approval event：`7485d430-0c7b-43da-9fd1-ba69655627f7`
+- Worker/provider：Kimi Code Highspeed through Oh-My-Pi；GLM fallback 未触发。
+- Source authority：`config/agent-registry.toml` v1, source id `multinexus.discord`,
+  canonical SHA-256 `95bdad3b3d1f0526873e4acd8156ba296d6aa153fb11d5c9e6ddc4482212213b`,
+  ten managed/external entries including `pad-jarvis`.
+- Changed paths (MultiNexus):
+  - `config/agent-registry.toml`
+  - `multinexus/registry_authority.py`
+  - `scripts/agent_registry_deploy_verify.py`
+  - `scripts/deploy-server.sh`
+  - `scripts/server-smoke.sh`
+  - `agents.toml.example`
+  - `tests/test_registry_authority.py`
+  - `tests/test_deploy_contract.py`
+  - `tests/test_smoke_contract.py`
+  - `docs/deploy-runbook.md`
+  - `docs/project-harness/runbook.md`
+  - `docs/project-harness/dogfood-feedback.md`
+  - `docs/project-harness/progress.md`
+- Verification：
+  - `tests.test_registry_authority` 27 tests OK.
+  - `tests.test_deploy_contract` 6 tests OK.
+  - `tests.test_smoke_contract` 3 tests OK.
+  - Full MultiNexus suite：388 tests OK (2 skipped).
+  - Focused Coordinate B1 registry/daemon tests：83 tests OK.
+  - `git diff --check` clean.
+- 待 Codex operator 补齐的证据：
+  - production MultiNexus deploy commit SHA / `VERSION_DEPLOYED` content；
+  - Coordinate PID/start time before/after deploy；
+  - isolated server sidecar v1→v2 removal / conflict-rejection / cleanup evidence.

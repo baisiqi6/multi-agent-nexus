@@ -209,8 +209,55 @@ EOF
   fi
 }
 
+verify_local_registry_parity() {
+  local authority="$MULTINEXUS_SRC/config/agent-registry.toml"
+  local runtime="$MULTINEXUS_SRC/agents.toml"
+  if [[ ! -f "$authority" ]]; then
+    echo "error: missing canonical authority: $authority (stage: local-parity)" >&2
+    return 1
+  fi
+  if [[ ! -f "$runtime" ]]; then
+    echo "error: missing local runtime config: $runtime (stage: local-parity)" >&2
+    return 1
+  fi
+  if ! env PYTHONPATH="$MULTINEXUS_SRC" python3 -m multinexus.registry_authority verify \
+      --authority "$authority" --runtime "$runtime" >/dev/null; then
+    echo "error: local authority/runtime mismatch (stage: local-parity)" >&2
+    return 1
+  fi
+}
+
+verify_remote_registry_parity() {
+  if ! ssh "$HOST" "env PYTHONPATH=/opt/multinexus python3 -m multinexus.registry_authority verify \
+      --authority /opt/multinexus/config/agent-registry.toml --runtime /opt/multinexus/agents.toml" >/dev/null; then
+    echo "error: remote authority/runtime mismatch (stage: remote-parity)" >&2
+    return 1
+  fi
+}
+
+sync_registry_to_coordinate() {
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local workspace agent sync discord-nexus \
+      --source /opt/multinexus/config/agent-registry.toml --replace"; then
+    echo "error: Coordinate registry sync failed (stage: registry-sync)" >&2
+    return 1
+  fi
+}
+
+verify_committed_registry() {
+  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/multinexus /opt/coordinate/.venv/bin/python \
+      /opt/multinexus/scripts/agent_registry_deploy_verify.py \
+      --db /var/lib/coordinate/coord.sqlite3 \
+      --workspace-id discord-nexus \
+      --authority /opt/multinexus/config/agent-registry.toml" >/dev/null; then
+    echo "error: committed registry does not match deployed authority (stage: committed-state)" >&2
+    return 1
+  fi
+}
+
 deploy_multinexus() {
   repo_meta "$MULTINEXUS_SRC"
+  verify_local_registry_parity
+
   local sha branch deployed_at staging
   sha="$(git_sha "$MULTINEXUS_SRC")"
   branch="$(git_branch "$MULTINEXUS_SRC")"
@@ -266,6 +313,10 @@ fi
 test -f /opt/multinexus/agents.toml
 rm -rf '$staging'
 EOF
+
+  verify_remote_registry_parity
+  sync_registry_to_coordinate
+  verify_committed_registry
 
   if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     ssh "$HOST" "sudo -u multinexus python3 -m venv /opt/multinexus/.venv && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/python -m pip install --upgrade pip setuptools wheel && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt"

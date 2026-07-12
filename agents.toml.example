@@ -4,6 +4,15 @@
 # token_env names for the host where the process runs. Keep agents.toml local
 # and uncommitted; real tokens belong in .env, systemd env files, launchd env,
 # or the service manager environment.
+#
+# Source-of-truth roster authority:
+#   config/agent-registry.toml
+#
+# The authority file is secret-free and contains only id, display_name, and
+# discord_user_id for managed and external agents. Every deployed runtime
+# roster entry must have a valid Discord user id and must project to exactly
+# the authority before deploy. Local runtime files may contain extra host-only
+# fields (token_env, paths, channels, etc.) but never [registry] metadata.
 
 [defaults]
 # Bridge and agentd both use agentd_mode in the N+M runtime:
@@ -123,7 +132,8 @@ openclaw_bin = "openclaw"
 coordinator_cli_path = 'C:\Users\ADMIN\projects\multinexus\scripts\coord-ssh-win.py'
 
 # External agents are mentioned/routed but not managed by this MultiNexus
-# bridge process.
+# bridge process. They still need a discord_user_id to participate in the
+# Coordinate registry projection.
 [[external_agents]]
 id = "mac-openclaw"
 display_name = "Mac OpenClaw"

@@ -23,6 +23,8 @@ The goal is to stop version drift between local development checkouts and `/opt/
 - Server runtime copies:
   - `/opt/coordinate`
   - `/opt/multinexus`
+- Canonical secret-free Discord roster authority (committed, reviewed, versioned):
+  - `config/agent-registry.toml` in the MultiNexus source tree
 - Server secrets and runtime state stay server-local:
   - `/etc/coordinate/coord.env`
   - `/etc/multinexus/discord.env`
@@ -30,6 +32,8 @@ The goal is to stop version drift between local development checkouts and `/opt/
   - `/opt/multinexus/agents.toml`
 
 `/opt/*` directories are deployment copies, not development source of truth.
+`config/agent-registry.toml` is the only canonical roster; `agents.toml.example`
+remains an example and local/server `agents.toml` files remain runtime consumers.
 
 ## Manual Deploy
 
@@ -111,6 +115,49 @@ Each file records:
 
 Use these when debugging version drift.
 
+## Registry Authority Deploy Rules
+
+MultiNexus deploys use `config/agent-registry.toml` as the canonical,
+secret-free roster authority. The authority contains only `id`,
+`display_name`, and `discord_user_id`; it never contains tokens, paths,
+channels, or host settings.
+
+Deploy ordering for `multinexus` (and for `all` after `coordinate`):
+
+1. Local parity: verify the local runtime `agents.toml` projects exactly to
+   `config/agent-registry.toml`.
+2. Copy source to `/opt/multinexus` while preserving server-private
+   `agents.toml`.
+3. Remote parity: verify `/opt/multinexus/agents.toml` projects exactly to the
+   copied authority.
+4. Authoritative sync: `coord-local workspace agent sync discord-nexus --source
+   /opt/multinexus/config/agent-registry.toml --replace`.
+5. Committed-state proof: independently read back source metadata,
+   authoritative rows, compatibility projection, and effective resolver output
+   from `/var/lib/coordinate/coord.sqlite3` and compare to the authority.
+6. Write `VERSION_DEPLOYED` and, unless `--no-restart` is set, restart
+   `multinexus-discord-bridge`.
+
+`--no-restart` still performs parity validation and authoritative sync.
+`--no-smoke` skips only the post-deploy smoke. `--skip-install` does not skip
+parity or sync. `status` remains read-only and never syncs.
+
+Failure ordering:
+
+| Failure | Remote source copied | Registry mutated | Version written | Bridge restarted |
+|---|---:|---:|---:|---:|
+| local authority/runtime mismatch | no | no | no | no |
+| remote authority/runtime mismatch | yes | no | no | no |
+| Coordinate rejects version/hash/source | yes | no | no | no |
+| committed read-back mismatch | yes | possibly committed | no | no |
+| version write fails | yes | committed | no | no |
+| restart fails | yes | committed | yes | attempted |
+
+When a canonical roster field changes, increment `[registry].version` in the
+same reviewed commit. Reusing a version with a different canonical hash,
+decreasing the version, or changing `source_id` is forbidden and fails before
+service restart.
+
 ## Smoke Checks
 
 `scripts/server-smoke.sh` checks:
@@ -122,6 +169,12 @@ Use these when debugging version drift.
 - Discord gateway is reachable through the local mihomo proxy
 - recent coordinate/bridge logs do not contain known deployment-breaker errors
 - coordinate DB can list registered runtime agents
+- schema is at least v10 and the `discord-nexus` registry source id/version/hash
+  match the deployed `config/agent-registry.toml`
+- authoritative entry count and roster hash equal the authority
+- no `legacy` registry entries remain
+- compatibility `agents_json` and effective resolver output equal the authority
+- active overrides, if any, cause the strict parity smoke to fail
 
 ## Path To GitHub Actions
 

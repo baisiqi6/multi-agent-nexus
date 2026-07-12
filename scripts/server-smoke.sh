@@ -69,6 +69,20 @@ if command -v curl >/dev/null 2>&1; then
   curl -fsS --max-time 10 -x http://127.0.0.1:7890 https://discord.com/api/v10/gateway >/dev/null
 fi
 
+echo "==> registry authority"
+if ! sudo -u coord env PYTHONPATH=/opt/multinexus /opt/coordinate/.venv/bin/python \
+    /opt/multinexus/scripts/agent_registry_deploy_verify.py \
+    --db /var/lib/coordinate/coord.sqlite3 \
+    --workspace-id discord-nexus \
+    --authority /opt/multinexus/config/agent-registry.toml \
+    --strict-effective >/tmp/registry-smoke.json 2>/tmp/registry-smoke.err; then
+  echo "error: registry authority smoke failed" >&2
+  cat /tmp/registry-smoke.err >&2
+  exit 1
+fi
+# Emit redacted evidence for operators.
+python3 -c "import json; d=json.load(open('/tmp/registry-smoke.json')); print(json.dumps({k:d[k] for k in ('source_id','source_version','source_hash','revision','workspace_id')}, sort_keys=True))"
+
 echo "==> runtime DB agents"
 sudo sqlite3 -header -column /var/lib/coordinate/coord.sqlite3 \
   "select id, online_state, coalesce(host_id, '') as host_id, coalesce(last_seen_at, '') as last_seen_at from agents order by id;"

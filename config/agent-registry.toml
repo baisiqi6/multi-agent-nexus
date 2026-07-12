@@ -1,0 +1,61 @@
+# Canonical secret-free agent registry for the MultiNexus Discord roster.
+# This file is the source-controlled authority for Coordinate's agent registry.
+# Host-specific runtime fields (token, token_env, paths, channels, etc.) belong
+# in the private per-host agents.toml, not here.
+#
+# Changing any canonical field requires incrementing [registry].version in the
+# same reviewed commit.
+
+[registry]
+id = "multinexus.discord"
+version = 1
+
+[[agents]]
+id = "mac-claude"
+display_name = "Mac Claude"
+discord_user_id = "1507329791982833775"
+
+[[agents]]
+id = "mac-codex"
+display_name = "Mac Codex"
+discord_user_id = "1507330121235697794"
+
+[[agents]]
+id = "mac-opencode"
+display_name = "Mac OpenCode"
+discord_user_id = "1507326063745957898"
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+
+[[agents]]
+id = "pad-jarvis"
+display_name = "Jarvis"
+discord_user_id = "1522499096198381740"
+
+[[agents]]
+id = "win-claude"
+display_name = "Win Claude"
+discord_user_id = "1507330641694298242"
+
+[[agents]]
+id = "win-opencode"
+display_name = "Win OpenCode"
+discord_user_id = "1507331957988524072"
+
+[[agents]]
+id = "win-openclaw"
+display_name = "Win 小龙虾"
+discord_user_id = "1507331342780727326"
+
+[[external_agents]]
+id = "mac-openclaw"
+display_name = "小龙虾"
+discord_user_id = "1503023508836450477"
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"

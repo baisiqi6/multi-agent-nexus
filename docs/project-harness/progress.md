@@ -5,6 +5,31 @@ Harness root: `docs/project-harness/`
 
 ## 2026-07-13
 
+### Slice 4B2 Deployed Agent Registry Authority — implementation
+
+- Verified cwd/branch/plan SHA (`b9cd5c80b8d84c3e011863a7f2b526ab72c2ec083d664c46b76ad00345299811`).
+- Added canonical secret-free authority `config/agent-registry.toml` (source id
+  `multinexus.discord`, version 1, ten entries including `pad-jarvis`).
+- Added `multinexus/registry_authority.py`: strict authority allow-list, runtime
+  projection, canonical SHA-256 matching Coordinate v10, parity verifier CLI.
+- Added `scripts/agent_registry_deploy_verify.py`: read-after-write Coordinate DB
+  verification using the deployed Coordinate venv.
+- Hardened `scripts/deploy-server.sh` with local parity → copy → remote parity →
+  authoritative sync → committed-state proof → version marker → restart ordering;
+  `--no-restart`/`--skip-install`/`status` semantics preserved.
+- Extended `scripts/server-smoke.sh` with read-only v10 registry authority checks
+  and active-override failure.
+- Updated `agents.toml.example`, `docs/deploy-runbook.md`,
+  `docs/project-harness/runbook.md`, `docs/project-harness/dogfood-feedback.md`.
+- Tests: 27 parity tests, 6 deploy contract tests, 3 smoke contract tests,
+  full MultiNexus 388 tests OK (2 skipped), focused Coordinate B1 registry/daemon
+  83 tests OK, `git diff --check` clean.
+- Production deploy, PID evidence, and isolated server sidecar closeout remain
+  pending Codex operator action; no production DB/SSH/deploy was performed from
+  this worker session.
+
+## 2026-07-13
+
 ### P9-0A4b Workflow and Assignment CLI Extraction
 
 - Implemented in coordinate worktree (`~/projects/coordinate-p9-0a4b-work`, branch

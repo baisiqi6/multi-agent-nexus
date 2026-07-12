@@ -160,22 +160,19 @@ MAC_SH=~/projects/coordinate/skills/coordinate-operator/scripts/mac.sh
 export MAC_DB=~/projects/coordinate/data/coordinator.sqlite3
 
 # Sync coordinator with harness state
-$MAC_SH reconcile multinexus
+$MAC_SH reconcile discord-nexus
 
 # Check for drifts
-$MAC_SH workspace audit multinexus
+$MAC_SH workspace audit discord-nexus
 
 # View current state
-$MAC_SH state multinexus
+$MAC_SH state discord-nexus
 
 # Generate a worker bootstrap and targeted agent handoff
-$MAC_SH task handoff multinexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
+$MAC_SH task handoff discord-nexus --task-id <task-id> --role worker --target-agent mac-codex --write-bootstrap
 
-# Sync agent registry from agents.toml before targeted handoff
-$MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.toml
-
-# Sync and replace entire registry (removes agents not in TOML)
-$MAC_SH workspace agent sync multinexus --source ~/projects/multinexus/agents.toml --replace
+# Sync agent registry from the tracked authority before targeted handoff
+$MAC_SH workspace agent sync discord-nexus --source ~/projects/multinexus/config/agent-registry.toml --replace
 
 # Create visible deliveries for supported events
 $MAC_SH policy pump-events --workspace-id multinexus --platform discord_webhook --destination multinexus-status
