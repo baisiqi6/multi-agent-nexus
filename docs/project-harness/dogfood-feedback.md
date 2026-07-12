@@ -581,6 +581,11 @@
 - 证据保留：sidecar `s3c3-smoke-20260712T062036Z-e0cc1561`（6 namespaced tasks / 89
   events）与两次失败 fingerprint-drift fixture 的证据均保留，cleanup deferred 且需
   单独 review 授权；S3-C4 不删除任何保留证据。
-- Worker session：`019f5529-c817-7000-97dc-46a68600a251`（`zhipu-coding-plan/glm-5.2`）。
+- Worker session：`019f5529-c817-7000-97dc-46a68600a251`。
+  同一 session 跨越两个 provider/model 区间：
+  - 初始文档工作与第一轮部分修正：`zhipu-coding-plan/glm-5.2`；
+  - 因 provider 429 显式切换模型后的修正延续：
+    `kimi-code/kimi-for-coding-highspeed`（high thinking），完成验证并提交
+    `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8`。
 - 生命周期边界：S3-C4 文档只声明 "ready for Operator closeout"；不声明 S3-C3/S3-C4/
   umbrella lifecycle 已 closed，亦不自行 mark-done。

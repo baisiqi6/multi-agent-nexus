@@ -1178,9 +1178,13 @@ Human performed terminal and Discord validation:
 
 ## 2026-07-12 — S3-C4 durable closeout documentation
 
-Non-Codex documentation worker (Oh-My-Pi, provider/model
-`zhipu-coding-plan/glm-5.2`, session `019f5529-c817-7000-97dc-46a68600a251`) prepared
-the bounded Slice 3 durable closeout evidence package.
+Non-Codex documentation worker (Oh-My-Pi, session
+`019f5529-c817-7000-97dc-46a68600a251`) prepared the bounded Slice 3 durable closeout
+evidence package. The same session spans two provider/model intervals:
+- initial document work and partial round-1 correction: `zhipu-coding-plan/glm-5.2`;
+- correction continuation after explicit user-requested model switch on provider 429:
+  `kimi-code/kimi-for-coding-highspeed` (high thinking), which completed validation and
+  commit `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8`.
 
 - Verified workspace gates: worktree
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-s3-c4-closeout`, branch
@@ -1213,5 +1217,10 @@ the bounded Slice 3 durable closeout evidence package.
   `s3c3-smoke-20260712T062036Z-e0cc1561` cleanup deferred and separately reviewed.
 - Boundaries: no checklist/event/state JSON edit, no Coordinate lifecycle command, no
   SSH/deploy/restart/DB mutation, no push/merge, no Phase 9/Slice 4 implementation, no
-  sidecar cleanup. The S3-C3/S3-C4/umbrella lifecycle remains Operator-only; this worker
+  sidecar cleanup. The S3-C3/S4/umbrella lifecycle remains Operator-only; this worker
   does not claim closure and does not mark itself done.
+- R2 correction (this commit): `closeout.md` now keeps four Git authorities distinct
+  (canonical `main` pre-integration `04048e1`, upstream `origin/main` `82c5613`, deployed
+  MultiNexus `VERSION_DEPLOYED` `82c5613`, and isolated worker branch HEAD), and all
+  three worker-owned documents record the GLM-to-Kimi provider/model transition within
+  the same OMP session.

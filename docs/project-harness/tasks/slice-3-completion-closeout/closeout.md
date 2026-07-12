@@ -8,8 +8,9 @@
 This artifact binds the exact S3-C1 through S3-C4 evidence paths and verdicts. It links
 and summarizes immutable historical evidence rather than rewriting any prior verdict. It
 preserves separate local-code, local-integration, control-plane, worker-execution,
-dogfood, and durable-closeout verdicts, and distinguishes local repository HEAD, upstream
-release identity, and deployed `VERSION_DEPLOYED` identities.
+dogfood, and durable-closeout verdicts, and distinguishes canonical repository HEAD
+(pre-integration), upstream release identity, deployed `VERSION_DEPLOYED` identity, and
+isolated worker-branch HEAD.
 
 ## Package and lifecycle map
 
@@ -32,13 +33,21 @@ green closeout (S3-C4 plan optional finding O2).
 
 Repository HEAD vs upstream vs deployed are deliberately distinct:
 
-- MultiNexus canonical source: `/Users/yinxin/projects/multinexus` on `main`, local
-  repository HEAD `82c5613f9d8fcb25c5ca936a24c61536e567df50`. Upstream
-  `origin/main` remains at `82c5613`; local commits after it are documentation evidence
-  and have not been pushed or deployed.
+- MultiNexus canonical repository (`/Users/yinxin/projects/multinexus` on `main`):
+  - pre-integration local HEAD: `04048e1d25c5bb8dfade7a68d9847c0768a10851`;
+  - upstream `origin/main`: `82c5613f9d8fcb25c5ca936a24c61536e567df50`;
+  - the canonical `main` value above is the pre-integration snapshot; it advances only
+    after Codex result approval.
+- MultiNexus deployed `VERSION_DEPLOYED`:
+  `82c5613f9d8fcb25c5ca936a24c61536e567df50` (subject to final runtime refresh).
 - Coordinate canonical source: `/Users/yinxin/projects/coordinate` on `main`,
   `origin/main` and local `main` at
   `e0cc1561cd20b0f22389234aefe92d01273860e4`.
+- Isolated S3-C4 worker branch HEAD after the correction commit:
+  `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8` on
+  `agents/mac-omp/slice-3-c4-durable-closeout` in the isolated worktree
+  `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-s3-c4-closeout`.
+  The worker branch and its documentation-only commits are not pushed or deployed.
 - Deployed runtime identities (verified during S3-C3 result review, independent of any
   local documentation commit):
   - Coordinate `VERSION_DEPLOYED`:
@@ -142,9 +151,13 @@ preserved, not erased, and routed to the CLI boundary backlog.
 ### Durable closeout (S3-C4, this worker)
 
 - Verdict: documentation ready for Operator closeout; lifecycle remains Operator-only.
-- Worker (Oh-My-Pi) session `019f5529-c817-7000-97dc-46a68600a251`; provider/model
-  `zhipu-coding-plan/glm-5.2`; provider JSONL
+- Worker (Oh-My-Pi) session `019f5529-c817-7000-97dc-46a68600a251`; provider JSONL
   `/Users/yinxin/.omp/agent/sessions/-Documents-Codex-2026-07-10-ni-work-multinexus-s3-c4-closeout/2026-07-12T07-10-29-400Z_019f5529-c817-7000-97dc-46a68600a251.jsonl`.
+  The same session contains two attributable execution intervals:
+  - initial document work and partial round-1 correction: `zhipu-coding-plan/glm-5.2`;
+  - correction continuation after explicit user-requested model switch on provider 429:
+    `kimi-code/kimi-for-coding-highspeed` (high thinking), which completed validation and
+    commit `19b0bc8825d65f4bf7859c7c66dab3e7cd344ec8`.
 - Approved plan:
   `tasks/slice-3-c4-durable-closeout/plan.md`; review
   `tasks/slice-3-c4-durable-closeout/plan-review-round-1.md` (approved, no P0/P1).
