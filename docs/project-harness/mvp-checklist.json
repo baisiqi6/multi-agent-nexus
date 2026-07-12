@@ -1799,9 +1799,9 @@
     {
       "id": "slice-4a-deterministic-latest-event-reads",
       "title": "Slice 4A Deterministic Latest-Event Reads",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md",
@@ -1813,18 +1813,33 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-12T17:52:12Z",
+      "selected_in_session": "slice-4a-kimi-direct",
+      "updated_at": "2026-07-12",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-12T17:52:12Z"
+        "status": "review_approved",
+        "branch": "agents/mac-omp/slice-4a-deterministic-latest-event-reads",
+        "updated_at": "2026-07-12"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md"
+        "plan": "docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md",
+        "branch": "agents/mac-omp/slice-4a-deterministic-latest-event-reads",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "APPROVE: exact two SQL tie-breakers; same-second daemon window and lifecycle owner behavior proven; Coordinate 5986cc3; 191 focused and 1574 full pass."
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "slice-4a-kimi-direct",
+        "acquired_at": "2026-07-12T18:08:16Z",
+        "expires_at": "2026-07-12T20:08:16Z",
+        "ttl_minutes": 120
+      }
     }
   ]
 }
