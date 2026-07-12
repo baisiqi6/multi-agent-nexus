@@ -1441,7 +1441,7 @@
     {
       "id": "p9-0a2b-event-task-plan-operator-cli",
       "title": "P9-0A2b Event Task Plan Operator CLI Extraction",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-omp",
       "human_gate_required": true,
@@ -1456,19 +1456,24 @@
         "reason": null
       },
       "selected_in_session": "p9-0a2b-kimi-20260712T1040Z",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-12T10:58:19Z",
       "workflow": {
-        "status": "running",
+        "status": "closed",
         "branch": "agents/mac-omp/p9-0a2b-event-task-plan-operator-cli",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-12T10:58:19Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-0a2b-event-task-plan-operator-cli/plan.md",
-        "branch": "agents/mac-omp/p9-0a2b-event-task-plan-operator-cli"
+        "branch": "agents/mac-omp/p9-0a2b-event-task-plan-operator-cli",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 38da30f integrated/pushed; canonical 48 focused and 1411 full tests pass; result review approved",
       "review": {
-        "decision": null
+        "decision": "approved",
+        "reviewer": "codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-12",
+        "summary": "Approved after correction d250e47; integrated Coordinate 38da30f; exact five-path scope; 21/75/99; canonical 48 and 1411 tests pass; no must-fix remains"
       },
       "lease": {
         "owner": "mac-omp",
@@ -1476,6 +1481,12 @@
         "acquired_at": "2026-07-12T10:40:32Z",
         "expires_at": "2026-07-12T12:40:32Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "4c85dd46-97b7-415f-85a1-450107e30112",
+        "before_fingerprint": "4fffae00e7c80f396798be4e5b97700aacf1929fbba31db19c8a77940281a671",
+        "after_fingerprint": "52198c058cecb2c49df6fb0acfd9880ddad822839344b5da9beefac60a24089c",
+        "applied_at": "2026-07-12T10:58:19Z"
       }
     }
   ]
