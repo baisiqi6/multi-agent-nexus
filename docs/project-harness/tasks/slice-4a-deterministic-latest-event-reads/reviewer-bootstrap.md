@@ -8,13 +8,14 @@
 - Plan:
   `/Users/yinxin/projects/multinexus/docs/project-harness/tasks/slice-4a-deterministic-latest-event-reads/plan.md`.
 - Exact plan SHA-256:
-  `4d2bbc60464b5333d6d6c627a8cbe4809d71fdde26c3bd246db4f81bdf9720ab`.
+  `dd4f8e5fde556ebd5fac9156230fd3bd05e555863dff1b3a4aacb8f87f051360`.
 - Coordinate read-only checkout:
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-s4a-plan-review`.
 - Required Coordinate HEAD:
   `084419c5b36b32a81a39634c7ebbbf8b8b71d04c`.
 
-开始前核验 plan SHA、cwd、HEAD和clean status。完整读取计划、当前`daemon.py`、
+开始前核验 plan SHA、cwd、HEAD和clean status。完整读取计划、
+`plan-review-round-1.md`、当前`daemon.py`、
 `policy.py`、`db.py`和相关tests；身份不符立即停止。
 
 ## Independent review questions

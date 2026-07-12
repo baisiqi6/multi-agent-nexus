@@ -164,14 +164,19 @@ the package for plan revision.
 
 ```bash
 git diff --check
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest \
-  tests.test_daemon tests.test_policy
-PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src python3 -m unittest discover tests
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src /opt/homebrew/bin/python3.14 \
+  -m unittest discover -s tests -p 'test_daemon.py'
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src /opt/homebrew/bin/python3.14 \
+  -m unittest discover -s tests -p 'test_policy.py'
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=src /opt/homebrew/bin/python3.14 \
+  -m unittest discover -s tests
 ```
 
-Run with the known-good Python 3.14 interpreter for the authoritative 189/1,572
-comparison. If the worker runtime resolves Python 3.12, report interpreter-specific
-baseline differences honestly and let Codex repeat the known-good baseline.
+`tests/` is intentionally not imported as a package; explicit discovery avoids an
+installed third-party `tests` namespace intercepting worker validation. Use the
+known-good Python 3.14 interpreter for the authoritative 189/1,572 comparison. If that
+exact binary is unavailable, stop and report the environment blocker instead of
+silently substituting Python 3.12 or rewriting expected fixtures.
 
 ## Worker protocol
 
