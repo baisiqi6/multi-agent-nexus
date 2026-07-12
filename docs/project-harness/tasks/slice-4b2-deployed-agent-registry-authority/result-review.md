@@ -36,5 +36,16 @@ strict deploy invocation, whitespace rejection and zero-revision failure.
 - harness validate passes with four historical warnings; doctor reports only existing
   optional/current artifacts plus the historical `round-2-hardening` miss.
 
-Final acceptance remains pending integration, production backup/deploy/PID evidence,
-strict smoke and the isolated server v1-to-v2 same-process removal proof.
+## Final decision: approve
+
+Integration and production evidence are complete:
+
+- MultiNexus main/origin/deployed commit: `ac123966c2c3b39ce9f245789212c1d4111c4948`;
+- production authority: `multinexus.discord` v1, revision 1, ten authoritative and zero
+  legacy entries;
+- Coordinate PID/start time unchanged across rollout;
+- stable-window strict server smoke: pass;
+- isolated same-process v1-to-v2 removal, conflict/rollback rejection, DB integrity and
+  cleanup: pass.
+
+Result review decision is **approved**. Exact operational evidence is in `closeout.md`.

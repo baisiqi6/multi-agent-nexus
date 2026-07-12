@@ -36,10 +36,13 @@ S4-B is executed as two reviewed packages:
   `ff6b8bf`; receipt `dca68d10-f805-4cbf-af35-1ac73a8f86d4` consumed.**
 - **S4-B2 deployed authority integration** — version the deployed MultiNexus roster,
   wire authoritative sync into deployment/operations, verify live removal/reload, and
-  update cross-repository runbooks. **Next package; not yet authorized.**
+  update cross-repository runbooks. **Completed and deployed at MultiNexus `ac12396`;
+  source `multinexus.discord` v1, revision 1, ten authoritative identities.**
 
 This split prevents host-specific deployment mechanics and real ignored configuration
 from being mixed into the schema/resolver transaction package.
+
+The next Slice 4 package is **S4-C bound split operations**.
 
 ### S4-C — Bound split operations
 

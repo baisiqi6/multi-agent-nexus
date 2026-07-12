@@ -5,6 +5,23 @@ Harness root: `docs/project-harness/`
 
 ## 2026-07-13
 
+### Slice 4B2 Deployed Agent Registry Authority — closeout
+
+- Codex reviewed Kimi commit `1441ad9`, requested three corrections and integrated
+  accepted commit `ac12396` to main/origin.
+- Local final evidence: 39 focused, 391 full MultiNexus (2 skipped), 83 Coordinate B1;
+  strict parity/hash/syntax/compile/diff checks pass.
+- Backed up production DB to
+  `coord.sqlite3.before-s4b2-20260712T194617Z.bak` with integrity `ok`.
+- Deployed source `multinexus.discord` v1: revision 1, ten authoritative, zero legacy,
+  projection ten; Coordinate PID/start time unchanged and stable-window smoke passes.
+- Empty isolated server sidecar proved same-process v1-to-v2 removal plus conflict and
+  rollback rejection, then removed all sidecar artifacts.
+- S4-B is closed. Next package: S4-C bound split operations.
+
+
+## 2026-07-13
+
 ### Slice 4B2 Deployed Agent Registry Authority — implementation
 
 - Verified cwd/branch/plan SHA (`b9cd5c80b8d84c3e011863a7f2b526ab72c2ec083d664c46b76ad00345299811`).

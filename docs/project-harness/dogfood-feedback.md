@@ -903,3 +903,20 @@
   - production MultiNexus deploy commit SHA / `VERSION_DEPLOYED` content；
   - Coordinate PID/start time before/after deploy；
   - isolated server sidecar v1→v2 removal / conflict-rejection / cleanup evidence.
+
+### Slice 4B2 production closeout
+
+- Production backup：`coord.sqlite3.before-s4b2-20260712T194617Z.bak`，SHA-256
+  `bc02f5507ceb46b241bd4a9df2f6d73ab1d8b5cd51b6b2a860253013b9904b09`，
+  integrity `ok`。
+- Deployed MultiNexus `ac12396`；authority `multinexus.discord` v1 / revision 1；
+  10 authoritative、0 legacy、projection 10，`pad-jarvis`已进入授权 roster。
+- Coordinate PID `4009950`与启动时间保持不变；bridge PID更新为`4186459`。
+- 首次default 10-minute smoke因窗口包含部署前已恢复的TLS reset及启动瞬时reset而返回1；
+  registry gate本身通过。以`2026-07-13 03:46:35`为稳定窗口复跑后
+  `server smoke OK`。这暴露了日志窗口会把recovered transient与persistent breaker混为一谈，
+  后续smoke设计应显式区分恢复证据。
+- Isolated server sidecar：同一PID/daemon object完成v1两identity→v2删除beta；
+  same-version conflict与rollback均拒绝且状态不变；revision 2、integrity ok、目录清理完成。
+- Slice 4B2 accepted/closed；完整证据见
+  `tasks/slice-4b2-deployed-agent-registry-authority/closeout.md`。
