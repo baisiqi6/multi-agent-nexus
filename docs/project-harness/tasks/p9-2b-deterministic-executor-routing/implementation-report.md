@@ -785,3 +785,168 @@ extra EOF blank line. This round records the range gate and its empty output exp
 - No freshness cutoff, capacity limit, lease, queue fairness, automatic
   reroute, schema change, MultiNexus source change, deployment, restart, or
   lifecycle event was introduced.
+
+---
+
+# P9-2B Deterministic Executor Routing — Round 5 Correction Report
+
+## Authority
+
+- Plan: `docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md`
+- Plan SHA-256: `328c8151a6055a8b7680363847ff293e4ff9a0ca7bd4109a089186f63ad4a8cb`
+- Coordinate correction baseline HEAD: `5d9b458bd70afb649e25f4a20d9db69e484f9d46`
+- MultiNexus correction baseline HEAD: `a56db52d08ac8bc2ad5c7991612b5fc6c9775a3c`
+- Worker model: `kimi-code/kimi-for-coding` (ordinary, no highspeed)
+
+## Scope
+
+This round corrects the R5-1 finding from the Codex Round 5 result review:
+`_validate_canonical_capabilities()` did not enforce the shared P9-2A authority
+`MAX_CAPABILITY_LEN = 64`, so strict stored `routing_request` and stored candidate
+evidence could accept arbitrarily long safe-character capability labels. This
+correction enforces the same bound used by caller-side normalization. All
+changes are confined to the P9-2B Coordinate module and tests. No schema v13,
+MultiNexus routing policy, `agents.current_load` authority, freshness windows,
+capacity/lease/fairness/reroute, or P9-3/P9-4 scope was introduced.
+
+## Commands and counts
+
+### Coordinate focused P9-2B gate (unpiped)
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest \
+  tests/test_executor_routing.py \
+  tests/test_runtime.py::RoutedRuntimeTests \
+  tests/test_runtime.py::RoutedRuntimeCorrectionTests \
+  tests/test_execution_cli.py
+```
+
+Result: `189 passed in 0.92s`.
+
+### Coordinate full suite (unpiped)
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest tests/
+```
+
+Result: `2156 passed, 9 failed in 66.63s`.
+
+The 9 failures are the exact same historical CLI-contract/AST baseline failures
+accepted in previous rounds:
+
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a1_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2a_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2b_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2c_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a3a_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_differs_from_p9_0a4a_baseline_only_at_12_handlers`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_s4b1_rewind_matches_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_s4c1_rewind_matches_baseline`
+- `tests/test_issue_cli.py::IssueCLIOwnershipTests::test_all_five_handler_ast_bodies_match_start_revision`
+
+The P9-2B delta test `test_contract_p9_2b_delta_matches_baseline` passes.
+
+### MultiNexus full suite (unpiped)
+
+```text
+PYTHONPATH=. /Users/yinxin/projects/multinexus/.venv/bin/python -m pytest tests/
+```
+
+Result: `503 passed, 2 skipped, 1 warning in 21.85s`.
+
+### Static gates
+
+```text
+python -m compileall src/coordinate tests/ -q
+python -m compileall -q .
+```
+
+No output (success) in both worktrees.
+
+```text
+python -c "
+import ast
+from pathlib import Path
+
+coord_path = Path('/Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-p9-2b-kimi')
+errors = []
+for file_path in [coord_path / 'tests' / 'test_runtime.py', coord_path / 'tests' / 'test_executor_routing.py']:
+    source = file_path.read_text()
+    tree = ast.parse(source, filename=str(file_path))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef):
+            seen = {}
+            for item in node.body:
+                if isinstance(item, ast.FunctionDef) and item.name.startswith('test_'):
+                    if item.name in seen:
+                        errors.append(f'DUPLICATE_TEST_METHOD {node.name}.{item.name} lines {seen[item.name]} and {item.lineno}')
+                    else:
+                        seen[item.name] = item.lineno
+if errors:
+    print('\n'.join(errors))
+    raise SystemExit(1)
+print('No duplicate test methods in P9-2B test files.')
+"
+```
+
+Result: `No duplicate test methods in P9-2B test files.`
+
+```text
+git diff --check eec9b233f6c797c73aec9d535fa723e037a0af65..HEAD
+```
+
+No whitespace errors in the Coordinate P9-2B commit range.
+
+```text
+git diff --check 7a06573f8c17c4376c272a68b1201d5c4320675d..HEAD
+```
+
+No whitespace errors in the MultiNexus P9-2B commit range.
+
+## Round 5 adversarial probes — now rejections
+
+| Probe | Now-rejecting test |
+|---|---|
+| `PROBE_OVERLONG_STORED_CAPABILITY_ACCEPTED 65` | `test_build_rejects_65_char_capability` / `test_parse_rejects_65_char_capability` / `test_validate_decision_rejects_65_char_candidate_capability` / `test_routed_replay_rejects_forged_overlong_candidate_capability` / `test_claim_rejects_forged_overlong_selected_capability` |
+
+## Key corrections implemented
+
+1. **R5-1**: `_validate_canonical_capabilities()` now imports and reuses the P9-2A
+   authority `coordinate.executor_identity.MAX_CAPABILITY_LEN` (currently 64). The
+   caller-side `_normalize_capabilities()` also replaces its hardcoded `max_len=64`
+   with the same constant. Strict stored `routing_request` parsing and stored
+   candidate evidence validation both reject any capability item longer than this
+   bound. Existing type/unsafe-grammar/duplicate/cardinality/canonical-sort error
+   ordering and messages are preserved.
+2. Added exact 64-accepted/65-rejected boundary tests for:
+   - caller `build_routing_request()`;
+   - strict stored `routing_request` with a recomputed valid digest for the 65 case;
+   - stored candidate evidence with a recomputed valid `routing_decision_id` for the
+     65 case.
+3. Added routed replay zero-mutation coverage: when both the stored event and job
+   carry the same forged overlong selected capability with a recomputed valid
+   decision id, replay rejects before any mutation and leaves event count, event
+   payload, job row, job payload, status, and attempt count exactly unchanged.
+4. Added claim-path zero-mutation coverage: a forged overlong selected capability in
+   the stored job payload is rejected before the claim CAS, leaving job status,
+   attempt count, payload, and event count unchanged.
+
+## Cross-repo contract
+
+- Coordinate remains the sole owner of routing request/decision contracts,
+  candidate selection, and redacted claim evidence.
+- MultiNexus receives the already-accepted P9-1/P9-2A claim contract plus the
+  additive `routing_request_id` and `routing_decision_id`. No MultiNexus source
+  code was changed; the existing MultiNexus claim/context/binding tests remain
+  green.
+
+## Known risks / residual notes
+
+- The nine historical CLI-contract/AST failures in the Coordinate full suite
+  persist and are accepted as the baseline gate.
+- `agents.current_load` remains unwritten and is not used as a routing
+  authority.
+- No freshness cutoff, capacity limit, lease, queue fairness, automatic reroute,
+  schema change, MultiNexus source change, deployment, restart, or lifecycle event
+  was introduced.
+
