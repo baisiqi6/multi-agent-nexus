@@ -2284,7 +2284,7 @@
     {
       "id": "p9-2a-executor-identity-registry",
       "title": "P9-2A Executor Identity Registry",
-      "status": "todo",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": null,
@@ -2300,17 +2300,17 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-13",
+      "updated_at": "2026-07-13T10:02:48Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-07-13"
+        "updated_at": "2026-07-13T10:02:48Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-2a-executor-identity-registry/plan.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "P9-2A production accepted; receipt 56addb44-f72b-4e31-bdab-a230c59fe9d6; doctor errors 0",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -2331,6 +2331,12 @@
         "before_fingerprint": "71805d168a109f26bb4077882ae4219a19c7671b9d89806a77a2d800a46937b1",
         "after_fingerprint": "5648b5577722734b10bd183c4f49d490052d1ac04f1f3087eddfbbc190be845f",
         "files_applied_at": "2026-07-13T05:52:09Z"
+      },
+      "completion_receipt": {
+        "receipt_id": "56addb44-f72b-4e31-bdab-a230c59fe9d6",
+        "before_fingerprint": "03b1823acb41015c22fed3f639774d0d735d2ebcb3d145db1d895a67f530f880",
+        "after_fingerprint": "1bf05285318a2aab26659fd0bac5587c25adc8b9b96fb28f41f78f32294d1667",
+        "applied_at": "2026-07-13T10:02:48Z"
       }
     }
   ]
