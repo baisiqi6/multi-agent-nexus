@@ -90,8 +90,22 @@ The capacity catalog canonical object is:
 }
 ```
 
-`catalog_hash` is SHA-256 over canonical UTF-8 JSON. Each policy receives a
-`capacity_policy_id=sha256:<digest>` over contract/source/version/hash/agent/capacity.
+`catalog_hash` is SHA-256 over canonical UTF-8 JSON. Each policy id is SHA-256 over
+the canonical UTF-8 JSON object below, with sorted keys and compact separators:
+
+```json
+{
+  "agent_id": "mac-omp",
+  "catalog_hash": "<64 lowercase hex>",
+  "contract_version": 1,
+  "max_concurrent_jobs": 1,
+  "source_id": "multinexus.discord.capacity",
+  "source_version": 1
+}
+```
+
+The stored form is `capacity_policy_id=sha256:<64 lowercase hex>`. No source path,
+timestamp, display text, executor definition, or current binding row participates.
 
 ### 2. Coordinate schema v13
 
@@ -199,6 +213,8 @@ Rules:
   an unrelated global expiry scan while keeping the partial unique index and capacity
   count consistent;
 - reserve requires job/attempt/agent/runner/context cross-links to match current rows;
+- reserve uses the same bounded TTL contract as renewal: integer 30..600 seconds,
+  rejecting booleans and out-of-range values before any write;
 - reserve counts remaining active leases, then rejects capacity exhaustion and active
   resource collision before insert;
 - the database partial unique index is the final race fence for the same resource;
@@ -235,6 +251,23 @@ and server smoke verify all three projections independently:
 Deployment order is source file -> existing roster/executor sync -> capacity sync ->
 parity verification. A capacity failure leaves no partial capacity projection and
 must make deployment/smoke fail closed.
+
+Roster/executor sync and capacity sync are deliberately separate transactions, so a
+bounded transitional mismatch can exist between their commits. In P9-3A this is not a
+runtime safety authority because claim/agentd do not consume capacity yet, but it is
+never an accepted deployed state:
+
+- the deploy script must not write `VERSION_DEPLOYED`, restart the bridge, report
+  success, authorize a worker, or run the final smoke until all three projections pass;
+- immediately after capacity sync it must run `runtime capacity list` plus the extended
+  registry deploy verifier and require exact source/version/hash/policy coverage;
+- a verifier failure emits a distinct capacity-parity stage/error, leaves services on
+  the previously accepted runtime, and redeploys/resyncs the previously accepted source
+  projection before retry; schema rollback follows the backup rules below;
+- the initial v1 rollout may observe "capacity source absent" only inside this guarded
+  deploy window. It must never survive command exit;
+- P9-3B must revisit this window before capacity becomes claim authority and require a
+  drained/coordinated update contract rather than inheriting the P9-3A assumption.
 
 ## Module and repository boundary
 
@@ -295,6 +328,9 @@ No agentd worker/client/adapter/session behavior changes are allowed in P9-3A.
 2. Prove capacity and same-resource conflicts under two SQLite connections with
    `BEGIN IMMEDIATE` and database constraints.
 3. Add atomic capacity sync/list/show CLI and handler ownership/contract tests.
+4. Add a deploy fault-injection test that fails between executor and capacity sync,
+   proves the capacity-parity stage is explicit, no version/restart/success is emitted,
+   and the previous accepted projection is restored before retry.
 
 ### Stage D — Integration, deploy, and isolated proof
 
