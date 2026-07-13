@@ -1,7 +1,7 @@
 # P9-2A Durable Closeout
 
 Date: 2026-07-13  
-Status: production accepted; terminal receipt pending this document/checklist deployment
+Status: complete; production accepted and terminal receipt consumed
 
 ## Accepted implementation
 
@@ -90,6 +90,26 @@ repair.
 - Closeout requested event: `e3c17b26-6c48-4813-92bb-f233eeb40872`.
 - Final closeout approval event: `ca0bfd31-bdc5-4e80-b59d-5a91dd53fe59`.
 
+## Terminal host-aware receipt
+
+- Receipt: `56addb44-f72b-4e31-bdab-a230c59fe9d6`.
+- `completion.authorized`: `62e571e1-3274-4097-a539-0def01d9daa4`.
+- `completion.claimed`: `6b72f237-da1c-4281-9ad7-7e758007778f`.
+- `completion.applied`: `e2ca772f-d69c-4577-b6ea-082896843407`.
+- `task.done`: `85fa6c75-eaa3-48a8-9559-9576ff8eb13a`.
+- `completion.consumed`: `2f0f6700-0523-4271-a72d-c3f89e62ce9f`.
+- Source/deployed checklist fingerprint:
+  `03b1823acb41015c22fed3f639774d0d735d2ebcb3d145db1d895a67f530f880` ->
+  `1bf05285318a2aab26659fd0bac5587c25adc8b9b96fb28f41f78f32294d1667`.
+- Deployed verification observed task `done`, workflow `closed`, and the exact applied
+  fingerprint before recording `task.done`.
+- The first local invocation omitted the explicit actor and failed closed before claim
+  because the default `operator` did not match authorized actor `codex-operator`; the
+  same receipt then completed normally with the explicit actor and no repair bypass.
+- Final production doctor: `projection_ok=true`, errors 0, warnings 2 (the same
+  superseded unused historical receipts), including a terminal info finding for this
+  consumed receipt.
+
 ## Rollback
 
 Code rollback redeploys Coordinate `44635726`. Data rollback uses the fresh backup
@@ -99,8 +119,8 @@ change adds two payload members and one audit event and requires no schema rollb
 
 ## Next gate
 
-After the terminal receipt is consumed, P9-2B becomes the next authorized planning
-package. It requires a fresh detailed plan and independent plan review before worker
-dispatch. Coding worker preference is ordinary `Kimi for Coding`
+P9-2B is now the next authorized planning package. It requires a fresh detailed plan
+and independent plan review before worker dispatch. Coding worker preference is
+ordinary `Kimi for Coding`
 (`kimi-code/kimi-for-coding`, without `highspeed`); use the agreed fallback chain only
 when that model is unavailable.

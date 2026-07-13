@@ -18,9 +18,11 @@ Harness root: `docs/project-harness/`
   integrity `ok`, schema v12, SHA `5807973f...2580`. Production integrity is `ok` and
   both services remained active with zero restarts; server smoke passed.
 - Closeout request `e3c17b26...` and final review approval `ca0bfd31...` are durable.
-  Source lifecycle projection is aligned and ready for the normal host-aware terminal
-  receipt. Exact evidence: `tasks/p9-2a-executor-identity-registry/closeout.md`.
-- After receipt consumption, P9-2B is the next detailed-plan gate. Ordinary
+  Host-aware receipt `56addb44...` completed authorized/claimed/applied/task.done/
+  consumed through `2f0f6700...`; source/deployed fingerprint is exactly
+  `03b1823a...` -> `1bf05285...`, and the item is `done` / `closed`. Exact evidence:
+  `tasks/p9-2a-executor-identity-registry/closeout.md`.
+- P9-2B is now the next detailed-plan gate. Ordinary
   `Kimi for Coding` (no `highspeed`) is the preferred coding worker.
 
 ## 2026-07-13 — P9-1 deployment and production dogfood
