@@ -2222,6 +2222,51 @@
         "after_fingerprint": "9e35da56293efdb8b05cca29f936dcbcd1ac972963dee275ec9f82928eb5ac91",
         "applied_at": "2026-07-13T03:21:47Z"
       }
+    },
+    {
+      "id": "p9-1-job-scoped-execution-context",
+      "title": "P9-1 Job-Scoped Execution Context",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-13T03:33:43Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-13T03:33:43Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "7aa8b1f2-d5c7-4c6a-b12e-4ae9bd2fbf89",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "p9-1-job-scoped-execution-context",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "e13077598642895366f3032c9fa00609855992f09438a4c3b95b71d7a3169e5d",
+        "before_fingerprint": "736348cbbcf0c37de9afd785a5a10724065285725c30841dcb9c03dd01768a39",
+        "after_fingerprint": "68482f4d6df06bb95ecd7c5e353e1e812f5261821de27558a7fa1454a0f8c0cb",
+        "files_applied_at": "2026-07-13T03:33:43Z"
+      }
     }
   ]
 }
