@@ -275,3 +275,77 @@ discord_user_id = "1505562531706568928"
         )
         self.assertEqual(len(authority_with_capacity.entries), 2)
         self.assertEqual(len(authority_with_capacity.executor_bindings), 1)
+
+    def test_parse_accepts_real_multinexus_registry(self):
+        repo_root = Path(__file__).resolve().parent.parent
+        mn_registry = repo_root / "config" / "agent-registry.toml"
+        self.assertTrue(mn_registry.exists(), "MultiNexus sibling checkout not present")
+        catalog = parse_capacity_catalog(mn_registry)
+        self.assertEqual(catalog.source_id, "multinexus.discord.capacity")
+        self.assertEqual(catalog.source_version, 1)
+        self.assertEqual(len(catalog.policies), 8)
+        self.assertTrue(all(p.max_concurrent_jobs == 1 for p in catalog.policies))
+
+    def test_parse_rejects_unknown_capacity_root_keys(self):
+        path = self._write_toml("""\
+[capacity_registry]
+id = "multinexus.discord.capacity"
+version = 1
+
+[unknown_root]
+key = "value"
+
+[[executor_capacities]]
+agent_id = "mac-claude"
+max_concurrent_jobs = 1
+""")
+        with self.assertRaisesRegex(CapacityAuthorityError, "unknown root keys"):
+            parse_capacity_catalog(path)
+
+    def test_parse_rejects_secret_bearing_root_keys(self):
+        path = self._write_toml("""\
+[capacity_registry]
+id = "multinexus.discord.capacity"
+version = 1
+
+[secrets]
+token = "leaked"
+
+[[executor_capacities]]
+agent_id = "mac-claude"
+max_concurrent_jobs = 1
+""")
+        with self.assertRaisesRegex(CapacityAuthorityError, "unknown root keys"):
+            parse_capacity_catalog(path)
+
+    def test_parse_rejects_whitespace_source_id(self):
+        path = self._write_toml("""\
+[capacity_registry]
+id = "  multinexus.discord.capacity  "
+version = 1
+
+[[executor_capacities]]
+agent_id = "mac-claude"
+max_concurrent_jobs = 1
+""")
+        with self.assertRaisesRegex(CapacityAuthorityError, "must not have surrounding whitespace"):
+            parse_capacity_catalog(path)
+
+    def test_source_id_is_not_coerced_from_non_string(self):
+        path = self._write_toml("""\
+[capacity_registry]
+id = 123
+version = 1
+
+[[executor_capacities]]
+agent_id = "mac-claude"
+max_concurrent_jobs = 1
+""")
+        with self.assertRaisesRegex(CapacityAuthorityError, "must be a string"):
+            parse_capacity_catalog(path)
+
+
+if __name__ == "__main__":
+    import unittest
+
+    unittest.main()

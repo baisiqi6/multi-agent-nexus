@@ -236,41 +236,102 @@ verify_remote_registry_parity() {
 }
 
 sync_capacity_to_coordinate() {
-  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity sync \
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity sync \\
       --source /opt/multinexus/config/agent-registry.toml"; then
     echo "error: Coordinate capacity sync failed (stage: capacity-sync)" >&2
     return 1
   fi
 }
 
-restore_previous_capacity_source() {
-  # If a capacity-sync attempt failed, put back the previously accepted
-  # source projection so the next retry starts from a consistent state.
-  local backup_path="/tmp/agent-registry.toml.capacity-backup"
-  ssh "$HOST" "test -f '$backup_path' || exit 0; sudo cp '$backup_path' /opt/multinexus/config/agent-registry.toml"
-  ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity sync \
-      --source /opt/multinexus/config/agent-registry.toml" >/dev/null 2>&1 || true
-}
-
-sync_registry_to_coordinate() {
-  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local workspace agent sync discord-nexus \
-      --source /opt/multinexus/config/agent-registry.toml --replace"; then
-    echo "error: Coordinate roster sync failed (stage: registry-sync)" >&2
+list_capacity_to_coordinate() {
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity list >/dev/null"; then
+    echo "error: Coordinate capacity list failed (stage: capacity-list)" >&2
     return 1
   fi
-  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime executor sync \
+}
+
+verify_capacity_absent() {
+  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/multinexus /opt/coordinate/.venv/bin/python - <<'PY'
+import sqlite3, sys
+conn = sqlite3.connect('/var/lib/coordinate/coord.sqlite3')
+n = conn.execute('SELECT COUNT(*) FROM executor_capacity_sources').fetchone()[0]
+sys.exit(0 if n == 0 else 1)
+PY"; then
+    echo "error: expected no accepted capacity projection, but capacity rows remain (stage: capacity-absent)" >&2
+    return 1
+  fi
+}
+
+restore_previous_accepted_state() {
+  # Put back the previously accepted authority and replay its full projection so the
+  # runtime is consistent with the last accepted state before the failed deploy.
+  local backup_path="/tmp/agent-registry.toml.capacity-backup"
+  if ! ssh "$HOST" "test -f '$backup_path' || exit 0; sudo cp -f '$backup_path' /opt/multinexus/config/agent-registry.toml"; then
+    echo "error: failed to restore previous accepted authority (stage: restore-source)" >&2
+    return 1
+  fi
+  if ! verify_remote_registry_parity; then
+    echo "error: restored authority/runtime parity failed (stage: restore-remote-parity)" >&2
+    return 1
+  fi
+  if ! sync_roster_to_coordinate; then
+    echo "error: restored roster sync failed (stage: restore-roster-sync)" >&2
+    return 1
+  fi
+  if ! sync_executor_to_coordinate; then
+    echo "error: restored executor sync failed (stage: restore-executor-sync)" >&2
+    return 1
+  fi
+  local has_capacity
+  has_capacity="$(ssh "$HOST" "grep -q '^\\[capacity_registry\\]' /opt/multinexus/config/agent-registry.toml 2>/dev/null \&\& echo yes || echo no")"
+  if [[ "$has_capacity" == "yes" ]]; then
+    if ! sync_capacity_to_coordinate; then
+      echo "error: restored capacity sync failed (stage: restore-capacity-sync)" >&2
+      return 1
+    fi
+    if ! list_capacity_to_coordinate; then
+      echo "error: restored capacity list failed (stage: restore-capacity-list)" >&2
+      return 1
+    fi
+    if ! verify_committed_registry; then
+      echo "error: restored committed parity failed (stage: restore-committed)" >&2
+      return 1
+    fi
+  else
+    if ! verify_capacity_absent; then
+      echo "error: restored capacity absence not verified (stage: restore-capacity-absent)" >&2
+      return 1
+    fi
+  fi
+  return 0
+}
+
+sync_roster_to_coordinate() {
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local workspace agent sync discord-nexus \\
+      --source /opt/multinexus/config/agent-registry.toml --replace"; then
+    echo "error: Coordinate roster sync failed (stage: roster-sync)" >&2
+    return 1
+  fi
+}
+
+sync_executor_to_coordinate() {
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime executor sync \\
       --source /opt/multinexus/config/agent-registry.toml"; then
     echo "error: Coordinate executor catalog sync failed (stage: executor-sync)" >&2
     return 1
   fi
 }
 
+sync_registry_to_coordinate() {
+  sync_roster_to_coordinate && sync_executor_to_coordinate
+}
+
 verify_committed_registry() {
-  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/multinexus /opt/coordinate/.venv/bin/python \
-      /opt/multinexus/scripts/agent_registry_deploy_verify.py \
-      --db /var/lib/coordinate/coord.sqlite3 \
-      --workspace-id discord-nexus \
-      --authority /opt/multinexus/config/agent-registry.toml \
+  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/multinexus /opt/coordinate/.venv/bin/python \\
+      /opt/multinexus/scripts/agent_registry_deploy_verify.py \\
+      --db /var/lib/coordinate/coord.sqlite3 \\
+      --workspace-id discord-nexus \\
+      --authority /opt/multinexus/config/agent-registry.toml \\
       --strict-effective" >/dev/null; then
     echo "error: committed registry does not match deployed authority (stage: committed-state)" >&2
     return 1
@@ -307,29 +368,29 @@ deploy_multinexus() {
     --exclude .DS_Store \
     --exclude VERSION_DEPLOYED
 
-  # Backup the currently accepted capacity authority before overwriting it.
-  # If capacity sync fails, restore this projection so the next retry is safe.
-  ssh "$HOST" "sudo cp -f /opt/multinexus/config/agent-registry.toml /tmp/agent-registry.toml.capacity-backup 2>/dev/null || true"
+  # Backup the currently accepted authority before overwriting it. Any later stage
+  # failure triggers restore_previous_accepted_state, which replays this projection.
+  ssh "$HOST" "test -f /opt/multinexus/config/agent-registry.toml || exit 0; sudo cp -f /opt/multinexus/config/agent-registry.toml /tmp/agent-registry.toml.capacity-backup"
 
   remote_sudo_script <<EOF
 set -euo pipefail
 mkdir -p /opt/multinexus
-rsync -a --delete \
-  --exclude .venv \
-  --exclude agents.toml \
-  --exclude agents.toml.bak \
-  --exclude .env \
-  --exclude logs \
-  --exclude data \
-  --exclude ':memory:' \
-  --exclude ':memory:-shm' \
-  --exclude ':memory:-wal' \
-  --exclude docs/project-harness/current \
-  --exclude docs/project-harness/harness-state.json \
-  --exclude docs/project-harness/events.jsonl \
-  --exclude .qoder \
-  --exclude .DS_Store \
-  --exclude VERSION_DEPLOYED \
+rsync -a --delete \\
+  --exclude .venv \\
+  --exclude agents.toml \\
+  --exclude agents.toml.bak \\
+  --exclude .env \\
+  --exclude logs \\
+  --exclude data \\
+  --exclude ':memory:' \\
+  --exclude ':memory:-shm' \\
+  --exclude ':memory:-wal' \\
+  --exclude docs/project-harness/current \\
+  --exclude docs/project-harness/harness-state.json \\
+  --exclude docs/project-harness/events.jsonl \\
+  --exclude .qoder \\
+  --exclude .DS_Store \\
+  --exclude VERSION_DEPLOYED \\
   '$staging'/ /opt/multinexus/
 chown -R multinexus:multinexus /opt/multinexus
 if [[ -d /opt/multinexus/docs/project-harness ]]; then
@@ -341,13 +402,14 @@ test -f /opt/multinexus/agents.toml
 rm -rf '$staging'
 EOF
 
-  verify_remote_registry_parity
-  sync_registry_to_coordinate
-  if ! sync_capacity_to_coordinate; then
-    restore_previous_capacity_source
-    return 1
-  fi
-  verify_committed_registry
+  # Guarded deploy: do not write VERSION_DEPLOYED, restart, or run smoke until all
+  # parity/sync/list/committed stages succeed. If any stage fails, restore the
+  # previous accepted authority and replay its projection before returning nonzero.
+  verify_remote_registry_parity || { restore_previous_accepted_state; return 1; }
+  sync_registry_to_coordinate || { restore_previous_accepted_state; return 1; }
+  sync_capacity_to_coordinate || { restore_previous_accepted_state; return 1; }
+  list_capacity_to_coordinate || { restore_previous_accepted_state; return 1; }
+  verify_committed_registry || { restore_previous_accepted_state; return 1; }
 
   if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     ssh "$HOST" "sudo -u multinexus python3 -m venv /opt/multinexus/.venv && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/python -m pip install --upgrade pip setuptools wheel && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt"

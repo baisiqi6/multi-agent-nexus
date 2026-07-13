@@ -18,6 +18,17 @@ MAX_CONCURRENT_JOBS = 32
 
 _SAFE_LABEL_RE = __import__("re").compile(r"^[A-Za-z0-9_.\-]+$")
 
+# Shared agent-registry.toml may contain P9-2A roster/executor roots; the capacity
+# parser ignores them but must reject any unknown or secret-bearing root.
+_ALLOWED_SHARED_ROOT_KEYS = {
+    "registry",
+    "executor_definitions",
+    "agents",
+    "external_agents",
+    "capacity_registry",
+    "executor_capacities",
+}
+
 
 class CapacityAuthorityError(Exception):
     """The capacity projection violates the strict allow-list schema."""
@@ -124,6 +135,10 @@ def parse_capacity_catalog(source: str | Path) -> CapacityCatalog:
     path = Path(source).expanduser()
     data = _load_toml(path)
 
+    unknown_root = set(data.keys()) - _ALLOWED_SHARED_ROOT_KEYS
+    if unknown_root:
+        raise CapacityAuthorityError(f"unknown root keys: {sorted(unknown_root)}")
+
     capacity_registry = data.get("capacity_registry")
     if not isinstance(capacity_registry, dict):
         raise CapacityAuthorityError("missing [capacity_registry] metadata")
@@ -133,10 +148,8 @@ def parse_capacity_catalog(source: str | Path) -> CapacityCatalog:
             f"unknown [capacity_registry] keys: {sorted(unknown_registry)}"
         )
 
-    source_id = str(capacity_registry.get("id", "")).strip()
-    if not source_id:
-        raise CapacityAuthorityError("[capacity_registry].id is required")
-    source_id = _validate_bounded_label(source_id, "[capacity_registry].id")
+    source_id = capacity_registry.get("id")
+    _validate_bounded_label(source_id, "[capacity_registry].id")
 
     version = capacity_registry.get("version")
     if isinstance(version, bool) or not isinstance(version, int) or version < 0:

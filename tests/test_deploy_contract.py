@@ -204,6 +204,9 @@ CREATE TABLE IF NOT EXISTS executor_instance_bindings (
 """)
 
 args = sys.argv[1:]
+if "list" in args:
+    print("capacity list OK")
+    sys.exit(0)
 if "sync" not in args:
     print("fake coord-local: only sync supported", file=sys.stderr)
     sys.exit(1)
@@ -275,6 +278,9 @@ elif args[0] == "runtime" and args[1] == "executor":
             (b.agent_id, authority.source_id, b.executor_definition_id, b.runner_profile_id, int(b.enabled), now, now),
         )
 elif args[0] == "runtime" and args[1] == "capacity":
+    if "list" in args:
+        print("capacity list OK")
+        sys.exit(0)
     if os.environ.get("FAKE_CAPACITY_SYNC_FAILURE") == "1":
         print("fake coord-local: injected capacity sync failure", file=sys.stderr)
         sys.exit(1)
@@ -304,6 +310,15 @@ elif args[0] == "runtime" and args[1] == "capacity":
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (p.agent_id, capacity.source_id, capacity.source_version, capacity.catalog_hash, policy_id, p.max_concurrent_jobs, now, now),
         )
+    # Fault-injection: tamper a policy id once so the committed verifier fails on
+    # the first attempt, then leave the marker so the restore attempt is clean.
+    tamper_marker = Path(root) / ".capacity_verify_tamper_done"
+    if os.environ.get("FAKE_CAPACITY_VERIFY_FAILURE") == "1" and not tamper_marker.exists():
+        conn.execute(
+            "UPDATE executor_capacity_policies SET capacity_policy_id = ? WHERE agent_id = ?",
+            ("sha256:tampered", "mac-claude"),
+        )
+        tamper_marker.write_text("done", encoding="utf-8")
 else:
     print("fake coord-local: unexpected subcommand", file=sys.stderr)
     sys.exit(1)
@@ -730,6 +745,98 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
         # The previous accepted capacity projection must remain in the DB.
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
+            ("mac-claude",),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["source_version"], 1)
+        self.assertEqual(row["max_concurrent_jobs"], 1)
+        conn.close()
+
+
+    def test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart(self):
+        # Pre-create the remote config and DB with a v1 capacity projection so
+        # the backup has something to restore to.
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            PRAGMA user_version = 13;
+            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
+              source_id TEXT PRIMARY KEY,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              source_path TEXT,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
+              agent_id TEXT PRIMARY KEY,
+              source_id TEXT NOT NULL,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              capacity_policy_id TEXT NOT NULL,
+              max_concurrent_jobs INTEGER NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("multinexus.discord.capacity", 1, "v1-hash", str(remote_config), "2026-01-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("mac-claude", "multinexus.discord.capacity", 1, "v1-hash", "sha256:v1-policy", 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+        )
+        conn.commit()
+        conn.close()
+
+        # Modify local authority to a v2 capacity projection.
+        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2, encoding="utf-8")
+
+        # Inject a one-time capacity policy id tamper so the committed verifier fails.
+        env = dict(self._env)
+        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("committed-state", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # The previous accepted capacity projection must be restored in the DB.
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         row = conn.execute(

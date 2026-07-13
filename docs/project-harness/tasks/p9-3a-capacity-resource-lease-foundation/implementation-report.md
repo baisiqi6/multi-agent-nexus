@@ -123,7 +123,7 @@ Result:
 
 ## Cross-repo contract evidence
 
-- `capacity_catalog_v1.json` SHA-256 (both repos): `2ae67c8d123b2e1b2165e42b498c7a470418b8bad4a9cefd2ac88379cc94fd2a` — byte-identical.
+- `capacity_catalog_v1.json` SHA-256 (both repos): `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d` — byte-identical.
 - P9-2 executor catalog hash remains unchanged: `f4cdf79897755c173e97ddae1dfd88047436039f3447d4d6257105715ba5551d`.
 - P9-2 binding IDs, roster bytes, and exact/routed behavior are unchanged (verified by `test_executor_identity.py` and runtime compatibility suites).
 - `handle_runtime_capacity_sync` canonical AST hash updated to `5655f5afc2b2967b07863e0a64243e559ab8f024a5de0dde491bb374f93515dc`.
@@ -138,6 +138,120 @@ Result:
 ## Deployment status
 
 No deployment, push, merge, or production action was performed. The deployment verification and fault-injection scripts are implemented and tested locally only. Cross-sync failure handling preserves the previous accepted projection and does not write version/restart/success until complete capacity parity is verified.
+
+## Result Review Correction Round 1
+
+### Scope and constraints
+- Same approved plan; no new P9-3B claim/heartbeat, P9-4 observation, or P9-5 scheduler behavior added.
+- No push, merge, deploy, SSH, production DB access, or harness operator actions.
+
+### Findings fixed
+
+#### Coordinate
+
+C1. shared TOML 被真实 parser 拒绝
+- **Fix:** `src/coordinate/executor_capacity.py::parse_capacity_catalog()` root allow-list expanded to the exact known shared root set: `registry`, `executor_definitions`, `agents`, `external_agents`, `capacity_registry`, `executor_capacities`. Rejects unknown and secret-bearing roots. Source id validation no longer silently strips non-strings.
+- **Tests:** `test_parse_accepts_real_multinexus_registry`, `test_parse_rejects_unknown_capacity_root_keys`, `test_parse_rejects_secret_bearing_root_keys`, `test_parse_rejects_whitespace_source_id`, `test_source_id_is_not_coerced_from_non_string` in `tests/test_executor_capacity.py`.
+
+C2. exact retry 绕过当前 coverage
+- **Fix:** `sync_capacity_catalog()` now validates coverage against the current executor binding snapshot before returning on same version/hash. No source/policy timestamp is written on exact retry.
+- **Tests:** `test_exact_retry_validates_coverage_after_disabled_binding`, `test_exact_retry_validates_coverage_after_new_binding` in `tests/test_executor_capacity.py`.
+
+C3. reserve 缺失 attempt/context cross-links
+- **Fix:** `reserve_attempt_lease()` validates `attempt_token` is a strict positive integer equal to `jobs.attempt_count`; validates the job `payload_json.execution_context` via `execution_context.validate_execution_context_snapshot()`; enforces exact match of `job_id`, `workspace_id`, `assigned_agent`, `host_id`, and normalized `worktree_path`. Fail-closed before any lease write.
+- **Tests:** `LeaseContextCrossLinkTests` in `tests/test_execution_leases.py`.
+
+C4. stored resource tamper 未 fail closed
+- **Fix:** `validate_resource_key_matches()` is invoked on every read/write path that consumes a stored lease snapshot (reserve replay, renew, release, expire, get, list). It rebuilds the contract v1 resource from `resource_kind + host_id + normalized_path` and compares exact shape/digest.
+- **Tests:** `LeaseStoredResourceTamperTests` in `tests/test_execution_leases.py`.
+
+C5. Windows lexical resource 边界错误
+- **Fix:** `execution_resources.py` treats `//SERVER/Share/path` as UNC; rejects bare `C:` drive-relative paths; accepts `C:\\...` and `C:/...` as drive roots; no silent `.strip()` on `host_id`; adds mixed separator/casefold tests.
+- **Tests:** `ResourceWindowsLexicalTests` in `tests/test_execution_resources.py`.
+
+C6. release reason 未 bounded, attempt 类型校验不严格
+- **Fix:** `MAX_RELEASE_REASON_LEN = 256`; release reason must be a non-empty Unicode string ≤ 256 without control/NUL characters; same reason replay preserves the original time, different reason fail-closed; shared strict positive integer validator for attempt in reserve/renew/release/expire, rejecting booleans.
+- **Tests:** `LeaseReleaseReasonTests` in `tests/test_execution_leases.py`.
+
+C7. schema v13 缺计划要求的约束与 rollback 证明
+- **Fix:** `schema.py` v13 `execution_attempt_leases` adds `capacity_policy_id NOT NULL`; `host_id` length 1..64; `resource_key` glob `sha256:*` and length 71; `normalized_path` length 1..4096; `capacity_policy_id` glob/length 71; state-shape CHECK constraints for active/released rows; timestamp-order CHECK constraints; clean v12→v13 migration; repeated migration idempotent; atomic rollback verified via a malformed pre-existing table.
+- **Tests:** `SchemaV13Tests` in `tests/test_db.py`.
+
+#### MultiNexus
+
+M1. Multi capacity parser 根级 schema 不 strict
+- **Fix:** `multinexus/executor_capacity_authority.py` uses the same `_ALLOWED_SHARED_ROOT_KEYS` set as Coordinate; accepts the real `config/agent-registry.toml`; rejects unknown/secret-bearing roots; source id is no longer coerced or stripped.
+- **Tests:** `test_parse_accepts_real_multinexus_registry`, `test_parse_rejects_unknown_capacity_root_keys`, `test_parse_rejects_secret_bearing_root_keys`, `test_parse_rejects_whitespace_source_id`, `test_source_id_is_not_coerced_from_non_string` in `tests/test_executor_capacity_authority.py`.
+
+M2. verifier 没有验证 capacity_policy_id
+- **Fix:** `scripts/agent_registry_deploy_verify.py` recomputes `capacity_policy_id` for each policy and compares it to the DB row; failure is fail-closed.
+- **Tests:** `test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart` in `tests/test_deploy_contract.py`.
+
+M3. guarded deploy rollback 覆盖不完整
+- **Fix:** `scripts/deploy-server.sh` now backs up the current accepted authority before the rsync, then runs guarded parity → roster → executor → capacity → `runtime capacity list` → committed verifier. Any stage failure triggers `restore_previous_accepted_state`, which restores the old authority and replays the full old projection (or verifies capacity absence if the old authority has no capacity roots). No `VERSION_DEPLOYED`, restart, or smoke is written until all stages succeed.
+- **Tests:** `test_capacity_sync_failure_no_version_restart_and_previous_restored`, `test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart` in `tests/test_deploy_contract.py`.
+
+### Verification evidence (after correction)
+
+Coordinate full suite:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-p9-3a-kimi
+PYTHONPATH=src python -m pytest tests/ --import-mode=importlib -q
+9 failed, 2249 passed, 493 subtests passed in 65.78s
+```
+The 9 failures are the same historical baseline: 8 `tests/test_cli_contract.py` hash failures + 1 `tests/test_issue_cli.py` AST handler hash failure.
+
+Coordinate focused tests:
+```text
+PYTHONPATH=src python -m pytest tests/test_executor_capacity.py tests/test_execution_resources.py tests/test_execution_leases.py tests/test_db.py tests/test_execution_cli.py -q
+161 passed, 5 subtests passed in 0.87s
+```
+
+MultiNexus full suite:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-p9-3a-kimi
+PYTHONPATH=. /Users/yinxin/projects/multinexus/.venv/bin/python -m pytest tests -q
+523 passed, 2 skipped, 1 warning, 36 subtests passed in 26.50s
+```
+
+MultiNexus focused tests:
+```text
+PYTHONPATH=. python -m pytest tests/test_executor_capacity_authority.py tests/test_deploy_contract.py tests/test_smoke_contract.py -q
+31 passed in 22.61s
+```
+
+Static checks:
+- Coordinate: `git diff --check` and `python -m compileall src/coordinate tests` passed.
+- MultiNexus: `git diff --check`, `bash -n scripts/deploy-server.sh`, and `python -m compileall multinexus scripts tests` passed.
+
+### Corrected cross-repo contract evidence
+- `capacity_catalog_v1.json` SHA-256 (both repos): `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d` — byte-identical.
+- P9-2 executor catalog hash, roster bytes, and binding ids remain unchanged.
+
+### Files changed in correction
+
+Coordinate:
+- `src/coordinate/executor_capacity.py`
+- `src/coordinate/execution_resources.py`
+- `src/coordinate/execution_leases.py`
+- `src/coordinate/schema.py`
+- `tests/test_executor_capacity.py`
+- `tests/test_execution_resources.py`
+- `tests/test_execution_leases.py`
+- `tests/test_db.py`
+
+MultiNexus:
+- `multinexus/executor_capacity_authority.py`
+- `scripts/agent_registry_deploy_verify.py`
+- `scripts/deploy-server.sh`
+- `tests/test_executor_capacity_authority.py`
+- `tests/test_deploy_contract.py`
+- `docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/implementation-report.md`
+
+### Residual risks
+- The 9 Coordinate CLI/AST failures are pre-existing baseline and unrelated to P9-3A.
+- Guarded deploy rollback assumes the previously accepted authority file exists; a first-time deploy with no capacity backup cannot restore a prior projection (verified absent instead).
+- No production runtime, background lease reaper, or heartbeat/claim behavior was introduced.
 
 ## Residual risks
 

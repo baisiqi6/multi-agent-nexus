@@ -20,7 +20,10 @@ from typing import Any
 from coordinate.db import resolve_effective_agents
 
 # MultiNexus authority loaders are safe to import (no Coordinate dependency).
-from multinexus.executor_capacity_authority import load_capacity_authority
+from multinexus.executor_capacity_authority import (
+    compute_capacity_policy_id,
+    load_capacity_authority,
+)
 from multinexus.registry_authority import load_authority
 
 
@@ -307,6 +310,15 @@ def verify(conn: sqlite3.Connection, workspace_id: str, authority_path: str, *, 
                     continue
                 if row["max_concurrent_jobs"] != auth_policy.max_concurrent_jobs:
                     errors.append(f"capacity policy {row['agent_id']!r} max_concurrent_jobs mismatch")
+                expected_policy_id = compute_capacity_policy_id(
+                    agent_id=auth_policy.agent_id,
+                    catalog_hash=capacity_authority.catalog_hash,
+                    max_concurrent_jobs=auth_policy.max_concurrent_jobs,
+                    source_id=capacity_authority.source_id,
+                    source_version=capacity_authority.source_version,
+                )
+                if row["capacity_policy_id"] != expected_policy_id:
+                    errors.append(f"capacity policy {row['agent_id']!r} policy_id mismatch")
 
     return {
         "ok": not errors,
