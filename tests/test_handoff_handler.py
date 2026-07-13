@@ -86,6 +86,88 @@ class TestParseCoordinatorHandoff(unittest.TestCase):
         self.assertIsNone(handoff)
 
 
+class TestParseCoordinatorHandoffV1Authority(unittest.TestCase):
+    def _v1_handoff(self, **overrides):
+        fields = {
+            "workspace_id": "multinexus",
+            "task_id": "phase-5.1",
+            "action": "assignment.accept",
+            "context_version": "1",
+            "workspace_path": "/fake/workspace",
+            "harness_root": "/fake/harness",
+            "branch": "main",
+        }
+        fields.update(overrides)
+        parts = " ".join(f"{k}={v}" for k, v in fields.items())
+        return parse_coordinator_handoff(
+            f"[handoff] <@123> {parts}",
+            my_discord_user_id=123,
+        )
+
+    def test_accepts_valid_posix_v1_block(self):
+        handoff = self._v1_handoff()
+        self.assertIsNotNone(handoff)
+        self.assertEqual(handoff.context_version, 1)
+        self.assertEqual(handoff.workspace_path, "/fake/workspace")
+        self.assertEqual(handoff.harness_root, "/fake/harness")
+
+    def test_accepts_valid_quoted_windows_v1_block(self):
+        handoff = self._v1_handoff(
+            workspace_path="'C:\\Users\\My User\\demo'",
+            harness_root="'C:\\Users\\My User\\demo\\harness'",
+        )
+        self.assertIsNotNone(handoff)
+        self.assertEqual(handoff.workspace_path, "C:\\Users\\My User\\demo")
+        self.assertEqual(handoff.harness_root, "C:\\Users\\My User\\demo\\harness")
+
+    def test_rejects_v1_missing_workspace_path(self):
+        self.assertIsNone(self._v1_handoff(workspace_path=""))
+
+    def test_rejects_v1_missing_harness_root(self):
+        self.assertIsNone(self._v1_handoff(harness_root=""))
+
+    def test_rejects_v1_relative_workspace_path(self):
+        self.assertIsNone(self._v1_handoff(workspace_path="relative/path"))
+
+    def test_rejects_v1_relative_harness_root(self):
+        self.assertIsNone(self._v1_handoff(harness_root="relative/harness"))
+
+    def test_diagnostic_mode_returns_candidate_for_partial_v1(self):
+        handoff = parse_coordinator_handoff(
+            "[handoff] <@123> workspace_id=multinexus "
+            "task_id=phase-5.1 action=assignment.accept "
+            "context_version=1 workspace_path=/fake/workspace branch=main",
+            my_discord_user_id=123,
+            diagnostic=True,
+        )
+        self.assertIsNotNone(handoff)
+        self.assertIsNone(handoff.context_version)
+        self.assertEqual(handoff.workspace_path, "")
+        self.assertEqual(handoff.harness_root, "")
+        self.assertIsNone(handoff.branch)
+
+    def test_diagnostic_mode_returns_candidate_for_legacy_handoff(self):
+        handoff = parse_coordinator_handoff(
+            "[handoff] <@123> workspace_id=multinexus "
+            "task_id=phase-5.1 action=assignment.accept",
+            my_discord_user_id=123,
+            diagnostic=True,
+        )
+        self.assertIsNotNone(handoff)
+        self.assertIsNone(handoff.context_version)
+
+    def test_diagnostic_mode_rejects_unidentified_handoff(self):
+        # Wrong target user must not produce a candidate, even in diagnostic mode.
+        handoff = parse_coordinator_handoff(
+            "[handoff] <@456> workspace_id=multinexus "
+            "task_id=phase-5.1 action=assignment.accept "
+            "context_version=1 workspace_path=/fake/workspace",
+            my_discord_user_id=123,
+            diagnostic=True,
+        )
+        self.assertIsNone(handoff)
+
+
 class TestParseCoordinatorLifecycle(unittest.TestCase):
     def test_parses_closeout_lifecycle_notice(self):
         event = parse_coordinator_lifecycle(

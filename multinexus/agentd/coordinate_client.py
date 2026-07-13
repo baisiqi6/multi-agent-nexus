@@ -13,8 +13,13 @@ import logging
 import os
 import subprocess
 import sys
+from typing import Any
 
 log = logging.getLogger(__name__)
+
+
+class CoordinateRuntimeError(RuntimeError):
+    """Raised when the Coordinate CLI returns a non-zero exit or non-JSON output."""
 
 
 class CoordinateRuntimeClient:
@@ -77,15 +82,19 @@ class CoordinateRuntimeClient:
 
         log.info("coordinate submit: agent=%s msg=%s", target_agent, message_id)
 
-        result = await asyncio.to_thread(self._run_cli, cmd)
-        return result
+        return await asyncio.to_thread(self._run_cli, cmd)
 
-    async def claim_job(self, *, agent_id: str, recoverable: bool = False) -> dict | None:
-        """Claim the next pending job for this agent. Returns job dict or None.
+    async def claim_job(
+        self, *, agent_id: str, recoverable: bool = False
+    ) -> dict[str, Any] | None:
+        """Claim the next pending job for this agent. Returns the full result envelope or None.
 
         recoverable=True (operator recovery mode only) also claims timed_out+
         recoverable jobs (appends --recoverable). Default False = only pending,
         so normal launchd agentd never auto-reclaims a stuck timed_out job (8.4.3 P1 #1).
+
+        The caller must validate ``result["execution_context"]`` before invoking
+        an adapter; this client preserves the raw Coordinate response.
         """
         cmd = [
             *self._base_cmd,
@@ -95,8 +104,17 @@ class CoordinateRuntimeClient:
         if recoverable:
             cmd.append("--recoverable")
         result = await asyncio.to_thread(self._run_cli, cmd)
-        if result.get("result", {}).get("claimed"):
-            return result["result"]["job"]
+        if not isinstance(result, dict):
+            raise CoordinateRuntimeError(
+                f"coordinate claim for {agent_id} returned non-dict result"
+            )
+        inner = result.get("result")
+        if not isinstance(inner, dict):
+            raise CoordinateRuntimeError(
+                f"coordinate claim for {agent_id} returned missing/invalid result envelope"
+            )
+        if inner.get("claimed"):
+            return inner
         return None
 
     async def report_job(
@@ -182,13 +200,28 @@ class CoordinateRuntimeClient:
             "--workspace-id", workspace_id or self.workspace_id,
         ]
         result = await asyncio.to_thread(self._run_cli, cmd)
+        if not isinstance(result, dict):
+            raise CoordinateRuntimeError(
+                f"coordinate job list for {job_id} returned non-dict result"
+            )
         jobs = result.get("jobs", [])
+        if not isinstance(jobs, list):
+            raise CoordinateRuntimeError(
+                f"coordinate job list for {job_id} returned non-list jobs"
+            )
         for job in jobs:
             if job.get("id") == job_id:
                 return job
         return None
 
     def _run_cli(self, cmd: list[str]) -> dict:
+        """Run the Coordinate CLI and return its JSON output as a dict.
+
+        All failure modes (non-zero exit, timeout, non-JSON output, OS errors,
+        and malformed envelopes) are normalized into a bounded
+        CoordinateRuntimeError so the agentd loop can back off instead of
+        spinning or crashing.
+        """
         try:
             proc = subprocess.run(
                 cmd,
@@ -199,13 +232,36 @@ class CoordinateRuntimeClient:
                 timeout=30,
                 env=self._base_env(),
             )
-            if proc.returncode != 0:
-                log.error("coordinate CLI failed: %s stderr=%s", cmd, proc.stderr[:500])
-                return {"error": f"CLI exit {proc.returncode}: {proc.stderr[:300]}"}
-            return json.loads(proc.stdout)
         except subprocess.TimeoutExpired:
-            return {"error": "coordinate CLI timed out"}
-        except json.JSONDecodeError as exc:
-            return {"error": f"coordinate CLI non-JSON: {exc}"}
+            raise CoordinateRuntimeError("coordinate CLI timed out")
+        except OSError as exc:
+            raise CoordinateRuntimeError(f"coordinate CLI execution failed: {exc}")
         except Exception as exc:
-            return {"error": str(exc)}
+            raise CoordinateRuntimeError(f"coordinate CLI unexpected error: {exc}")
+
+        if proc.returncode != 0:
+            stderr = proc.stderr[:300] if proc.stderr else ""
+            raise CoordinateRuntimeError(
+                f"coordinate CLI exit {proc.returncode}: {stderr}"
+            )
+
+        stdout = proc.stdout.strip()
+        if not stdout:
+            raise CoordinateRuntimeError("coordinate CLI returned empty stdout")
+
+        try:
+            result = json.loads(stdout)
+        except json.JSONDecodeError as exc:
+            raise CoordinateRuntimeError(f"coordinate CLI non-JSON: {exc}")
+
+        if not isinstance(result, dict):
+            raise CoordinateRuntimeError("coordinate CLI returned non-object JSON")
+
+        # If Coordinate itself reported a runtime error, surface it as a bounded
+        # exception rather than making every caller inspect an error dict.
+        if result.get("error"):
+            raise CoordinateRuntimeError(
+                f"coordinate runtime error: {result['error']}"
+            )
+
+        return result

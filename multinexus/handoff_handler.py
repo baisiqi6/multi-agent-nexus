@@ -28,6 +28,13 @@ class CoordinatorHandoff:
     task_id: str
     bootstrap_path: str
     action: str
+    # v1 execution context metadata from the handoff body. These are advisory
+    # bootstrap-location fields only; adapter cwd/session authority comes from
+    # the Coordinate runtime job claim response.
+    context_version: int | None = None
+    workspace_path: str = ""
+    harness_root: str = ""
+    branch: str | None = None
 
 
 @dataclass(frozen=True)
@@ -44,6 +51,12 @@ _LIFECYCLE_PREFIX_RE = re.compile(
 )
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]+$")
 _ALLOWED_ACTIONS = frozenset({"assignment.accept", "review.begin"})
+# Host-absolute path forms: POSIX ``/...`` or Windows ``C:\...`` / UNC ``\\...``.
+_HOST_ABS_RE = re.compile(r"^([A-Za-z]:[\\/]|\\\\|/)")
+
+
+def _is_host_absolute_path(path: str) -> bool:
+    return bool(_HOST_ABS_RE.match(path))
 _LIFECYCLE_ACTIONS = frozenset(
     {"assignment.closeout", "assignment.mark-done", "task.done"}
 )
@@ -65,11 +78,20 @@ def parse_coordinator_handoff(
     content: str,
     *,
     my_discord_user_id: int,
+    diagnostic: bool = False,
 ) -> CoordinatorHandoff | None:
     """Parse a structured [handoff] message from the coordinator bot.
 
     Returns None if the message doesn't match the expected format or
     the action isn't in the allowed whitelist.
+
+    When ``diagnostic`` is True, the parser returns a candidate handoff for
+    messages that identify this agent with a supported action, even if the
+    optional v1 execution context block is malformed. The candidate always has
+    ``context_version=None`` when v1 authority is missing or invalid, so the
+    managed runtime's existing authority gate emits exactly one blocker. This
+    keeps malformed context from becoming authority while preserving a visible
+    fail-closed path.
     """
     prefix = _HANDOFF_PREFIX_RE.search(content)
     if prefix is None:
@@ -90,11 +112,56 @@ def parse_coordinator_handoff(
         log.info("Handoff action %r not in allowed list, skipping", action)
         return None
 
+    # Parse optional v1 execution context advisory fields.
+    context_version_raw = fields.get("context_version")
+    workspace_path = fields.get("workspace_path") or ""
+    harness_root = fields.get("harness_root") or ""
+    branch = fields.get("branch") or None
+    context_version: int | None = None
+    if context_version_raw is not None:
+        try:
+            parsed_version = int(context_version_raw)
+        except ValueError:
+            log.info("Handoff context_version is not an integer, skipping")
+            if not diagnostic:
+                return None
+            parsed_version = None
+        if parsed_version is not None and parsed_version != 1:
+            log.info("Handoff context_version %r not supported, skipping", parsed_version)
+            if not diagnostic:
+                return None
+            parsed_version = None
+        if parsed_version == 1:
+            # A v1 block requires both a host-absolute workspace_path and a
+            # host-absolute harness_root; partial blocks are rejected.
+            if not workspace_path or not _is_host_absolute_path(workspace_path):
+                log.info("Handoff v1 block missing or invalid workspace_path, skipping")
+                if not diagnostic:
+                    return None
+                parsed_version = None
+            elif not harness_root or not _is_host_absolute_path(harness_root):
+                log.info("Handoff v1 block missing or invalid harness_root, skipping")
+                if not diagnostic:
+                    return None
+                parsed_version = None
+        if parsed_version is None and diagnostic:
+            # Malformed v1 must not leak partial path authority. Clear the
+            # advisory fields so the managed authority gate sees a legacy
+            # candidate and emits one visible blocker.
+            workspace_path = ""
+            harness_root = ""
+            branch = None
+        context_version = parsed_version
+
     return CoordinatorHandoff(
         workspace_id=workspace_id,
         task_id=task_id,
         bootstrap_path=bootstrap_path or "",
         action=action,
+        context_version=context_version,
+        workspace_path=workspace_path,
+        harness_root=harness_root,
+        branch=branch,
     )
 
 

@@ -46,7 +46,9 @@ def _make_handoff_message(content=None, author_id=999, channel_id=500):
         content = (
             "[handoff] <@111> workspace_id=multinexus "
             "task_id=phase-5.1 action=assignment.accept "
-            "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md"
+            "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md "
+            "context_version=1 workspace_path=/fake/workspace "
+            "harness_root=/fake/harness branch=main"
         )
     msg = MagicMock(spec=discord.Message)
     msg.id = 123456
@@ -364,6 +366,196 @@ class TestCoordinatorHandoffAcceptSuccess(unittest.TestCase):
         self.assertIn("/Users/yinxin/projects/multinexus", submit_kwargs["prompt"])
         self.assertNotIn("server bootstrap", submit_kwargs["prompt"])
 
+
+def _make_legacy_handoff_message():
+    """Legacy handoff without v1 execution context fields."""
+    return _make_handoff_message(
+        content=(
+            "[handoff] <@111> workspace_id=multinexus "
+            "task_id=phase-5.1 action=assignment.accept "
+            "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md"
+        )
+    )
+
+
+def _make_partial_v1_handoff_message():
+    """v1 handoff missing the required harness_root field."""
+    return _make_handoff_message(
+        content=(
+            "[handoff] <@111> workspace_id=multinexus "
+            "task_id=phase-5.1 action=assignment.accept "
+            "bootstrap=docs/project-harness/tasks/phase-5.1/worker-bootstrap.md "
+            "context_version=1 workspace_path=/fake/workspace branch=main"
+        )
+    )
+
+
+def _make_partial_v1_review_handoff_message():
+    """v1 review handoff missing the required harness_root field."""
+    return _make_handoff_message(
+        content=(
+            "[handoff] <@111> workspace_id=multinexus "
+            "task_id=phase-5.1 action=review.begin "
+            "bootstrap=docs/project-harness/tasks/phase-5.1/reviewer-bootstrap.md "
+            "context_version=1 workspace_path=/fake/workspace branch=main"
+        )
+    )
+
+
+class TestCoordinatorHandoffV1Authority(unittest.TestCase):
+    """Managed agentd_mode must reject legacy/partial handoffs before any authority use."""
+
+    def _run_handoff(self, instance, msg):
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(instance._try_coordinator_handoff(msg))
+        finally:
+            loop.close()
+
+    def test_agentd_mode_rejects_legacy_worker_handoff_before_assignment_accept(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_legacy_handoff_message()
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+        instance._coordinate_client.submit_request = AsyncMock(
+            return_value={"result": {"job": {"id": "request:legacy"}}}
+        )
+
+        with (
+            patch(
+                "multinexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ) as accept,
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap") as read_bootstrap,
+            patch(
+                "multinexus.client.resolve_workspace_path",
+                return_value="/sqlite/workspace",
+            ) as resolve_workspace,
+        ):
+            result = self._run_handoff(instance, msg)
+
+        self.assertTrue(result, "Should return True (handled)")
+        accept.assert_not_called()
+        read_bootstrap.assert_not_called()
+        resolve_workspace.assert_not_called()
+        instance._coordinate_client.submit_request.assert_not_called()
+        instance.adapter.call.assert_not_called()
+
+        sends = msg.channel.send.call_args_list
+        self.assertTrue(len(sends) >= 1)
+        sent_text = sends[0][0][0]
+        self.assertIn("[agent-report]", sent_text)
+        self.assertIn("action=blocker", sent_text)
+        self.assertIn("managed mode requires a complete v1 handoff authority", sent_text)
+
+    def test_agentd_mode_rejects_legacy_review_handoff_before_bootstrap_read(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_handoff_message(
+            content=(
+                "[handoff] <@111> workspace_id=multinexus "
+                "task_id=phase-5.1 action=review.begin "
+                "bootstrap=docs/project-harness/tasks/phase-5.1/reviewer-bootstrap.md"
+            )
+        )
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+        instance._coordinate_client.submit_request = AsyncMock(
+            return_value={"result": {"job": {"id": "request:review-legacy"}}}
+        )
+
+        with (
+            patch("multinexus.client.read_bootstrap", return_value="review bootstrap") as read_bootstrap,
+            patch(
+                "multinexus.client.resolve_workspace_path",
+                return_value="/sqlite/workspace",
+            ) as resolve_workspace,
+        ):
+            result = self._run_handoff(instance, msg)
+
+        self.assertTrue(result, "Should return True (handled)")
+        read_bootstrap.assert_not_called()
+        resolve_workspace.assert_not_called()
+        instance._coordinate_client.submit_request.assert_not_called()
+        instance.adapter.call.assert_not_called()
+
+        sends = msg.channel.send.call_args_list
+        self.assertTrue(len(sends) >= 1)
+        sent_text = sends[0][0][0]
+        self.assertIn("[agent-report]", sent_text)
+        self.assertIn("action=blocker", sent_text)
+        self.assertIn("managed mode requires a complete v1 handoff authority", sent_text)
+
+    def test_agentd_mode_partial_v1_handoff_emits_blocker_before_assignment_accept(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_partial_v1_handoff_message()
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+
+        with (
+            patch(
+                "multinexus.client.execute_assignment_accept",
+                return_value=(True, "accepted"),
+            ) as accept,
+            patch("multinexus.client.read_bootstrap", return_value="bootstrap") as read_bootstrap,
+            patch(
+                "multinexus.client.resolve_workspace_path",
+                return_value="/sqlite/workspace",
+            ) as resolve_workspace,
+        ):
+            result = self._run_handoff(instance, msg)
+
+        # Malformed v1 is recognized as a candidate in diagnostic mode, then
+        # rejected by the managed authority gate with exactly one visible blocker.
+        self.assertTrue(result, "Should return True (handled)")
+        accept.assert_not_called()
+        read_bootstrap.assert_not_called()
+        resolve_workspace.assert_not_called()
+        instance._coordinate_client.submit_request.assert_not_called()
+        instance.adapter.call.assert_not_called()
+
+        sends = msg.channel.send.call_args_list
+        self.assertEqual(len(sends), 1)
+        sent_text = sends[0][0][0]
+        self.assertIn("[agent-report]", sent_text)
+        self.assertIn("action=blocker", sent_text)
+        self.assertIn("managed mode requires a complete v1 handoff authority", sent_text)
+
+    def test_agentd_mode_partial_v1_review_handoff_emits_blocker_before_bootstrap_read(self):
+        config = _make_config(agentd_mode=True)
+        msg = _make_partial_v1_review_handoff_message()
+        instance = _make_runtime_client(config)
+        instance._agentd_mode = True
+        instance.session_store = None
+        instance._coordinate_client = MagicMock()
+
+        with (
+            patch("multinexus.client.read_bootstrap", return_value="review bootstrap") as read_bootstrap,
+            patch(
+                "multinexus.client.resolve_workspace_path",
+                return_value="/sqlite/workspace",
+            ) as resolve_workspace,
+        ):
+            result = self._run_handoff(instance, msg)
+
+        self.assertTrue(result, "Should return True (handled)")
+        read_bootstrap.assert_not_called()
+        resolve_workspace.assert_not_called()
+        instance._coordinate_client.submit_request.assert_not_called()
+        instance.adapter.call.assert_not_called()
+
+        sends = msg.channel.send.call_args_list
+        self.assertEqual(len(sends), 1)
+        sent_text = sends[0][0][0]
+        self.assertIn("[agent-report]", sent_text)
+        self.assertIn("action=blocker", sent_text)
+        self.assertIn("managed mode requires a complete v1 handoff authority", sent_text)
+
     def test_accept_report_uses_allowed_mentions_none(self):
         config = _make_config()
         msg = _make_handoff_message()
@@ -510,7 +702,9 @@ class TestCoordinatorReviewHandoffReports(unittest.TestCase):
             content=(
                 "[handoff] <@111> workspace_id=multinexus "
                 "task_id=phase-5.1 action=review.begin "
-                "bootstrap=docs/project-harness/tasks/phase-5.1/reviewer-bootstrap.md"
+                "bootstrap=docs/project-harness/tasks/phase-5.1/reviewer-bootstrap.md "
+                "context_version=1 workspace_path=/fake/workspace "
+                "harness_root=/fake/harness branch=main"
             )
         )
 

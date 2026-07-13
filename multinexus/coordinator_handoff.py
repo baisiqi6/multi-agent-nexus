@@ -33,6 +33,34 @@ def _chunk_handoff_message(text: str) -> list[str]:
 
 
 class CoordinatorHandoffMixin:
+    def _resolve_bootstrap_workspace_path(self, handoff) -> str:
+        """Return the workspace path used to read the bootstrap file.
+
+        In managed agentd_mode, this uses ONLY the v1 handoff advisory
+        workspace_path. It must never fall back to the configured workspace path
+        or open the coordinator SQLite database. Legacy non-agentd mode may still
+        use the coordinator DB fallback.
+        """
+        cfg = self.agent_config
+        if self._agentd_mode:
+            return handoff.workspace_path
+
+        from . import client as client_facade
+        return client_facade.resolve_workspace_path(
+            db_path=cfg.coordinator_db_path,
+            workspace_id=handoff.workspace_id,
+            fallback_workspace_path=cfg.coordinator_workspace_path,
+        )
+
+    @staticmethod
+    def _has_v1_handoff_authority(handoff) -> bool:
+        """True when the handoff carries a valid v1 execution context."""
+        return (
+            handoff.context_version == 1
+            and bool(handoff.workspace_path)
+            and bool(handoff.harness_root)
+        )
+
     async def _try_coordinator_handoff(self, message: discord.Message) -> bool:
         """Auto-accept a coordinator handoff. Returns True if handled."""
         # Resolve these through the historical client module so existing
@@ -44,6 +72,16 @@ class CoordinatorHandoffMixin:
             message.content,
             my_discord_user_id=self.user.id,
         )
+        if handoff is None and self._agentd_mode:
+            # In managed mode, a malformed/partial v1 handoff must still be
+            # recognized as a candidate so that the authority gate below can
+            # emit exactly one visible blocker. The diagnostic parser never
+            # treats malformed path/version fields as authority.
+            handoff = client_facade.parse_coordinator_handoff(
+                message.content,
+                my_discord_user_id=self.user.id,
+                diagnostic=True,
+            )
         if handoff is None:
             return False
 
@@ -51,6 +89,24 @@ class CoordinatorHandoffMixin:
         context_channel_id = str(self._resolve_channel_id(message))
         session_scope_id = task_scope(handoff.workspace_id, handoff.task_id)
 
+        # Managed mode requires a complete v1 handoff authority before any
+        # assignment accept, bootstrap read, SQLite fallback, or provider/agentd
+        # invocation. Legacy non-agentd mode remains compatible.
+        if self._agentd_mode and not self._has_v1_handoff_authority(handoff):
+            error_msg = client_facade.build_agent_report(
+                "blocker",
+                handoff,
+                reason="managed mode requires a complete v1 handoff authority",
+            )
+            await message.channel.send(
+                error_msg,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            log.error(
+                "Managed handoff rejected: incomplete v1 authority for task=%s",
+                handoff.task_id,
+            )
+            return True
 
         # Review handoff: skip assignment.accept, use review.begin flow
         if handoff.action == "review.begin":
@@ -83,17 +139,31 @@ class CoordinatorHandoffMixin:
         # Prefer bootstrap_text returned by coordinate assignment accept. This
         # avoids reading target-agent bootstrap through the bridge deploy path.
         bootstrap_content = client_facade.bootstrap_text_from_accept_output(output)
-        bootstrap_workspace_path = client_facade.resolve_workspace_path(
-            db_path=cfg.coordinator_db_path,
-            workspace_id=handoff.workspace_id,
-            fallback_workspace_path=cfg.coordinator_workspace_path,
-        )
-        if bootstrap_content is None and handoff.bootstrap_path and bootstrap_workspace_path:
-            bootstrap_content = await asyncio.to_thread(
-                client_facade.read_bootstrap,
-                bootstrap_workspace_path,
-                handoff.bootstrap_path,
-            )
+        if bootstrap_content is None and handoff.bootstrap_path:
+            bootstrap_workspace_path = self._resolve_bootstrap_workspace_path(handoff)
+            if bootstrap_workspace_path:
+                bootstrap_content = await asyncio.to_thread(
+                    client_facade.read_bootstrap,
+                    bootstrap_workspace_path,
+                    handoff.bootstrap_path,
+                )
+
+        # Managed mode must have readable bootstrap content after assignment-accept
+        # output/file resolution. Without it, fail closed instead of falling back
+        # to configured paths or coordinator SQLite.
+        if self._agentd_mode:
+            if bootstrap_content is None:
+                error_msg = client_facade.build_agent_report(
+                    "blocker",
+                    handoff,
+                    reason="managed mode requires bootstrap content",
+                )
+                await message.channel.send(
+                    error_msg,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                log.error("Managed handoff rejected: missing bootstrap content for task=%s", handoff.task_id)
+                return True
 
         # Build prompt and call adapter
         prompt = client_facade.build_handoff_prompt(
@@ -221,12 +291,26 @@ class CoordinatorHandoffMixin:
 
         log.info("Review handoff: task=%s reviewer=%s", handoff.task_id, cfg.id)
 
+        # Managed mode requires a complete v1 handoff authority before any
+        # bootstrap read, SQLite fallback, or reviewer adapter/agentd invocation.
+        if self._agentd_mode and not self._has_v1_handoff_authority(handoff):
+            error_msg = client_facade.build_agent_report(
+                "blocker",
+                handoff,
+                reason="managed mode requires a complete v1 handoff authority",
+            )
+            await message.channel.send(
+                error_msg,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            log.error(
+                "Managed review handoff rejected: incomplete v1 authority for task=%s",
+                handoff.task_id,
+            )
+            return True
+
         # Read bootstrap directly (no assignment accept)
-        bootstrap_workspace_path = client_facade.resolve_workspace_path(
-            db_path=cfg.coordinator_db_path,
-            workspace_id=handoff.workspace_id,
-            fallback_workspace_path=cfg.coordinator_workspace_path,
-        )
+        bootstrap_workspace_path = self._resolve_bootstrap_workspace_path(handoff)
 
         bootstrap_content = None
         if handoff.bootstrap_path and bootstrap_workspace_path:
@@ -235,6 +319,22 @@ class CoordinatorHandoffMixin:
                 bootstrap_workspace_path,
                 handoff.bootstrap_path,
             )
+
+        # Managed review handoffs must resolve readable bootstrap content. Without
+        # it, fail closed instead of invoking the reviewer adapter.
+        if self._agentd_mode:
+            if bootstrap_content is None:
+                error_msg = client_facade.build_agent_report(
+                    "blocker",
+                    handoff,
+                    reason="managed review handoff requires bootstrap content",
+                )
+                await message.channel.send(
+                    error_msg,
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                log.error("Managed review handoff rejected: missing bootstrap content for task=%s", handoff.task_id)
+                return True
 
         # Build review-specific prompt
         prompt = client_facade.build_review_handoff_prompt(

@@ -2,6 +2,177 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — P9-1 Round 4 corrections
+
+- MultiNexus `multinexus/handoff_handler.py`: `parse_coordinator_handoff` keeps
+  strict default behavior (returns `None` for missing/relative/unsupported v1
+  authority) and adds a keyword-only `diagnostic` flag. Diagnostic mode returns
+  a candidate handoff with `context_version=None` for messages that identify
+  this agent with a supported action but carry a malformed v1 block; partial
+  path/branch fields are cleared so malformed context can never become authority.
+- MultiNexus `multinexus/coordinator_handoff.py`: `_try_coordinator_handoff` now
+  falls back to the diagnostic parser in `agentd_mode` when the strict parser
+  returns `None`. The existing `_has_v1_handoff_authority` gate then emits exactly
+  one visible blocker for partial/legacy managed handoffs and returns `True`
+  (handled). Legacy non-agentd behavior is unchanged.
+- Updated MultiNexus worker integration test: a partial v1 handoff is now
+  asserted to return `handled=True`, emit exactly one blocker, and call none of
+  assignment accept, bootstrap read, SQLite fallback, agentd submit, or provider
+  invocation.
+- Added MultiNexus reviewer integration test with the same visible fail-closed
+  assertions for a partial v1 review handoff.
+- Added diagnostic parser unit tests proving candidate creation for partial v1
+  and legacy handoffs, and proving wrong-target messages still return `None`.
+- Status: Round 4 corrections applied; stopped for Codex Round 5 review. No
+  commit, push, deploy, lifecycle closeout, receipt, or production mutation.
+
+## 2026-07-13 — P9-1 Round 3 corrections
+
+- Coordinate `src/coordinate/handoff.py`: `prepare_handoff` now stores the complete
+  `WorkspaceHostProfile.to_dict()` value for targeted handoffs, materializing the
+  canonical `workspace_path`/`harness_root` into that copy, and stores
+  `execution_profile=null` for untargeted handoffs, restoring the pre-P9-1
+  compatibility contract.
+- Added Coordinate regression tests for preserved host/CLI/DB/shell/metadata fields
+  and the untargeted `null` case; retained the harness-root fallback test.
+- MultiNexus `multinexus/handoff_handler.py`: `parse_coordinator_handoff` now rejects
+  any v1 block that lacks a non-empty, host-absolute `workspace_path` or
+  `harness_root`.
+- MultiNexus `multinexus/coordinator_handoff.py`: `_has_v1_handoff_authority` now
+  requires both fields; `_try_coordinator_handoff` and `_handle_review_handoff`
+  enforce the complete v1 authority check before assignment accept, bootstrap read,
+  SQLite fallback, agentd submission, or provider invocation in `agentd_mode`.
+- Added MultiNexus parser tests for missing workspace, missing harness, relative
+  workspace, relative harness, and valid quoted Windows/POSIX blocks.
+- Added MultiNexus worker/reviewer integration tests proving no assignment accept,
+  SQLite fallback/bootstrap read, agentd submission, or adapter invocation occurs
+  for legacy/partial managed handoffs.
+- Verification (Round 3):
+  - Coordinate focused suites (`test_execution_context.py`, `test_handoff.py`,
+    `test_policy.py`, `test_runtime.py`, `test_job_repository.py`, `test_cli.py`,
+    `test_workflow_cli.py`): `525 passed, 88 subtests passed`.
+  - Coordinate full suite: `1944 passed, 449 subtests passed`, plus exactly the
+    nine known historical CLI-contract/AST failures (unchanged baseline).
+  - MultiNexus focused suites (`test_agentd_execution_context.py`,
+    `test_coordinator_handoff_runtime.py`, `test_handoff_handler.py`,
+    `test_n_plus_m_invariant.py`, `test_handle_via_agentd.py`): `174 passed,
+    2 skipped`.
+  - MultiNexus full suite: `457 passed, 2 skipped, 26 subtests passed`.
+  - `compileall` clean in both repos; `git diff --check` clean in both repos.
+  - Cross-repo fixture byte-identical: SHA-256
+    `975be64ca2cba84530cf969038cce4c5fb74df0b5f33aed86df9352ec9d12786`.
+  - Managed agentd path rejects legacy/partial handoffs before assignment accept,
+    bootstrap read, SQLite fallback, or provider/agentd invocation.
+- Status: Round 3 corrections applied; stopped for Codex Round 4 review. No
+  commit, push, deploy, lifecycle closeout, receipt, or production mutation.
+
+## 2026-07-13 — P9-1 job-scoped execution context implementation
+
+- Implemented in isolated worktrees:
+  - Coordinate `~/Documents/Codex/2026-07-10/ni/work/coordinate-p9-1-kimi`, branch
+    `agents/mac-omp/p9-1-job-scoped-execution-context`.
+  - MultiNexus `~/Documents/Codex/2026-07-10/ni/work/multinexus-p9-1-kimi`, branch
+    `agents/mac-omp/p9-1-job-scoped-execution-context`.
+- Approved plan SHA-256 verified:
+  `c06e7d25a2c308a2600a403e3bff19cd8309b84d6153c21781e2cf7cbcc2ff5e`.
+- Coordinate changes:
+  - Added `src/coordinate/db_support.py` with canonical JSON, UTC, and host-native
+    path helpers.
+  - Added `src/coordinate/job_repository.py` for cycle-free, public-import-compatible
+    job/event repository access; `src/coordinate/db.py` keeps identical public symbol
+    identity.
+  - Added `src/coordinate/execution_context.py` v1 value object, deterministic
+    SHA-256 digest, canonical snapshot, scope parsing, and host-path resolver.
+  - Hardened `src/coordinate/runtime.py` `submit_request`/`claim_job` to bind every
+    managed job to a validated v1 context, persist the snapshot, detect semantic
+    replay conflicts, and fail closed on missing host profiles or session scope.
+  - Updated `src/coordinate/handoff.py` to read execution profiles and emit v1
+    handoff fields (`workspace_path`, `harness_root`, `branch`) as advisory
+    bootstrap metadata in the human-readable handoff text.
+  - Updated `src/coordinate/policy.py` so the real `[handoff]` machine message
+    preserves the exact legacy prefix ending with `action=...`, then appends
+    safely quoted v1 fields (`context_version=1`, `workspace_path`, `harness_root`,
+    `branch`) derived from the prepared handoff event.
+  - Materialized a complete canonical handoff execution profile in
+    `src/coordinate/handoff.py` `prepare_handoff`, including `harness_root`
+    fallback when the host profile omits it, so the rendered handoff context
+    is never partial.
+  - Added `tests/test_execution_context.py`, `tests/test_job_repository.py`, and the
+    byte-identical fixture `tests/fixtures/execution_context_v1.json`.
+  - Updated `tests/test_cli.py` runtime flow tests to supply host profiles and
+    session scope.
+  - Removed the unplanned `tests/__init__.py` package marker.
+- MultiNexus changes:
+  - Added `multinexus/agentd/execution_context.py` strict parser/value object that
+    consumes Coordinate v1 context, validates digest/contract/scope, and rejects
+    mutations and missing authority.
+  - Updated `multinexus/agentd/coordinate_client.py` to preserve the full claim
+    envelope and normalize non-zero exit, timeout, non-JSON output, OS errors,
+    and malformed envelopes into bounded `CoordinateRuntimeError` exceptions so
+    the agentd loop backs off instead of spinning or invoking an adapter.
+  - Updated `multinexus/agentd/worker.py` to use `context.cwd` and
+    `context.session_scope_id` for managed sessions; fail closed when context is
+    missing or invalid.
+  - Updated `multinexus/handoff_handler.py` and `multinexus/coordinator_handoff.py`
+    to parse and validate v1 handoff fields (`context_version`, host-absolute
+    `workspace_path`/`harness_root`) and avoid direct Coordinate SQLite access in
+    `agentd_mode`.
+  - Updated managed worker/reviewer handoff paths to fail closed with one bounded
+    blocker when bootstrap content is missing after assignment-accept output/file
+    resolution, even if valid v1 handoff metadata is present.
+  - Added `tests/test_agentd_execution_context.py` and the byte-identical fixture
+    `tests/fixtures/execution_context_v1.json`; updated `tests/test_n_plus_m_invariant.py`
+    for the new claim-envelope shape.
+  - Fixed `multinexus/agentd/coordinate_client.py` missing `typing.Any` import.
+  - Strictened both Coordinate and MultiNexus v1 parsers: required scalar fields
+    are explicitly non-null, `legacy_scope_ids` must be a unique JSON list (no
+    tuples, no duplicates, no duplicate-of-primary-scope).
+- Verification (Round 2 corrections):
+  - Coordinate focused P9-1 suites: `318 passed`.
+  - Coordinate full suite: `1942 passed, 449 subtests passed`, exactly 9 known
+    historical CLI-contract/AST failures (unchanged from baseline).
+  - MultiNexus full suite: `448 passed, 2 skipped, 26 subtests passed` (baseline
+    `389 passed, 2 skipped, 26 subtests passed`).
+  - `compileall` clean in both repos; `git diff --check` clean in both repos.
+  - Cross-repo fixture byte-identical: SHA-256
+    `975be64ca2cba84530cf969038cce4c5fb74df0b5f33aed86df9352ec9d12786`.
+  - Static gates pass: managed agentd path uses only Coordinate claim context for
+    cwd/session; managed handoff does not open Coordinate SQLite; no config.work_dir
+    fallback in the managed worker path.
+- Status: Round 2 corrections applied; stopped for Codex Round 3 review. No
+  commit, push, deploy, lifecycle closeout, receipt, or production mutation.
+
+## 2026-07-13 — P9-1 Round 1 corrections
+
+- Corrected Coordinate `submit_request` to resolve and validate all authority
+  inputs (workspace, agent host/profile, task mirror, session scope, paths)
+  before the first durable event/job write.
+- Rejected requests for a `task_id` with no task mirror; fixed job/task identity
+  binding in `claim_job` validation.
+- Hardened semantic replay conflict detection to compare workspace, target agent,
+  task, prompt, origin, reply, and the full execution context snapshot.
+- Strictened both Coordinate and MultiNexus v1 parsers: exact key sets, no type
+  coercion, exact `log_handle` schema, host-absolute paths, rejection of
+  traversal/relative/NUL/newline paths, and 64-hex `context_id`.
+- Made `ExecutionContextV1.log_handle` immutable with `MappingProxyType` after
+  digest binding in both repos.
+- Fixed `src/coordinate/policy.py` machine handoff to append real v1 fields
+  (`context_version`, `workspace_path`, `harness_root`, `branch`) safely quoted;
+  legacy fields preserved byte-for-byte.
+- Fixed MultiNexus managed handoff to fail closed when v1 context/bootstrap
+  authority is missing; removed `coordinator_workspace_path` fallback in
+  `agentd_mode`.
+- Normalized all Coordinate CLI failure modes in `coordinate_client.py` into
+  `CoordinateRuntimeError` with bounded backoff in `AgentdWorker.run()`.
+- Expanded adversarial test coverage for pre-write failures, missing task mirror,
+  unsafe path/scope matrix, full replay semantics, claim identity mismatches,
+  real policy handoff rendering, and managed no-fallback flows.
+- Residual risks: legacy non-agentd handoff still uses Coordinate SQLite; adapter
+  base interface still receives `work_dir` through existing contract; Windows/foreign
+  root path mapping is string-segment only and not locally resolved.
+- Work stopped for Codex result review; no commit, push, deploy, or production
+  mutation was performed.
+
 ## 2026-07-13 — P9-0A6 post-closeout module review durable closeout
 
 - Coordinate `15020c2204e8e05c6304f6ed83a5fed83ad12eae` was independently

@@ -9,6 +9,7 @@ Verifies that:
 """
 
 import asyncio
+import hashlib
 import json
 import tempfile
 import unittest
@@ -34,6 +35,41 @@ def _config(**overrides):
     }
     defaults.update(overrides)
     return AgentConfig(**defaults)
+
+
+def _claim_result(job, *, attempt_token=1, work_dir=None):
+    """Wrap a legacy job dict in a P9-1 claim result envelope with a valid v1 context."""
+    if work_dir is None:
+        work_dir = "/tmp/ws"
+    if "attempt_count" not in job:
+        job["attempt_count"] = attempt_token
+    payload = job.get("payload") or {}
+    if not payload and job.get("payload_json"):
+        try:
+            payload = json.loads(job["payload_json"])
+        except Exception:
+            payload = {}
+    origin = payload.get("origin") or {}
+    session_scope_id = origin.get("session_scope_id") or "scope:1"
+    ctx = {
+        "contract_version": 1,
+        "job_id": job["id"],
+        "workspace_id": "ws",
+        "task_id": None,
+        "assigned_agent": "test-agent",
+        "host_id": "host",
+        "workspace_path": work_dir,
+        "worktree_path": work_dir,
+        "harness_root": work_dir + "/harness",
+        "branch": None,
+        "session_scope_id": session_scope_id,
+        "legacy_scope_ids": [],
+        "log_handle": {"kind": "coordinate_job", "job_id": job["id"], "logs_path": None},
+    }
+    canonical = dict(ctx)
+    canonical_json = json.dumps(canonical, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    ctx["context_id"] = "sha256:" + hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+    return {"claimed": True, "job": job, "attempt_token": attempt_token, "execution_context": ctx}
 
 
 class TestBridgeModeDoesNotInstantiateAdapter(unittest.TestCase):
@@ -223,23 +259,35 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
             workspace_id="test-ws",
         )
 
-        # echo will output the args as JSON-ish, proving the command is built right
-        loop = asyncio.new_event_loop()
-        try:
-            result = loop.run_until_complete(client.submit_request(
-                target_agent="mac-codex",
-                prompt="hello from test",
-                origin_json={"platform": "discord", "destination": "ch1", "message_id": "m1"},
-                reply_json={"platform": "discord", "destination": "ch1"},
-                message_id="discord:m1",
-            ))
-            # echo outputs all args joined by spaces
-            output = result.get("error", "")
-            # If echo succeeded, we won't get a JSON parse error
-            # The real test is that the CLI was called with correct args
-            self.assertIsNotNone(result)
-        finally:
-            loop.close()
+        import subprocess
+        commands_seen = []
+
+        def mock_run(cmd, **kwargs):
+            commands_seen.append(cmd)
+            return subprocess.CompletedProcess(cmd, 0, stdout='{"result": {"job": {"id": "request:test"}}}', stderr="")
+
+        with patch("multinexus.agentd.coordinate_client.subprocess.run", side_effect=mock_run):
+            loop = asyncio.new_event_loop()
+            try:
+                result = loop.run_until_complete(client.submit_request(
+                    target_agent="mac-codex",
+                    prompt="hello from test",
+                    origin_json={"platform": "discord", "destination": "ch1", "message_id": "m1"},
+                    reply_json={"platform": "discord", "destination": "ch1"},
+                    message_id="discord:m1",
+                ))
+            finally:
+                loop.close()
+
+        self.assertEqual(len(commands_seen), 1)
+        cmd = commands_seen[0]
+        self.assertIn("runtime", cmd)
+        self.assertIn("request", cmd)
+        self.assertIn("submit", cmd)
+        self.assertIn("test-ws", cmd)
+        self.assertIn("--target-agent", cmd)
+        self.assertIn("mac-codex", cmd)
+        self.assertEqual(result.get("result", {}).get("job", {}).get("id"), "request:test")
 
     def test_coordinate_client_builds_submit_command(self):
         """Verify the submit command includes all required args."""
@@ -357,7 +405,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -413,7 +461,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -453,7 +501,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -481,7 +529,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -836,7 +884,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -872,7 +920,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -949,7 +997,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -1013,7 +1061,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -1075,7 +1123,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -1146,7 +1194,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 
@@ -1212,7 +1260,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker._process_job(job))
+            loop.run_until_complete(worker._process_job(_claim_result(job)))
         finally:
             loop.close()
 

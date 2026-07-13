@@ -21,7 +21,8 @@ from ..adapters.base import AdapterResult
 from ..adapters.factory import make_adapter
 from ..models import AgentConfig
 from ..sessions.store import SessionStore
-from .coordinate_client import CoordinateRuntimeClient
+from .coordinate_client import CoordinateRuntimeClient, CoordinateRuntimeError
+from .execution_context import ExecutionContextError, validate_claim_response
 
 log = logging.getLogger(__name__)
 
@@ -53,20 +54,57 @@ class AgentdWorker:
         else:
             log.info("Agentd worker started: agent=%s", self.config.id)
         while self._running:
-            job = await self.coordinate.claim_job(agent_id=self.config.id, recoverable=recoverable)
-            if job is None:
+            try:
+                claim_result = await self.coordinate.claim_job(
+                    agent_id=self.config.id, recoverable=recoverable
+                )
+            except CoordinateRuntimeError as exc:
+                log.error("Coordinate claim error for agent %s: %s", self.config.id, exc)
+                # Bounded backoff: wait the normal poll interval before retrying.
                 try:
                     await asyncio.wait_for(self._wake.wait(), timeout=poll_interval)
                 except asyncio.TimeoutError:
                     pass
                 self._wake.clear()
                 continue
-            await self._process_job(job)
+
+            if claim_result is None:
+                try:
+                    await asyncio.wait_for(self._wake.wait(), timeout=poll_interval)
+                except asyncio.TimeoutError:
+                    pass
+                self._wake.clear()
+                continue
+
+            await self._process_job(claim_result)
         log.info("Agentd worker stopped: agent=%s", self.config.id)
 
-    async def _process_job(self, job: dict) -> None:
+    async def _process_job(self, claim_result: dict[str, Any]) -> None:
+        job = claim_result.get("job") or {}
         job_id = job.get("id", "?")
-        attempt_token = job.get("attempt_count")  # 8.4.3 P1 #2: CAS token from claim
+        attempt_token = claim_result.get("attempt_token")
+
+        try:
+            job, ctx, attempt_token = validate_claim_response(
+                {"result": claim_result},
+                agent_id=self.config.id,
+            )
+        except ExecutionContextError as exc:
+            log.error("Invalid execution context for agent %s: %s", self.config.id, exc)
+            # Fail closed: report the job as failed using the attempt token from
+            # Coordinate when available, without invoking any provider adapter.
+            await self.coordinate.report_job(
+                job_id=job_id,
+                agent_id=self.config.id,
+                status="failed",
+                result_json={
+                    "error": f"execution context rejected: {exc}",
+                    "execution_context_id": "",
+                },
+                attempt_token=attempt_token if isinstance(attempt_token, int) else None,
+            )
+            return
+
         try:
             payload = self._extract_payload(job)
         except ValueError as exc:
@@ -81,17 +119,21 @@ class AgentdWorker:
             return
 
         prompt = payload.get("prompt", "")
-        origin = payload.get("origin", {})
-        log.info("Processing job %s: agent=%s prompt_len=%d", job_id, self.config.id, len(prompt))
+        log.info(
+            "Processing job %s: agent=%s prompt_len=%d cwd=%s",
+            job_id, self.config.id, len(prompt), ctx.cwd,
+        )
 
-        # Extract session scope from bridge payload
-        session_scope_id = origin.get("session_scope_id", "")
-        legacy_scope_ids = tuple(origin.get("legacy_scope_ids", []))
-        work_dir = self.config.work_dir
+        # Session scope and filesystem authority come from the validated
+        # Coordinate execution context, not from bridge payload or config.work_dir.
+        session_scope_id = ctx.session_scope_id
+        legacy_scope_ids = ctx.legacy_scope_ids
+        work_dir = ctx.cwd
         recovery_session_id = self._recovery_session_id(job)
         progress_callback, progress_tasks, progress_state = self._make_coordinate_progress_callback(
             job_id=job_id,
             session_scope_id=session_scope_id,
+            work_dir=work_dir,
             attempt_token=attempt_token,
         )
 
@@ -129,6 +171,9 @@ class AgentdWorker:
             "response_text": result.text,
             "session_id": result.session_id or "",
             "duration_ms": duration_ms,
+            "execution_context_id": ctx.context_id,
+            "worktree_path": ctx.worktree_path,
+            "session_scope_id": ctx.session_scope_id,
         }
         if progress_state:
             result_json["progress"] = dict(progress_state)
@@ -152,6 +197,7 @@ class AgentdWorker:
         *,
         job_id: str,
         session_scope_id: str,
+        work_dir: str,
         attempt_token: int | None = None,
     ):
         tasks: list[asyncio.Task] = []
@@ -170,7 +216,7 @@ class AgentdWorker:
                     agent_id=self.config.id,
                     adapter=self.config.adapter,
                     session_id=session_id,
-                    work_dir=self.config.work_dir,
+                    work_dir=work_dir,
                 )
             now = time.monotonic()
             should_send = bool(session_id and session_id != sent.get("session_id"))
