@@ -2254,10 +2254,10 @@
       "verification": "",
       "review": {
         "decision": "changes_requested",
-        "reviewer": "codex",
-        "phase": "todo",
+        "reviewer": "codex-round4",
+        "phase": "changes_requested",
         "updated_at": "2026-07-13",
-        "summary": "Round 3: preserve full execution_profile and enforce complete v1 managed handoff authority; see result-review-round3.md"
+        "summary": "Round 4: malformed v1 must emit one visible blocker while strict parser remains strict; see result-review-round4.md"
       },
       "split_operation": {
         "contract_version": 1,
