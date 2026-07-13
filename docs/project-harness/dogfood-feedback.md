@@ -32,7 +32,18 @@
 - Route：下一阶段应把source harness projection、deployed projection和control event state
   明确建模为三个authority surfaces，并在deploy/receipt preflight中显示drift和下一安全动作。
 
-### 3. production doctor与receipt evidence
+### 3. review-result文件投影不是重复调用幂等的
+
+- 状态：fail-closed mitigated / transition semantics gap open。
+- Slice 4父级stage closeout中，source第一次`review-result approved`把`review.phase`记录为
+  transition前的`running`；部署后control plane对同一approved transition重放，remote
+  `review.phase`变成`review_approved`。其余字段相同，但整个checklist指纹不同。
+- Operator在receipt前比较source/deployed SHA发现差异，在source再次重放同一transition后
+  两侧才收敛。没有申请一个必然失败的receipt，也没有直接修改JSON。
+- Route：lifecycle transition应对相同decision/summary真正幂等，或明确把`review.phase`
+  规范化为decision后的phase；preflight继续保留byte-level equality gate。
+
+### 4. production doctor与receipt evidence
 
 - 部署Coordinate `15020c2`，schema/code/DB均v11，backup/source integrity均`ok`。
 - Doctor closeout前后均`rc=0`、errors=0；仅有2个合法expired-unused receipt warning，

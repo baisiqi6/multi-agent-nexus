@@ -1111,7 +1111,7 @@
       "review": {
         "decision": "approved",
         "reviewer": "mac-codex",
-        "phase": "running",
+        "phase": "review_approved",
         "updated_at": "2026-07-13",
         "summary": "Slice 4 stage acceptance satisfied: S4-A, S4-B1/B2, S4-C1/C2, and S4-D are deployed and terminally closed; final production doctor errors=0; see slice-4d-projection-doctor-evidence/closeout.md."
       },
