@@ -2242,17 +2242,23 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-13T03:33:43Z",
+      "updated_at": "2026-07-13",
       "workflow": {
-        "status": "todo",
+        "status": "changes_requested",
         "branch": null,
-        "updated_at": "2026-07-13T03:33:43Z"
+        "updated_at": "2026-07-13"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": "changes_requested",
+        "reviewer": "codex",
+        "phase": "todo",
+        "updated_at": "2026-07-13",
+        "summary": "Round 3: preserve full execution_profile and enforce complete v1 managed handoff authority; see result-review-round3.md"
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "7aa8b1f2-d5c7-4c6a-b12e-4ae9bd2fbf89",
