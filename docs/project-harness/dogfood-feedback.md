@@ -31,6 +31,9 @@
   commit/deploy后再申请receipt。receipt首次即成功完成terminal chain。
 - Route：下一阶段应把source harness projection、deployed projection和control event state
   明确建模为三个authority surfaces，并在deploy/receipt preflight中显示drift和下一安全动作。
+- P9-0A6 remeasurement recorded this as a projection-ordering gap, not a module-layout
+  defect; see `tasks/p9-0a6-post-closeout-module-review/measurement.md` §7. No code
+  movement was authorized.
 
 ### 3. review-result文件投影不是重复调用幂等的
 
@@ -42,6 +45,9 @@
   两侧才收敛。没有申请一个必然失败的receipt，也没有直接修改JSON。
 - Route：lifecycle transition应对相同decision/summary真正幂等，或明确把`review.phase`
   规范化为decision后的phase；preflight继续保留byte-level equality gate。
+- P9-0A6 confirmed this is a semantic transition/projection issue external to the
+  three measured modules; see `tasks/p9-0a6-post-closeout-module-review/measurement.md`
+  §7. Routing to P9-1+ planning rather than P9-0A6 code movement.
 
 ### 4. production doctor与receipt evidence
 

@@ -87,10 +87,18 @@ Bounded packages:
    owns the 44 pure text/base-payload functions and 34-key renderer registry; `policy`
    remains the facade and the 34 supported = 34 rendered = 31 styled + exact 3
    explicitly unstyled relationship is executable evidence.
-10. `p9-0a6-post-closeout-module-review` — after P9-0A CLI/presentation extraction and
-   Slice 4, remeasure `completion.py`, `db.py`, and `transitions.py`. Extract only a
-   proven stable transaction/repository/mutation seam; a documented no-change decision
-   is acceptable.
+10. `p9-0a6-post-closeout-module-review` — **measurement complete**: measured
+    `completion.py`, `db.py`, and `transitions.py` after Slice 4 closeout and
+    proposed **no production-code extraction**. Exact evidence is in
+    `../p9-0a6-post-closeout-module-review/measurement.md`. The proposed decision
+    routes repository seams into later Phase 9 packages instead of moving code only
+    to reduce line counts. Pending Codex result acceptance and Operator receipt
+    before durable closeout:
+    - job repository candidates -> P9-1 job-scoped execution context;
+    - delivery/event repository candidates -> P9-1 context first, then P9-4 observation contract if needed;
+    - agent registry repository candidates -> P9-2 executor routing and instance identity;
+    - split-operation ledger candidates -> remain a Slice-4 primitive, revisit only when P9-1 context stabilizes;
+    - `completion.py` receipt state machine and `transitions.py` harness mutations -> retain as cohesive authority modules; no further P9-0A extraction.
 
 P9-0A must not alter lifecycle authority, completion receipt semantics, DB schema,
 delivery defaults, runtime behavior, or public CLI contracts. Keep one Python package

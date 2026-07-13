@@ -2,6 +2,43 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — P9-0A6 post-closeout module review measurement complete
+
+- Coordinate `15020c2204e8e05c6304f6ed83a5fed83ad12eae` was independently
+  remeasured; `HEAD == origin/main` and dirty state remained only `.qoder/`.
+- Approved plan SHA-256 `825d1aec89877b7cfff1b05938dabde4968d88fd3f29b2baa22359d02d6ee792`
+  verified unchanged.
+- Physical/AST metrics reproduced: `completion.py` 1,038 lines / 26 funcs / 8 classes;
+  `db.py` 1,798 lines / 54 funcs / 6 classes; `transitions.py` 1,391 lines / 28 funcs /
+  9 classes.
+- Slice-4 churn reproduced: `completion.py` and `transitions.py` unchanged;
+  `db.py` `+703/-75` across four commits (agent registry and split-operation work).
+- Import direction remains acyclic: `db -> schema`; `completion -> db + harness`;
+  `transitions -> completion + db + harness + reconcile`.
+- Transaction/authority boundaries preserved: atomic `consume_completion_receipt`
+  SAVEPOINT, `sync_workspace_agents` SAVEPOINT, operation-specific harness mutations.
+- No extraction candidate satisfies all seven rubric conditions; proposed decision is
+  **no production-code extraction**, pending Codex result acceptance and Operator
+  receipt.
+- Routing: job/delivery/event repository candidates to P9-1 job-scoped context;
+  agent registry candidates to P9-2 executor routing; split-operation ledger remains
+  a Slice-4 primitive; `completion.py` and `transitions.py` retained as cohesive
+  authority modules.
+- Target-focused tests: `359 passed, 43 subtests passed`.
+- `git diff --check` clean; `harnessctl validate` and `harnessctl doctor` passed with
+  only known historical warnings/misses.
+- MultiNexus `HEAD` is `54f7e50` (worker authorization document only) and the approved
+  content baseline `f2ad204` is an ancestor.
+- Documentation-only edits limited to the approved paths:
+  - `tasks/p9-0a6-post-closeout-module-review/measurement.md`
+  - `tasks/phase-9-execution-isolation/plan.md`
+  - `roadmap.md`
+  - `progress.md`
+  - `dogfood-feedback.md`
+- No Coordinate production code/tests, MultiNexus runtime code/tests/config, DB,
+  service, Discord/KOOK state, receipt, or lifecycle mutation was performed.
+- Awaits Codex result review before Operator closeout/receipt.
+
 ## 2026-07-13 — Slice 4D projection doctor closeout
 
 - Coordinate `15020c2204e8e05c6304f6ed83a5fed83ad12eae` passed five post-deploy
