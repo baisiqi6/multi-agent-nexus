@@ -2342,7 +2342,7 @@
     {
       "id": "p9-2b-deterministic-executor-routing",
       "title": "P9-2B Deterministic Executor Routing",
-      "status": "doing",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": "mac-omp",
@@ -2358,18 +2358,18 @@
         "reason": null
       },
       "selected_in_session": "019f5c0d-9fb9-7000-a7fe-926c6ab190cc",
-      "updated_at": "2026-07-13",
+      "updated_at": "2026-07-13T15:47:20Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "main",
-        "updated_at": "2026-07-13"
+        "updated_at": "2026-07-13T15:47:20Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md",
         "branch": "main",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "P9-2B Round 6 approved; production routed job request:a7438a23-6346-4952-b46a-406e717ad2c0 done with exact sentinel and sent Discord delivery; doctor errors 0; server smoke OK.",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
@@ -2397,6 +2397,12 @@
         "acquired_at": "2026-07-13T15:45:31Z",
         "expires_at": "2026-07-13T17:45:31Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "a2a23a06-f551-404b-b917-9e29278c2809",
+        "before_fingerprint": "24304486e30b49ac358c8ca1c6a51a597abcfe5b8281d5a84f6479162903a61d",
+        "after_fingerprint": "e27e49442b330f1e22a8f1fe2ae8ece6153396be61a1b1f88d95174d71fceab8",
+        "applied_at": "2026-07-13T15:47:20Z"
       }
     }
   ]
