@@ -2178,7 +2178,7 @@
       "selected_in_session": "p9-0a6-kimi-doc-worker",
       "updated_at": "2026-07-13",
       "workflow": {
-        "status": "closeout_requested",
+        "status": "review_approved",
         "branch": "agents/mac-omp/p9-0a6-post-closeout-module-review",
         "updated_at": "2026-07-13"
       },
@@ -2189,11 +2189,11 @@
       },
       "verification": "",
       "review": {
-        "decision": null,
+        "decision": "approved",
         "reviewer": "codex",
         "phase": "closeout_requested",
         "updated_at": "2026-07-13",
-        "summary": "Codex result review Round 3 APPROVE; focused 359 passed, 43 subtests passed; exact five-document scope; no production-code extraction."
+        "summary": "Final closeout approval after closeout request; Codex result review Round 3 APPROVE; focused 359 passed, 43 subtests passed; no production-code extraction."
       },
       "split_operation": {
         "contract_version": 1,
