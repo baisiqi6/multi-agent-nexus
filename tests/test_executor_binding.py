@@ -54,6 +54,15 @@ class ParseBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(ExecutorBindingError, "incorrect fields"):
             parse_executor_binding(snap)
 
+    def test_extra_field_error_is_bounded(self):
+        snap = _make_snapshot()
+        for index in range(100):
+            snap[f"unexpected_{index}"] = "x"
+        with self.assertRaises(ExecutorBindingError) as caught:
+            parse_executor_binding(snap)
+        self.assertLess(len(str(caught.exception)), 512)
+        self.assertIn("unexpected_count=100", str(caught.exception))
+
     def test_rejects_path_separator_in_provider(self):
         snap = _make_snapshot(provider="kimi/code")
         with self.assertRaisesRegex(ExecutorBindingError, "unsafe characters"):

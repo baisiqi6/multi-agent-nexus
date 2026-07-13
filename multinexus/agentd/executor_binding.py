@@ -30,6 +30,17 @@ class ExecutorBindingError(ValueError):
     """Raised when a typed executor binding is missing, malformed, or conflicts with local identity."""
 
 
+def _field_mismatch_message(
+    label: str, actual_keys: set[Any], expected_keys: set[str]
+) -> str:
+    missing = sorted(expected_keys - actual_keys)
+    unexpected_count = len(actual_keys - expected_keys)
+    return (
+        f"{label} has incorrect fields: missing={missing}, "
+        f"unexpected_count={unexpected_count}, total_count={len(actual_keys)}"
+    )
+
+
 class ExecutorBinding:
     """Validated v1 executor binding snapshot.
 
@@ -144,9 +155,9 @@ def _canonical_snapshot_dict(snapshot: dict[str, Any]) -> dict[str, Any]:
         "capabilities",
     }
     if set(snapshot.keys()) - {"binding_id"} != keys:
-        raise ExecutorBindingError(
-            f"binding snapshot has incorrect fields: expected {sorted(keys)}, got {sorted(snapshot.keys() - {'binding_id'})}"
-        )
+        raise ExecutorBindingError(_field_mismatch_message(
+            "binding snapshot", set(snapshot.keys()) - {"binding_id"}, keys
+        ))
     return {k: snapshot[k] for k in sorted(keys)}
 
 
@@ -173,7 +184,7 @@ def parse_executor_binding(data: Any) -> ExecutorBinding:
     }
     if set(data.keys()) != expected_keys:
         raise ExecutorBindingError(
-            f"executor_binding has incorrect fields: expected {sorted(expected_keys)}, got {sorted(data.keys())}"
+            _field_mismatch_message("executor_binding", set(data.keys()), expected_keys)
         )
 
     contract_version = _validate_positive_int(data.get("contract_version"), "contract_version")

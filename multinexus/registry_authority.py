@@ -362,13 +362,15 @@ def load_authority(path: str | Path) -> Authority:
             enabled_value = raw.get("enabled", True)
             if isinstance(enabled_value, bool):
                 enabled = enabled_value
-            elif isinstance(enabled_value, int) and not isinstance(enabled_value, bool):
-                enabled = bool(enabled_value)
             else:
                 raise AuthorityError(f"{section} entry '{agent_id}': enabled must be a boolean")
 
             if agent_type == "external":
-                if executor_definition_id is not None or runner_profile_id is not None:
+                if (
+                    executor_definition_id is not None
+                    or runner_profile_id is not None
+                    or "enabled" in raw
+                ):
                     raise AuthorityError(
                         f"external agent '{agent_id}' must not carry executor bindings"
                     )

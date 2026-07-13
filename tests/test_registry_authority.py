@@ -651,6 +651,23 @@ runner_profile_id = "server-hermes"
         with self.assertRaisesRegex(AuthorityError, "external agent.*must not carry executor bindings"):
             load_authority(path)
 
+    def test_external_agent_enabled_flag_rejected(self):
+        authority = self._valid_base() + """
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+enabled = false
+"""
+        with self.assertRaisesRegex(AuthorityError, "external agent.*must not carry executor bindings"):
+            load_authority(self._write(authority))
+
+    def test_executor_binding_enabled_must_be_boolean(self):
+        authority = self._valid_base() + "\nenabled = 1\n"
+        with self.assertRaisesRegex(AuthorityError, "enabled must be a boolean"):
+            load_authority(self._write(authority))
+
     def test_unknown_definition_reference_rejected(self):
         path = self._write(self._valid_base().replace(
             'executor_definition_id = "omp-code"',
