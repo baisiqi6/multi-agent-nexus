@@ -2090,7 +2090,7 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": "omp:s4d-post-deploy-correction",
+      "selected_in_session": "omp:s4d-post-deploy-correction-r2",
       "updated_at": "2026-07-13",
       "workflow": {
         "status": "running",
@@ -2103,11 +2103,11 @@
       },
       "verification": "",
       "review": {
-        "decision": "approved",
+        "decision": "changes_requested",
         "reviewer": "mac-codex",
         "phase": "running",
         "updated_at": "2026-07-13",
-        "summary": "Round 5 approves 0563cc0 and full S4-D branch; all R1-R4 P1 closed. Deploy and production read-only doctor remain required before closeout. See result-review-round5.md at 3863791."
+        "summary": "Post-deploy Round 1 rejects f481b9f: split exact retry trusts stored supersedes link, allowing forged cross-task provenance. See post-deploy-result-review-round1.md."
       },
       "split_operation": {
         "contract_version": 1,
@@ -2125,9 +2125,9 @@
       },
       "lease": {
         "owner": "mac-omp",
-        "session": "omp:s4d-post-deploy-correction",
-        "acquired_at": "2026-07-13T00:14:01Z",
-        "expires_at": "2026-07-13T02:14:01Z",
+        "session": "omp:s4d-post-deploy-correction-r2",
+        "acquired_at": "2026-07-13T01:32:15Z",
+        "expires_at": "2026-07-13T03:32:15Z",
         "ttl_minutes": 120
       }
     }
