@@ -2093,7 +2093,7 @@
       "selected_in_session": "omp:s4d-post-deploy-correction-r2",
       "updated_at": "2026-07-13",
       "workflow": {
-        "status": "running",
+        "status": "review_approved",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
         "updated_at": "2026-07-13"
       },
@@ -2103,11 +2103,11 @@
       },
       "verification": "",
       "review": {
-        "decision": "changes_requested",
+        "decision": "approved",
         "reviewer": "mac-codex",
         "phase": "running",
         "updated_at": "2026-07-13",
-        "summary": "Post-deploy Round 1 rejects f481b9f: split exact retry trusts stored supersedes link, allowing forged cross-task provenance. See post-deploy-result-review-round1.md."
+        "summary": "Post-deploy Round 5 approves complete correction through 15020c2; all PD-R1 through PD-R4 findings closed; production doctor errors=0 at Coordinate 15020c2; see post-deploy-result-review-round5.md and post-deploy-production-evidence.md."
       },
       "split_operation": {
         "contract_version": 1,
