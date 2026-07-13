@@ -2090,10 +2090,10 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": "omp:s4d-correction-round4",
+      "selected_in_session": "omp:s4d-post-deploy-correction",
       "updated_at": "2026-07-13",
       "workflow": {
-        "status": "review_approved",
+        "status": "running",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
         "updated_at": "2026-07-13"
       },
@@ -2125,9 +2125,9 @@
       },
       "lease": {
         "owner": "mac-omp",
-        "session": "omp:s4d-correction-round4",
-        "acquired_at": "2026-07-12T23:54:15Z",
-        "expires_at": "2026-07-13T01:54:15Z",
+        "session": "omp:s4d-post-deploy-correction",
+        "acquired_at": "2026-07-13T00:14:01Z",
+        "expires_at": "2026-07-13T02:14:01Z",
         "ttl_minutes": 120
       }
     }
