@@ -16,6 +16,7 @@
 - Superseding plan-ready event: `3dc704af-f627-4953-a5bc-5721f67ca3cf`
 - Superseded plan-ready event: `a73556cf-5960-4542-b1c8-73bc771ed109`
 - Round-2 review-requested event: `ff6b03ed-f211-41f2-ad61-64c013cbdb8e`
+- Plan-approved event: `6db26c20-496a-4353-bed3-31bd6b61a432`
 
 ## Verdict
 
