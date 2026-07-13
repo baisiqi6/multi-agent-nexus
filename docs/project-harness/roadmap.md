@@ -95,14 +95,13 @@ P9-0A5 is durably closed. Coordinate `main`/`origin/main` are
 is in
 [tasks/p9-0a5-event-presentation-registry/closeout.md](tasks/p9-0a5-event-presentation-registry/closeout.md).
 
-P9-0A6 worker measurement is complete. Coordinate `main`/`origin/main` remain
+P9-0A6 is durably closed. Coordinate `main`/`origin/main` remain
 `15020c2204e8e05c6304f6ed83a5fed83ad12eae`; no production code was moved. The
 independent remeasurement of `completion.py`, `db.py`, and `transitions.py`
 concluded that no candidate satisfies all seven extraction rubric conditions, so
-the proposed decision is **no extraction** with named routing to later Phase 9
-packages. The result is pending Codex result acceptance and Operator receipt before
-it can be considered durably closed. Exact evidence is in
-[tasks/p9-0a6-post-closeout-module-review/measurement.md](tasks/p9-0a6-post-closeout-module-review/measurement.md).
+the accepted decision is **no extraction** with named routing to later Phase 9
+packages. Receipt `15e7d03f-43af-42ab-92cb-dfc5fc06c00b` is consumed. Exact evidence
+is in [tasks/p9-0a6-post-closeout-module-review/closeout.md](tasks/p9-0a6-post-closeout-module-review/closeout.md).
 
 The active architecture alignment now governs:
 
@@ -111,8 +110,8 @@ The active architecture alignment now governs:
 3. **Slice 4 projection/split-operation hardening** — complete. S4-A, S4-B1/B2,
    S4-C1/C2, and S4-D are deployed and terminally closed through consumed stage
    receipt `046f5bf9-62ad-40ea-a828-c2b984531212`.
-4. **P9-0A6 post-closeout module review** — worker measurement complete with a
-   proposed no-change decision; pending Codex result acceptance and Operator receipt.
+4. **P9-0A6 post-closeout module review** — complete and terminally closed with an
+   accepted no-change decision.
 5. **Phase 9 runtime isolation packages (P9-1+)** — P9-1 job-scoped execution context
    is the next detailed-plan gate after P9-0A6 acceptance.
 
@@ -221,7 +220,7 @@ Canonical overview:
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
 runtime isolation. Status: P9-0A1 through P9-0A5 are durably closed. Slice 4 is now
-durably closed. P9-0A6 measurement is complete with a proposed no-change decision;
+durably closed. P9-0A6 is durably closed with an accepted no-change decision;
 P9-1 job-scoped execution context is the next detailed-plan gate.
 
 ### 3. Slice 4 projection and split-operation hardening

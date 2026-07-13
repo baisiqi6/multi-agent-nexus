@@ -59,6 +59,18 @@
   `completion.consumed=e084f1e0...`。
 - Kimi Highspeed全程可用；GLM额度已恢复但fallback条件未触发，因此没有切换。
 
+### 5. closeout.requested不是completion gate终态
+
+- 状态：mitigated / protocol semantics documented。
+- P9-0A6在`review-result approved -> closeout`后申请receipt，control plane正确拒绝：
+  workflow仍是`closeout_requested`，completion gate只接受`closed`或`review_approved`。
+- Operator没有force或绕过gate，而是在closeout request之后提交最终
+  `review-result approved`，再分别在remote与source重放并校验checklist SHA一致。
+- Receipt `15e7d03f-43af-42ab-92cb-dfc5fc06c00b`随后一次完成
+  authorized/claimed/applied/task.done/consumed；production doctor errors=0。
+- Route：bootstrap/runbook应把closeout request与final review approval的顺序写成显式
+  state machine，并在receipt preflight拒绝时返回下一条安全命令。
+
 ## 2026-06-01
 
 ### 1. Codex worker 额度限制导致任务中断

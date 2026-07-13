@@ -87,13 +87,13 @@ Bounded packages:
    owns the 44 pure text/base-payload functions and 34-key renderer registry; `policy`
    remains the facade and the 34 supported = 34 rendered = 31 styled + exact 3
    explicitly unstyled relationship is executable evidence.
-10. `p9-0a6-post-closeout-module-review` — **measurement complete**: measured
+10. `p9-0a6-post-closeout-module-review` — **done/closed**: measured
     `completion.py`, `db.py`, and `transitions.py` after Slice 4 closeout and
-    proposed **no production-code extraction**. Exact evidence is in
-    `../p9-0a6-post-closeout-module-review/measurement.md`. The proposed decision
+    accepted **no production-code extraction**. Exact evidence is in
+    `../p9-0a6-post-closeout-module-review/closeout.md`. The accepted decision
     routes repository seams into later Phase 9 packages instead of moving code only
-    to reduce line counts. Pending Codex result acceptance and Operator receipt
-    before durable closeout:
+    to reduce line counts. Terminal receipt:
+    `15e7d03f-43af-42ab-92cb-dfc5fc06c00b`:
     - job repository candidates -> P9-1 job-scoped execution context;
     - delivery/event repository candidates -> P9-1 context first, then P9-4 observation contract if needed;
     - agent registry repository candidates -> P9-2 executor routing and instance identity;

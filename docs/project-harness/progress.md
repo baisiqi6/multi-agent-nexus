@@ -2,7 +2,7 @@
 
 Harness root: `docs/project-harness/`
 
-## 2026-07-13 — P9-0A6 post-closeout module review measurement complete
+## 2026-07-13 — P9-0A6 post-closeout module review durable closeout
 
 - Coordinate `15020c2204e8e05c6304f6ed83a5fed83ad12eae` was independently
   remeasured; `HEAD == origin/main` and dirty state remained only `.qoder/`.
@@ -17,9 +17,8 @@ Harness root: `docs/project-harness/`
   `transitions -> completion + db + harness + reconcile`.
 - Transaction/authority boundaries preserved: atomic `consume_completion_receipt`
   SAVEPOINT, `sync_workspace_agents` SAVEPOINT, operation-specific harness mutations.
-- No extraction candidate satisfies all seven rubric conditions; proposed decision is
-  **no production-code extraction**, pending Codex result acceptance and Operator
-  receipt.
+- No extraction candidate satisfies all seven rubric conditions; the accepted decision
+  is **no production-code extraction**.
 - Routing: job/delivery/event repository candidates to P9-1 job-scoped context;
   agent registry candidates to P9-2 executor routing; split-operation ledger remains
   a Slice-4 primitive; `completion.py` and `transitions.py` retained as cohesive
@@ -27,17 +26,22 @@ Harness root: `docs/project-harness/`
 - Target-focused tests: `359 passed, 43 subtests passed`.
 - `git diff --check` clean; `harnessctl validate` and `harnessctl doctor` passed with
   only known historical warnings/misses.
-- MultiNexus `HEAD` is `54f7e50` (worker authorization document only) and the approved
-  content baseline `f2ad204` is an ancestor.
+- Accepted worker documentation was integrated as `8cc3dd1`; terminal checklist files
+  were deployed at `5e91632`.
 - Documentation-only edits limited to the approved paths:
   - `tasks/p9-0a6-post-closeout-module-review/measurement.md`
   - `tasks/phase-9-execution-isolation/plan.md`
   - `roadmap.md`
   - `progress.md`
   - `dogfood-feedback.md`
-- No Coordinate production code/tests, MultiNexus runtime code/tests/config, DB,
-  service, Discord/KOOK state, receipt, or lifecycle mutation was performed.
-- Awaits Codex result review before Operator closeout/receipt.
+- Receipt `15e7d03f-43af-42ab-92cb-dfc5fc06c00b` completed
+  authorized/claimed/applied/task.done/consumed with fingerprint
+  `9189fc08... -> 9e35da56...`.
+- Final production doctor returned `projection_ok=true`, `errors=0`, and two known
+  superseded-unused-receipt warnings; server smoke remained OK.
+- Durable evidence:
+  `tasks/p9-0a6-post-closeout-module-review/closeout.md`.
+- Next detailed-plan gate: P9-1 job-scoped execution context.
 
 ## 2026-07-13 — Slice 4D projection doctor closeout
 
