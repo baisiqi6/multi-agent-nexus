@@ -25,7 +25,7 @@ capabilities = ["coding", "review"]
 [[executor_definitions]]
 id = "jarvis-code"
 provider = "jarvis"
-adapter = "jarvis"
+adapter = "jarvis-local"
 capabilities = ["coding"]
 
 [[executor_definitions]]
