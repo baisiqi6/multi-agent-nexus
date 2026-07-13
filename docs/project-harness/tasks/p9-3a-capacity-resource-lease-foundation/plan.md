@@ -12,8 +12,9 @@
   `docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/measurement.md`.
 - Coordinate start:
   `90783b2c77933287ba163c4bb598f4a862e8b416` on `main == origin/main`.
-- MultiNexus start:
-  `ccb2b6aee4c66903ebabae2451c657cf815c36ab` on `main == origin/main`.
+- MultiNexus implementation-code start (before this plan-package commit):
+  `ccb2b6aee4c66903ebabae2451c657cf815c36ab`; the plan/checklist package itself is
+  committed later and must not be mistaken for an implementation baseline change.
 - Existing Coordinate exception: user-owned untracked `.qoder/` remains untouched.
 - Schema/code/production DB baseline: v12.
 - Executor catalog baseline: source `multinexus.discord`, version 2, hash
@@ -104,7 +105,12 @@ Add `executor_capacity_policies`:
 - `agent_id` primary key;
 - `source_id`, `source_version`, `catalog_hash`, `capacity_policy_id`;
 - `max_concurrent_jobs` with SQL `CHECK` 1..32;
-- timestamps and foreign keys to capacity source and current executor binding.
+- timestamps and a foreign key to the capacity source;
+- intentionally no SQL foreign key to `executor_instance_bindings`: the current
+  executor sync replaces binding rows, and a cross-projection FK would either break
+  that transaction or make safe executor removal impossible to stage. Capacity sync
+  instead validates complete enabled-typed binding coverage inside its own transaction,
+  and deploy/doctor parity fails closed on drift.
 
 Add `execution_attempt_leases`:
 
@@ -118,6 +124,14 @@ Add `execution_attempt_leases`:
 - SQL checks for positive attempt, bounded capacity, legal state/timestamp shape;
 - one partial unique index on active `resource_key`;
 - indexes for active agent count, expiry scan, job/attempt lookup, and resource lookup.
+
+Lease foreign-key rules are explicit:
+
+- `job_id REFERENCES jobs(id) ON DELETE RESTRICT`;
+- `agent_id REFERENCES agents(id) ON DELETE RESTRICT`;
+- `runner_profile_id REFERENCES runner_profiles(id) ON DELETE RESTRICT`;
+- no foreign key from snapshotted `capacity_policy_id` to the mutable current capacity
+  policy row, so terminal historical leases survive later policy version replacement.
 
 Historical leases snapshot capacity/resource data and do not change when a later
 capacity source version syncs. Capacity sync may not delete a policy referenced by an
@@ -179,9 +193,11 @@ Rules:
 - reserve/renew/release/expire accept caller-owned transactions and never perform a
   hidden commit. Test-only/convenience wrappers may open `BEGIN IMMEDIATE`, but P9-3B
   must be able to combine job CAS and lease mutation in one transaction;
-- reserve first marks every due `status='active'` lease as `expired` inside that same
-  transaction, without changing job state, so the partial unique index and capacity
-  count never disagree about a time-expired row;
+- reserve first marks due `status='active'` leases for the target agent or target
+  resource as `expired` inside that same transaction, without changing job state. This
+  is the complete set that can affect the current capacity/resource decision and avoids
+  an unrelated global expiry scan while keeping the partial unique index and capacity
+  count consistent;
 - reserve requires job/attempt/agent/runner/context cross-links to match current rows;
 - reserve counts remaining active leases, then rejects capacity exhaustion and active
   resource collision before insert;
