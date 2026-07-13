@@ -2307,15 +2307,16 @@
         "updated_at": "2026-07-13"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-2a-executor-identity-registry/plan.md"
+        "plan": "docs/project-harness/tasks/p9-2a-executor-identity-registry/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
         "decision": "approved",
         "reviewer": "codex-operator",
-        "phase": "review_approved",
+        "phase": "closeout_requested",
         "updated_at": "2026-07-13",
-        "summary": "Re-approved after deployment gate correction: local parity caught pad-jarvis adapter jarvis versus concrete runtime jarvis-local before any remote mutation. Fixed at MultiNexus 39390592b45fb32e5ccf667de5f16eef4f6840e3; durable review at 3b8a4b62e41e99ddb697f81bb89b183980637be3; parity ok catalog f4cdf79897755c173e97ddae1dfd88047436039f3447d4d6257105715ba5551d; focused 70 passed plus 25 subtests; full 492 passed, 2 skipped, 31 subtests."
+        "summary": "Production repair accepted: doctor errors 0, exact retry idempotent, typed binding/context/delivery unchanged, services active."
       },
       "split_operation": {
         "contract_version": 1,

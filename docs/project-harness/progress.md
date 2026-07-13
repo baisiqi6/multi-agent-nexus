@@ -2,6 +2,27 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — P9-2A executor identity deployment, repair, and closeout review
+
+- Coordinate `eec9b23` is pushed, fully installed, and deployed; source/deployed/
+  installed onboarding module hashes match. MultiNexus repair/evidence heads through
+  `6e980be` are pushed.
+- Real typed job `request:64f42ca6-3b8b-4f78-a56c-c417c6ddeebd` remains `done` with
+  immutable binding `sha256:04122c...15e27`, context `sha256:0fad70...869f`, exact
+  sentinel, and sent Discord delivery `0e792036...`.
+- Exact production-copy rehearsal caught and gated a second erased immutable field
+  (`phase`) before production mutation. Amended script SHA `75423566...07e1` passed a
+  fresh-copy first run/retry/doctor, then produced the identical accepted production
+  repair event `594892d1...`; production doctor is now `projection_ok=true`, errors 0.
+- Fresh backup `coord.sqlite3.p9-2a-mirror-fix.20260713T093705Z` is mode 600,
+  integrity `ok`, schema v12, SHA `5807973f...2580`. Production integrity is `ok` and
+  both services remained active with zero restarts; server smoke passed.
+- Closeout request `e3c17b26...` and final review approval `ca0bfd31...` are durable.
+  Source lifecycle projection is aligned and ready for the normal host-aware terminal
+  receipt. Exact evidence: `tasks/p9-2a-executor-identity-registry/closeout.md`.
+- After receipt consumption, P9-2B is the next detailed-plan gate. Ordinary
+  `Kimi for Coding` (no `highspeed`) is the preferred coding worker.
+
 ## 2026-07-13 — P9-1 deployment and production dogfood
 
 - Coordinate `b732159` and MultiNexus `066ca74` integrated to `main`, pushed, and
