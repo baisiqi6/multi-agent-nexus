@@ -2156,6 +2156,51 @@
         "after_fingerprint": "86bdeac6397f24d301feb87a989dff43d5fb7d5882a578286a901b568a87181e",
         "applied_at": "2026-07-13T02:04:06Z"
       }
+    },
+    {
+      "id": "p9-0a6-post-closeout-module-review",
+      "title": "P9-0A6 Post-Closeout Module Review",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-13T02:16:04Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-13T02:16:04Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "85e11dc5-7c76-4bd6-b8c2-b115144f011e",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "p9-0a6-post-closeout-module-review",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "eb05e590f5d3bfc00185bcaf04c958d96a0123ce7cf14bc54fb9b1f527bbb203",
+        "before_fingerprint": "aff392bd90f6142ae6db026180e082a731c751080e4baba228e5655614005065",
+        "after_fingerprint": "c347688a572eb16598b19c67168428c13c35cd21135fef7d5b4d46d605af28dc",
+        "files_applied_at": "2026-07-13T02:16:04Z"
+      }
     }
   ]
 }
