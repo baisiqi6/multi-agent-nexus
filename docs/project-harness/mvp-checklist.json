@@ -2342,10 +2342,10 @@
     {
       "id": "p9-2b-deterministic-executor-routing",
       "title": "P9-2B Deterministic Executor Routing",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md",
@@ -2357,18 +2357,21 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-13T10:18:57Z",
+      "selected_in_session": "019f5c0d-9fb9-7000-a7fe-926c6ab190cc",
+      "updated_at": "2026-07-13",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-13T10:18:57Z"
+        "status": "running",
+        "branch": "main",
+        "updated_at": "2026-07-13"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md"
+        "plan": "docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md",
+        "branch": "main"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": null
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "425b1f00-c6ab-46c2-9e6c-1551fa0e84cf",
@@ -2382,6 +2385,13 @@
         "before_fingerprint": "1a1d15370d422508fbad0270e928d0106e38421fe9a9a5c1b58a209e8cce8c94",
         "after_fingerprint": "316482aad38f4a728e54397ba24b8a4cfea36ff8d9223a39137003cfce167b19",
         "files_applied_at": "2026-07-13T10:18:57Z"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "019f5c0d-9fb9-7000-a7fe-926c6ab190cc",
+        "acquired_at": "2026-07-13T15:45:31Z",
+        "expires_at": "2026-07-13T17:45:31Z",
+        "ttl_minutes": 120
       }
     }
   ]
