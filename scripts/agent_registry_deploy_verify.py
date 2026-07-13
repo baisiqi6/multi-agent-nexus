@@ -19,7 +19,8 @@ from typing import Any
 
 from coordinate.db import resolve_effective_agents
 
-# MultiNexus authority loader is safe to import (no Coordinate dependency).
+# MultiNexus authority loaders are safe to import (no Coordinate dependency).
+from multinexus.executor_capacity_authority import load_capacity_authority
 from multinexus.registry_authority import load_authority
 
 
@@ -261,6 +262,51 @@ def verify(conn: sqlite3.Connection, workspace_id: str, authority_path: str, *, 
                 errors.append(f"executor binding {row['agent_id']!r} runner_profile mismatch")
             if bool(row["enabled"]) != auth_binding.enabled:
                 errors.append(f"executor binding {row['agent_id']!r} enabled mismatch")
+
+    # Capacity catalog source parity
+    try:
+        capacity_authority = load_capacity_authority(authority_path)
+    except Exception as exc:
+        errors.append(f"capacity authority parse error: {exc}")
+        capacity_authority = None
+
+    diagnostics["capacity_source"] = None
+    diagnostics["capacity_policy_count"] = None
+    if capacity_authority is not None:
+        capacity_source_row = conn.execute(
+            "SELECT source_id, source_version, catalog_hash FROM executor_capacity_sources WHERE source_id = ?",
+            (capacity_authority.source_id,),
+        ).fetchone()
+        diagnostics["capacity_source"] = dict(capacity_source_row) if capacity_source_row else None
+        if capacity_source_row is None:
+            errors.append("no capacity catalog source row found")
+        else:
+            if capacity_source_row["source_id"] != capacity_authority.source_id:
+                errors.append("capacity catalog source_id mismatch")
+            if capacity_source_row["source_version"] != capacity_authority.source_version:
+                errors.append("capacity catalog source_version mismatch")
+            if capacity_source_row["catalog_hash"] != capacity_authority.catalog_hash:
+                errors.append("capacity catalog hash mismatch")
+
+        db_capacity_policies = conn.execute(
+            "SELECT agent_id, max_concurrent_jobs, capacity_policy_id "
+            "FROM executor_capacity_policies WHERE source_id = ? ORDER BY agent_id",
+            (capacity_authority.source_id,),
+        ).fetchall()
+        diagnostics["capacity_policy_count"] = len(db_capacity_policies)
+        if len(db_capacity_policies) != len(capacity_authority.policies):
+            errors.append(
+                f"capacity policy count mismatch: {len(db_capacity_policies)} vs authority {len(capacity_authority.policies)}"
+            )
+        else:
+            auth_policies_by_agent = {p.agent_id: p for p in capacity_authority.policies}
+            for row in db_capacity_policies:
+                auth_policy = auth_policies_by_agent.get(row["agent_id"])
+                if auth_policy is None:
+                    errors.append(f"unexpected capacity policy in DB: {row['agent_id']!r}")
+                    continue
+                if row["max_concurrent_jobs"] != auth_policy.max_concurrent_jobs:
+                    errors.append(f"capacity policy {row['agent_id']!r} max_concurrent_jobs mismatch")
 
     return {
         "ok": not errors,

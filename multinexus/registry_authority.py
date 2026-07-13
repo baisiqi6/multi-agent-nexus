@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 
-_ROOT_KEYS = {"registry", "agents", "external_agents", "executor_definitions"}
+_ROOT_KEYS = {"registry", "agents", "external_agents", "executor_definitions", "capacity_registry", "executor_capacities"}
 _REGISTRY_KEYS = {"id", "version"}
 _ENTRY_KEYS = {"id", "display_name", "discord_user_id", "executor_definition_id", "runner_profile_id", "enabled"}
 _DEFINITION_KEYS = {"id", "provider", "adapter", "capabilities"}

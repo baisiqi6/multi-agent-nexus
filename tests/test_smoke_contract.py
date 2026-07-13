@@ -19,6 +19,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
+from multinexus.executor_capacity_authority import compute_capacity_catalog_hash, compute_capacity_policy_id
 from multinexus.registry_authority import load_authority
 
 
@@ -93,6 +94,14 @@ class SmokeContractTests(unittest.TestCase):
             id = "server-hermes"
             display_name = "Hermes"
             discord_user_id = "1505562531706568928"
+
+            [capacity_registry]
+            id = "multinexus.discord.capacity"
+            version = 1
+
+            [[executor_capacities]]
+            agent_id = "mac-claude"
+            max_concurrent_jobs = 1
             """),
             encoding="utf-8",
         )
@@ -154,6 +163,10 @@ class SmokeContractTests(unittest.TestCase):
             self.repo_root / "multinexus" / "registry_authority.py",
             remote_opt / "multinexus" / "registry_authority.py",
         )
+        shutil.copy(
+            self.repo_root / "multinexus" / "executor_capacity_authority.py",
+            remote_opt / "multinexus" / "executor_capacity_authority.py",
+        )
 
         self.db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         self.db_path.parent.mkdir(parents=True)
@@ -180,7 +193,27 @@ class SmokeContractTests(unittest.TestCase):
         now = datetime.now(timezone.utc).isoformat()
         conn.executescript(
             """
-            PRAGMA user_version = 12;
+            PRAGMA user_version = 13;
+
+            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
+              source_id TEXT PRIMARY KEY,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              source_path TEXT,
+              updated_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
+              agent_id TEXT PRIMARY KEY,
+              source_id TEXT NOT NULL,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              capacity_policy_id TEXT NOT NULL,
+              max_concurrent_jobs INTEGER NOT NULL CHECK(max_concurrent_jobs BETWEEN 1 AND 32),
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL,
+              FOREIGN KEY(source_id) REFERENCES executor_capacity_sources(source_id) ON DELETE CASCADE
+            );
 
             CREATE TABLE IF NOT EXISTS workspaces (
               id TEXT PRIMARY KEY,
@@ -333,6 +366,28 @@ class SmokeContractTests(unittest.TestCase):
                 "INSERT INTO executor_instance_bindings (agent_id, source_id, executor_definition_id, runner_profile_id, enabled, created_at, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (b.agent_id, authority.source_id, b.executor_definition_id, b.runner_profile_id, int(b.enabled), now, now),
+            )
+
+        # Capacity projection rows.
+        from multinexus.executor_capacity_authority import load_capacity_authority
+        capacity = load_capacity_authority(self.authority_path)
+        conn.execute(
+            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (capacity.source_id, capacity.source_version, capacity.catalog_hash, str(self.authority_path), now),
+        )
+        for p in capacity.policies:
+            policy_id = compute_capacity_policy_id(
+                agent_id=p.agent_id,
+                catalog_hash=capacity.catalog_hash,
+                max_concurrent_jobs=p.max_concurrent_jobs,
+                source_id=capacity.source_id,
+                source_version=capacity.source_version,
+            )
+            conn.execute(
+                "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (p.agent_id, capacity.source_id, capacity.source_version, capacity.catalog_hash, policy_id, p.max_concurrent_jobs, now, now),
             )
         conn.commit()
         conn.close()

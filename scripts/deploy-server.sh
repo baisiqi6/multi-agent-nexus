@@ -235,6 +235,23 @@ verify_remote_registry_parity() {
   fi
 }
 
+sync_capacity_to_coordinate() {
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity sync \
+      --source /opt/multinexus/config/agent-registry.toml"; then
+    echo "error: Coordinate capacity sync failed (stage: capacity-sync)" >&2
+    return 1
+  fi
+}
+
+restore_previous_capacity_source() {
+  # If a capacity-sync attempt failed, put back the previously accepted
+  # source projection so the next retry starts from a consistent state.
+  local backup_path="/tmp/agent-registry.toml.capacity-backup"
+  ssh "$HOST" "test -f '$backup_path' || exit 0; sudo cp '$backup_path' /opt/multinexus/config/agent-registry.toml"
+  ssh "$HOST" "sudo /usr/local/bin/coord-local runtime capacity sync \
+      --source /opt/multinexus/config/agent-registry.toml" >/dev/null 2>&1 || true
+}
+
 sync_registry_to_coordinate() {
   if ! ssh "$HOST" "sudo /usr/local/bin/coord-local workspace agent sync discord-nexus \
       --source /opt/multinexus/config/agent-registry.toml --replace"; then
@@ -290,6 +307,10 @@ deploy_multinexus() {
     --exclude .DS_Store \
     --exclude VERSION_DEPLOYED
 
+  # Backup the currently accepted capacity authority before overwriting it.
+  # If capacity sync fails, restore this projection so the next retry is safe.
+  ssh "$HOST" "sudo cp -f /opt/multinexus/config/agent-registry.toml /tmp/agent-registry.toml.capacity-backup 2>/dev/null || true"
+
   remote_sudo_script <<EOF
 set -euo pipefail
 mkdir -p /opt/multinexus
@@ -322,6 +343,10 @@ EOF
 
   verify_remote_registry_parity
   sync_registry_to_coordinate
+  if ! sync_capacity_to_coordinate; then
+    restore_previous_capacity_source
+    return 1
+  fi
   verify_committed_registry
 
   if [[ "$SKIP_INSTALL" -ne 1 ]]; then

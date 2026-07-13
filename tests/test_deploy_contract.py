@@ -51,6 +51,7 @@ root = os.environ.get("FAKE_SSH_ROOT", "")
 mn_path = Path(root) / "opt" / "multinexus" if root else Path(__file__).resolve().parent.parent / "multinexus"
 sys.path.insert(0, str(mn_path))
 from multinexus.registry_authority import load_authority
+from multinexus.executor_capacity_authority import load_capacity_authority
 
 db_path = Path(root) / "var/lib/coordinate/coord.sqlite3" if root else Path("coord.sqlite3")
 db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -59,7 +60,51 @@ conn.row_factory = sqlite3.Row
 now = datetime.now(timezone.utc).isoformat()
 
 conn.executescript("""
-PRAGMA user_version = 12;
+PRAGMA user_version = 13;
+
+CREATE TABLE IF NOT EXISTS executor_capacity_sources (
+  source_id TEXT PRIMARY KEY,
+  source_version INTEGER NOT NULL,
+  catalog_hash TEXT NOT NULL,
+  source_path TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS executor_capacity_policies (
+  agent_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  source_version INTEGER NOT NULL,
+  catalog_hash TEXT NOT NULL,
+  capacity_policy_id TEXT NOT NULL,
+  max_concurrent_jobs INTEGER NOT NULL CHECK(max_concurrent_jobs BETWEEN 1 AND 32),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(source_id) REFERENCES executor_capacity_sources(source_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS execution_attempt_leases (
+  lease_id TEXT PRIMARY KEY,
+  job_id TEXT NOT NULL,
+  attempt_token INTEGER NOT NULL CHECK(attempt_token > 0),
+  agent_id TEXT NOT NULL,
+  runner_profile_id TEXT NOT NULL,
+  host_id TEXT NOT NULL,
+  resource_kind TEXT NOT NULL CHECK(resource_kind = 'worktree'),
+  resource_key TEXT NOT NULL,
+  normalized_path TEXT NOT NULL,
+  capacity_policy_id TEXT,
+  max_concurrent_jobs INTEGER NOT NULL CHECK(max_concurrent_jobs BETWEEN 1 AND 32),
+  status TEXT NOT NULL CHECK(status IN ('active', 'released', 'expired')),
+  acquired_at TEXT NOT NULL,
+  renewed_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  released_at TEXT,
+  release_reason TEXT,
+  UNIQUE(job_id, attempt_token),
+  FOREIGN KEY(job_id) REFERENCES jobs(id) ON DELETE RESTRICT,
+  FOREIGN KEY(agent_id) REFERENCES agents(id) ON DELETE RESTRICT,
+  FOREIGN KEY(runner_profile_id) REFERENCES runner_profiles(id) ON DELETE RESTRICT
+);
 
 CREATE TABLE IF NOT EXISTS workspaces (
   id TEXT PRIMARY KEY,
@@ -229,6 +274,36 @@ elif args[0] == "runtime" and args[1] == "executor":
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (b.agent_id, authority.source_id, b.executor_definition_id, b.runner_profile_id, int(b.enabled), now, now),
         )
+elif args[0] == "runtime" and args[1] == "capacity":
+    if os.environ.get("FAKE_CAPACITY_SYNC_FAILURE") == "1":
+        print("fake coord-local: injected capacity sync failure", file=sys.stderr)
+        sys.exit(1)
+    capacity = load_capacity_authority(source_path)
+    conn.execute(
+        "INSERT OR REPLACE INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (capacity.source_id, capacity.source_version, capacity.catalog_hash, str(source_path), now),
+    )
+    conn.execute(
+        "DELETE FROM executor_capacity_policies WHERE source_id = ?",
+        (capacity.source_id,),
+    )
+    for p in capacity.policies:
+        policy_id = "sha256:" + __import__("hashlib").sha256(
+            __import__("json").dumps({
+                "agent_id": p.agent_id,
+                "catalog_hash": capacity.catalog_hash,
+                "contract_version": 1,
+                "max_concurrent_jobs": p.max_concurrent_jobs,
+                "source_id": capacity.source_id,
+                "source_version": capacity.source_version,
+            }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        conn.execute(
+            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (p.agent_id, capacity.source_id, capacity.source_version, capacity.catalog_hash, policy_id, p.max_concurrent_jobs, now, now),
+        )
 else:
     print("fake coord-local: unexpected subcommand", file=sys.stderr)
     sys.exit(1)
@@ -277,6 +352,10 @@ class DeployContractTests(unittest.TestCase):
             self.source_dir / "multinexus" / "registry_authority.py",
         )
         shutil.copy(
+            repo_root / "multinexus" / "executor_capacity_authority.py",
+            self.source_dir / "multinexus" / "executor_capacity_authority.py",
+        )
+        shutil.copy(
             repo_root / "scripts" / "agent_registry_deploy_verify.py",
             self.source_dir / "scripts" / "agent_registry_deploy_verify.py",
         )
@@ -305,6 +384,14 @@ class DeployContractTests(unittest.TestCase):
             id = "server-hermes"
             display_name = "Hermes"
             discord_user_id = "1505562531706568928"
+
+            [capacity_registry]
+            id = "multinexus.discord.capacity"
+            version = 1
+
+            [[executor_capacities]]
+            agent_id = "mac-claude"
+            max_concurrent_jobs = 1
             """),
             encoding="utf-8",
         )
@@ -561,6 +648,98 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stderr)
         self.assertIn("refusing to deploy dirty", result.stderr)
         self.assertNotIn("coord-local", self._ssh_log())
+
+
+    def test_capacity_sync_failure_no_version_restart_and_previous_restored(self):
+        # Pre-create the remote config and DB with a v1 capacity projection so
+        # the backup has something to restore to.
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        import sqlite3
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            PRAGMA user_version = 13;
+            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
+              source_id TEXT PRIMARY KEY,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              source_path TEXT,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
+              agent_id TEXT PRIMARY KEY,
+              source_id TEXT NOT NULL,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              capacity_policy_id TEXT NOT NULL,
+              max_concurrent_jobs INTEGER NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("multinexus.discord.capacity", 1, "v1-hash", str(remote_config), "2026-01-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("mac-claude", "multinexus.discord.capacity", 1, "v1-hash", "sha256:v1-policy", 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+        )
+        conn.commit()
+        conn.close()
+
+        # Modify local authority to a v2 capacity projection.
+        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2, encoding="utf-8")
+
+        # Inject capacity sync failure on the remote side.
+        env = dict(self._env)
+        env["FAKE_CAPACITY_SYNC_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("capacity-sync", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # The previous accepted capacity projection must remain in the DB.
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
+            ("mac-claude",),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["source_version"], 1)
+        self.assertEqual(row["max_concurrent_jobs"], 1)
+        conn.close()
 
 
 if __name__ == "__main__":
