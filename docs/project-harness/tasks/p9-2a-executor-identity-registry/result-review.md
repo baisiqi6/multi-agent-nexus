@@ -34,7 +34,7 @@ Verdict: **APPROVE after reviewer corrections**
 
 ## Codex must-fix findings and corrections
 
-Four acceptance gaps were reproduced and corrected:
+Five acceptance gaps were reproduced and corrected:
 
 1. The v11-to-v12 migration used a bare `executescript()`. An injected index failure
    left `executor_catalog_sources` behind while `user_version` remained 11. The v12
@@ -51,11 +51,18 @@ Four acceptance gaps were reproduced and corrected:
    with attacker-controlled key count. Both authority parsers now require a TOML
    boolean, reject executor-only flags on external agents, and emit bounded structural
    errors. Coordinate also requires the exact lowercase binding-id digest shape.
+5. The first real deployment preflight found the canonical `pad-jarvis` definition
+   declared adapter `jarvis`, while the private runtime and active local-brain adapter
+   use `jarvis-local`. Local authority/runtime parity stopped the deployment before any
+   remote write, version update, or restart. The source authority now records the
+   existing concrete adapter id `jarvis-local`, as required by the approved plan.
 
 Reviewer correction commits:
 
 - Coordinate: `44635726f579022004c9b10dd1225a196dd90eef`.
 - MultiNexus: `b192b2748f784219ba0725979015770f51d71ecc`.
+- MultiNexus deployment-gate correction:
+  `39390592b45fb32e5ccf667de5f16eef4f6840e3`.
 
 ## Independent verification
 
@@ -71,11 +78,17 @@ Reviewer correction commits:
   the same nine historical CLI/AST failures reproduced independently at clean baseline
   `b732159c4a1bbced39dc6ab9cde8841e7959a8cb`.
 - MultiNexus full suite after review: `492 passed, 2 skipped, 31 subtests passed`.
+- Post-gate local authority/runtime parity passes with roster hash
+  `95bdad3b3d1f0526873e4acd8156ba296d6aa153fb11d5c9e6ddc4482212213b`
+  and executor catalog hash
+  `f4cdf79897755c173e97ddae1dfd88047436039f3447d4d6257105715ba5551d`;
+  the focused deployment/authority suite reports `70 passed, 25 subtests passed`,
+  and the full suite remains `492 passed, 2 skipped, 31 subtests passed`.
 - `compileall` and `git diff --check` pass in both worktrees.
 - MultiNexus P9-2A domain/runtime tests contain no sibling Coordinate import, hardcoded
   P9-2A worktree path, managed SQLite access, provider command execution, routing, or
   lease behavior.
 
-No must-fix finding remains. P9-2A is approved for fast-forward integration, ordered
+No must-fix finding remains. P9-2A is re-approved for fast-forward integration, ordered
 backup/deployment, real typed-job and tamper dogfood, durable receipt, and lifecycle
 closeout.
