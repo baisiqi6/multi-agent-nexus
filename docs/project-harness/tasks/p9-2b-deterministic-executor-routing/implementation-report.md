@@ -320,3 +320,164 @@ No whitespace errors in either worktree.
   (P9-3 scope).
 - No production DB migration, deployment, restart, or lifecycle event was
   performed.
+
+
+---
+
+# P9-2B Deterministic Executor Routing — Round 3 Correction Report
+
+## Authority
+
+- Plan: `docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md`
+- Plan SHA-256: `328c8151a6055a8b7680363847ff293e4ff9a0ca7bd4109a089186f63ad4a8cb`
+- Coordinate correction baseline HEAD: `7139728435e842e8728739ec6246b5b8eeb17407`
+- MultiNexus correction baseline HEAD: `2be66eeaa990add1f7f20630a9c8cd6e94d40224`
+- Worker model: `kimi-code/kimi-for-coding` (ordinary, no highspeed)
+
+## Scope
+
+This round corrects the R3-1 finding from the Codex Round 3 result review:
+`_replay_exact_request()` still accepted forged stored-event payload content in
+its typed-context branch. The Round 2 report claim that exact replay validated
+all event/job content links was too broad; this round corrects that wording and
+closes the forged event-content gap. All changes are confined to the P9-2B
+Coordinate module and tests; no routing policy, schema, CLI, or MultiNexus
+source change was introduced.
+
+## Commands and counts
+
+### Coordinate focused P9-2B gate (unpiped)
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest \
+  tests/test_executor_routing.py \
+  tests/test_runtime.py::RoutedRuntimeTests \
+  tests/test_runtime.py::RoutedRuntimeCorrectionTests \
+  tests/test_execution_cli.py
+```
+
+Result: `173 passed in 0.91s`.
+
+### Coordinate full suite (unpiped)
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest tests/
+```
+
+Result: `2140 passed, 9 failed in 64.53s`.
+
+The 9 failures are the exact same historical CLI-contract/AST baseline failures
+accepted in Round 1 and Round 2:
+
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a1_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2a_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2b_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a2c_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_cumulative_rewind_matches_p9_0a3a_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_differs_from_p9_0a4a_baseline_only_at_12_handlers`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_s4b1_rewind_matches_baseline`
+- `tests/test_cli_contract.py::CLIContractTests::test_contract_s4c1_rewind_matches_baseline`
+- `tests/test_issue_cli.py::IssueCLIOwnershipTests::test_all_five_handler_ast_bodies_match_start_revision`
+
+The P9-2B delta test `test_contract_p9_2b_delta_matches_baseline` passes.
+
+### MultiNexus focused and full (unpiped)
+
+Focused claim/context/binding tests:
+
+```text
+PYTHONPATH=. /Users/yinxin/projects/multinexus/.venv/bin/python -m pytest \
+  tests/test_agentd_executor_binding.py \
+  tests/test_agentd_execution_context.py \
+  tests/test_coordinator_handoff_runtime.py \
+  tests/test_executor_binding.py
+```
+
+Result: `105 passed, 1 warning in 0.36s`.
+
+Full MultiNexus suite (from its worktree):
+
+```text
+PYTHONPATH=. /Users/yinxin/projects/multinexus/.venv/bin/python -m pytest tests/
+```
+
+Result: `503 passed, 2 skipped, 1 warning in 19.89s`.
+
+### Static gates
+
+```text
+python -m compileall src/coordinate tests/ -q
+python -m compileall -q .
+```
+
+No output (success).
+
+```text
+python /Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-p9-2b-kimi/scripts/detect_duplicate_test_methods.py
+```
+
+Result: `No duplicate test methods in P9-2B test files.`
+
+```text
+git diff --check
+```
+
+No whitespace errors in either worktree.
+
+## Round 3 adversarial probes — now rejections
+
+| Probe | Now-rejecting test |
+|---|---|
+| `EXACT_EVENT_ORIGIN_FORGERY_ACCEPTED` | `test_exact_replay_rejects_forged_event_payload_matrix` (typed + legacy subtests) |
+| `EXACT_EVENT_REPLY_FORGERY_ACCEPTED` | `test_exact_replay_rejects_forged_event_payload_matrix` (typed + legacy subtests) |
+| `EXACT_EVENT_TASK_ID_FORGERY_ACCEPTED` | `test_exact_replay_rejects_forged_event_payload_matrix` (typed + legacy subtests) |
+
+## Key corrections implemented
+
+1. **R3-1**: After the typed execution-context snapshot comparison succeeds,
+   `_replay_exact_request()` now validates the stored event payload's `origin`,
+   `reply`, and `task_id` against the current request and the stored job
+   authority. The P9-1 context comparison still precedes these checks, so the
+   accepted `execution_context conflicts` error ordering for task/scope
+   changes is preserved; no old assertion was modified to make this pass.
+2. The legacy/no-context exact replay branch also fail-closed checks the
+   stored event payload `reply` and `task_id` (the `origin` check was already
+   present). Existing legacy exact replay success paths and error semantics are
+   unchanged.
+3. Added a permanent exact-event mutation matrix covering `origin`, `reply`,
+   and payload `task_id` in both typed and legacy branches. Each subtest
+   asserts rejection and zero changes to event count, job status, attempt
+   count, and stored job/event payloads.
+4. Added `scripts/detect_duplicate_test_methods.py` to run the duplicate-test
+   AST detector reproducibly; it reports no duplicate test methods in the P9-2B
+   test files.
+
+## Correction to Round 2 wording
+
+The Round 2 report stated that exact and routed replay "validate event/job
+prompt, origin, reply, task, request_event_id, assignment, runner, binding,
+context, and decision internal links." That statement was too broad: the
+stored event payload's `origin`, `reply`, and `task_id` were not actually
+validated in the exact typed replay path, which Round 3's reviewer probes
+exposed. This round closes that gap and updates the report accordingly.
+
+## Cross-repo contract
+
+- Coordinate remains the sole owner of routing request/decision contracts,
+  candidate selection, and redacted claim evidence.
+- MultiNexus receives the already-accepted P9-1/P9-2A claim contract plus the
+  additive `routing_request_id` and `routing_decision_id`. No MultiNexus source
+  code was changed; the existing MultiNexus claim/context/binding tests remain
+  green.
+
+## Known risks / residual notes
+
+- The nine historical CLI-contract/AST failures persist and are unrelated to
+  P9-2B; they are accepted as the baseline gate.
+- `agents.current_load` remains unwritten and is not used as a routing
+  authority.
+- No freshness cutoff or heartbeat window was introduced (P9-4 scope).
+- No capacity limit, lease, queue fairness, or automatic reroute was introduced
+  (P9-3 scope).
+- No production DB migration, deployment, restart, or lifecycle event was
+  performed.
