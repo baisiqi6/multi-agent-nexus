@@ -2404,6 +2404,51 @@
         "after_fingerprint": "e27e49442b330f1e22a8f1fe2ae8ece6153396be61a1b1f88d95174d71fceab8",
         "applied_at": "2026-07-13T15:47:20Z"
       }
+    },
+    {
+      "id": "p9-3a-capacity-resource-lease-foundation",
+      "title": "P9-3A Capacity and Resource Lease Foundation",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-13T16:02:12Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-13T16:02:12Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "6ae6f9f1-7fc0-46a7-ac6c-d739c43485be",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "p9-3a-capacity-resource-lease-foundation",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "125c6c57ba37ce305f7e1fc4e6385fd26c153a81834d91b04de26997a06c441c",
+        "before_fingerprint": "8fdb1b1f3754b3dd18719f4975c855a00c56418873dadb5ba053f26dbf5b3a3a",
+        "after_fingerprint": "28573057db913235834aef47e2c098c39c96203cde4e0145e3ede84940b525c7",
+        "files_applied_at": "2026-07-13T16:02:12Z"
+      }
     }
   ]
 }
