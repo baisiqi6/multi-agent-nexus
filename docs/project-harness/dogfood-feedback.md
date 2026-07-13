@@ -1044,3 +1044,17 @@
   deployment hardening仍应让脚本自动使用本次restart boundary，而非固定回看窗口。
 - 完整证据：
   `tasks/p9-1-job-scoped-execution-context/deployment-dogfood.md`。
+
+## 2026-07-13（P9-2A plan revision host-aware gap）
+
+- P9-2A Round 1 rejected后，source plan按同一路径产生新SHA。现有split `task
+  create-files/create-record`只支持首次创建；同task的新revision仍需兼容`task create`
+  才能生成带`supersedes_plan_ready_event_id`的新`plan.ready`。
+- 真实`coord-ssh task create`正确生成revision event
+  `3dc704af-f627-4953-a5bc-5721f67ca3cf`，但也触碰了`/opt` runtime checklist，导致
+  local canonical SHA `4d1f56ab...00b94`与remote SHA `4f5dc8ba...a161`短暂分叉。
+- Operator没有直接修JSON或DB；立即重新部署source commit `7572dcb`，remote恢复为
+  `4d1f56ab...00b94`并通过server smoke。DB revision/event保持有效。
+- Route：后续应提供server-only `task revise-record`（或使`create-record`支持已存在task的
+  plan revision），原子重算SHA、写superseding`plan.ready`且绝不触碰harness文件；在此之前
+  每次兼容revision后必须重新部署并校验source/deployed checklist fingerprint。
