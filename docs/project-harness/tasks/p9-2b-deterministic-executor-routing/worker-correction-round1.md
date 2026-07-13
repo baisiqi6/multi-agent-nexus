@@ -64,4 +64,3 @@ freshness、capacity/lease/fairness/reroute，或扩大到 P9-3/P9-4。
   也不要修改两个 `main` checkout。
 - 最终输出 exact commit SHAs、测试结果、worktree status 和已知风险，等待 Codex
   Round 2 result review。
-

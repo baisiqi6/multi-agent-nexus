@@ -79,4 +79,3 @@ capacity/lease/fairness/reroute 或 P9-3/P9-4 scope。
   review/bootstrap/report 文档的原子 commit。
 - 不要 push、cherry-pick、deploy、restart、生产 DB/lifecycle mutation。
 - 最终输出两个 exact commit SHA、tests、worktree status，等待 Codex Round 2 review。
-
