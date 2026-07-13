@@ -20,8 +20,12 @@ Harness root: `docs/project-harness/`
   `8447cf7a... -> 86bdeac6...`.
 - S4-D and the Slice 4 stage are closed. Next ordered package: P9-0A6 boundary
   remeasurement.
+- Slice 4 stage receipt `046f5bf9-62ad-40ea-a828-c2b984531212` was consumed as
+  `7e782f24-c38b-49dd-9621-8baecf13f66d`; stage fingerprint
+  `bddac5cb... -> 48f93d8a...`. Final production doctor remained `errors=0`.
 - Durable evidence:
-  `tasks/slice-4d-projection-doctor-evidence/closeout.md`.
+  `tasks/slice-4d-projection-doctor-evidence/closeout.md` and
+  `tasks/slice-4-projection-hardening/closeout.md`.
 
 ## 2026-07-13 — Slice 4C2 issue.materialize operation adoption closeout
 
