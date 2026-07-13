@@ -238,7 +238,12 @@ verify_remote_registry_parity() {
 sync_registry_to_coordinate() {
   if ! ssh "$HOST" "sudo /usr/local/bin/coord-local workspace agent sync discord-nexus \
       --source /opt/multinexus/config/agent-registry.toml --replace"; then
-    echo "error: Coordinate registry sync failed (stage: registry-sync)" >&2
+    echo "error: Coordinate roster sync failed (stage: registry-sync)" >&2
+    return 1
+  fi
+  if ! ssh "$HOST" "sudo /usr/local/bin/coord-local runtime executor sync \
+      --source /opt/multinexus/config/agent-registry.toml"; then
+    echo "error: Coordinate executor catalog sync failed (stage: executor-sync)" >&2
     return 1
   fi
 }

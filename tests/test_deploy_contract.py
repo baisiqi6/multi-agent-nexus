@@ -1,8 +1,10 @@
 """Contract tests for the registry-aware deploy-server.sh flow.
 
 These tests execute the real deploy script with fake ssh/git/tar/chown binaries
-and safe fixtures, verifying failure ordering and success sequencing without
-any production access.
+and safe fixtures.  They are standalone: no Coordinate worktree path is
+hardcoded.  The fake `coord-local` writes the minimal v12 schema/rows the
+read-after-write verifier inspects, and a tiny fake `coordinate.db` stub
+satisfies the verify helper's single Coordinate import.
 """
 
 import json
@@ -14,11 +16,226 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
-# Reuse the same coordinate venv the worker tests run under.
-COORDINATE_VENV = Path("/Users/yinxin/projects/coordinate/.venv")
+_FAKE_COORDINATE_DB = '''\
+import sqlite3
+
+def resolve_effective_agents(conn, workspace_id, now_utc=None):
+    rows = conn.execute(
+        """SELECT agent_name, discord_user_id, display_name, agent_type
+           FROM workspace_agent_registry_entries
+           WHERE workspace_id = ? AND entry_kind = 'authoritative'
+           ORDER BY agent_name""",
+        (workspace_id,),
+    ).fetchall()
+    return {
+        row["agent_name"]: {
+            "discord_user_id": row["discord_user_id"],
+            "display_name": row["display_name"],
+            "agent_type": row["agent_type"],
+        }
+        for row in rows
+    }
+'''
+
+_FAKE_COORD_LOCAL = '''\
+#!{sys_executable}
+import os, sys, json, sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
+
+root = os.environ.get("FAKE_SSH_ROOT", "")
+mn_path = Path(root) / "opt" / "multinexus" if root else Path(__file__).resolve().parent.parent / "multinexus"
+sys.path.insert(0, str(mn_path))
+from multinexus.registry_authority import load_authority
+
+db_path = Path(root) / "var/lib/coordinate/coord.sqlite3" if root else Path("coord.sqlite3")
+db_path.parent.mkdir(parents=True, exist_ok=True)
+conn = sqlite3.connect(str(db_path))
+conn.row_factory = sqlite3.Row
+now = datetime.now(timezone.utc).isoformat()
+
+conn.executescript("""
+PRAGMA user_version = 12;
+
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  path TEXT NOT NULL,
+  harness_root TEXT NOT NULL,
+  agent_registry_revision INTEGER NOT NULL DEFAULT 0,
+  agents_json TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS workspace_agent_registry_sources (
+  workspace_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  source_version INTEGER NOT NULL,
+  source_hash TEXT NOT NULL,
+  source_path TEXT,
+  synced_by TEXT,
+  synced_at TEXT NOT NULL,
+  FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS workspace_agent_registry_entries (
+  workspace_id TEXT NOT NULL,
+  agent_name TEXT NOT NULL,
+  entry_kind TEXT NOT NULL CHECK(entry_kind IN ('authoritative', 'override', 'legacy')),
+  discord_user_id TEXT NOT NULL,
+  display_name TEXT NOT NULL,
+  agent_type TEXT NOT NULL,
+  expires_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (workspace_id, agent_name, entry_kind),
+  FOREIGN KEY(workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+
+            CREATE TABLE IF NOT EXISTS agents (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  role TEXT,
+  capabilities_json TEXT NOT NULL,
+  online_state TEXT NOT NULL,
+  current_load INTEGER NOT NULL DEFAULT 0,
+  host_id TEXT,
+  client_type TEXT,
+  last_seen_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS runner_profiles (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  runner_type TEXT NOT NULL,
+  command TEXT NOT NULL,
+  working_directory_strategy TEXT NOT NULL,
+  supports_stream_attach INTEGER NOT NULL DEFAULT 0,
+  env_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS executor_catalog_sources (
+  source_id TEXT PRIMARY KEY,
+  source_version INTEGER NOT NULL,
+  catalog_hash TEXT NOT NULL,
+  source_path TEXT,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS executor_definitions (
+  id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  adapter TEXT NOT NULL,
+  capabilities_json TEXT NOT NULL,
+  metadata_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(source_id) REFERENCES executor_catalog_sources(source_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS executor_instance_bindings (
+  agent_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  executor_definition_id TEXT NOT NULL,
+  runner_profile_id TEXT NOT NULL,
+  enabled INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(source_id) REFERENCES executor_catalog_sources(source_id) ON DELETE CASCADE,
+  FOREIGN KEY(agent_id) REFERENCES agents(id) ON DELETE CASCADE,
+  FOREIGN KEY(executor_definition_id) REFERENCES executor_definitions(id) ON DELETE CASCADE,
+  FOREIGN KEY(runner_profile_id) REFERENCES runner_profiles(id) ON DELETE CASCADE
+);
+""")
+
+args = sys.argv[1:]
+if "sync" not in args:
+    print("fake coord-local: only sync supported", file=sys.stderr)
+    sys.exit(1)
+source_path = Path(args[args.index("--source") + 1])
+authority = load_authority(source_path)
+
+if args[0] == "workspace" and args[1] == "agent":
+    workspace_id = args[args.index("sync") + 1]
+    authority_json = {
+        e.id: {"discord_user_id": e.discord_user_id, "display_name": e.display_name, "agent_type": e.agent_type}
+        for e in authority.entries
+    }
+    conn.execute(
+        "INSERT OR REPLACE INTO workspaces (id, name, path, harness_root, agent_registry_revision, agents_json, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (workspace_id, workspace_id, "/x", "docs", authority.source_version, json.dumps(authority_json), now, now),
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO workspace_agent_registry_sources "
+        "(workspace_id, source_id, source_version, source_hash, source_path, synced_by, synced_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (workspace_id, authority.source_id, authority.source_version, authority.source_hash, str(source_path), "deploy", now),
+    )
+    conn.execute(
+        "DELETE FROM workspace_agent_registry_entries WHERE workspace_id = ? AND entry_kind = 'authoritative'",
+        (workspace_id,),
+    )
+    for e in authority.entries:
+        conn.execute(
+            "INSERT INTO workspace_agent_registry_entries "
+            "(workspace_id, agent_name, entry_kind, discord_user_id, display_name, agent_type, created_at, updated_at) "
+            "VALUES (?, ?, 'authoritative', ?, ?, ?, ?, ?)",
+            (workspace_id, e.id, e.discord_user_id, e.display_name, e.agent_type, now, now),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO agents (id, name, role, capabilities_json, online_state, current_load, created_at, updated_at) "
+            "VALUES (?, ?, 'agent', '[]', 'offline', 0, ?, ?)",
+            (e.id, e.display_name, now, now),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO runner_profiles (id, name, runner_type, command, working_directory_strategy, supports_stream_attach, env_json, created_at, updated_at) "
+            "VALUES (?, ?, 'agent', 'agent', 'current_dir', 0, '{}', ?, ?)",
+            (e.id, e.id, now, now),
+        )
+elif args[0] == "runtime" and args[1] == "executor":
+    conn.execute(
+        "INSERT OR REPLACE INTO executor_catalog_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (authority.source_id, authority.source_version, authority.executor_catalog_hash, str(source_path), now),
+    )
+    conn.execute(
+        "DELETE FROM executor_definitions WHERE source_id = ?",
+        (authority.source_id,),
+    )
+    conn.execute(
+        "DELETE FROM executor_instance_bindings WHERE source_id = ?",
+        (authority.source_id,),
+    )
+    for d in authority.executor_definitions:
+        conn.execute(
+            "INSERT INTO executor_definitions (id, source_id, provider, adapter, capabilities_json, metadata_json, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, '{}', ?, ?)",
+            (d.id, authority.source_id, d.provider, d.adapter, json.dumps(list(d.capabilities)), now, now),
+        )
+    for b in authority.executor_bindings:
+        conn.execute(
+            "INSERT INTO executor_instance_bindings (agent_id, source_id, executor_definition_id, runner_profile_id, enabled, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (b.agent_id, authority.source_id, b.executor_definition_id, b.runner_profile_id, int(b.enabled), now, now),
+        )
+else:
+    print("fake coord-local: unexpected subcommand", file=sys.stderr)
+    sys.exit(1)
+
+conn.commit()
+conn.close()
+'''
 
 
 def _make_executable(path: Path) -> None:
@@ -69,12 +286,20 @@ class DeployContractTests(unittest.TestCase):
             textwrap.dedent("""\
             [registry]
             id = "multinexus.discord"
-            version = 1
+            version = 2
+
+            [[executor_definitions]]
+            id = "claude-code"
+            provider = "anthropic-claude"
+            adapter = "claude"
+            capabilities = ["coding", "review"]
 
             [[agents]]
             id = "mac-claude"
             display_name = "Mac Claude"
             discord_user_id = "1507329791982833775"
+            executor_definition_id = "claude-code"
+            runner_profile_id = "mac-claude"
 
             [[external_agents]]
             id = "server-hermes"
@@ -91,7 +316,8 @@ class DeployContractTests(unittest.TestCase):
             [[agents]]
             id = "mac-claude"
             display_name = "Mac Claude"
-discord_user_id = "1507329791982833775"
+            discord_user_id = "1507329791982833775"
+            adapter = "claude"
             token_env = "SECRET_TOKEN"
 
             [[external_agents]]
@@ -107,16 +333,27 @@ discord_user_id = "1507329791982833775"
         self.remote_opt.mkdir(parents=True)
         (self.remote_opt / "agents.toml").write_text(self.runtime.read_text(), encoding="utf-8")
 
-        # Fake coordinate venv used by the verify helper.
+        # Fake coordinate venv wrapper that execs the current interpreter.
         coord_venv = self.fake_root / "opt" / "coordinate" / ".venv"
         coord_venv.mkdir(parents=True)
         (coord_venv / "bin").mkdir()
         python_wrapper = coord_venv / "bin" / "python"
         python_wrapper.write_text(
-            f"#!/bin/sh\nexec {COORDINATE_VENV / 'bin' / 'python'} \"$@\"\n",
+            f"#!{sys.executable}\n"
+            "import os, sys\n"
+            f"fake_pkg = {str(self.tmp / 'fake-coordinate')!r}\n"
+            "pp = os.environ.get('PYTHONPATH', '')\n"
+            "os.environ['PYTHONPATH'] = fake_pkg + (os.pathsep + pp if pp else '')\n"
+            "os.execv(sys.executable, [sys.executable] + sys.argv[1:])\n",
             encoding="utf-8",
         )
         _make_executable(python_wrapper)
+
+        # Minimal fake coordinate package for the verify helper.
+        fake_pkg = self.tmp / "fake-coordinate" / "coordinate"
+        fake_pkg.mkdir(parents=True)
+        (fake_pkg / "__init__.py").write_text("", encoding="utf-8")
+        (fake_pkg / "db.py").write_text(_FAKE_COORDINATE_DB, encoding="utf-8")
 
         self.deploy_script = repo_root / "scripts" / "deploy-server.sh"
         self._env = {
@@ -124,7 +361,6 @@ discord_user_id = "1507329791982833775"
             "DEPLOY_HOST": "fake-host",
             "FAKE_SSH_LOG": str(self.ssh_log),
             "FAKE_SSH_ROOT": str(self.fake_root),
-            "FAKE_COORDINATE_VENV": str(COORDINATE_VENV),
             "FAKE_COORD_LOCAL_BIN": str(self.bin_dir / "coord-local"),
             "FAKE_GIT_SHA": self.git_sha,
             "FAKE_GIT_BRANCH": self.git_branch,
@@ -157,7 +393,6 @@ discord_user_id = "1507329791982833775"
 
             log_path = os.environ["FAKE_SSH_LOG"]
             root = os.environ["FAKE_SSH_ROOT"]
-            coord_venv = os.environ.get("FAKE_COORDINATE_VENV", "")
             coord_local = os.environ.get("FAKE_COORD_LOCAL_BIN", "")
 
             host = sys.argv[1]
@@ -202,55 +437,7 @@ discord_user_id = "1507329791982833775"
     def _write_fake_coord_local(self):
         script = self.bin_dir / "coord-local"
         script.write_text(
-            textwrap.dedent(f"""\
-            #!{COORDINATE_VENV / "bin" / "python"}
-            import os, sys, tomllib
-            from pathlib import Path
-
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "multinexus"))
-            from coordinate.agent_registry import parse_agents_toml
-            from coordinate.db import connect, initialize, upsert_workspace, sync_workspace_agents
-            from coordinate.schema import migrate
-
-            root = os.environ.get("FAKE_SSH_ROOT", "")
-            db_path = Path(root) / "var/lib/coordinate/coord.sqlite3" if root else Path("coord.sqlite3")
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-            conn = connect(str(db_path))
-            migrate(conn)
-
-            # Parse args: workspace agent sync <ws> --source <path> --replace
-            args = sys.argv[1:]
-            if "sync" not in args:
-                print("fake coord-local: only sync supported", file=sys.stderr)
-                sys.exit(1)
-            workspace_id = args[args.index("sync") + 1]
-            source_path = Path(args[args.index("--source") + 1])
-
-            parsed = parse_agents_toml(source_path)
-            if parsed.errors:
-                for e in parsed.errors:
-                    print(e, file=sys.stderr)
-                sys.exit(1)
-
-            upsert_workspace(conn, workspace_id=workspace_id, name=workspace_id, path="/x", harness_root="docs")
-            entries = [
-                {{"id": a.id, "display_name": a.display_name,
-                  "discord_user_id": a.discord_user_id, "agent_type": a.agent_type}}
-                for a in parsed.agents
-            ]
-            sync_workspace_agents(
-                conn,
-                workspace_id=workspace_id,
-                source_id=parsed.source.source_id,
-                source_version=parsed.source.source_version,
-                source_hash=parsed.source.source_hash,
-                source_path=str(source_path),
-                entries=entries,
-                replace=True,
-                synced_by="deploy",
-            )
-            conn.close()
-            """),
+            _FAKE_COORD_LOCAL.replace("{sys_executable}", sys.executable),
             encoding="utf-8",
         )
         _make_executable(script)

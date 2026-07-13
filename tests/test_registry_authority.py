@@ -1,12 +1,12 @@
 """Tests for the registry authority projection/parity verifier."""
 
+import hashlib
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
 
-from coordinate.agent_registry import parse_agents_toml
 from multinexus.registry_authority import (
     AuthorityError,
     canonical_hash,
@@ -46,8 +46,13 @@ discord_user_id = "1503023508836450477"
         path = self._write(authority)
         mn_entries = load_authority(path).entries
         mn_hash = canonical_hash(mn_entries)
-        coord_result = parse_agents_toml(path)
-        self.assertEqual(mn_hash, coord_result.source.source_hash)
+        # Coordinate v10 contract hash for the same authority fixture.
+        # Cross-repo compatibility is also proven by byte fixtures and
+        # operator integration; this value pins the local contract.
+        self.assertEqual(
+            mn_hash,
+            "c9251de6d086e2ecc5041c074a0f7977b39b2719ece80b15bc627ab8b67cb469",
+        )
         self.assertTrue(mn_hash)
 
     def test_hash_excludes_source_and_secrets(self):
@@ -515,6 +520,248 @@ token_env = "RUNTIME_SECRET"
         output = json.dumps(result.to_dict())
         self.assertNotIn("RUNTIME_SECRET", output)
         self.assertNotIn("token_env", output)
+
+
+class ExecutorCatalogTests(unittest.TestCase, WriteFileMixin):
+    def test_executor_catalog_hash_matches_coordinate_fixture(self):
+        """MultiNexus canonical executor catalog SHA-256 must equal the Coordinate fixture."""
+        from multinexus.registry_authority import (
+            ExecutorDefinition,
+            ExecutorInstanceBinding,
+            canonical_executor_catalog_hash,
+        )
+
+        fixture_path = Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "executor_catalog_v1.json"
+        fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+        expected_hash = hashlib.sha256(
+            json.dumps(fixture, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+
+        definitions = [
+            ExecutorDefinition(
+                id=d["id"],
+                provider=d["provider"],
+                adapter=d["adapter"],
+                capabilities=tuple(d["capabilities"]),
+            )
+            for d in fixture["executor_definitions"]
+        ]
+        bindings = [
+            ExecutorInstanceBinding(
+                agent_id=b["agent_id"],
+                executor_definition_id=b["executor_definition_id"],
+                runner_profile_id=b["runner_profile_id"],
+                enabled=b["enabled"],
+            )
+            for b in fixture["executor_instance_bindings"]
+        ]
+        self.assertEqual(
+            canonical_executor_catalog_hash(
+                fixture["source_id"], fixture["source_version"], definitions, bindings
+            ),
+            expected_hash,
+        )
+
+    def test_roster_hash_unchanged_after_adding_executor_keys(self):
+        v1 = self._write("""
+[registry]
+id = "multinexus.discord"
+version = 1
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+""")
+        v2 = self._write("""
+[registry]
+id = "multinexus.discord"
+version = 2
+
+[[executor_definitions]]
+id = "omp-code"
+provider = "kimi-code"
+adapter = "omp"
+capabilities = ["coding", "review"]
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+executor_definition_id = "omp-code"
+runner_profile_id = "mac-omp"
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+""")
+        self.assertEqual(
+            load_authority(v1).source_hash,
+            load_authority(v2).source_hash,
+        )
+
+
+class ExecutorSchemaTests(unittest.TestCase, WriteFileMixin):
+    def _valid_base(self):
+        return """
+[registry]
+id = "multinexus.discord"
+version = 2
+
+[[executor_definitions]]
+id = "omp-code"
+provider = "kimi-code"
+adapter = "omp"
+capabilities = ["coding", "review"]
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+executor_definition_id = "omp-code"
+runner_profile_id = "mac-omp"
+"""
+
+    def test_duplicate_definition_id_rejected(self):
+        path = self._write(self._valid_base() + """
+[[executor_definitions]]
+id = "omp-code"
+provider = "x"
+adapter = "x"
+capabilities = ["coding"]
+""")
+        with self.assertRaisesRegex(AuthorityError, "duplicate executor_definition id"):
+            load_authority(path)
+
+    def test_external_agent_binding_rejected(self):
+        path = self._write(self._valid_base() + """
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+executor_definition_id = "omp-code"
+runner_profile_id = "server-hermes"
+""")
+        with self.assertRaisesRegex(AuthorityError, "external agent.*must not carry executor bindings"):
+            load_authority(path)
+
+    def test_unknown_definition_reference_rejected(self):
+        path = self._write(self._valid_base().replace(
+            'executor_definition_id = "omp-code"',
+            'executor_definition_id = "missing"',
+        ))
+        with self.assertRaisesRegex(AuthorityError, "unknown executor_definition_id"):
+            load_authority(path)
+
+    def test_runner_profile_id_must_equal_agent_id(self):
+        path = self._write(self._valid_base().replace(
+            'runner_profile_id = "mac-omp"',
+            'runner_profile_id = "other"',
+        ))
+        with self.assertRaisesRegex(AuthorityError, "runner_profile_id must equal agent_id"):
+            load_authority(path)
+
+    def test_unsafe_provider_label_rejected(self):
+        path = self._write(self._valid_base().replace(
+            'provider = "kimi-code"',
+            'provider = "kimi/code"',
+        ))
+        with self.assertRaisesRegex(AuthorityError, "unsafe characters"):
+            load_authority(path)
+
+    def test_unsafe_adapter_label_rejected(self):
+        path = self._write(self._valid_base().replace(
+            'adapter = "omp"',
+            'adapter = "omp;rm"',
+        ))
+        with self.assertRaisesRegex(AuthorityError, "unsafe characters"):
+            load_authority(path)
+
+    def test_unsorted_capabilities_rejected(self):
+        path = self._write(self._valid_base().replace(
+            'capabilities = ["coding", "review"]',
+            'capabilities = ["review", "coding"]',
+        ))
+        with self.assertRaisesRegex(AuthorityError, "must be sorted"):
+            load_authority(path)
+
+    def test_unknown_definition_key_rejected(self):
+        path = self._write(self._valid_base() + """
+[[executor_definitions]]
+id = "x"
+provider = "p"
+adapter = "a"
+capabilities = ["coding"]
+command = "/bin/evil"
+""")
+        with self.assertRaisesRegex(AuthorityError, "unknown keys in executor_definitions entry"):
+            load_authority(path)
+
+
+class ExecutorParityTests(unittest.TestCase, WriteFileMixin):
+    def test_adapter_mismatch_fails_parity(self):
+        authority = self._write("""
+[registry]
+id = "multinexus.discord"
+version = 2
+
+[[executor_definitions]]
+id = "omp-code"
+provider = "kimi-code"
+adapter = "omp"
+capabilities = ["coding"]
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+executor_definition_id = "omp-code"
+runner_profile_id = "mac-omp"
+""")
+        runtime = self._write("""
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+adapter = "claude"
+""")
+        result = verify_parity(authority, runtime)
+        self.assertFalse(result.ok)
+        self.assertTrue(any("adapter" in e for e in result.errors))
+
+    def test_missing_runtime_agent_for_binding_fails_parity(self):
+        authority = self._write("""
+[registry]
+id = "multinexus.discord"
+version = 2
+
+[[executor_definitions]]
+id = "omp-code"
+provider = "kimi-code"
+adapter = "omp"
+capabilities = ["coding"]
+
+[[agents]]
+id = "mac-omp"
+display_name = "Mac OMP"
+discord_user_id = "1511421419836145904"
+executor_definition_id = "omp-code"
+runner_profile_id = "mac-omp"
+""")
+        runtime = self._write("""
+[[agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+""")
+        result = verify_parity(authority, runtime)
+        self.assertFalse(result.ok)
 
 
 if __name__ == "__main__":

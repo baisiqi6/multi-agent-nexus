@@ -90,8 +90,18 @@ def verify(conn: sqlite3.Connection, workspace_id: str, authority_path: str, *, 
     # Schema version
     user_version = conn.execute("PRAGMA user_version").fetchone()[0]
     diagnostics["schema_version"] = user_version
-    if user_version < 10:
-        errors.append(f"schema version {user_version} is below v10")
+    if user_version < 12:
+        return {
+            "ok": False,
+            "workspace_id": workspace_id,
+            "source_id": authority.source_id,
+            "source_version": authority.source_version,
+            "source_hash": authority.source_hash,
+            "executor_catalog_hash": authority.executor_catalog_hash,
+            "revision": None,
+            "errors": [f"schema version {user_version} is below v12"],
+            "diagnostics": diagnostics,
+        }
 
     # Source row
     source_row = _get_source_row(conn, workspace_id)
@@ -187,12 +197,78 @@ def verify(conn: sqlite3.Connection, workspace_id: str, authority_path: str, *, 
         if db_json != authority_json:
             errors.append("authoritative row fields do not match authority")
 
+    # Executor catalog source parity
+    executor_source_row = conn.execute(
+        "SELECT source_id, source_version, catalog_hash FROM executor_catalog_sources WHERE source_id = ?",
+        (authority.source_id,),
+    ).fetchone()
+    diagnostics["executor_source_row"] = dict(executor_source_row) if executor_source_row else None
+    if executor_source_row is None:
+        errors.append("no executor catalog source row found")
+    else:
+        if executor_source_row["source_id"] != authority.source_id:
+            errors.append("executor catalog source_id mismatch")
+        if executor_source_row["source_version"] != authority.source_version:
+            errors.append("executor catalog source_version mismatch")
+        if executor_source_row["catalog_hash"] != authority.executor_catalog_hash:
+            errors.append("executor catalog hash mismatch")
+
+    # Executor definitions parity
+    db_definitions = conn.execute(
+        "SELECT id, provider, adapter, capabilities_json FROM executor_definitions WHERE source_id = ? ORDER BY id",
+        (authority.source_id,),
+    ).fetchall()
+    diagnostics["executor_definition_count"] = len(db_definitions)
+    if len(db_definitions) != len(authority.executor_definitions):
+        errors.append(
+            f"executor definition count mismatch: {len(db_definitions)} vs authority {len(authority.executor_definitions)}"
+        )
+    else:
+        auth_defs_by_id = {d.id: d for d in authority.executor_definitions}
+        for row in db_definitions:
+            auth_def = auth_defs_by_id.get(row["id"])
+            if auth_def is None:
+                errors.append(f"unexpected executor definition in DB: {row['id']!r}")
+                continue
+            if row["provider"] != auth_def.provider:
+                errors.append(f"executor definition {row['id']!r} provider mismatch")
+            if row["adapter"] != auth_def.adapter:
+                errors.append(f"executor definition {row['id']!r} adapter mismatch")
+            if json.loads(row["capabilities_json"]) != list(auth_def.capabilities):
+                errors.append(f"executor definition {row['id']!r} capabilities mismatch")
+
+    # Executor instance bindings parity
+    db_bindings = conn.execute(
+        "SELECT agent_id, executor_definition_id, runner_profile_id, enabled "
+        "FROM executor_instance_bindings WHERE source_id = ? ORDER BY agent_id",
+        (authority.source_id,),
+    ).fetchall()
+    diagnostics["executor_binding_count"] = len(db_bindings)
+    if len(db_bindings) != len(authority.executor_bindings):
+        errors.append(
+            f"executor binding count mismatch: {len(db_bindings)} vs authority {len(authority.executor_bindings)}"
+        )
+    else:
+        auth_bindings_by_agent = {b.agent_id: b for b in authority.executor_bindings}
+        for row in db_bindings:
+            auth_binding = auth_bindings_by_agent.get(row["agent_id"])
+            if auth_binding is None:
+                errors.append(f"unexpected executor binding in DB: {row['agent_id']!r}")
+                continue
+            if row["executor_definition_id"] != auth_binding.executor_definition_id:
+                errors.append(f"executor binding {row['agent_id']!r} definition mismatch")
+            if row["runner_profile_id"] != auth_binding.runner_profile_id:
+                errors.append(f"executor binding {row['agent_id']!r} runner_profile mismatch")
+            if bool(row["enabled"]) != auth_binding.enabled:
+                errors.append(f"executor binding {row['agent_id']!r} enabled mismatch")
+
     return {
         "ok": not errors,
         "workspace_id": workspace_id,
         "source_id": authority.source_id,
         "source_version": authority.source_version,
         "source_hash": authority.source_hash,
+        "executor_catalog_hash": authority.executor_catalog_hash,
         "revision": revision,
         "errors": errors,
         "diagnostics": diagnostics,

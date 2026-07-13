@@ -23,6 +23,7 @@ from ..models import AgentConfig
 from ..sessions.store import SessionStore
 from .coordinate_client import CoordinateRuntimeClient, CoordinateRuntimeError
 from .execution_context import ExecutionContextError, validate_claim_response
+from .executor_binding import ExecutorBindingError, validate_executor_binding
 
 log = logging.getLogger(__name__)
 
@@ -118,6 +119,24 @@ class AgentdWorker:
             )
             return
 
+        binding_snapshot = payload.get("executor_binding")
+        try:
+            binding = validate_executor_binding(
+                binding_snapshot,
+                agent_id=self.config.id,
+                adapter=self.config.adapter,
+            )
+        except ExecutorBindingError as exc:
+            log.error("Executor binding mismatch for agent %s: %s", self.config.id, exc)
+            await self.coordinate.report_job(
+                job_id=job_id,
+                agent_id=self.config.id,
+                status="failed",
+                result_json={"error": str(exc)},
+                attempt_token=attempt_token,
+            )
+            return
+
         prompt = payload.get("prompt", "")
         log.info(
             "Processing job %s: agent=%s prompt_len=%d cwd=%s",
@@ -175,6 +194,8 @@ class AgentdWorker:
             "worktree_path": ctx.worktree_path,
             "session_scope_id": ctx.session_scope_id,
         }
+        if binding is not None:
+            result_json.update(binding.result_evidence())
         if progress_state:
             result_json["progress"] = dict(progress_state)
         if "timeout" in result.metadata:

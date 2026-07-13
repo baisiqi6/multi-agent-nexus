@@ -8,47 +8,99 @@
 
 [registry]
 id = "multinexus.discord"
-version = 1
+version = 2
+
+[[executor_definitions]]
+id = "claude-code"
+provider = "anthropic-claude"
+adapter = "claude"
+capabilities = ["coding", "review"]
+
+[[executor_definitions]]
+id = "codex-code"
+provider = "openai-codex"
+adapter = "codex"
+capabilities = ["coding", "review"]
+
+[[executor_definitions]]
+id = "jarvis-code"
+provider = "jarvis"
+adapter = "jarvis"
+capabilities = ["coding"]
+
+[[executor_definitions]]
+id = "omp-code"
+provider = "kimi-code"
+adapter = "omp"
+capabilities = ["coding", "review"]
+
+[[executor_definitions]]
+id = "openclaw-code"
+provider = "openclaw"
+adapter = "openclaw"
+capabilities = ["coding"]
+
+[[executor_definitions]]
+id = "opencode-code"
+provider = "opencode"
+adapter = "opencode"
+capabilities = ["coding"]
 
 [[agents]]
 id = "mac-claude"
 display_name = "Mac Claude"
 discord_user_id = "1507329791982833775"
+executor_definition_id = "claude-code"
+runner_profile_id = "mac-claude"
 
 [[agents]]
 id = "mac-codex"
 display_name = "Mac Codex"
 discord_user_id = "1507330121235697794"
+executor_definition_id = "codex-code"
+runner_profile_id = "mac-codex"
 
 [[agents]]
 id = "mac-opencode"
 display_name = "Mac OpenCode"
 discord_user_id = "1507326063745957898"
+executor_definition_id = "opencode-code"
+runner_profile_id = "mac-opencode"
 
 [[agents]]
 id = "mac-omp"
 display_name = "Mac OMP"
 discord_user_id = "1511421419836145904"
+executor_definition_id = "omp-code"
+runner_profile_id = "mac-omp"
 
 [[agents]]
 id = "pad-jarvis"
 display_name = "Jarvis"
 discord_user_id = "1522499096198381740"
+executor_definition_id = "jarvis-code"
+runner_profile_id = "pad-jarvis"
 
 [[agents]]
 id = "win-claude"
 display_name = "Win Claude"
 discord_user_id = "1507330641694298242"
+executor_definition_id = "claude-code"
+runner_profile_id = "win-claude"
 
 [[agents]]
 id = "win-opencode"
 display_name = "Win OpenCode"
 discord_user_id = "1507331957988524072"
+executor_definition_id = "opencode-code"
+runner_profile_id = "win-opencode"
 
 [[agents]]
 id = "win-openclaw"
 display_name = "Win 小龙虾"
 discord_user_id = "1507331342780727326"
+executor_definition_id = "openclaw-code"
+runner_profile_id = "win-openclaw"
 
 [[external_agents]]
 id = "mac-openclaw"
