@@ -17,8 +17,14 @@ messages.
   `15020c2204e8e05c6304f6ed83a5fed83ad12eae`.
 - Registered MultiNexus plan commit:
   `77ad4c9a2bc105679ccf92a8832ca87b97c0f360`.
-- Reviewer provider/model requested by the user: GLM 5.2 through OMP. Record the
-  effective provider/model from JSONL in the verdict.
+- Reviewer provider/model policy: GLM 5.2 through OMP was attempted first. The
+  original deep review reached a defensible approval conclusion in provider JSONL but
+  hit its 1,200-second deadline before writing the verdict; a resumed closeout attempt
+  also hit its deadline, and a fresh lightweight attempt showed no usable first
+  response before the user authorized Kimi as the plan-reviewer fallback. Use a fresh,
+  reviewer-only Kimi Highspeed session and record its effective provider/model from
+  JSONL in the verdict. This reviewer session must remain separate from the later Kimi
+  documentation-worker session.
 
 ## Required reading
 
