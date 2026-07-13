@@ -133,10 +133,25 @@ runner_profile_id = "mac-omp"
 - A new `executor_catalog_hash` is canonical JSON over definitions and managed
   instance bindings. It is not a second source of truth; it is a second projection
   from the same versioned file.
+- The executor projection contract is exact: UTF-8 JSON with sorted object keys,
+  `separators=(",", ":")`, and no insignificant whitespace. Its root contains
+  `contract_version=1`, `source_id`, `source_version`, `executor_definitions`, and
+  `executor_instance_bindings`. Definitions are sorted by `id` and contain exactly
+  `id`, `provider`, `adapter`, and sorted/unique `capabilities`; bindings are sorted by
+  `agent_id` and contain exactly `agent_id`, `executor_definition_id`,
+  `runner_profile_id`, and `enabled`. SHA-256 of those bytes is the catalog hash.
+- `provider` and `adapter` are bounded identity labels, never commands, binary paths,
+  model selectors, environment variables, or credentials. Coordinate never executes
+  either label in P9-2A. MultiNexus compares `adapter` to its local adapter kind;
+  `provider` is audit metadata in P9-2A because current `AgentConfig` has no independent
+  provider field.
 - `[registry].version` is incremented to `2`. Same-version/different-hash and version
   downgrade fail closed independently for the executor catalog.
 - External agents may remain visible roster entries but may not carry executor
   bindings in P9-2A.
+- The existing roster canonical projection remains limited to its current
+  id/display-name/Discord-id/type fields. New executor keys are excluded from roster
+  bytes and therefore cannot perturb the existing roster hash/parity contract.
 
 ### 2. Coordinate schema v12
 
@@ -161,9 +176,20 @@ Requirements:
   agents/definitions/runner profiles;
 - definitions and bindings are replaced atomically per source;
 - a source may update only rows it owns; id/source takeover fails closed;
+- the tables support multiple independent `source_id` values structurally. Syncing one
+  source replaces only its definitions/bindings, preserves every other source, and
+  rejects an attempt to take over an existing definition id or agent binding owned by
+  another source;
 - duplicates, unknown keys, missing referenced agents/profiles/definitions, external
   bindings, non-agentd instances, version downgrade, or same-version hash conflict
   cause zero mutation;
+- add explicit indexes for definition `source_id`, binding `source_id`,
+  `executor_definition_id`, and `runner_profile_id`; the binding primary key already
+  indexes `agent_id`;
+- a catalog hash/version change fails with zero mutation while any pending or claimed
+  typed job references that source. An idempotent same-version/same-hash sync remains
+  allowed. Operators must drain or terminally resolve those jobs before retry; P9-2A
+  has no override flag;
 - schema migration is `11 -> 12`, atomic and idempotent, with fresh/install/upgrade
   tests and no migration-time inference from private config.
 
@@ -192,6 +218,11 @@ Coordinate owns serialization; MultiNexus owns an independent strict consumer.
 - The snapshot is stored at `jobs.payload_json.executor_binding` next to the P9-1
   execution context.
 - Existing context v1 bytes/digest remain unchanged.
+- In P9-2A every managed catalog binding must explicitly set
+  `runner_profile_id == agent_id`. Coordinate stores and validates that explicit value;
+  agentd independently checks it against `AgentConfig.id`. The schema remains capable
+  of a future distinct profile, but accepting one requires a separately reviewed local
+  agentd authority contract rather than inference from a claim.
 - For a typed target, submit validates the current catalog and snapshots the binding
   before `request.received` or job creation.
 - Idempotent replay compares the original exact target/prompt/origin/reply plus stored
@@ -224,14 +255,20 @@ only where existing imports require it.
 
 Add execution CLI leaves under the already extracted `execution_cli` composition:
 
-- `runtime executor sync --source-json ...` (server-side, atomic projection sink);
+- `runtime executor sync --source <agent-registry.toml>` (server-side, atomic TOML
+  authority parser and projection sink, aligned with existing
+  `workspace agent sync --source <toml>`);
 - `runtime executor list` (redacted definitions/bindings/source metadata);
 - `runtime executor show <instance-id>`.
 
 CLI rules:
 
 - stdout remains one JSON document on success/failure paths owned by the command;
-- no secrets or private command/env/model fields are accepted;
+- Coordinate reads the same TOML file directly and owns executor canonicalization,
+  validation, and digest serialization. MultiNexus does not generate an intermediate
+  JSON catalog for this CLI;
+- no secrets or private command/env/model fields are accepted; unrelated roster keys
+  are recognized only to locate managed entries and are excluded from catalog bytes;
 - existing parser order/help bytes remain unchanged except for deliberate new leaves;
 - sync returns source/version/catalog hash plus added/updated/removed/unchanged ids.
 
@@ -272,6 +309,12 @@ deployment:
 4. re-reads Coordinate and proves source id/version/catalog hash plus exact binding
    parity before writing `VERSION_DEPLOYED` or restarting.
 
+For a real catalog change the Coordinate sync transaction itself performs the
+in-flight typed-job check, so a deploy cannot race a separate preflight and invalidate
+an already submitted binding. The deploy surfaces the bounded refusal and stops before
+version write/restart; the operator drains or terminally resolves affected jobs and
+retries. Initial v2 adoption has no pre-existing typed jobs and is unaffected.
+
 The private `agents.toml` is not rewritten and gains no new required secret or routing
 fields in P9-2A. The canonical binding references existing concrete ids/profile ids.
 
@@ -279,8 +322,13 @@ fields in P9-2A. The canonical binding references existing concrete ids/profile 
 
 Create `multinexus/agentd/executor_binding.py` with an independent strict v1 parser.
 
-- A typed claim must match job assigned agent, runner profile, and configured agent id
-  before adapter invocation.
+- A typed claim must match job assigned agent and configured `AgentConfig.id`; its
+  `runner_profile_id` must equal that same id under the P9-2A managed-binding rule; and
+  its `adapter` label must equal `AgentConfig.adapter`, all before adapter invocation.
+- `provider` is type/length validated and reported as audit metadata, but is not
+  compared to local config or used to choose an adapter because `AgentConfig` has no
+  independent provider authority. A future executable/provider mapping requires a new
+  reviewed contract.
 - A malformed or mismatched binding fails the job closed with a bounded error and the
   current attempt token.
 - An absent binding remains accepted only for a legacy exact-instance job.
@@ -321,6 +369,8 @@ Create `multinexus/agentd/executor_binding.py` with an independent strict v1 par
   state, foreign keys/indexes/user_version;
 - catalog strict key/type/length/duplicate/reference matrix;
 - atomic source version/hash/ownership conflict matrix;
+- exact canonical bytes/hash fixture, unchanged roster hash, multiple-source
+  preservation/takeover rejection, and pending/claimed typed-job zero-mutation refusal;
 - typed exact submit preflight has zero event/job mutation on failure;
 - typed snapshot digest and byte fixture;
 - legacy exact target remains accepted with null binding;
@@ -336,7 +386,8 @@ Create `multinexus/agentd/executor_binding.py` with an independent strict v1 par
 - strict source authority matrix and both canonical hashes;
 - deploy preflight blocks source/runtime/catalog mismatch before version write/restart;
 - strict binding parser mutation matrix and byte-identical fixture;
-- typed worker no-adapter failure for instance/profile/digest mismatch;
+- typed worker no-adapter failure for instance/profile/adapter/digest mismatch and
+  explicit proof that provider remains non-executable audit metadata;
 - legacy null-binding exact job compatibility;
 - P9-1 cwd/session assertions remain intact.
 
@@ -355,6 +406,9 @@ Create `multinexus/agentd/executor_binding.py` with an independent strict v1 par
   receipt, P9-1 context v1, and provider adapters remain compatible.
 - Typed catalog adoption is additive. Untyped exact targets remain valid only as the
   documented migration path; P9-2B will decide the final enforcement date.
+- P9-2B must add an explicit routing-request mode/marker; it may not infer a routing
+  request merely from `executor_binding == null`. Legacy means an exact-target request
+  with that explicit legacy shape and a null binding, not every future null case.
 - Registry source remains one file; old roster projection is preserved.
 - Rollback requires restoring both deployed commits and the pre-deploy DB backup.
   Because schema v12 adds tables only, old code may ignore them, but rollback evidence
