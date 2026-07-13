@@ -2,6 +2,22 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — P9-1 deployment and production dogfood
+
+- Coordinate `b732159` and MultiNexus `066ca74` integrated to `main`, pushed, and
+  deployed in producer-before-consumer order.
+- Backed up the production Coordinate DB before rollout; verified both installed
+  runtime import paths and contract v1 after full installs.
+- Restarted the server services and four local managed agentd services; bounded-window
+  server smoke passed.
+- Real `mac-omp` job `request:ced328ec-4a97-4052-817e-bb4ab5adb4fc` claimed and
+  completed with a single immutable context id, correct local cwd/worktree, correct
+  request scope, exact `P9-1_EXECUTION_CONTEXT_OK` response, and a sent Discord reply.
+- Result review, closeout request, and final closeout approval are durable. Source and
+  deployed checklist bytes match; terminal receipt remains the next gate.
+- Detailed evidence:
+  `tasks/p9-1-job-scoped-execution-context/deployment-dogfood.md`.
+
 ## 2026-07-13 — P9-1 Round 4 corrections
 
 - MultiNexus `multinexus/handoff_handler.py`: `parse_coordinator_handoff` keeps

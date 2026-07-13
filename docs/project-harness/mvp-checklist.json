@@ -2249,15 +2249,16 @@
         "updated_at": "2026-07-13"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md"
+        "plan": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
       "review": {
         "decision": "approved",
-        "reviewer": "codex-round5",
-        "phase": "changes_requested",
+        "reviewer": "codex-final",
+        "phase": "closeout_requested",
         "updated_at": "2026-07-13",
-        "summary": "Round 5 approved: job-scoped context and visible managed handoff fail-closed gates verified; see result-review-round5.md"
+        "summary": "P9-1 deployed and real managed execution context dogfood passed; receipt closeout authorized"
       },
       "split_operation": {
         "contract_version": 1,

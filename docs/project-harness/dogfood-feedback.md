@@ -1030,3 +1030,17 @@
   claim的receipt。`mark-done-preflight`对已consumed receipt仍显示authorized也值得S4-D
   doctor/diagnostic单独核查，terminal event chain仍以`completion.consumed`为权威。
 - 完整证据：`tasks/slice-4c2-issue-materialize-operation-adoption/closeout.md`。
+## 2026-07-13（P9-1 job-scoped execution context production dogfood）
+
+- 状态：implementation/review/integration/deploy/real managed job 均通过；terminal
+  receipt pending。
+- Coordinate权威生成并持久化v1 context；`mac-omp` agentd在真实host profile cwd
+  `/Users/yinxin/projects/multinexus` claim并执行，job/result/event三处
+  `context_id`完全一致，session scope与worktree handle无漂移。
+- 精确sentinel `P9-1_EXECUTION_CONTEXT_OK`已通过`discord_webhook` delivery sent，
+  证明response delivery闭环。
+- 默认10分钟smoke再次扫到部署前Discord TLS/reconnect历史日志而退出1；按两个service
+  实际restart时间重跑均通过。该现象延续既有smoke-window限制，不是P9-1回归；后续
+  deployment hardening仍应让脚本自动使用本次restart boundary，而非固定回看窗口。
+- 完整证据：
+  `tasks/p9-1-job-scoped-execution-context/deployment-dogfood.md`。
