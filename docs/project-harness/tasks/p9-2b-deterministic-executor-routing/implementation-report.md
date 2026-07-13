@@ -1028,4 +1028,3 @@ Both empty.
   authority.
 - No schema change, MultiNexus source change, deployment, restart, or lifecycle
   event was introduced.
-
