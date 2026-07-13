@@ -949,3 +949,83 @@ No whitespace errors in the MultiNexus P9-2B commit range.
 - No freshness cutoff, capacity limit, lease, queue fairness, automatic reroute,
   schema change, MultiNexus source change, deployment, restart, or lifecycle event
   was introduced.
+---
+
+# P9-2B Deterministic Executor Routing — Round 5 Reviewer Follow-up
+
+## Authority
+
+- Plan: `docs/project-harness/tasks/p9-2b-deterministic-executor-routing/plan.md`
+- Plan SHA-256: `328c8151a6055a8b7680363847ff293e4ff9a0ca7bd4109a089186f63ad4a8cb`
+- Coordinate correction baseline HEAD: `710969aac107fb4eec0d5d779eb2435a75c56e91`
+- MultiNexus correction baseline HEAD: `84e7402cdcf21ac30ec8249ccee4f227363ae306`
+- Worker model: `kimi-code/kimi-for-coding` (ordinary, no highspeed)
+
+## Scope
+
+This follow-up narrows the three 65-character capability adversarial tests so
+that the forged selected candidate capability list still contains the required
+`"coding"` capability from the original routing request. The only remaining
+illegal point in the forged decision is the single 65-character capability item,
+which isolates the `MAX_CAPABILITY_LEN` length gate from the capability-subset
+gate. All other Round 5 implementation and evidence remains unchanged.
+
+## Narrowed tests
+
+| Test file | Test | Forged selected candidate capabilities | Isolated gate |
+|---|---|---|---|
+| `tests/test_executor_routing.py` | `test_validate_decision_rejects_65_char_candidate_capability` | `[overlong, "coding"]` | `MAX_CAPABILITY_LEN` item length |
+| `tests/test_runtime.py` | `test_routed_replay_rejects_forged_overlong_candidate_capability` | `[overlong, "coding"]` | `MAX_CAPABILITY_LEN` item length |
+| `tests/test_runtime.py` | `test_claim_rejects_forged_overlong_selected_capability` | `[overlong, "coding"]` | `MAX_CAPABILITY_LEN` item length |
+
+In each test the `routing_decision_id` is recomputed over the canonical decision
+body that includes `[overlong, "coding"]`, so the replay/claim paths hit the
+strict stored-envelope length validation before any other gate. The zero-
+mutation assertions for event count, event payload, job row, job payload, status,
+and attempt count remain unchanged.
+
+## Commands and counts (after narrowing)
+
+### Three narrowed exact tests
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest \
+  tests/test_executor_routing.py::RoutingDecisionValidationTests::test_validate_decision_rejects_65_char_candidate_capability \
+  tests/test_runtime.py::RoutedRuntimeCorrectionTests::test_routed_replay_rejects_forged_overlong_candidate_capability \
+  tests/test_runtime.py::RoutedRuntimeCorrectionTests::test_claim_rejects_forged_overlong_selected_capability
+```
+
+Result: `3 passed in 0.07s`.
+
+### Coordinate focused P9-2B gate (unpiped)
+
+```text
+PYTHONPATH=src /Users/yinxin/projects/coordinate/.venv/bin/python -m pytest \
+  tests/test_executor_routing.py \
+  tests/test_runtime.py::RoutedRuntimeTests \
+  tests/test_runtime.py::RoutedRuntimeCorrectionTests \
+  tests/test_execution_cli.py
+```
+
+Result: `189 passed in 0.92s`.
+
+### Static gates
+
+Inline duplicate-test AST detector: `No duplicate test methods in P9-2B test files.`
+
+```text
+git diff --check eec9b233f6c797c73aec9d535fa723e037a0af65..HEAD
+git diff --check 7a06573f8c17c4376c272a68b1201d5c4320675d..HEAD
+```
+
+Both empty.
+
+## Known risks / residual notes
+
+- The nine historical CLI-contract/AST failures in the Coordinate full suite
+  persist and are accepted as the baseline gate.
+- `agents.current_load` remains unwritten and is not used as a routing
+  authority.
+- No schema change, MultiNexus source change, deployment, restart, or lifecycle
+  event was introduced.
+
