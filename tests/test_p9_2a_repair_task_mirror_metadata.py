@@ -87,17 +87,16 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
                 self.task_id,
                 self.task_id,
                 "record-event-key",
-                self._json({"split_operation": self.meta}),
+                self._json({"phase": "ready", "split_operation": self.meta}),
             ),
         )
         self.original_payload = {
             "id": self.task_id,
-            "phase": "accepted",
             "title": "P9-2A",
             "unrelated": {"keep": True},
         }
         self.original_columns = (
-            "accepted",
+            "ready",
             "operator",
             "agents/mac-omp/p9-2a",
             "https://example.invalid/pr/1",
@@ -163,6 +162,7 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
         ):
             self.assertEqual(after[column], before[column])
         payload = json.loads(after["payload_json"])
+        self.assertEqual(payload["phase"], "ready")
         self.assertEqual(payload["split_operation"], self.meta)
         self.assertEqual(payload["unrelated"], {"keep": True})
         event = self.conn.execute(
@@ -171,6 +171,10 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
         self.assertEqual(event["event_type"], "projection.repaired")
         self.assertEqual(event["actor"], "codex-operator")
         self.assertEqual(event["causation_id"], self.record_event_id)
+        audit = json.loads(event["payload_json"])
+        self.assertEqual(audit["repaired_fields"], ["phase", "split_operation"])
+        self.assertEqual(audit["restored_phase"], "ready")
+        self.assertNotIn("plan_doc", audit)
 
     def test_exact_retry_is_zero_write_and_returns_original_before_hash(self) -> None:
         first = self._run()
@@ -200,6 +204,7 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
 
     def test_preexisting_exact_metadata_without_repair_event_is_zero_write(self) -> None:
         payload = dict(self.original_payload)
+        payload["phase"] = "ready"
         payload["split_operation"] = self.meta
         self._replace_payload(payload)
         before = dict(self._task())
@@ -237,7 +242,10 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
         forged = {**self.meta, "extra": "not-allowed"}
         self.conn.execute(
             "UPDATE events SET payload_json = ? WHERE id = ?",
-            (self._json({"split_operation": forged}), self.record_event_id),
+            (
+                self._json({"phase": "ready", "split_operation": forged}),
+                self.record_event_id,
+            ),
         )
         self.conn.commit()
 
@@ -284,6 +292,80 @@ class RepairTaskMirrorMetadataTests(unittest.TestCase):
         with self.assertRaisesRegex(MODULE.RepairError, "differs in actor"):
             self._run()
         self.assertEqual(dict(self._task()), before)
+
+    def test_repairs_only_split_operation_when_phase_is_exact(self) -> None:
+        payload = dict(self.original_payload)
+        payload["phase"] = "ready"
+        self._replace_payload(payload)
+
+        result = self._run()
+        repaired = json.loads(self._task()["payload_json"])
+        event = self.conn.execute(
+            "SELECT payload_json FROM events WHERE id = ?",
+            (result["repair_event_id"],),
+        ).fetchone()
+
+        self.assertEqual(repaired["phase"], "ready")
+        self.assertEqual(repaired["split_operation"], self.meta)
+        self.assertEqual(
+            json.loads(event["payload_json"])["repaired_fields"],
+            ["split_operation"],
+        )
+
+    def test_repairs_only_phase_when_split_operation_is_exact(self) -> None:
+        payload = dict(self.original_payload)
+        payload["split_operation"] = self.meta
+        self._replace_payload(payload)
+
+        result = self._run()
+        repaired = json.loads(self._task()["payload_json"])
+        event = self.conn.execute(
+            "SELECT payload_json FROM events WHERE id = ?",
+            (result["repair_event_id"],),
+        ).fetchone()
+
+        self.assertEqual(repaired["phase"], "ready")
+        self.assertEqual(repaired["split_operation"], self.meta)
+        self.assertEqual(
+            json.loads(event["payload_json"])["repaired_fields"], ["phase"]
+        )
+
+    def test_record_event_and_task_column_phase_must_agree(self) -> None:
+        self.conn.execute(
+            "UPDATE tasks SET phase = 'accepted' WHERE workspace_id = ? AND task_id = ?",
+            (self.workspace_id, self.task_id),
+        )
+        self.conn.commit()
+        before = dict(self._task())
+
+        with self.assertRaisesRegex(
+            MODULE.RepairError, "column does not match"
+        ):
+            self._run()
+        self.assertEqual(dict(self._task()), before)
+        self.assertEqual(
+            self.conn.execute(
+                "SELECT COUNT(*) FROM events WHERE event_type = 'projection.repaired'"
+            ).fetchone()[0],
+            0,
+        )
+
+    def test_payload_phase_null_wrong_type_or_conflict_fails_closed(self) -> None:
+        for value in (None, 7, "accepted"):
+            with self.subTest(value=value):
+                payload = dict(self.original_payload)
+                payload["phase"] = value
+                self._replace_payload(payload)
+                before = dict(self._task())
+                with self.assertRaisesRegex(MODULE.RepairError, "phase conflicts"):
+                    self._run()
+                self.assertEqual(dict(self._task()), before)
+                self.assertEqual(
+                    self.conn.execute(
+                        "SELECT COUNT(*) FROM events WHERE event_type = 'projection.repaired'"
+                    ).fetchone()[0],
+                    0,
+                )
 
 
 if __name__ == "__main__":

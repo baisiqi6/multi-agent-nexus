@@ -141,8 +141,10 @@ def _build_repair_event_payload(
     after_fingerprint: str,
     before_payload_sha256: str,
     after_payload_sha256: str,
+    repaired_fields: list[str],
+    restored_phase: str,
 ) -> dict[str, Any]:
-    """Build the projection.repaired event payload — ids + six metadata + before/after SHA only."""
+    """Build the redacted audit payload: ids, fingerprints, hashes, and repaired fields."""
     return {
         "workspace_id": workspace_id,
         "task_id": task_id,
@@ -154,6 +156,8 @@ def _build_repair_event_payload(
         "after_fingerprint": after_fingerprint,
         "before_payload_sha256": before_payload_sha256,
         "after_payload_sha256": after_payload_sha256,
+        "repaired_fields": repaired_fields,
+        "restored_phase": restored_phase,
     }
 
 
@@ -168,6 +172,7 @@ def _validate_existing_repair_event(
     record_event_id: str,
     row: sqlite3.Row,
     current_payload_sha256: str,
+    restored_phase: str,
 ) -> None:
     """Fail closed unless an existing event is the exact deterministic audit row."""
     expected_columns = {
@@ -206,6 +211,8 @@ def _validate_existing_repair_event(
             after_fingerprint=row["after_fingerprint"],
             before_payload_sha256="0" * 64,
             after_payload_sha256="0" * 64,
+            repaired_fields=["phase"],
+            restored_phase=restored_phase,
         )
     )
     if not isinstance(payload, dict) or set(payload) != expected_keys:
@@ -222,6 +229,7 @@ def _validate_existing_repair_event(
         "input_fingerprint": row["input_fingerprint"],
         "before_fingerprint": row["before_fingerprint"],
         "after_fingerprint": row["after_fingerprint"],
+        "restored_phase": restored_phase,
     }
     if any(payload.get(key) != value for key, value in fixed.items()):
         raise RepairError(
@@ -239,6 +247,18 @@ def _validate_existing_repair_event(
     if payload["after_payload_sha256"] != current_payload_sha256:
         raise RepairError(
             "existing repair event after-payload hash differs from the current mirror",
+            "repair_event_payload_conflict",
+        )
+    repaired_fields = payload.get("repaired_fields")
+    if (
+        not isinstance(repaired_fields, list)
+        or not repaired_fields
+        or repaired_fields != sorted(repaired_fields)
+        or len(repaired_fields) != len(set(repaired_fields))
+        or not set(repaired_fields).issubset({"phase", "split_operation"})
+    ):
+        raise RepairError(
+            "existing repair event repaired_fields is not an exact allowed sorted list",
             "repair_event_payload_conflict",
         )
 
@@ -438,6 +458,12 @@ def _repair_impl(
                 f"{event_split_op[key]!r} != ledger {row[key]!r}",
                 "event_split_operation_field_mismatch",
             )
+    expected_phase = event_payload.get("phase")
+    if not isinstance(expected_phase, str) or not expected_phase:
+        raise RepairError(
+            f"event {record_event_id!r} phase is not a non-empty string",
+            "event_phase_invalid",
+        )
 
     # ---- 4. Find the task mirror ----
     task_rows = conn.execute(
@@ -460,6 +486,11 @@ def _repair_impl(
         )
 
     task_row = task_rows[0]
+    if task_row["phase"] != expected_phase:
+        raise RepairError(
+            "task phase column does not match the immutable record-event phase",
+            "task_column_phase_mismatch",
+        )
     try:
         task_payload = json.loads(task_row["payload_json"])
     except (json.JSONDecodeError, TypeError) as exc:
@@ -476,6 +507,8 @@ def _repair_impl(
 
     has_split_operation = "split_operation" in task_payload
     current_split_op = task_payload.get("split_operation")
+    has_phase = "phase" in task_payload
+    current_phase = task_payload.get("phase")
     before_payload_sha256 = _sha256_hex(task_row["payload_json"])
 
     # ---- 5. Build the expected split_operation metadata object ----
@@ -491,15 +524,45 @@ def _repair_impl(
     idempotency_key = _build_idempotency_key(workspace_id, task_id, operation_id)
     repair_event_id = _build_repair_event_id(idempotency_key)
 
-    # ---- 6. Three-state dispatch ----
+    # ---- 6. Validate present values, then repair exactly the missing fields ----
+    if has_split_operation:
+        if not isinstance(current_split_op, dict):
+            raise RepairError(
+                f"task {task_id!r} payload split_operation is not a dict: {type(current_split_op).__name__}",
+                "split_operation_not_dict",
+            )
+        if set(current_split_op) != set(SPLIT_OPERATION_METADATA_KEYS):
+            raise RepairError(
+                f"task {task_id!r} payload split_operation has unexpected keys",
+                "split_operation_key_mismatch",
+            )
+        if current_split_op != expected_meta:
+            raise RepairError(
+                f"task {task_id!r} payload split_operation conflicts with the ledger",
+                "split_operation_value_conflict",
+            )
+    if has_phase:
+        if not isinstance(current_phase, str) or current_phase != expected_phase:
+            raise RepairError(
+                f"task {task_id!r} payload phase conflicts with the validated phase",
+                "payload_phase_conflict",
+            )
 
-    # --- State: missing key → repair ---
-    if not has_split_operation:
+    repaired_fields = sorted(
+        field
+        for field, present in (
+            ("phase", has_phase),
+            ("split_operation", has_split_operation),
+        )
+        if not present
+    )
+    if repaired_fields:
         return _perform_repair(
             conn=conn,
-            task_row=task_row,
             task_payload=task_payload,
             expected_meta=expected_meta,
+            expected_phase=expected_phase,
+            repaired_fields=repaired_fields,
             before_payload_sha256=before_payload_sha256,
             idempotency_key=idempotency_key,
             repair_event_id=repair_event_id,
@@ -509,29 +572,7 @@ def _repair_impl(
             row=row,
         )
 
-    # --- State: null, malformed, or conflicting → fail closed ---
-    if not isinstance(current_split_op, dict):
-        raise RepairError(
-            f"task {task_id!r} payload split_operation is not a dict: {type(current_split_op).__name__}",
-            "split_operation_not_dict",
-        )
-
-    if set(current_split_op.keys()) != set(SPLIT_OPERATION_METADATA_KEYS):
-        raise RepairError(
-            f"task {task_id!r} payload split_operation has unexpected keys: "
-            f"{sorted(current_split_op.keys())} (expected {list(SPLIT_OPERATION_METADATA_KEYS)})",
-            "split_operation_key_mismatch",
-        )
-
-    for key in SPLIT_OPERATION_METADATA_KEYS:
-        if current_split_op.get(key) != expected_meta[key]:
-            raise RepairError(
-                f"task {task_id!r} payload split_operation.{key} "
-                f"{current_split_op.get(key)!r} != expected {expected_meta[key]!r}",
-                "split_operation_value_conflict",
-            )
-
-    # --- State: exact equal → already_repaired ---
+    # Both fields are exact: preexisting-correct or exact retry.
     # Check whether a projection.repaired event already exists
     existing_event = conn.execute(
         """SELECT id, workspace_id, event_type, actor, target, task_id,
@@ -551,6 +592,7 @@ def _repair_impl(
             record_event_id=record_event_id,
             row=row,
             current_payload_sha256=before_payload_sha256,
+            restored_phase=expected_phase,
         )
         # Exact retry: return same event id, zero writes.
         conn.commit()
@@ -564,7 +606,7 @@ def _repair_impl(
             "after_payload_sha256": before_payload_sha256,
         }
 
-    # Preexisting equal split_operation without a projection.repaired event
+    # Preexisting equal fields without a projection.repaired event.
     conn.commit()
     return {
         "status": "already_repaired",
@@ -580,9 +622,10 @@ def _repair_impl(
 def _perform_repair(
     *,
     conn: sqlite3.Connection,
-    task_row: sqlite3.Row,
     task_payload: dict[str, Any],
     expected_meta: dict[str, Any],
+    expected_phase: str,
+    repaired_fields: list[str],
     before_payload_sha256: str,
     idempotency_key: str,
     repair_event_id: str,
@@ -591,11 +634,13 @@ def _perform_repair(
     operation_id: str,
     row: sqlite3.Row,
 ) -> dict[str, Any]:
-    """Execute the repair: merge split_operation, write event, update task."""
+    """Atomically merge only missing validated fields and append its audit event."""
 
-    # Build repaired payload: preserve all existing keys, add/overwrite only split_operation
     repaired_payload = dict(task_payload)
-    repaired_payload["split_operation"] = expected_meta
+    if "phase" in repaired_fields:
+        repaired_payload["phase"] = expected_phase
+    if "split_operation" in repaired_fields:
+        repaired_payload["split_operation"] = expected_meta
     after_payload_json = _canonical_json(repaired_payload)
     after_payload_sha256 = _sha256_hex(after_payload_json)
 
@@ -625,6 +670,8 @@ def _perform_repair(
         after_fingerprint=row["after_fingerprint"],
         before_payload_sha256=before_payload_sha256,
         after_payload_sha256=after_payload_sha256,
+        repaired_fields=repaired_fields,
+        restored_phase=expected_phase,
     )
     now = _utc_now()
 
