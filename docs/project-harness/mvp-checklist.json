@@ -2191,9 +2191,9 @@
       "review": {
         "decision": null,
         "reviewer": "codex",
-        "phase": "running",
+        "phase": "closeout_requested",
         "updated_at": "2026-07-13",
-        "summary": "Codex result review Round 3 APPROVE; 359 passed, 43 subtests passed; exact five-document scope; no production-code extraction."
+        "summary": "Codex result review Round 3 APPROVE; focused 359 passed, 43 subtests passed; exact five-document scope; no production-code extraction."
       },
       "split_operation": {
         "contract_version": 1,
