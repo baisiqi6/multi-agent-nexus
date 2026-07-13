@@ -2300,11 +2300,11 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-13T05:50:05Z",
+      "updated_at": "2026-07-13T05:52:09Z",
       "workflow": {
         "status": "todo",
         "branch": null,
-        "updated_at": "2026-07-13T05:50:05Z"
+        "updated_at": "2026-07-13T05:52:09Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-2a-executor-identity-registry/plan.md"
@@ -2313,17 +2313,17 @@
       "review": {},
       "split_operation": {
         "contract_version": 1,
-        "operation_id": "12c3be5b-9622-45d7-8ace-65b2b03b094f",
+        "operation_id": "62175918-ce07-4da5-8bf4-03b9784fb64e",
         "operation_kind": "task.create",
-        "workspace_id": "multinexus",
+        "workspace_id": "discord-nexus",
         "target_kind": "checklist_task",
         "target_id": "p9-2a-executor-identity-registry",
         "source_kind": null,
         "source_id": null,
-        "input_fingerprint": "78749356ff926115b2906376d94715d86c993d2c5b31723b742cd2b000471134",
+        "input_fingerprint": "34ba0cc1a9fab6ee52e52a1c77bd84139dcc6e1c1c6373bf53c0b6016cc0b1c3",
         "before_fingerprint": "71805d168a109f26bb4077882ae4219a19c7671b9d89806a77a2d800a46937b1",
         "after_fingerprint": "5648b5577722734b10bd183c4f49d490052d1ac04f1f3087eddfbbc190be845f",
-        "files_applied_at": "2026-07-13T05:50:05Z"
+        "files_applied_at": "2026-07-13T05:52:09Z"
       }
     }
   ]
