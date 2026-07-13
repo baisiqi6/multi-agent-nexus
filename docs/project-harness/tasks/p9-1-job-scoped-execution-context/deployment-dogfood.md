@@ -2,7 +2,7 @@
 
 Date: 2026-07-13  
 Operator/reviewer: Codex  
-Status: deployed and runtime-verified; terminal receipt pending
+Status: deployed, runtime-verified, and terminal receipt consumed
 
 ## Integrated commits
 
@@ -77,14 +77,20 @@ This is the already documented smoke-window limitation, not a P9-1 regression.
 - Both source repositories remained clean after provider execution, except the
   pre-existing user-owned Coordinate `.qoder/` directory.
 
-## Closeout gate
+## Closeout gate and terminal receipt
 
 - Result review approval: `223d2f55-ffec-477a-a7ab-b0e294bc0949`.
 - Closeout requested: `8b1f410c-8ff1-4d47-8861-16877018e4ae`.
 - Final closeout review approval: `c0d82102-66a3-441d-8c2e-f5a3e8516734`.
 - Source and deployed checklist SHA before receipt:
   `a023b96fd714467e73afe63e63fc84b91f926d73321d7e1bd61e3ae1716b915b`.
-
-The next operator action is to commit/deploy this exact lifecycle projection, issue
-the one-time completion receipt, apply the canonical mark-done files, deploy them,
-and consume the receipt.
+- Receipt `e7feda4e-e0d7-4115-9cd0-fe713f87b5d8` completed the full chain:
+  - authorized `91a60cde-1bcd-42ac-b361-a59280d14243`;
+  - claimed `4336f717-1e02-4b90-b721-769d507806f3`;
+  - applied `616a1dc9-f6aa-4815-9388-077f6cea5f7d`;
+  - task.done `bb16f54e-4d83-4ee5-97a7-ac46a9106d7f`;
+  - consumed `9b92d3e1-2a43-4bfa-9dbe-42ad671bce6f`.
+- Fingerprint:
+  `24e80c08c8507a0bd4d5caa95e73a35b95ba5875f9621d9d35aef69f00df3c5e`
+  -> `00a3188880a1266a2450e11aba4143c060605689bc3856c409357a83eb4f39f3`.
+- Deployed task verification is `done` / `closed` with the exact applied fingerprint.

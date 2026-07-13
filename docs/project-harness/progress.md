@@ -13,8 +13,9 @@ Harness root: `docs/project-harness/`
 - Real `mac-omp` job `request:ced328ec-4a97-4052-817e-bb4ab5adb4fc` claimed and
   completed with a single immutable context id, correct local cwd/worktree, correct
   request scope, exact `P9-1_EXECUTION_CONTEXT_OK` response, and a sent Discord reply.
-- Result review, closeout request, and final closeout approval are durable. Source and
-  deployed checklist bytes match; terminal receipt remains the next gate.
+- Result review, closeout request, and final closeout approval are durable. Receipt
+  `e7feda4e-e0d7-4115-9cd0-fe713f87b5d8` completed authorized -> claimed -> applied ->
+  task.done -> consumed; P9-1 is closed and P9-2 is the next detailed-plan gate.
 - Detailed evidence:
   `tasks/p9-1-job-scoped-execution-context/deployment-dogfood.md`.
 

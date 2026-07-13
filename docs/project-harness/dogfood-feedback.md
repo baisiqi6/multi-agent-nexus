@@ -1032,8 +1032,8 @@
 - 完整证据：`tasks/slice-4c2-issue-materialize-operation-adoption/closeout.md`。
 ## 2026-07-13（P9-1 job-scoped execution context production dogfood）
 
-- 状态：implementation/review/integration/deploy/real managed job 均通过；terminal
-  receipt pending。
+- 状态：implementation/review/integration/deploy/real managed job/terminal receipt
+  全部通过，P9-1 durable closed。
 - Coordinate权威生成并持久化v1 context；`mac-omp` agentd在真实host profile cwd
   `/Users/yinxin/projects/multinexus` claim并执行，job/result/event三处
   `context_id`完全一致，session scope与worktree handle无漂移。
