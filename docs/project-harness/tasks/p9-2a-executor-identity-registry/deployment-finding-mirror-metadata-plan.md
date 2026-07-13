@@ -65,17 +65,23 @@ backup and an independently reviewed deterministic repair procedure exist.
 
 ### A. Reserve and preserve `split_operation`
 
-In the compatibility `create_task()` path:
+In the compatibility non-split `create_plan_task_record()` path used by
+`coordinate task create`:
 
 1. Read the existing task mirror, if any, before building the replacement payload.
 2. Decode its payload and inspect `split_operation`.
-3. If existing metadata is a dictionary, carry that exact dictionary into the new
-   task payload after all caller payload merging, so a plan revision cannot erase it.
-4. Treat caller-provided `split_operation` as reserved:
+3. Existing metadata is valid only when it is a dictionary with exactly these keys:
+   `contract_version`, `operation_id`, `operation_kind`, `input_fingerprint`,
+   `before_fingerprint`, and `after_fingerprint`. Values must satisfy the same
+   contract-version, UUID/operation-kind, and SHA-256 shapes enforced by the split
+   operation code. Otherwise fail closed before event or mirror mutation.
+4. Carry the exact validated stored dictionary into the new task payload after all
+   caller payload merging, so a plan revision cannot erase or normalize it.
+5. Treat caller-provided `split_operation` as reserved:
    - if no existing operation metadata exists, reject the supplied reserved key;
    - if existing metadata exists, reject a supplied value that is not exactly equal;
    - an exactly equal retry may proceed and still uses the stored value.
-5. A malformed stored `split_operation` must fail closed rather than silently copy,
+6. A malformed stored `split_operation` must fail closed rather than silently copy,
    delete, or normalize it.
 
 The implementation should use a small helper with explicit error messages rather
@@ -86,7 +92,8 @@ than introducing generic payload merge machinery.
 Add tests proving:
 
 1. split `task.create-files` + `task.create-record`, followed by a revised legacy
-   `create_task`, preserves the exact operation metadata in the task mirror;
+   `create_plan_task_record`, preserves the exact operation metadata in the task
+   mirror;
 2. the resulting projection doctor report has no
    `operation_task_mirror_metadata_drift` finding (an expected
    `operation_plan_superseded` info is acceptable after the revision is approved);
@@ -98,19 +105,29 @@ Add tests proving:
 
 ### C. Production repair procedure
 
-The result reviewer will prepare and inspect a one-shot repair script. It must:
+The ordinary Kimi implementation worker will prepare the one-shot repair script as an
+auditable task artifact. Codex will independently inspect it during result review;
+only `codex-operator` is authorized to execute it in production after approval. The
+script must:
 
 1. open the production DB under `BEGIN IMMEDIATE`;
 2. identify the task and the unique `split_operations` ledger row;
 3. load `record_event_id` and validate that event's `split_operation` fields exactly
    match ledger contract version, operation id/kind, and all three fingerprints;
-4. require the current mirror to be missing `split_operation` (not conflicting);
-5. merge only that validated object into the current mirror payload, preserving
-   current phase/owner/branch/pr/last-event columns and all other payload keys;
+4. implement three explicit current-mirror cases:
+   - missing metadata: merge the validated object and continue to the repair write;
+   - exactly equal metadata: return idempotent success without rewriting the mirror
+     or appending another event;
+   - malformed or conflicting metadata: fail closed;
+5. when repairing, merge only that validated object into the current mirror payload,
+   preserving current phase/owner/branch/pr/last-event columns and every other payload
+   key;
 6. append one audited `projection.repaired` event that contains ids/fingerprints but
-   no plan contents or secrets;
-7. commit atomically and be idempotent on exact retry;
-8. print before/after payload hashes and the repair event id.
+   no plan contents or secrets, under a deterministic idempotency key; an exact retry
+   returns the existing repair event id;
+7. commit atomically;
+8. print before/after payload hashes, whether the run was `repaired` or
+   `already_repaired`, and the stable repair event id.
 
 This one-shot repair is operational evidence, not a new general repair API. A future
 generic doctor repair command requires its own package.
@@ -129,9 +146,13 @@ Before production mutation:
 
 - reviewed commit pushed and deployed with full Coordinate reinstall;
 - fresh SQLite `.backup` plus SHA-256 and restricted permissions;
-- dry-run repair against a copy of the production DB;
-- dry-run doctor on that copy proves the target error disappears and no new finding
-  appears.
+- execute the exact reviewed production repair script, without a special validation
+  shortcut, against a disposable SQLite copy of the production DB; this exercises the
+  same checks, mutation, audit event, commit, and exact-retry path as production;
+- doctor against that copy proves the target error disappears and no new finding
+  appears;
+- operator and Codex reviewer both record approval of the exact script SHA-256 before
+  `codex-operator` executes it on production.
 
 Production acceptance:
 
