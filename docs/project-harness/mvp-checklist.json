@@ -2226,7 +2226,7 @@
     {
       "id": "p9-1-job-scoped-execution-context",
       "title": "P9-1 Job-Scoped Execution Context",
-      "status": "todo",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": null,
@@ -2242,17 +2242,17 @@
         "reason": null
       },
       "selected_in_session": null,
-      "updated_at": "2026-07-13",
+      "updated_at": "2026-07-13T05:41:09Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": null,
-        "updated_at": "2026-07-13"
+        "updated_at": "2026-07-13T05:41:09Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-1-job-scoped-execution-context/plan.md",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate b732159; MultiNexus 066ca74; 525 focused + 461 full; production job request:ced328ec-4a97-4052-817e-bb4ab5adb4fc done; context sha256:bf7f6096230afa8f524c8e9ed4e44666dd8b8b9ca2076002247d443a10575bb9; delivery 5f0bae5f sent",
       "review": {
         "decision": "approved",
         "reviewer": "codex-final",
@@ -2273,6 +2273,12 @@
         "before_fingerprint": "736348cbbcf0c37de9afd785a5a10724065285725c30841dcb9c03dd01768a39",
         "after_fingerprint": "68482f4d6df06bb95ecd7c5e353e1e812f5261821de27558a7fa1454a0f8c0cb",
         "files_applied_at": "2026-07-13T03:33:43Z"
+      },
+      "completion_receipt": {
+        "receipt_id": "e7feda4e-e0d7-4115-9cd0-fe713f87b5d8",
+        "before_fingerprint": "24e80c08c8507a0bd4d5caa95e73a35b95ba5875f9621d9d35aef69f00df3c5e",
+        "after_fingerprint": "00a3188880a1266a2450e11aba4143c060605689bc3856c409357a83eb4f39f3",
+        "applied_at": "2026-07-13T05:41:09Z"
       }
     }
   ]
