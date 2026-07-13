@@ -2160,10 +2160,10 @@
     {
       "id": "p9-0a6-post-closeout-module-review",
       "title": "P9-0A6 Post-Closeout Module Review",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md",
@@ -2175,18 +2175,26 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-13T02:16:04Z",
+      "selected_in_session": "p9-0a6-kimi-doc-worker",
+      "updated_at": "2026-07-13",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-13T02:16:04Z"
+        "status": "closeout_requested",
+        "branch": "agents/mac-omp/p9-0a6-post-closeout-module-review",
+        "updated_at": "2026-07-13"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md"
+        "plan": "docs/project-harness/tasks/p9-0a6-post-closeout-module-review/plan.md",
+        "branch": "agents/mac-omp/p9-0a6-post-closeout-module-review",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": null,
+        "reviewer": "codex",
+        "phase": "running",
+        "updated_at": "2026-07-13",
+        "summary": "Codex result review Round 3 APPROVE; 359 passed, 43 subtests passed; exact five-document scope; no production-code extraction."
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "85e11dc5-7c76-4bd6-b8c2-b115144f011e",
@@ -2200,6 +2208,13 @@
         "before_fingerprint": "aff392bd90f6142ae6db026180e082a731c751080e4baba228e5655614005065",
         "after_fingerprint": "c347688a572eb16598b19c67168428c13c35cd21135fef7d5b4d46d605af28dc",
         "files_applied_at": "2026-07-13T02:16:04Z"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-0a6-kimi-doc-worker",
+        "acquired_at": "2026-07-13T03:19:10Z",
+        "expires_at": "2026-07-13T05:19:10Z",
+        "ttl_minutes": 120
       }
     }
   ]
