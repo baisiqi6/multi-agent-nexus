@@ -1077,7 +1077,7 @@
     {
       "id": "slice-4-projection-hardening",
       "title": "Slice 4 Projection And Split-Operation Hardening",
-      "status": "doing",
+      "status": "done",
       "priority": "p1",
       "owner": "mac-codex",
       "human_gate_required": true,
@@ -1096,18 +1096,18 @@
         "reason": null
       },
       "selected_in_session": "slice4-stage-closeout",
-      "updated_at": "2026-07-13",
+      "updated_at": "2026-07-13T02:09:52Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "main",
-        "updated_at": "2026-07-13"
+        "updated_at": "2026-07-13T02:09:52Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4-projection-hardening/plan.md",
         "roadmap": "docs/project-harness/roadmap.md",
         "branch": "main"
       },
-      "verification": "",
+      "verification": "Slice 4 stage acceptance satisfied; all S4-A through S4-D packages deployed and terminally closed; Coordinate 15020c2 production doctor errors=0 before and after S4-D closeout; see slice-4d-projection-doctor-evidence/closeout.md.",
       "review": {
         "decision": "approved",
         "reviewer": "mac-codex",
@@ -1121,6 +1121,12 @@
         "acquired_at": "2026-07-13T02:07:22Z",
         "expires_at": "2026-07-13T04:07:22Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "046f5bf9-62ad-40ea-a828-c2b984531212",
+        "before_fingerprint": "bddac5cb1639b7cce2fd280a62d94a9defdd43d8cf41f5455b17965e0debf8ba",
+        "after_fingerprint": "48f93d8a69ea2f358979afe17845cac2abd620f53bbbf09f328fc919ef22f330",
+        "applied_at": "2026-07-13T02:09:52Z"
       }
     },
     {
