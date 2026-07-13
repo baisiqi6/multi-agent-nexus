@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-07-12",
+  "updated_at": "2026-07-13",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -2091,11 +2091,11 @@
         "reason": null
       },
       "selected_in_session": "omp:s4d-correction-round4",
-      "updated_at": "2026-07-12",
+      "updated_at": "2026-07-13",
       "workflow": {
-        "status": "running",
+        "status": "review_approved",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
-        "updated_at": "2026-07-12"
+        "updated_at": "2026-07-13"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
@@ -2103,11 +2103,11 @@
       },
       "verification": "",
       "review": {
-        "decision": "changes_requested",
+        "decision": "approved",
         "reviewer": "mac-codex",
         "phase": "running",
-        "updated_at": "2026-07-12",
-        "summary": "Round 4 closes receipt and AST gaps; rejects 21bfb88 only because pre-frozen MappingProxyType inputs retain mutable nested values. See result-review-round4.md at bc657c6."
+        "updated_at": "2026-07-13",
+        "summary": "Round 5 approves 0563cc0 and full S4-D branch; all R1-R4 P1 closed. Deploy and production read-only doctor remain required before closeout. See result-review-round5.md at 3863791."
       },
       "split_operation": {
         "contract_version": 1,
