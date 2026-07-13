@@ -233,7 +233,8 @@ before increasing execution concurrency. Status (2026-07-13): S4-A, S4-B1/B2,
 S4-C1/C2, and S4-D are deployed and terminally closed. Final S4-D evidence is in
 `tasks/slice-4d-projection-doctor-evidence/closeout.md`; Slice 4 stage closeout is
 complete through consumed receipt `046f5bf9-62ad-40ea-a828-c2b984531212`. Stage
-evidence is in `tasks/slice-4-projection-hardening/closeout.md`. P9-0A6 is next.
+evidence is in `tasks/slice-4-projection-hardening/closeout.md`. P9-0A6, P9-1,
+P9-2A, and P9-2B are now durably closed; P9-3 capacity/resource leases is next.
 
 ### 4. Phase 9 multi-project execution isolation
 

@@ -2,6 +2,29 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — P9-2B deterministic routing durable closeout
+
+- Coordinate `90783b2` and MultiNexus P9-2B implementation/review head `6f52630`
+  are integrated, pushed, tested, and deployed. Final lifecycle projection is
+  MultiNexus `8c34b8c`.
+- Real request `request:a7438a23-6346-4952-b46a-406e717ad2c0` omitted
+  `--target-agent`; deterministic `coding + omp-code` routing selected `mac-omp`
+  automatically with immutable request/decision/binding/context ids.
+- Ordinary `kimi-code/kimi-for-coding` returned exact sentinel
+  `P9-2B_ROUTED_SENTINEL_20260713T154315Z` in 4,985 ms. Discord delivery
+  `a3681e4f...` is `sent` with platform message `discord_bot:1526252822071345192`.
+- The five-second production invocation produced no new provider JSONL and returned an
+  empty provider session id. Agentd log, job, events, and delivery still prove the
+  execution; P9-4 owns a provider-neutral session/log observation contract.
+- Receipt `a2a23a06...` completed authorized/claimed/applied/task.done/consumed through
+  `e4cac329...`; source/deployed fingerprint is `24304486...` -> `e27e4944...`, and
+  the item is `done` / `closed`.
+- Production doctor reports `projection_ok=true`, errors 0, the same two superseded
+  unused-receipt warnings; both services are active with zero restarts and bounded
+  server smoke passed. Exact evidence:
+  `tasks/p9-2b-deterministic-executor-routing/closeout.md`.
+- P9-3 capacity/resource leases is the next detailed-plan gate.
+
 ## 2026-07-13 — P9-2A executor identity deployment, repair, and closeout review
 
 - Coordinate `eec9b23` is pushed, fully installed, and deployed; source/deployed/

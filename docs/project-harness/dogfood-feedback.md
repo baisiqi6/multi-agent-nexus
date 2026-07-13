@@ -9,6 +9,43 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-13（P9-2B deterministic routed execution）
+
+### 1. 不带target的确定性路由已跑通生产闭环
+
+- 状态：fixed / accepted。
+- `runtime request submit`只传`--route-capability coding --route-definition omp-code`，
+  未传`--target-agent`、未用Operator override；候选集唯一为`mac-omp`，选择结果、binding、
+  execution context和后续claim/completion事件交叉引用一致。
+- 真实job `request:a7438a23-6346-4952-b46a-406e717ad2c0`在4,985 ms内返回精确sentinel，
+  Discord delivery `a3681e4f...`为`sent`。
+
+### 2. provider JSONL不是每次调用都可用
+
+- 状态：open / routed to P9-4。
+- 这次极短OMP agentd调用没有创建新的provider-native JSONL，result中的`session_id`也是空；
+  不能仅靠“没有JSONL”判断worker未运行。
+- 本次使用agentd process/log、Coordinate job状态、`job.claimed/job.completed`事件和sent
+  delivery四类证据交叉确认。实现worker的长会话JSONL仍正常存在。
+- Route：P9-4应让provider adapter返回bounded `provider_session_id`和native log handle，
+  并明确`unavailable`原因；operator继续优先使用JSONL，但在不可用时自动降级为多证据判断。
+
+### 3. registry online状态与last_seen新鲜度仍是不同概念
+
+- 状态：open / routed to P9-3 and P9-4。
+- `mac-omp`候选记录为`online`且本地agentd实际运行，但control-plane `last_seen_at`仍显示
+  2026-06-10。P9-2B按已审核边界只消费登记状态，真实任务成功不代表这个时间字段足以证明健康。
+- Route：P9-3的capacity/attempt lease与P9-4的heartbeat/last-activity/process evidence应
+  明确区分authorization、availability、liveness和capacity，避免把单一online枚举当成全部健康证据。
+
+### 4. source/deployed lifecycle byte gate有效
+
+- 状态：fixed / retained invariant。
+- Operator先通过`harnessctl`在canonical source回放assignment，再部署；closeout/review分别在
+  production与source按同一转换回放，并在receipt前逐项比较，fingerprint完全一致。
+- Receipt `a2a23a06...`一次完成claim/apply/task.done/consume；没有direct JSON/SQLite edit、
+  legacy mark-done或repair path。
+
 ## 2026-07-13（Slice 4D production projection doctor / closeout dogfood）
 
 ### 1. 绿测试和第一版修复仍不足以证明projection语义

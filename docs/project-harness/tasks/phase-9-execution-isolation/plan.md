@@ -112,6 +112,9 @@ branch, harness, session-scope, and log handles. MultiNexus agentd uses the job 
 instead of a fixed agent `work_dir`. Remove MultiNexus direct reads of Coordinate
 SQLite tables from the managed execution path.
 
+Status (2026-07-13): deployed and durably closed. See
+`tasks/p9-1-job-scoped-execution-context/deployment-dogfood.md`.
+
 ### P9-2 — Executor routing and instance identity
 
 Separate logical target capability, eligible executor instances, runner profile, and
@@ -119,11 +122,19 @@ concrete assignment. First version uses explicit deterministic routing based on
 capability, workspace authorization, host, health, load, and Operator override; it is
 not a speculative autonomous scheduler.
 
+Status (2026-07-13): P9-2A identity catalog and P9-2B deterministic routing are
+deployed and durably closed. See
+`tasks/p9-2a-executor-identity-registry/closeout.md` and
+`tasks/p9-2b-deterministic-executor-routing/closeout.md`.
+
 ### P9-3 — Capacity and resource leases
 
 Add executor capacity, attempt lease, normalized worktree mutual exclusion, stale
 lease recovery, and a documented queue-order/fairness rule. Different worktrees may
 run concurrently; the same worktree is exclusive by default.
+
+Status: next detailed-plan gate. No implementation is authorized until refreshed
+measurement, independent plan review, and exact-revision approval complete.
 
 ### P9-4 — Provider-neutral observation contract
 
