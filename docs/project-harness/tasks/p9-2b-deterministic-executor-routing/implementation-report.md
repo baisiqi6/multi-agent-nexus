@@ -949,4 +949,3 @@ No whitespace errors in the MultiNexus P9-2B commit range.
 - No freshness cutoff, capacity limit, lease, queue fairness, automatic reroute,
   schema change, MultiNexus source change, deployment, restart, or lifecycle event
   was introduced.
-
