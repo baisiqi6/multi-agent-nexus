@@ -264,10 +264,32 @@ never an accepted deployed state:
 - a verifier failure emits a distinct capacity-parity stage/error, leaves services on
   the previously accepted runtime, and redeploys/resyncs the previously accepted source
   projection before retry; schema rollback follows the backup rules below;
-- the initial v1 rollout may observe "capacity source absent" only inside this guarded
-  deploy window. It must never survive command exit;
+- before overwriting the source, the deploy path captures both the previous authority
+  file and an internal canonical capacity-projection snapshot from Coordinate. The
+  snapshot is a strict, digest-bound, secret-free v1 object containing either the one
+  accepted source plus its complete policy rows, or an explicit `source=null` absence
+  marker. It is written outside the repository with mode 0600 and never appears in
+  CLI output, events, logs, or implementation fixtures;
+- `executor_capacity.py` owns focused internal capture/restore functions. Capture is
+  read-only and validates source/policy ids, hashes, coverage, exact policy ids, and
+  row shape before emitting canonical bytes. Restore owns one `BEGIN IMMEDIATE`
+  transaction, validates the snapshot digest and expected source id, rejects any active
+  production lease, then exactly restores the prior source/policies or deletes the
+  just-created projection when the snapshot records prior absence. Restore never
+  rewrites roster, executor identity, jobs, events, or leases and is not exposed as a
+  general public `runtime capacity` subcommand;
+- on any post-overwrite remote-parity, roster-sync, executor-sync, capacity-sync,
+  capacity-list, or committed-verifier failure, deploy restores the previous authority
+  file, replays the previous roster/executor projection, invokes only that Coordinate
+  capacity-snapshot restore helper, and verifies the restored three-way state before
+  returning nonzero. Missing snapshot, digest mismatch, active lease, restore failure,
+  or restored parity mismatch is a separate hard failure and may never be suppressed;
+- the initial v1 rollout may observe `capacity source absent` only inside this guarded
+  deploy window. A verifier failure after the first successful capacity sync must use
+  the explicit absence snapshot to remove the new projection before command exit;
 - P9-3B must revisit this window before capacity becomes claim authority and require a
-  drained/coordinated update contract rather than inheriting the P9-3A assumption.
+  drained/coordinated update contract rather than inheriting the P9-3A zero-active-lease
+  snapshot-restore assumption.
 
 ## Module and repository boundary
 
@@ -331,6 +353,10 @@ No agentd worker/client/adapter/session behavior changes are allowed in P9-3A.
 4. Add a deploy fault-injection test that fails between executor and capacity sync,
    proves the capacity-parity stage is explicit, no version/restart/success is emitted,
    and the previous accepted projection is restored before retry.
+5. Add strict internal capacity-projection snapshot capture/restore primitives and
+   fault injection after a successful first capacity sync but before accepted parity;
+   prove the prior-absence snapshot removes the new projection atomically with zero
+   active leases and does not add a public restore CLI.
 
 ### Stage D — Integration, deploy, and isolated proof
 
@@ -353,6 +379,9 @@ No agentd worker/client/adapter/session behavior changes are allowed in P9-3A.
 - secret-bearing field rejection and redacted CLI output;
 - identity roster/catalog/binding hashes unchanged after capacity roots appear;
 - exact retry no-write, forward version update, active-lease policy removal rollback.
+- snapshot canonical bytes/digest, exact existing-projection restore, prior-absence
+  restore, wrong source/tamper/malformed snapshot rejection, active-lease rejection,
+  and transaction rollback with no roster/executor/job/event mutation.
 
 ### Resource identity
 
@@ -417,6 +446,11 @@ Any material plan change invalidates approval/bootstrap and returns to plan revi
   `PRAGMA user_version=13` independently.
 - Deploy MultiNexus capacity authority/parity scripts after Coordinate can consume it.
 - Do not create a production execution lease in P9-3A; use a disposable DB sidecar.
+- Immediately before the MultiNexus guarded source/sync window, capture the mode-0600
+  capacity-only rollback snapshot through the installed Coordinate module and verify
+  its digest. This targeted snapshot is the automatic rollback mechanism for the
+  separately versioned capacity projection; the full DB backup remains the disaster
+  rollback boundary and must not be restored automatically while writers are live.
 - Code rollback removes capacity sync from deploy and redeploys the accepted starts.
   Data rollback uses the fresh backup only after stopping writers and assessing events
   after backup. Empty v13 lease/policy tables may remain only if old code tolerates
