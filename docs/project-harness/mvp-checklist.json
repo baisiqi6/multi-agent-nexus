@@ -2244,7 +2244,7 @@
       "selected_in_session": null,
       "updated_at": "2026-07-13",
       "workflow": {
-        "status": "changes_requested",
+        "status": "review_approved",
         "branch": null,
         "updated_at": "2026-07-13"
       },
@@ -2253,11 +2253,11 @@
       },
       "verification": "",
       "review": {
-        "decision": "changes_requested",
-        "reviewer": "codex-round4",
+        "decision": "approved",
+        "reviewer": "codex-round5",
         "phase": "changes_requested",
         "updated_at": "2026-07-13",
-        "summary": "Round 4: malformed v1 must emit one visible blocker while strict parser remains strict; see result-review-round4.md"
+        "summary": "Round 5 approved: job-scoped context and visible managed handoff fail-closed gates verified; see result-review-round5.md"
       },
       "split_operation": {
         "contract_version": 1,
