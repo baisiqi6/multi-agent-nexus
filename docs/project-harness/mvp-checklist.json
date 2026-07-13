@@ -2075,7 +2075,7 @@
     {
       "id": "slice-4d-projection-doctor-evidence",
       "title": "Slice 4D Projection Doctor and Repair Evidence",
-      "status": "doing",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": "mac-omp",
@@ -2091,17 +2091,17 @@
         "reason": null
       },
       "selected_in_session": "omp:s4d-post-deploy-correction-r2",
-      "updated_at": "2026-07-13",
+      "updated_at": "2026-07-13T02:04:06Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence",
-        "updated_at": "2026-07-13"
+        "updated_at": "2026-07-13T02:04:06Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4d-projection-doctor-evidence/plan.md",
         "branch": "agents/mac-omp/slice-4d-projection-doctor-evidence"
       },
-      "verification": "",
+      "verification": "Coordinate 15020c2 deployed; schema v11 and DB integrity ok; production full doctor rc=0, projection errors=0; result review Round 5 approved; evidence in post-deploy-production-evidence.md.",
       "review": {
         "decision": "approved",
         "reviewer": "mac-codex",
@@ -2129,6 +2129,12 @@
         "acquired_at": "2026-07-13T01:32:15Z",
         "expires_at": "2026-07-13T03:32:15Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "ee38b348-b2fb-4ad1-b9af-dc01f4d6c144",
+        "before_fingerprint": "8447cf7a70386b598a39ffc6659d86be5fe83efe11d10df8b20962f74e37cf7c",
+        "after_fingerprint": "86bdeac6397f24d301feb87a989dff43d5fb7d5882a578286a901b568a87181e",
+        "applied_at": "2026-07-13T02:04:06Z"
       }
     }
   ]
