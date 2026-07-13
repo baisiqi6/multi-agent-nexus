@@ -210,8 +210,8 @@ Canonical overview:
 `tasks/phase-9-execution-isolation/plan.md#p9-0a--coordinate-internal-boundary-hardening`.
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
-runtime isolation. Status: P9-0A1 through P9-0A5 are durably closed. Slice 4 is next.
-P9-0A6 remains ordered after Slice 4.
+runtime isolation. Status: P9-0A1 through P9-0A5 are durably closed. Slice 4 is now
+durably closed. P9-0A6 boundary remeasurement is next.
 
 ### 3. Slice 4 projection and split-operation hardening
 
@@ -219,7 +219,10 @@ Canonical overview:
 `tasks/slice-4-projection-hardening/plan.md`.
 
 Outcome: remove stale authorization projections and ambiguous partial operations
-before increasing execution concurrency. Status: S4-A done/closed; S4-B next.
+before increasing execution concurrency. Status (2026-07-13): S4-A, S4-B1/B2,
+S4-C1/C2, and S4-D are deployed and terminally closed. Final S4-D evidence is in
+`tasks/slice-4d-projection-doctor-evidence/closeout.md`; Slice 4 stage closeout is
+complete. P9-0A6 is next.
 
 ### 4. Phase 9 multi-project execution isolation
 

@@ -1077,9 +1077,9 @@
     {
       "id": "slice-4-projection-hardening",
       "title": "Slice 4 Projection And Split-Operation Hardening",
-      "status": "todo",
+      "status": "doing",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-codex",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/slice-4-projection-hardening/plan.md",
       "acceptance": "Use the roadmap-level overview to create separately reviewed plans for S4-A through S4-D. Require deterministic latest-event reads, replace-sync roster authority, bound retryable split operations, and doctor evidence before durable closeout.",
@@ -1095,19 +1095,33 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-11",
+      "selected_in_session": "slice4-stage-closeout",
+      "updated_at": "2026-07-13",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-11"
+        "status": "review_approved",
+        "branch": "main",
+        "updated_at": "2026-07-13"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/slice-4-projection-hardening/plan.md",
-        "roadmap": "docs/project-harness/roadmap.md"
+        "roadmap": "docs/project-harness/roadmap.md",
+        "branch": "main"
       },
       "verification": "",
-      "review": {}
+      "review": {
+        "decision": "approved",
+        "reviewer": "mac-codex",
+        "phase": "running",
+        "updated_at": "2026-07-13",
+        "summary": "Slice 4 stage acceptance satisfied: S4-A, S4-B1/B2, S4-C1/C2, and S4-D are deployed and terminally closed; final production doctor errors=0; see slice-4d-projection-doctor-evidence/closeout.md."
+      },
+      "lease": {
+        "owner": "mac-codex",
+        "session": "slice4-stage-closeout",
+        "acquired_at": "2026-07-13T02:07:22Z",
+        "expires_at": "2026-07-13T04:07:22Z",
+        "ttl_minutes": 120
+      }
     },
     {
       "id": "phase-9-execution-isolation",

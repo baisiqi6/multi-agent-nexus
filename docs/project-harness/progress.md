@@ -2,6 +2,27 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-13 — Slice 4D projection doctor closeout
+
+- Coordinate `15020c2204e8e05c6304f6ed83a5fed83ad12eae` passed five post-deploy
+  adversarial review rounds, was pushed, installed, and deployed with schema v11.
+- Independent final verification: `241 passed, 43 subtests passed`; full suite
+  `1864 passed, 449 subtests passed` with exactly nine known historical failures;
+  ruff/compileall/diff/CLI-byte gates passed.
+- Production DB backup
+  `/var/backups/coordinate/coord-20260713T020019Z.sqlite3` and source DB both have
+  integrity `ok`.
+- Full production doctor before and after closeout returned `rc=0`, projection errors
+  `0`, and the expected approved S4-D `operation_plan_superseded` info. The original
+  S4-C2 lifecycle false positive is absent.
+- Receipt `ee38b348-b2fb-4ad1-b9af-dc01f4d6c144` completed
+  authorized/claimed/applied/task.done/consumed with fingerprint
+  `8447cf7a... -> 86bdeac6...`.
+- S4-D and the Slice 4 stage are closed. Next ordered package: P9-0A6 boundary
+  remeasurement.
+- Durable evidence:
+  `tasks/slice-4d-projection-doctor-evidence/closeout.md`.
+
 ## 2026-07-13 — Slice 4C2 issue.materialize operation adoption closeout
 
 - Coordinate `a21d946e4d6be78f3f481d38eb2571229a4d3a9f` was approved after three

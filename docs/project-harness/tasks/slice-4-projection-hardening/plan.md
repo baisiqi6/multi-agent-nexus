@@ -74,6 +74,11 @@ S4-D detailed planning is active in
 `tasks/slice-4d-projection-doctor-evidence/plan.md`; independent plan review is required
 before worker authorization.
 
+**Completed and terminally closed.** Coordinate `15020c2` is deployed with schema v11;
+production full doctor returns zero errors before and after receipt closeout; receipt
+`ee38b348-b2fb-4ad1-b9af-dc01f4d6c144` is consumed. Durable evidence is in
+`tasks/slice-4d-projection-doctor-evidence/closeout.md`.
+
 ## Cross-package rules
 
 - One package per worker branch/worktree and one detailed plan per package.
@@ -98,3 +103,6 @@ before worker authorization.
 - Every supported split operation is retryable and diagnosable after interruption.
 - Doctor reports all defined drift classes with actionable evidence.
 - Full and cross-repository tests pass, and the durable audit is updated.
+
+All Slice 4 stage acceptance criteria are satisfied. The next ordered package is
+P9-0A6 boundary remeasurement before Phase 9 runtime-isolation implementation.

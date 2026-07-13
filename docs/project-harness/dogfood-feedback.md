@@ -9,6 +9,39 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-13（Slice 4D production projection doctor / closeout dogfood）
+
+### 1. 绿测试和第一版修复仍不足以证明projection语义
+
+- 状态：fixed through five Codex result-review rounds。
+- Kimi实现先后暴露：exact retry信任stored supersedes、unknown top-level field被静默忽略、
+  `artifacts.plan`未校验、合法`lease`被误报、non-split ready可写入null full SHA。
+- Codex用独立tamper/retry/real-checklist probes发现这些缺口；最终Coordinate `15020c2`
+  focused 241、full 1864，production doctor errors=0。
+- 结论：doctor类功能必须同时验证false-positive与false-negative；测试数字、worker summary
+  和静态diff都不能替代对真实生产projection的对抗性探针。
+
+### 2. remote lifecycle mutation仍会被后续source deploy覆盖
+
+- 状态：mitigated / P9-0A6 boundary gap open。
+- Coordinate control plane已记录Round 5 approved，但随后部署canonical source时，服务器
+  checklist又回到source中较早的Round 1 `changes_requested`；source/deployed bytes虽然一致，
+  却共同落后于control DB event state。
+- Operator没有直接改JSON/DB，而是在source用同一`harnessctl review-result approved`重放，
+  commit/deploy后再申请receipt。receipt首次即成功完成terminal chain。
+- Route：下一阶段应把source harness projection、deployed projection和control event state
+  明确建模为三个authority surfaces，并在deploy/receipt preflight中显示drift和下一安全动作。
+
+### 3. production doctor与receipt evidence
+
+- 部署Coordinate `15020c2`，schema/code/DB均v11，backup/source integrity均`ok`。
+- Doctor closeout前后均`rc=0`、errors=0；仅有2个合法expired-unused receipt warning，
+  并显示S4-D approved plan supersession info。
+- Receipt `ee38b348-b2fb-4ad1-b9af-dc01f4d6c144`：fingerprint
+  `8447cf7a... -> 86bdeac6...`，`task.done=a27c7d71...`，
+  `completion.consumed=e084f1e0...`。
+- Kimi Highspeed全程可用；GLM额度已恢复但fallback条件未触发，因此没有切换。
+
 ## 2026-06-01
 
 ### 1. Codex worker 额度限制导致任务中断
