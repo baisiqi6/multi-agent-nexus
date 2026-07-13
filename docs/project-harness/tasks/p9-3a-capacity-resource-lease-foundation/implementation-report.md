@@ -123,7 +123,8 @@ Result:
 
 ## Cross-repo contract evidence
 
-- `capacity_catalog_v1.json` SHA-256 (both repos): `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d` — byte-identical.
+- `capacity_catalog_v1.json` raw file SHA-256 (both repos): `2ae67c8d123b2e1b2165e42b498c7a470418b8bad4a9cefd2ac88379cc94fd2a` — byte-identical.
+- Canonical `catalog_hash` computed from the catalog object: `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d`.
 - P9-2 executor catalog hash remains unchanged: `f4cdf79897755c173e97ddae1dfd88047436039f3447d4d6257105715ba5551d`.
 - P9-2 binding IDs, roster bytes, and exact/routed behavior are unchanged (verified by `test_executor_identity.py` and runtime compatibility suites).
 - `handle_runtime_capacity_sync` canonical AST hash updated to `5655f5afc2b2967b07863e0a64243e559ab8f024a5de0dde491bb374f93515dc`.
@@ -225,7 +226,7 @@ Static checks:
 - MultiNexus: `git diff --check`, `bash -n scripts/deploy-server.sh`, and `python -m compileall multinexus scripts tests` passed.
 
 ### Corrected cross-repo contract evidence
-- `capacity_catalog_v1.json` SHA-256 (both repos): `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d` — byte-identical.
+- `capacity_catalog_v1.json` raw file SHA-256 (both repos): `2ae67c8d123b2e1b2165e42b498c7a470418b8bad4a9cefd2ac88379cc94fd2a` — byte-identical. Canonical `catalog_hash`: `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d`.
 - P9-2 executor catalog hash, roster bytes, and binding ids remain unchanged.
 
 ### Files changed in correction
@@ -258,3 +259,114 @@ MultiNexus:
 - The 9 historical CLI/AST failures are pre-existing and unrelated to P9-3A; they must be reconciled in a future P9-0A cleanup or parser-normalization task.
 - Capacity policy is currently a versioned snapshot projection; future work may need to reconcile it with live agent enablement changes.
 - Lease expiration is caller-transaction driven; no background reaper exists, per approved plan.
+
+## Result Review Correction Round 2
+
+- Approved amended plan SHA-256: `d75486b42e8d3315bda488db1129e02c03c0a2c152c04a60cccce917a385d99e`
+- Round-4 plan review: APPROVED (GLM 5.2 reviewer-only session)
+- Coding worker: `zhipu-coding-plan/glm-5.2` (continuation after Kimi provider quota stop)
+- Coordinate round-1 commit: `e78a7d1c6130a83ecb720f978a6379582f446896`
+- MultiNexus round-1 commit: `7ae3959d64316ee6d136a5efdaa0ded7fb0e3fff`
+- Same approved plan; no new P9-3B claim/heartbeat, P9-4 observation, or P9-5 scheduler behavior added.
+- No push, merge, deploy, SSH, production DB access, or harness operator actions.
+
+### Findings fixed
+
+#### R2-1 — Real prior-absence snapshot capture/restore for first rollout
+
+- **Fix:** `src/coordinate/executor_capacity.py` implements internal, capacity-only, digest-bound snapshot capture/restore (`capture_capacity_snapshot`, `restore_capacity_snapshot`). Two-layer exact-shape JSON envelope: inner `snapshot` object with `contract_version=1`, `target_source_id`, and `captured_state` (null for prior absence). Digest computed only over canonical inner bytes (`ensure_ascii=False`, `sort_keys=True`, compact separators); policies sorted by `agent_id`.
+- Capture opens `BEGIN IMMEDIATE`, rejects unexpected extra sources, orphan/mismatched policies, and recomputes every `capacity_policy_id`. Snapshot file written atomically with final mode `0600`, secret-free.
+- Restore owns its own `BEGIN IMMEDIATE`, rejects active leases and unexpected sources, verifies envelope/digest/expected source, deletes target projection for prior-absence, exactly restores source/policies for existing state, rereads DB and exact-compares before commit. Any error rolls back; roster/executor/jobs/events/leases untouched.
+- **MultiNexus:** `scripts/capacity_snapshot_helper.py` is a focused internal helper (not public CLI) that imports installed Coordinate `capture/restore_capacity_snapshot`. `scripts/deploy-server.sh` captures the snapshot before authority overwrite, restores in order (old authority → roster → executor → capacity snapshot) on any post-overwrite failure, re-verifies all three projections, and suppresses version/restart/smoke until full parity. Snapshot file is trap-cleaned on normal exit.
+- **Tests:** `CapacitySnapshotTests` in `tests/test_executor_capacity.py` (11 tests: prior-absence exact bytes/digest, existing capacity exact bytes/digest, unexpected source rejection, mismatched policy-id rejection, existing-state exact restore, prior-absence restore deletes new capacity, active-lease rejection, tampered-digest rejection, wrong-target-source rejection, malformed-JSON rejection, unexpected-source-during-restore rejection).
+
+#### R2-2 — Stored resource snapshot now rejects non-canonical data
+
+- **Fix:** `src/coordinate/execution_resources.py::validate_resource_key_matches()` enforces full-match `^sha256:[0-9a-f]{64}$` on `resource_key`, reuses strict `_validate_host_id` on stored `host_id`, and requires `normalize_worktree_path()` output to be byte-identical to the stored `normalized_path`. An attacker who recomputes the digest after tampering is still rejected because the path/host is not canonical.
+- **Tests:** `StoredResourceValidationTests` in `tests/test_execution_resources.py` (13 tests: valid pass, whitespace/empty host, trailing-slash/dot-segment/relative/control/overlong path, uppercase/truncated/nonhex digest, non-string key, digest tamper — all using attacker-recomputed digests).
+
+#### R2-3 — Bulk/decision lease paths validate all candidate rows before write
+
+- **Fix:** `src/coordinate/execution_leases.py` — `count_active_leases_for_agent`, `_find_active_resource_lease`, `_expire_due_for_agent_or_resource`, and `expire_due_attempt_leases` now SELECT full rows, call `_validate_stored_resource` on each, and only then UPDATE/COUNT/decide. One malformed candidate row fails the entire operation closed; zero partial writes.
+- **Tests:** `LeaseBulkDecisionTamperTests` in `tests/test_execution_leases.py` (4 tests: tampered resource in count, tampered resource in find, one tampered due row leaves all active, tampered due lease in reserve path fails before write).
+
+#### R2-4 — Malformed job payload becomes LeaseError
+
+- **Fix:** `reserve_attempt_lease()` wraps `json.loads(job["payload_json"])` in try/except for `JSONDecodeError`/`TypeError`, converts to `LeaseError` before any lease write. Validates the decoded payload is a dict and has `execution_context`.
+- **Tests:** `LeaseContextCrossLinkTests` in `tests/test_execution_leases.py` (4 tests: malformed JSON, JSON scalar, JSON list, missing execution_context).
+
+#### R2-5 — Sibling-worktree test replaced with hermetic fixture
+
+- **Fix:** Both `tests/test_executor_capacity.py` (Coordinate) and `tests/test_executor_capacity_authority.py` (MultiNexus) replace `test_parse_accepts_real_multinexus_registry` (which referenced a sibling checkout and skipped when absent) with `test_parse_accepts_full_shared_registry`, an inline hermetic TOML fixture containing all shared root sections. No sibling checkout, no skip.
+
+#### R2-6 — Report distinguishes raw fixture SHA from canonical catalog hash
+
+- **Fix:** All cross-repo contract evidence sections now distinguish:
+  - Raw fixture file SHA-256 (both repos): `2ae67c8d123b2e1b2165e42b498c7a470418b8bad4a9cefd2ac88379cc94fd2a`
+  - Canonical `catalog_hash` from the catalog object: `3c5b31d17424f3dc12b56d5e0d545f5a46b7d212193465d79c874cb82a9a918d`
+
+### Verification evidence (after Round 2 correction)
+
+Coordinate focused tests:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-p9-3a-kimi
+PYTHONPATH=src python -m pytest tests/test_executor_capacity.py tests/test_execution_resources.py tests/test_execution_leases.py tests/test_db.py tests/test_execution_cli.py --import-mode=importlib -q
+192 passed, 5 subtests passed in 0.92s
+```
+
+Coordinate full suite:
+```text
+PYTHONPATH=src python -m pytest tests/ --import-mode=importlib -q
+9 failed, 2280 passed, 493 subtests passed in 67.53s
+```
+The 9 failures are the same historical baseline (unchanged from Round 1):
+- 8 `tests/test_cli_contract.py::CLIContractTests::test_contract_*` cumulative-rewind hash mismatches (P9-0A1/0A2a/0A2b/0A2c/0A3a baselines, P9-0A4a diff, S4-B1/S4-C1 rewinds).
+- 1 `tests/test_issue_cli.py::IssueCLIOwnershipTests::test_all_five_handler_ast_bodies_match_start_revision`.
+
+MultiNexus focused tests:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-p9-3a-kimi
+PYTHONPATH=. python -m pytest tests/test_executor_capacity_authority.py tests/test_deploy_contract.py tests/test_smoke_contract.py -q
+32 passed in 25.95s
+```
+
+MultiNexus full suite:
+```text
+PYTHONPATH=. /Users/yinxin/projects/multinexus/.venv/bin/python -m pytest tests -q
+524 passed, 2 skipped, 1 warning, 36 subtests passed in 28.67s
+```
+
+Static checks:
+- Coordinate: `git diff --check` and `python -m compileall` on all touched source files passed.
+- MultiNexus: `git diff --check`, `bash -n scripts/deploy-server.sh`, `python -m py_compile scripts/capacity_snapshot_helper.py`, and `python -m compileall` on touched test files passed.
+
+### Files changed in Round 2 correction
+
+Coordinate:
+- `src/coordinate/executor_capacity.py` — snapshot capture/restore (R2-1)
+- `src/coordinate/execution_resources.py` — strict stored validation (R2-2)
+- `src/coordinate/execution_leases.py` — bulk/decision row validation + malformed payload (R2-3, R2-4)
+- `tests/test_executor_capacity.py` — snapshot tests, hermetic fixture (R2-1, R2-5)
+- `tests/test_execution_resources.py` — stored validator tests (R2-2)
+- `tests/test_execution_leases.py` — bulk tamper + payload tests (R2-3, R2-4)
+
+MultiNexus:
+- `scripts/capacity_snapshot_helper.py` — new internal snapshot helper (R2-1)
+- `scripts/deploy-server.sh` — snapshot capture/restore in guarded deploy (R2-1)
+- `tests/test_executor_capacity_authority.py` — hermetic fixture (R2-5)
+- `tests/test_deploy_contract.py` — fake executor_capacity module + snapshot helper in test infra (R2-1)
+- `docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/implementation-report.md` (R2-6)
+
+### Snapshot contract / rollback evidence
+
+- Snapshot v1 envelope is exact-shape with digest over canonical inner bytes only (no self-reference).
+- Prior-absence snapshot captures `captured_state=null` with explicit `target_source_id`; restore deletes only the expected target projection.
+- Existing-state restore preserves exact source timestamps/path and policy timestamps; reread-and-compare before commit.
+- Restore rejects active lease, unexpected/mismatched sources, tampered digest, wrong target, and malformed JSON.
+- Deploy fault-injection tests verify: (1) capacity sync failure → restore old projection + no version/restart; (2) committed verifier failure after capacity sync with existing projection → snapshot restore restores old projection; (3) prior-absence first rollout: old authority has no capacity roots, new sync creates projection, verifier failure → snapshot restore deletes projection and restored old authority has no capacity roots, zero source/policy rows remain, no version/restart.
+
+### Residual risks (Round 2)
+
+- P9-3A production safety still requires zero active lease; P9-3B must replace this temporary snapshot-restore assumption before capacity becomes claim authority.
+- The 9 historical CLI/AST baseline failures remain unchanged and unrelated to P9-3A.
+- No unresolved items from the Round 2 finding matrix.

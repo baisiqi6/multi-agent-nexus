@@ -41,6 +41,104 @@ def resolve_effective_agents(conn, workspace_id, now_utc=None):
     }
 '''
 
+_FAKE_EXECUTOR_CAPACITY = '''\
+import hashlib
+import json
+import os
+import sqlite3
+import tempfile
+from pathlib import Path
+
+EXPECTED_CAPACITY_SOURCE_ID = "multinexus.discord.capacity"
+SNAPSHOT_CONTRACT_VERSION = 1
+
+
+class CapacityError(ValueError):
+    pass
+
+
+def _cj(v):
+    return json.dumps(v, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def capture_capacity_snapshot(conn, target_source_id, output_path):
+    source = None
+    try:
+        row = conn.execute(
+            "SELECT * FROM executor_capacity_sources WHERE source_id = ?",
+            (target_source_id,),
+        ).fetchone()
+        if row is not None:
+            source = dict(row)
+    except sqlite3.OperationalError:
+        pass
+    if source is None:
+        captured_state = None
+    else:
+        policies = []
+        try:
+            for r in conn.execute(
+                "SELECT * FROM executor_capacity_policies WHERE source_id = ? ORDER BY agent_id",
+                (target_source_id,),
+            ).fetchall():
+                policies.append(dict(r))
+        except sqlite3.OperationalError:
+            pass
+        captured_state = {"source": source, "policies": policies}
+    inner = {
+        "contract_version": SNAPSHOT_CONTRACT_VERSION,
+        "target_source_id": target_source_id,
+        "captured_state": captured_state,
+    }
+    digest = hashlib.sha256(_cj(inner).encode("utf-8")).hexdigest()
+    envelope = {"snapshot": inner, "snapshot_sha256": digest}
+    p = Path(output_path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=".cap-snap-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(_cj(envelope).encode("utf-8"))
+        os.replace(tmp, str(p))
+        os.chmod(str(p), 0o600)
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+    return envelope
+
+
+def restore_capacity_snapshot(conn, target_source_id, snapshot_path):
+    raw = Path(snapshot_path).read_bytes()
+    envelope = json.loads(raw.decode("utf-8"))
+    inner = envelope["snapshot"]
+    captured_state = inner["captured_state"]
+    try:
+        conn.execute("DELETE FROM executor_capacity_policies WHERE source_id = ?", (target_source_id,))
+    except sqlite3.OperationalError:
+        pass
+    try:
+        conn.execute("DELETE FROM executor_capacity_sources WHERE source_id = ?", (target_source_id,))
+    except sqlite3.OperationalError:
+        pass
+    if captured_state is not None:
+        s = captured_state["source"]
+        conn.execute(
+            "INSERT OR REPLACE INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (s["source_id"], s["source_version"], s["catalog_hash"], s.get("source_path"), s["updated_at"]),
+        )
+        for p in captured_state.get("policies", []):
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (p["agent_id"], p["source_id"], p["source_version"], p["catalog_hash"], p["capacity_policy_id"], p["max_concurrent_jobs"], p["created_at"], p["updated_at"]),
+            )
+    conn.commit()
+    return envelope
+'''
+
 _FAKE_COORD_LOCAL = '''\
 #!{sys_executable}
 import os, sys, json, sqlite3
@@ -374,6 +472,10 @@ class DeployContractTests(unittest.TestCase):
             repo_root / "scripts" / "agent_registry_deploy_verify.py",
             self.source_dir / "scripts" / "agent_registry_deploy_verify.py",
         )
+        shutil.copy(
+            repo_root / "scripts" / "capacity_snapshot_helper.py",
+            self.source_dir / "scripts" / "capacity_snapshot_helper.py",
+        )
 
         self.authority = self.source_dir / "config" / "agent-registry.toml"
         self.authority.write_text(
@@ -456,6 +558,11 @@ class DeployContractTests(unittest.TestCase):
         fake_pkg.mkdir(parents=True)
         (fake_pkg / "__init__.py").write_text("", encoding="utf-8")
         (fake_pkg / "db.py").write_text(_FAKE_COORDINATE_DB, encoding="utf-8")
+        (fake_pkg / "executor_capacity.py").write_text(_FAKE_EXECUTOR_CAPACITY, encoding="utf-8")
+
+        # Pre-create the DB directory so the snapshot helper can connect even
+        # before the first sync populates it (prior-absence capture path).
+        (self.fake_root / "var" / "lib" / "coordinate").mkdir(parents=True, exist_ok=True)
 
         self.deploy_script = repo_root / "scripts" / "deploy-server.sh"
         self._env = {
@@ -846,6 +953,84 @@ class DeployContractTests(unittest.TestCase):
         self.assertIsNotNone(row)
         self.assertEqual(row["source_version"], 1)
         self.assertEqual(row["max_concurrent_jobs"], 1)
+        conn.close()
+
+
+    def test_prior_absence_first_rollout_verifier_failure_restores_no_capacity(self):
+        # First rollout: remote has an OLD authority without capacity roots and
+        # no capacity projection in the DB. The new authority adds capacity.
+        # If the committed verifier fails after capacity sync, the restore must
+        # delete the newly created capacity projection (prior-absence restore).
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        old_authority = textwrap.dedent("""\
+            [registry]
+            id = "multinexus.discord"
+            version = 2
+
+            [[executor_definitions]]
+            id = "claude-code"
+            provider = "anthropic-claude"
+            adapter = "claude"
+            capabilities = ["coding", "review"]
+
+            [[agents]]
+            id = "mac-claude"
+            display_name = "Mac Claude"
+            discord_user_id = "1507329791982833775"
+            executor_definition_id = "claude-code"
+            runner_profile_id = "mac-claude"
+
+            [[external_agents]]
+            id = "server-hermes"
+            display_name = "Hermes"
+            discord_user_id = "1505562531706568928"
+            """)
+        remote_config.write_text(old_authority, encoding="utf-8")
+
+        # No capacity projection pre-exists in the DB (prior absence).
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        import sqlite3
+
+        # Inject a one-time capacity policy id tamper so the committed verifier
+        # fails after the new capacity sync succeeds.
+        env = dict(self._env)
+        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("committed-state", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # The capacity projection must have been deleted by the prior-absence
+        # snapshot restore. No source or policy rows should remain.
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        source = conn.execute(
+            "SELECT COUNT(*) AS n FROM executor_capacity_sources"
+        ).fetchone()
+        self.assertEqual(source["n"], 0)
+        policy = conn.execute(
+            "SELECT COUNT(*) AS n FROM executor_capacity_policies"
+        ).fetchone()
+        self.assertEqual(policy["n"], 0)
         conn.close()
 
 

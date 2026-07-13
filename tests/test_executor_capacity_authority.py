@@ -276,15 +276,44 @@ discord_user_id = "1505562531706568928"
         self.assertEqual(len(authority_with_capacity.entries), 2)
         self.assertEqual(len(authority_with_capacity.executor_bindings), 1)
 
-    def test_parse_accepts_real_multinexus_registry(self):
-        repo_root = Path(__file__).resolve().parent.parent
-        mn_registry = repo_root / "config" / "agent-registry.toml"
-        self.assertTrue(mn_registry.exists(), "MultiNexus sibling checkout not present")
-        catalog = parse_capacity_catalog(mn_registry)
+    def test_parse_accepts_full_shared_registry(self):
+        path = self._write_toml("""\
+[registry]
+id = "multinexus.discord"
+version = 2
+
+[[executor_definitions]]
+id = "claude-code"
+provider = "anthropic-claude"
+adapter = "claude"
+capabilities = ["coding"]
+
+[[agents]]
+id = "mac-claude"
+display_name = "Mac Claude"
+discord_user_id = "1507329791982833775"
+executor_definition_id = "claude-code"
+runner_profile_id = "mac-claude"
+
+[[external_agents]]
+id = "server-hermes"
+display_name = "Hermes"
+discord_user_id = "1505562531706568928"
+
+[capacity_registry]
+id = "multinexus.discord.capacity"
+version = 1
+
+[[executor_capacities]]
+agent_id = "mac-claude"
+max_concurrent_jobs = 1
+""")
+        catalog = parse_capacity_catalog(path)
         self.assertEqual(catalog.source_id, "multinexus.discord.capacity")
         self.assertEqual(catalog.source_version, 1)
-        self.assertEqual(len(catalog.policies), 8)
-        self.assertTrue(all(p.max_concurrent_jobs == 1 for p in catalog.policies))
+        self.assertEqual(len(catalog.policies), 1)
+        self.assertEqual(catalog.policies[0].agent_id, "mac-claude")
+        self.assertEqual(catalog.policies[0].max_concurrent_jobs, 1)
 
     def test_parse_rejects_unknown_capacity_root_keys(self):
         path = self._write_toml("""\
