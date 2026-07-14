@@ -2,11 +2,11 @@
 
 ## Decision
 
-**Approved for commit, push, and the reviewed production maintenance gate.**
+**Approved for durable closeout.**
 
-This is not P9-3B durable closeout. Deployment, production smoke, zero-residue and
-zero-active-lease evidence, dogfood receipt, and closeout documentation are still
-required.
+Implementation, integration, deployment, production smoke, zero-residue, and
+zero-active-lease evidence are accepted. The terminal host-aware receipt and closeout
+document are the only remaining P9-3B lifecycle steps.
 
 ## Review findings resolved
 
@@ -52,7 +52,7 @@ required.
 
 ## Reviewer authorization
 
-The implementation may now be committed and pushed. Production synchronization must
-still follow the approved maintenance contract: backup, integrity/version/SHA checks,
-synchronous Coordinate and MultiNexus update, service health, bounded smoke,
-zero-residue, zero-active-lease-at-end, and recorded rollback evidence.
+The synchronized maintenance contract was followed and is accepted: fresh backup,
+integrity/version/SHA checks, both services stopped during the compatibility window,
+Coordinate and MultiNexus updated before either restarted, bounded smoke, clean
+journals, zero residue, and zero active leases at end. P9-3C remains separately gated.

@@ -2,6 +2,26 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-14 — P9-3B leased runtime deployment and closeout review
+
+- Integrated/pushed Coordinate `3eaa7bf` and MultiNexus `6bc1adf`; cross-repository
+  ten-fixture parity matches committed Coordinate bytes.
+- Coordinate full gate: 2396 passed and 493 subtests passed, with the exact nine
+  historical argparse/AST failures. MultiNexus full gate: 650 passed, 2 skipped.
+- Every constructible provider adapter owns a cancellable process group; `jarvis-local`
+  moved from an unkillable thread to an owned Python child. Real POSIX tree cleanup and
+  Windows API contract tests passed.
+- Used a synchronized stopped-service maintenance window because deployed MultiNexus
+  lacked the new heartbeat consumer. Fresh backup
+  `coord.sqlite3.p9-3b.20260714T184701Z` is mode 600, integrity `ok`, schema 13, SHA
+  `5a6e3faa...b5ddf3b`.
+- Final production: both services active/running with zero restarts; server smoke OK;
+  DB integrity/FK/schema `ok/0/13`; nonterminal jobs 0; attempt leases active/total
+  `0/0`; deployment residue 0; error journal empty.
+- Closeout request `e500773a...` and review approval `3e93a81f...` are durable. Terminal
+  receipt remains pending. Exact evidence:
+  `tasks/p9-3b-runtime-lease-wiring/deployment-dogfood.md`.
+
 ## 2026-07-14 — P9-3A production deployment and sidecar dogfood
 
 - Integrated and pushed Coordinate `af8461e` and MultiNexus `9b19727`; independent

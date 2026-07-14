@@ -2,12 +2,12 @@
 
 ## Status
 
-Implementation and local review gates are complete. Production maintenance,
-deployment smoke, dogfood receipt, and durable closeout remain pending.
+Implementation, local review, production maintenance, and deployment smoke are
+complete. The host-aware completion receipt and durable closeout remain pending.
 
-Coordinate implementation is committed at `3eaa7bf` on
-`agents/mac-claude/p9-3b-runtime-lease-wiring-coordinate`. MultiNexus was reviewed
-against parent `78af200`; its implementation commit is created after this report.
+Coordinate implementation is committed and deployed at `3eaa7bf`. MultiNexus
+implementation commit `0348c8b` is integrated and deployed through main merge
+`6bc1adf`.
 
 ## Implemented contract
 
@@ -84,5 +84,5 @@ worker output was incomplete or unsafe, including:
 - The local Python 3.14 virtualenv still has two KOOK import failures caused by missing
   `pkg_resources`; the authoritative Python 3.12 full suite passes with two accepted
   skips.
-- No production deployment, service restart, active lease mutation, or P9-3C smoke is
-  claimed by this report.
+- Production deployment and restart evidence is recorded in `deployment-dogfood.md`.
+  No production execution lease or P9-3C concurrency/crash smoke is claimed.

@@ -2474,10 +2474,10 @@
     {
       "id": "p9-3b-runtime-lease-wiring",
       "title": "P9-3B Runtime Lease Wiring",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-claude",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
@@ -2489,18 +2489,26 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-14T03:37:27Z",
+      "selected_in_session": "p9-3b-kimi-corrections-20260714",
+      "updated_at": "2026-07-14",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-14T03:37:27Z"
+        "status": "review_approved",
+        "branch": "agents/mac-claude/p9-3b-runtime-lease-wiring",
+        "updated_at": "2026-07-14"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md"
+        "plan": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
+        "branch": "agents/mac-claude/p9-3b-runtime-lease-wiring",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": "approved",
+        "reviewer": "mac-codex",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-14",
+        "summary": "P9-3B local and production gates accepted; result-review.md and deployment evidence verified; P9-3C remains separately gated."
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "039bdcda-de94-4bbd-9f26-13f39b2d33bf",
@@ -2514,6 +2522,13 @@
         "before_fingerprint": "9888f3a21a9b60d369a39360c97a35b8b94d4178261cb4254da535d085b5eccf",
         "after_fingerprint": "f0ce56e086e22f83a595d962daaf39a11c7cca09caf78253356934179c353762",
         "files_applied_at": "2026-07-14T03:37:27Z"
+      },
+      "lease": {
+        "owner": "mac-claude",
+        "session": "p9-3b-kimi-corrections-20260714",
+        "acquired_at": "2026-07-14T18:51:52Z",
+        "expires_at": "2026-07-14T20:51:52Z",
+        "ttl_minutes": 120
       }
     }
   ]

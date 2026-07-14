@@ -9,6 +9,34 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-14（P9-3B runtime lease wiring）
+
+### 1. producer/consumer协议升级不能逐个默认重启
+
+- 状态：fixed / retained maintenance invariant。
+- 部署前Coordinate已能发P9-3B lease，但旧MultiNexus `b898605`没有heartbeat consumer；普通
+  `deploy all`会在两个restart之间形成不兼容窗口。
+- Operator先同时停止两服务，再分别`--no-restart --no-smoke`同步，验证两侧SHA/DB/零残留后
+  一起启动。最终服务active、`NRestarts=0`、server smoke OK、active lease 0。
+
+### 2. plan中的等价名词不能替代live CLI/schema探针
+
+- 状态：fail-closed / corrected invocation。
+- 第一版备份校验猜测表名`execution_leases`，真实v13表是`execution_attempt_leases`；第一版CLI
+  探针使用计划里的`lease-renew`，实际命令是嵌套`lease renew`。两者都在任何业务mutation前
+  非零退出，服务保持停止或健康运行。
+- Route：Operator/runbook应从`sqlite_master`和`--help`派生可执行探针；计划可描述“等价操作”，
+  但deployment evidence必须记录真实surface。
+
+### 3. Kimi worker仍需按JSONL与artifact双重监督
+
+- 状态：mitigated / retained reviewer gate。
+- Claude Sonnet路由的provider-native JSONL确认实际模型为`kimi-for-coding`。部分worker长时间
+  thinking后无diff，部分补丁吞cleanup错误或没有跑完整测试；Codex根据JSONL判断仍在活动，
+  再用diff、测试与真实进程树决定是否接收或补正。
+- 结论：静默git diff不等于worker空闲；JSONL证明活动，artifact/tests决定正确性，reviewer
+  acceptance仍是独立边界。
+
 ## 2026-07-14（P9-3A capacity/resource lease foundation）
 
 ### 1. cleanup 命令出现不等于远端残留已清零
