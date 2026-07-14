@@ -133,17 +133,12 @@ Add executor capacity, attempt lease, normalized worktree mutual exclusion, stal
 lease recovery, and a documented queue-order/fairness rule. Different worktrees may
 run concurrently; the same worktree is exclusive by default.
 
-Status (2026-07-14): P9-3A is deployed and durably `done/closed`; exact evidence is
-in `../p9-3a-capacity-resource-lease-foundation/closeout.md`. P9-3B current-state
-measurement and detailed plan are drafted in
-`../p9-3b-runtime-lease-wiring/measurement.md` and
-`../p9-3b-runtime-lease-wiring/plan.md`. Independent GLM-5.2 review round 2 approved
-the exact plan SHA-256
-`5c04d3bd8d297da1565d67a4aa41b679559481a3bed75ede287dd941f75b1378`;
-see `../p9-3b-runtime-lease-wiring/plan-review-round2.md`. Implementation remains
-blocked until checklist registration and a fresh exact-revision worker bootstrap
-complete. P9-3C remains the production concurrency/recovery matrix and P9-3 stage
-closeout.
+Status (2026-07-14): P9-3A and P9-3B are deployed and durably `done/closed`; exact
+P9-3B evidence is in `../p9-3b-runtime-lease-wiring/closeout.md`. P9-3C is now the
+next detailed-plan gate for the disposable production concurrency/recovery matrix and
+P9-3 stage closeout. P9-3C execution remains blocked until fresh measurement, an
+independently reviewed exact plan revision, checklist registration, and a new worker
+bootstrap are complete.
 
 ### P9-4 — Provider-neutral observation contract
 

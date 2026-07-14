@@ -4,9 +4,9 @@
 
 **Approved for durable closeout.**
 
-Implementation, integration, deployment, production smoke, zero-residue, and
-zero-active-lease evidence are accepted. The terminal host-aware receipt and closeout
-document are the only remaining P9-3B lifecycle steps.
+Implementation, integration, deployment, production smoke, zero-residue,
+zero-active-lease evidence, terminal host-aware receipt, and closeout evidence are
+accepted. P9-3B is terminally closed; this decision does not authorize P9-3C execution.
 
 ## Review findings resolved
 

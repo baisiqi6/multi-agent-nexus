@@ -1,7 +1,7 @@
 # P9-3B Production Deployment and Dogfood Evidence
 
 Date: 2026-07-14  
-Status: deployed and reviewer-approved; terminal receipt pending
+Status: deployed, reviewer-approved, and terminally closed
 
 ## Accepted revisions
 
@@ -93,5 +93,33 @@ and CLI facts rather than treating plan wording as executable syntax.
 
 The commands used the canonical `discord-nexus` workspace and its registered
 `harnessctl`; source checklist transitions were produced by the mutation service, not
-by direct JSON editing. Terminal receipt identities are appended after normal
-host-aware completion.
+by direct JSON editing.
+
+## Host-aware completion receipt
+
+- Receipt: `8f36d34c-0485-4cef-be54-8eaad08404e2`.
+- `completion.authorized`: `bf3b551a-3b21-48c4-a68d-65133c838d8b`.
+- `completion.claimed`: `dc45826a-195b-41c5-bf65-14dcfb581140`.
+- `completion.applied`: `8486e57f-a87a-4f4d-9f4e-486c0606fe3a`.
+- `task.done`: `de7a0b5b-d488-4800-8cc0-fc6dd4547add`.
+- `completion.consumed`: `97c546a4-44ef-4ce7-bf3c-74cec2427ed0`.
+- Fingerprint:
+  `07bf20b961012279dbe225684ca8577e22178b7948547e6754f0c545bbdb75ee`
+  -> `e407e9608d602f88716fc4da8fbbbf3adc97ad91ea74a9962877f01933beed40`.
+- Receipt-applied checklist commit: `82fe51128ec6be87e39c1c371913dd748df47f72`.
+- Canonical/deployed checklist SHA-256 before record:
+  `88b9dcb948358a20e1d6e4a88022507f953ffefbe5f1fdfcba04b46b38a120d1`.
+
+The first receipt was accidentally issued through the local `mac.sh` control plane;
+the remote preflight returned `unknown_receipt` and canonical files remained unchanged.
+The normal path was rerun with production `coord-ssh`, then online claim, canonical
+commit/push/deploy, byte-equality verification, record, and consumption. No repair,
+force, legacy completion path, direct JSON edit, or SQLite write was used.
+
+The production receipt event reports `review_evidence.not_applicable` because the
+earlier `review.completed` event lives in the local lifecycle plane rather than the
+production event store. This did not bypass the gate: production authorized only after
+the deployed canonical projection was `review_approved`, and the exact local review
+event plus approval summary remain recorded above. Event-plane mirroring is retained as
+an observation for later projection/control-plane hardening, not silently represented
+as an end-to-end review event.

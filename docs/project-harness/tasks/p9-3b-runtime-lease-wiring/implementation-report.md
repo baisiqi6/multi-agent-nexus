@@ -2,8 +2,8 @@
 
 ## Status
 
-Implementation, local review, production maintenance, and deployment smoke are
-complete. The host-aware completion receipt and durable closeout remain pending.
+Implementation, local review, production maintenance, deployment smoke, host-aware
+completion receipt, and durable closeout are complete.
 
 Coordinate implementation is committed and deployed at `3eaa7bf`. MultiNexus
 implementation commit `0348c8b` is integrated and deployed through main merge

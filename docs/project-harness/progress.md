@@ -2,6 +2,20 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-14 — P9-3B terminal receipt consumed
+
+- Host-aware receipt `8f36d34c...` moved the canonical item from
+  `doing/review_approved` to `done/closed` with fingerprint
+  `07bf20b9...` -> `e407e960...`.
+- Receipt-applied checklist commit `82fe511` was pushed and deployed byte-identically
+  before production emitted `task.done` `de7a0b5b...` and
+  `completion.consumed` `97c546a4...`.
+- A local-only receipt was rejected by production preflight as `unknown_receipt`
+  before file mutation; the normal production-issued path then completed without
+  repair, force, legacy completion, direct JSON, or SQLite mutation.
+- P9-3B is durably closed. P9-3C detailed measurement/plan plus independent review is
+  the next gate; its production concurrency/crash matrix is not yet authorized.
+
 ## 2026-07-14 — P9-3B leased runtime deployment and closeout review
 
 - Integrated/pushed Coordinate `3eaa7bf` and MultiNexus `6bc1adf`; cross-repository
@@ -18,8 +32,8 @@ Harness root: `docs/project-harness/`
 - Final production: both services active/running with zero restarts; server smoke OK;
   DB integrity/FK/schema `ok/0/13`; nonterminal jobs 0; attempt leases active/total
   `0/0`; deployment residue 0; error journal empty.
-- Closeout request `e500773a...` and review approval `3e93a81f...` are durable. Terminal
-  receipt remains pending. Exact evidence:
+- Closeout request `e500773a...` and review approval `3e93a81f...` are durable. Exact
+  deployment and receipt evidence:
   `tasks/p9-3b-runtime-lease-wiring/deployment-dogfood.md`.
 
 ## 2026-07-14 — P9-3A production deployment and sidecar dogfood
