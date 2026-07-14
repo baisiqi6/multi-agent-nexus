@@ -41,6 +41,15 @@
   没有直接接收。Codex 只接收独立复核通过的 Coordinate 变更，并在 fresh MultiNexus worktree
   重建门禁。Provider JSONL、diff、真实测试和 artifact state 必须交叉验证。
 
+### 5. host-aware mark-done 的 harness root 必须是绝对路径
+
+- 状态：fail-closed / fixed invocation。
+- 第一次 `mark-done-files` 传入相对 `docs/project-harness`，本地 preflight 在 receipt claim
+  前以 `harness_fingerprint_unavailable` 拒绝；没有文件或 control-plane mutation。
+- 改用 `/Users/yinxin/projects/multinexus/docs/project-harness` 后，同一 receipt 正常完成
+  claimed/applied/task.done/consumed。该失败证明 online receipt 在任何 canonical write 前验证路径与
+  fingerprint。
+
 ## 2026-07-13（P9-2B deterministic routed execution）
 
 ### 1. 不带target的确定性路由已跑通生产闭环

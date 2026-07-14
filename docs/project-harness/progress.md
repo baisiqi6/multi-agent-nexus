@@ -19,10 +19,11 @@ Harness root: `docs/project-harness/`
 - Disposable `/tmp` DB sidecar proved reserve -> exact replay -> renew -> release and was
   deleted. The production lease table remained empty before and after dogfood.
 - Control-plane closeout `f8746e14...` and final review approval `945fa31a...` are durable.
-  Canonical harness projection is now `review_approved`; receipt closeout is the remaining
-  P9-3A lifecycle gate.
+  Receipt `da0349ec...` completed authorized/claimed/applied/task.done/consumed through
+  `63648442...`; canonical/deployed fingerprint is `ffeb5078...` -> `f5a4f785...`, and
+  the item is `done` / `closed`.
 - Exact evidence:
-  `tasks/p9-3a-capacity-resource-lease-foundation/deployment-dogfood.md`.
+  `tasks/p9-3a-capacity-resource-lease-foundation/closeout.md`.
 
 ## 2026-07-13 — P9-2B deterministic routing durable closeout
 

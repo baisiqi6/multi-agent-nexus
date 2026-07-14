@@ -1,7 +1,7 @@
 # P9-3A Production Deployment and Sidecar Dogfood
 
 Date: 2026-07-14  
-Status: deployed and reviewer-approved; terminal completion receipt pending
+Status: complete; deployed, reviewer-approved, and terminal receipt consumed
 
 ## Accepted revisions
 
@@ -101,8 +101,28 @@ The production DB was re-opened read-only after deletion: integrity `ok`, active
 The same semantic transitions were replayed through canonical `harnessctl`. No direct
 JSON or SQLite edit, repair path, force transition, or legacy mark-done was used.
 
-## Remaining gate
+## Terminal receipt
 
-Deploy this reviewer-approved canonical harness projection, verify source/deployed item
-fingerprints agree, then use the host-aware completion receipt flow to close P9-3A. P9-3B
-is the next detailed-plan gate; P9-3A does not alter runtime claim behavior.
+- Canonical/deployed checklist SHA before receipt:
+  `f068f63206c2ba83e56ec1e9504d13bed2ec2819b0778b5a3397f0795b1731b5`.
+- Canonical/deployed P9-3A item SHA before receipt:
+  `66bb2405f7e05cdf93a799205bfb388b97ae643b8003f301fd4d8d8ce8a5cc1c`.
+- Receipt: `da0349ec-6832-4c73-b67e-2a97e477fc46`.
+- `completion.authorized`: `02d1ede8-d7ea-48c5-8b96-d319b24f168b`.
+- `completion.claimed`: `dc75bf08-3970-479a-becc-63842e16413c`.
+- `completion.applied`: `33c677f5-e2eb-47e1-b30f-024dfad2b123`.
+- `task.done`: `b6725326-9ebf-4d70-bc96-a03606b5f260`.
+- `completion.consumed`: `63648442-fa49-4452-b39e-1ee15207280a`.
+- Before/after fingerprint:
+  `ffeb5078ca6f0caafc20dd464a6b53a70e79e9b3f8214e15cb31f21091e1d93a`
+  -> `f5a4f7851072856dc8b04a0eb629f4b7209554f48355ffec8eed02389a893ef4`.
+
+The first files invocation used a relative harness root and failed before claim with
+`harness_fingerprint_unavailable`; no mutation occurred. The retry used the canonical
+absolute path, then completed the normal receipt flow. No repair/force/legacy path or
+direct JSON/SQLite edit was used.
+
+## Next gate
+
+P9-3B is the next detailed-plan gate. P9-3A intentionally leaves runtime claim,
+heartbeat, recovery, and provider observation behavior unchanged.
