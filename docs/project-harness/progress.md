@@ -2,6 +2,25 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-15 — P9-3C0 Coordinate C1 bootstrap approved for worker launch
+
+- The Coordinate C1 implementation bootstrap was corrected and accepted by Codex at
+  exact revision `c91b025265fb6186a07246cb8373667fe1e8d122`.
+- The bootstrap authorizes only an isolated Coordinate worktree on base `a7397b9`,
+  changes to `executor_capacity.py` and `test_executor_capacity.py`, and one local
+  worker commit. The user-owned untracked `.qoder/` remains untouched.
+- A fresh independent Claude Code review used outer `sonnet` with provider-native
+  `kimi-for-coding`, found no blocking findings, and returned
+  `APPROVED_FOR_P9_3C0_SNAPSHOT_COMPATIBILITY_C1_WORKER_LAUNCH`.
+- The worker must reproduce the exact base baselines, keep handcrafted v1 fixtures in
+  the allowlisted test file, and preserve the hard prohibition on live-production
+  restore round-trips.
+- Push, merge, deploy, production mutation, fixture activation, C2, and P9-3C1 remain
+  blocked until C1 implementation passes Codex review and an independent exact-revision
+  result review.
+- Exact review evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-coordinate-c1-bootstrap-review.md`.
+
 ## 2026-07-15 — P9-3C0 snapshot/restore compatibility plan approved
 
 - Kimi for Coding, routed through Claude Code outer `sonnet`, produced the

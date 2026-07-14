@@ -248,8 +248,10 @@ Status (2026-07-15): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-
 Package 1 Coordinate capacity-source decoupling is merged, pushed, backed up, inertly
 deployed, and accepted at `a7397b9`. The separate snapshot/restore multi-source
 compatibility measurement and plan are independently approved at reviewed commit
-`ffa7848`; Coordinate C1 implementation and MultiNexus C2 deploy-contract coverage are
-the next gated packages. Production remains single-source, and live restore proof is
+`ffa7848`. The Coordinate C1 bootstrap is independently approved at reviewed commit
+`c91b025`; its isolated two-file implementation worker is the active gated package,
+while MultiNexus C2 deploy-contract coverage remains blocked on C1 result acceptance.
+Production remains single-source, and live restore proof is
 forbidden outside isolated/local/sidecar databases. Fixture assets, fixture activation,
 and the P9-3C1 production concurrency/crash matrix remain unauthorized until their own
 detailed implementation, result-review, verification, and activation gates close.
