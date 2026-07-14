@@ -2470,6 +2470,51 @@
         "after_fingerprint": "f5a4f7851072856dc8b04a0eb629f4b7209554f48355ffec8eed02389a893ef4",
         "applied_at": "2026-07-14T02:54:13Z"
       }
+    },
+    {
+      "id": "p9-3b-runtime-lease-wiring",
+      "title": "P9-3B Runtime Lease Wiring",
+      "status": "todo",
+      "phase": "ready",
+      "priority": "p1",
+      "owner": null,
+      "human_gate_required": true,
+      "plan_path": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
+      "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
+      "blocked_by": [],
+      "blocked_reason": "",
+      "dependencies": [],
+      "handoff": {
+        "from": null,
+        "to": null,
+        "reason": null
+      },
+      "selected_in_session": null,
+      "updated_at": "2026-07-14T03:37:27Z",
+      "workflow": {
+        "status": "todo",
+        "branch": null,
+        "updated_at": "2026-07-14T03:37:27Z"
+      },
+      "artifacts": {
+        "plan": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md"
+      },
+      "verification": "",
+      "review": {},
+      "split_operation": {
+        "contract_version": 1,
+        "operation_id": "039bdcda-de94-4bbd-9f26-13f39b2d33bf",
+        "operation_kind": "task.create",
+        "workspace_id": "discord-nexus",
+        "target_kind": "checklist_task",
+        "target_id": "p9-3b-runtime-lease-wiring",
+        "source_kind": null,
+        "source_id": null,
+        "input_fingerprint": "23bf0bb84cca9eacce4b697b79117cbae38cad2630dc285e33823c93fd9957a4",
+        "before_fingerprint": "9888f3a21a9b60d369a39360c97a35b8b94d4178261cb4254da535d085b5eccf",
+        "after_fingerprint": "f0ce56e086e22f83a595d962daaf39a11c7cca09caf78253356934179c353762",
+        "files_applied_at": "2026-07-14T03:37:27Z"
+      }
     }
   ]
 }
