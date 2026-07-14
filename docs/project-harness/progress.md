@@ -2,6 +2,31 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-15 — P9-3C0 snapshot/restore compatibility plan approved
+
+- Kimi for Coding, routed through Claude Code outer `sonnet`, produced the
+  multi-source compatibility measurement and plan at exact commit `ffa7848`;
+  provider-native JSONL confirmed `message.model=kimi-for-coding`.
+- Codex rejected and corrected capture-failure call-chain errors, missing non-target
+  drift binding, prior-absence rollback inversion, transaction-order ambiguity, v1
+  key-shape ambiguity, and an uncommitted dirty-worktree revision before accepting the
+  exact plan for independent review.
+- The approved contract uses a v2 target `captured_state` plus digest-bound read-only
+  `preserved_state` witness. Capture validates the full projection; restore validates
+  the full current projection, any-source active leases, witness equality, and proposed
+  global union before deleting/reinserting only the target source.
+- v1 remains accepted only after an in-transaction single-source proof and is
+  normalized in memory to an empty witness; prior-absence restore may delete a target
+  created after capture.
+- Independent Kimi review ran Coordinate capacity (`91 passed`) and MultiNexus deploy
+  contract (`15 passed`) baselines, found no blocking findings, and returned
+  `APPROVED_FOR_P9_3C0_SNAPSHOT_COMPATIBILITY_IMPLEMENTATION_BOOTSTRAP`.
+- Production remains single-source. No fixture activation or live production restore
+  is authorized; implementation is split into Coordinate C1 and MultiNexus C2, with
+  real restore proof restricted to isolated/local/sidecar databases.
+- Exact plan review evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-plan-review.md`.
+
 ## 2026-07-15 — P9-3C0 Package 1 deployed and closed
 
 - Claude Code in `sonnet` outer mode used Kimi for Coding as the implementation worker;
