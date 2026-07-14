@@ -173,8 +173,21 @@ class TestCodexCancellation(unittest.IsolatedAsyncioTestCase):
         async def fake_exec(*args, **kwargs):
             return proc
 
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
         adapter = CodexAdapter(_config())
-        with patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.codex.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
             task = asyncio.create_task(adapter.call("hang"))
             await asyncio.sleep(0)
             task.cancel()
@@ -182,3 +195,95 @@ class TestCodexCancellation(unittest.IsolatedAsyncioTestCase):
                 await task
 
         self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
+
+
+class TestCodexProcessGroups(unittest.IsolatedAsyncioTestCase):
+    async def test_call_spawns_owned_group_and_cleans_activity_timeout_once(self):
+        proc = _FakeProcess(hang=True)
+        spawn_kwargs = {}
+        cleanup_calls = []
+
+        async def fake_exec(*args, **kwargs):
+            spawn_kwargs.update(kwargs)
+            return proc
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
+        adapter = CodexAdapter(_config(activity_timeout=0))
+        with (
+            patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.codex.async_subprocess_kwargs",
+                return_value={"start_new_session": True},
+            ),
+            patch(
+                "multinexus.adapters.codex.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
+            result = await adapter.call("hang")
+
+        self.assertIs(spawn_kwargs["start_new_session"], True)
+        self.assertEqual(cleanup_calls, [proc])
+        self.assertIn("stopped responding", result.text)
+
+    async def test_resume_spawns_owned_group_and_cleans_activity_timeout_once(self):
+        proc = _FakeProcess(hang=True)
+        spawn_kwargs = {}
+        cleanup_calls = []
+
+        async def fake_exec(*args, **kwargs):
+            spawn_kwargs.update(kwargs)
+            return proc
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
+        adapter = CodexAdapter(_config(activity_timeout=0))
+        with (
+            patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.codex.async_subprocess_kwargs",
+                return_value={"start_new_session": True},
+            ),
+            patch(
+                "multinexus.adapters.codex.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
+            result = await adapter.resume("thread-1", "hang")
+
+        self.assertIs(spawn_kwargs["start_new_session"], True)
+        self.assertEqual(cleanup_calls, [proc])
+        self.assertIn("stopped responding", result.text)
+        self.assertTrue(result.resumed)
+
+    async def test_cleanup_failure_is_explicit_and_not_retried(self):
+        proc = _FakeProcess(hang=True)
+        cleanup_calls = []
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        async def failing_cleanup(target):
+            cleanup_calls.append(target)
+            raise RuntimeError("process group cleanup failed")
+
+        adapter = CodexAdapter(_config(activity_timeout=0))
+        with (
+            patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.codex.terminate_owned_process_group",
+                new=failing_cleanup,
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "process group cleanup failed"):
+                await adapter.call("hang")
+
+        self.assertEqual(cleanup_calls, [proc])

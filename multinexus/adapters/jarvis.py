@@ -14,15 +14,19 @@ agents.toml 配置：
 from __future__ import annotations
 
 import asyncio
-import contextlib
 import logging
 import os
+import sys
 from collections.abc import Callable
 from typing import Any
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import filtered_env
+from .utils import (
+    async_subprocess_kwargs,
+    filtered_env,
+    terminate_owned_process_group,
+)
 
 log = logging.getLogger(__name__)
 
@@ -77,9 +81,19 @@ class JarvisAdapter(AgentAdapter):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=filtered_env(),
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError as e:
             return AdapterResult(text=f"SSH 不可用: {e}", metadata={"error": "no_ssh"})
+
+        cleanup_attempted = False
+
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
         try:
             stdout, stderr = await asyncio.wait_for(
@@ -87,20 +101,13 @@ class JarvisAdapter(AgentAdapter):
                 timeout=timeout,
             )
         except asyncio.TimeoutError:
-            with contextlib.suppress(Exception):
-                proc.kill()
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    pass
+            await cleanup()
             return AdapterResult(text="Jarvis 响应超时（Pad 可能休眠）", metadata={"error": "timeout"})
         except asyncio.CancelledError:
-            with contextlib.suppress(Exception):
-                proc.kill()
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    pass
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
             raise
 
         if proc.returncode != 0:
@@ -140,10 +147,11 @@ class JarvisAdapter(AgentAdapter):
 
 
 class LocalBrainAdapter(AgentAdapter):
-    """Jarvis agentd worker adapter — calls brain() directly (no SSH).
+    """Jarvis agentd worker adapter — calls brain() in an owned local process.
 
-    Runs inside the agentd worker ON the Pad. Imports jarvis_pkg.brain
-    directly and calls brain() in a thread (brain is synchronous).
+    Runs inside the agentd worker ON the Pad.  The child imports
+    ``jarvis_pkg.brain`` locally so timeout/cancellation can terminate the
+    entire owned process group instead of leaving an in-process thread alive.
     """
 
     def __init__(self, config: AgentConfig):
@@ -167,6 +175,22 @@ class LocalBrainAdapter(AgentAdapter):
             self._brain_fn = brain
         return self._brain_fn
 
+    def _build_cmd(self) -> list[str]:
+        """Return a command that imports jarvis_pkg.brain and reads from stdin."""
+        return [
+            sys.executable,
+            "-c",
+            (
+                "import os, sys\n"
+                "for d in ('/root', os.path.expanduser('~')):\n"
+                "    if d not in sys.path:\n"
+                "        sys.path.insert(0, d)\n"
+                "from jarvis_pkg.brain import brain\n"
+                "prompt = sys.stdin.read()\n"
+                "print(brain(prompt), end='')\n"
+            ),
+        ]
+
     async def call(
         self,
         prompt: str,
@@ -175,23 +199,66 @@ class LocalBrainAdapter(AgentAdapter):
         work_dir: str | None = None,
         on_progress: Callable[[str | dict[str, Any]], None] | None = None,
     ) -> AdapterResult:
-        """Call brain() directly in a worker thread."""
+        """Call brain() in a spawned subprocess that owns its process group."""
         timeout = timeout or self.config.timeout
-        brain = self._get_brain()
 
         if on_progress:
             on_progress({"status": "calling_brain"})
 
+        cwd = work_dir or self.config.work_dir
+        cmd = self._build_cmd()
+
         try:
-            text = await asyncio.wait_for(
-                asyncio.to_thread(brain, prompt),
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdin=asyncio.subprocess.PIPE,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=cwd,
+                env=filtered_env(cwd=cwd),
+                **async_subprocess_kwargs(),
+            )
+        except FileNotFoundError as e:
+            return AdapterResult(
+                text=f"Jarvis local brain 不可用: {e}",
+                metadata={"error": "no_python"},
+            )
+
+        cleanup_attempted = False
+
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(prompt.encode("utf-8")),
                 timeout=timeout,
             )
         except asyncio.TimeoutError:
+            await cleanup()
             return AdapterResult(text="Jarvis brain() 响应超时", metadata={"error": "timeout"})
+        except asyncio.CancelledError:
+            await cleanup()
+            raise
         except Exception as e:
-            return AdapterResult(text=f"Jarvis brain() 调用失败: {e}", metadata={"error": "brain_fail"})
+            await cleanup()
+            return AdapterResult(
+                text=f"Jarvis brain() 调用失败: {e}",
+                metadata={"error": "brain_fail"},
+            )
 
+        if proc.returncode != 0:
+            err = stderr.decode("utf-8", errors="replace").strip()[:500]
+            return AdapterResult(
+                text=f"Jarvis brain() 调用失败: {err}",
+                metadata={"error": "brain_fail", "rc": proc.returncode},
+            )
+
+        text = stdout.decode("utf-8", errors="replace").strip()
         return AdapterResult(text=text or "", session_id=None, metadata={"engine": "jarvis-local"})
 
     async def health_check(self) -> dict:

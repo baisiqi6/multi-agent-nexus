@@ -1,6 +1,6 @@
 import asyncio
 import unittest
-from unittest.mock import patch, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from multinexus.adapters.jarvis import JarvisAdapter
 from multinexus.models import AgentConfig
@@ -40,10 +40,21 @@ class TestJarvisCallSuccess(unittest.IsolatedAsyncioTestCase):
     async def test_basic_response(self):
         adapter = JarvisAdapter(_make_config())
         proc = FakeProcess(stdout=b"Hello from Jarvis\n")
-        with patch("multinexus.adapters.jarvis.asyncio.create_subprocess_exec", return_value=proc):
+        process_kwargs = {"start_new_session": True}
+        with (
+            patch(
+                "multinexus.adapters.jarvis.async_subprocess_kwargs",
+                return_value=process_kwargs,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ) as spawn,
+        ):
             result = await adapter.call("hi")
         self.assertEqual(result.text, "Hello from Jarvis")
         self.assertEqual(result.metadata["engine"], "jarvis")
+        self.assertEqual(spawn.call_args.kwargs["start_new_session"], True)
 
     async def test_empty_response(self):
         adapter = JarvisAdapter(_make_config())
@@ -70,11 +81,22 @@ class TestJarvisCallFailure(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(100)
             return b"", b""
         proc.communicate = _hang
-        with patch("multinexus.adapters.jarvis.asyncio.create_subprocess_exec", return_value=proc):
+        cleanup = AsyncMock(side_effect=lambda target: target.kill())
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
             result = await adapter.call("hi")
         self.assertIn("超时", result.text)
         self.assertEqual(result.metadata["error"], "timeout")
         self.assertTrue(proc.killed)
+        cleanup.assert_awaited_once_with(proc)
 
     async def test_cancellation(self):
         adapter = JarvisAdapter(_make_config())
@@ -86,7 +108,17 @@ class TestJarvisCallFailure(unittest.IsolatedAsyncioTestCase):
             await asyncio.Event().wait()
 
         proc.communicate = _hang
-        with patch("multinexus.adapters.jarvis.asyncio.create_subprocess_exec", return_value=proc):
+        cleanup = AsyncMock(side_effect=lambda target: target.kill())
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
             task = asyncio.create_task(adapter.call("hi"))
             await asyncio.wait_for(started.wait(), timeout=5)
             task.cancel()
@@ -94,6 +126,31 @@ class TestJarvisCallFailure(unittest.IsolatedAsyncioTestCase):
                 await task
 
         self.assertTrue(proc.killed)
+        cleanup.assert_awaited_once_with(proc)
+
+    async def test_cleanup_failure_propagates_once(self):
+        adapter = JarvisAdapter(_make_config(timeout=1))
+        proc = FakeProcess()
+
+        async def _hang(_input=None):
+            await asyncio.sleep(100)
+
+        proc.communicate = _hang
+        cleanup = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cleanup failed"):
+                await adapter.call("hi")
+
+        cleanup.assert_awaited_once_with(proc)
 
     async def test_ssh_missing(self):
         adapter = JarvisAdapter(_make_config())
@@ -145,40 +202,166 @@ class TestJarvisSshHostConfig(unittest.IsolatedAsyncioTestCase):
 
 
 class TestLocalBrainAdapter(unittest.IsolatedAsyncioTestCase):
-    """Tests for LocalBrainAdapter (agentd on Pad, direct brain() call)."""
+    """Tests for LocalBrainAdapter (agentd on Pad, owned local subprocess)."""
 
     async def test_call_success(self):
         from multinexus.adapters.jarvis import LocalBrainAdapter
+
         adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local"))
-        # Mock the lazy brain import
-        mock_brain = MagicMock(return_value="Hello from local brain")
-        with patch.dict("sys.modules", {"jarvis_pkg.brain": MagicMock(brain=mock_brain)}):
-            adapter._brain_fn = mock_brain  # bypass lazy import
+        proc = FakeProcess(stdout=b"Hello from local brain\n")
+        process_kwargs = {"start_new_session": True}
+        with (
+            patch(
+                "multinexus.adapters.jarvis.async_subprocess_kwargs",
+                return_value=process_kwargs,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ) as spawn,
+        ):
             result = await adapter.call("hi")
+
         self.assertEqual(result.text, "Hello from local brain")
         self.assertEqual(result.metadata["engine"], "jarvis-local")
+        self.assertEqual(spawn.call_args.kwargs["start_new_session"], True)
+        proc.communicate.assert_awaited_once_with(b"hi")
 
     async def test_call_timeout(self):
         from multinexus.adapters.jarvis import LocalBrainAdapter
+
         adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local", timeout=1))
-        async def _slow_brain(_func, *_args):
+
+        proc = FakeProcess()
+
+        async def _hang(_input=None):
             await asyncio.sleep(100)
-            return "never"
-        with patch("multinexus.adapters.jarvis.asyncio.to_thread", _slow_brain):
-            adapter._brain_fn = lambda p: None
+
+        proc.communicate = _hang
+        cleanup = AsyncMock(side_effect=lambda target: target.kill())
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
             result = await adapter.call("hi")
+
         self.assertIn("超时", result.text)
         self.assertEqual(result.metadata["error"], "timeout")
+        cleanup.assert_awaited_once_with(proc)
 
     async def test_call_brain_exception(self):
         from multinexus.adapters.jarvis import LocalBrainAdapter
+
         adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local"))
-        def _boom(_prompt):
+        proc = FakeProcess()
+
+        async def _boom(_input=None):
             raise RuntimeError("brain crashed")
-        adapter._brain_fn = _boom
-        result = await adapter.call("hi")
+
+        proc.communicate = _boom
+        cleanup = AsyncMock(side_effect=lambda target: target.kill())
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
+            result = await adapter.call("hi")
+
         self.assertIn("brain crashed", result.text)
         self.assertEqual(result.metadata["error"], "brain_fail")
+        cleanup.assert_awaited_once_with(proc)
+
+    async def test_call_cancellation_cleans_up_once(self):
+        from multinexus.adapters.jarvis import LocalBrainAdapter
+
+        adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local"))
+        proc = FakeProcess()
+        started = asyncio.Event()
+
+        async def _hang(_input=None):
+            started.set()
+            await asyncio.Event().wait()
+
+        proc.communicate = _hang
+        cleanup = AsyncMock(side_effect=lambda target: target.kill())
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
+            task = asyncio.create_task(adapter.call("hi"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
+        cleanup.assert_awaited_once_with(proc)
+
+    async def test_call_cleanup_failure_propagates_once(self):
+        from multinexus.adapters.jarvis import LocalBrainAdapter
+
+        adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local", timeout=1))
+        proc = FakeProcess()
+
+        async def _hang(_input=None):
+            await asyncio.sleep(100)
+
+        proc.communicate = _hang
+        cleanup = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+        with (
+            patch(
+                "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ),
+            patch(
+                "multinexus.adapters.jarvis.terminate_owned_process_group",
+                cleanup,
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "cleanup failed"):
+                await adapter.call("hi")
+
+        cleanup.assert_awaited_once_with(proc)
+
+    async def test_nonzero_child_returns_brain_fail(self):
+        from multinexus.adapters.jarvis import LocalBrainAdapter
+
+        adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local"))
+        proc = FakeProcess(stderr=b"brain crashed\n", returncode=1)
+        with patch(
+            "multinexus.adapters.jarvis.asyncio.create_subprocess_exec",
+            return_value=proc,
+        ):
+            result = await adapter.call("hi")
+
+        self.assertIn("brain crashed", result.text)
+        self.assertEqual(result.metadata["error"], "brain_fail")
+
+    def test_build_cmd_uses_current_python_and_brain_import(self):
+        import sys
+
+        from multinexus.adapters.jarvis import LocalBrainAdapter
+
+        adapter = LocalBrainAdapter(_make_config(adapter="jarvis-local"))
+        cmd = adapter._build_cmd()
+        self.assertEqual(cmd[:2], [sys.executable, "-c"])
+        self.assertIn("from jarvis_pkg.brain import brain", cmd[2])
 
     async def test_health_check_ok(self):
         from multinexus.adapters.jarvis import LocalBrainAdapter

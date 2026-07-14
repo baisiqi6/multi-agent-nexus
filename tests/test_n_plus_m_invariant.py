@@ -15,7 +15,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from multinexus.models import AgentConfig
 from multinexus.protocol import (
@@ -493,8 +493,8 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         self.assertEqual(len(reported_jobs), 1)
         self.assertEqual(reported_jobs[0]["status"], "failed")
 
-    def test_worker_reports_failed_job_on_invalid_payload(self):
-        """AgentdWorker reports 'failed' for invalid payload_json."""
+    def test_worker_drops_untrusted_invalid_payload_without_report(self):
+        """A lease-less malformed payload cannot be proven legacy; fail closed."""
         from multinexus.agentd.worker import AgentdWorker
 
         cfg = _config(
@@ -503,6 +503,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         )
 
         worker = AgentdWorker(cfg)
+        worker.adapter = AsyncMock()
 
         reported_jobs = []
         async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
@@ -518,8 +519,9 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         finally:
             loop.close()
 
-        self.assertEqual(len(reported_jobs), 1)
-        self.assertEqual(reported_jobs[0]["status"], "failed")
+        worker.adapter.call.assert_not_awaited()
+        worker.adapter.resume.assert_not_awaited()
+        self.assertEqual(reported_jobs, [])
 
     def test_worker_run_exits_on_stop(self):
         """AgentdWorker.run() exits its loop when stop() is called."""
@@ -534,12 +536,12 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         claim_count = 0
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             nonlocal claim_count
             claim_count += 1
             if claim_count >= 2:
                 worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
 
@@ -558,10 +560,12 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         seen = {}
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             seen["recoverable"] = recoverable
+            seen["recovery_reason"] = recovery_reason
+            seen["prior_process_stopped"] = prior_process_stopped
             worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
         loop = asyncio.new_event_loop()
@@ -572,6 +576,8 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         self.assertIn("recoverable", seen)
         self.assertFalse(seen["recoverable"], "default worker.run must pass recoverable=False")
+        self.assertEqual(seen.get("recovery_reason"), "")
+        self.assertFalse(seen.get("prior_process_stopped"), "default worker.run must pass prior_process_stopped=False")
 
     def test_worker_run_recoverable_mode_passes_recoverable(self):
         """8.4.3 P1 #3 fix: operator recovery mode (--recoverable) passes recoverable=True to claim."""
@@ -582,20 +588,24 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         seen = {}
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             seen["recoverable"] = recoverable
+            seen["recovery_reason"] = recovery_reason
+            seen["prior_process_stopped"] = prior_process_stopped
             worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True))
+            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True, recovery_reason="prior-process-crashed", prior_process_stopped=True))
         finally:
             loop.close()
 
         self.assertIn("recoverable", seen)
         self.assertTrue(seen["recoverable"], "recovery mode worker.run must pass recoverable=True")
+        self.assertEqual(seen.get("recovery_reason"), "prior-process-crashed")
+        self.assertTrue(seen.get("prior_process_stopped"), "recovery mode worker.run must pass prior_process_stopped=True")
         self.assertFalse(worker._running)
 
     def test_is_error_recognizes_codex_resume_failed(self):

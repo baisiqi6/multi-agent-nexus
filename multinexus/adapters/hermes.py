@@ -1,11 +1,10 @@
 import asyncio
-import contextlib
 import shutil
 import logging
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 log = logging.getLogger(__name__)
 
@@ -52,30 +51,30 @@ class HermesAdapter(AgentAdapter):
                 cwd=cwd,
                 env=filtered_env(cwd=cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"Hermes CLI not found: {self.config.hermes_bin}")
 
+        cleanup_attempted = False
+
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
+
         try:
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(), timeout=timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
-            with contextlib.suppress(Exception):
-                proc.kill()
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    pass
+            await cleanup()
             return AdapterResult(text=f"Hermes timed out after {timeout}s")
         except asyncio.CancelledError:
-            with contextlib.suppress(Exception):
-                proc.kill()
-                try:
-                    await asyncio.wait_for(proc.wait(), timeout=5)
-                except asyncio.TimeoutError:
-                    pass
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
             raise
 
         stdout_text = stdout.decode("utf-8", errors="replace").strip()

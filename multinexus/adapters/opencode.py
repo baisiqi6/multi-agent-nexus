@@ -1,5 +1,4 @@
 import asyncio
-import contextlib
 import json
 import logging
 import shutil
@@ -7,27 +6,11 @@ from collections.abc import Callable
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 log = logging.getLogger(__name__)
 
 EMPTY_TEXT_RETRIES = 4
-
-
-async def _kill_process(proc: asyncio.subprocess.Process) -> None:
-    """Kill a subprocess and wait briefly for it to exit.
-
-    This is awaited from timeout and cancellation paths so the process is
-    reaped before the adapter returns or re-raises.
-    """
-    if proc.returncode is not None:
-        return
-    with contextlib.suppress(ProcessLookupError):
-        proc.kill()
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=5)
-    except asyncio.TimeoutError:
-        pass
 
 
 class OpenCodeAdapter(AgentAdapter):
@@ -107,30 +90,39 @@ class OpenCodeAdapter(AgentAdapter):
                 cwd=cwd,
                 env=filtered_env(cwd=cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"OpenCode CLI not found: {self.config.opencode_bin}")
 
-        # Write prompt to stdin, then close
-        assert proc.stdin is not None
-        proc.stdin.write(full_prompt.encode("utf-8"))
-        await proc.stdin.drain()
-        proc.stdin.close()
+        cleanup_attempted = False
 
-        loop = asyncio.get_event_loop()
-        deadline = loop.time() + timeout
-        last_activity = loop.time()
-        saw_output = False
-        response_parts: list[str] = []
-        session_id: str | None = resume_session_id
-        event_types_seen: set[str] = set()
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
-        while True:
-            try:
+        try:
+            # Write prompt to stdin, then close
+            assert proc.stdin is not None
+            proc.stdin.write(full_prompt.encode("utf-8"))
+            await proc.stdin.drain()
+            proc.stdin.close()
+
+            loop = asyncio.get_event_loop()
+            deadline = loop.time() + timeout
+            last_activity = loop.time()
+            saw_output = False
+            response_parts: list[str] = []
+            session_id: str | None = resume_session_id
+            event_types_seen: set[str] = set()
+
+            while True:
                 now = loop.time()
                 if now >= deadline:
-                    await _kill_process(proc)
+                    await cleanup()
                     return AdapterResult(text=f"OpenCode timed out after {timeout}s")
 
                 assert proc.stdout is not None
@@ -143,12 +135,12 @@ class OpenCodeAdapter(AgentAdapter):
                 except asyncio.TimeoutError:
                     elapsed = loop.time() - last_activity
                     if not saw_output and elapsed >= self.config.first_byte_timeout:
-                        await _kill_process(proc)
+                        await cleanup()
                         return AdapterResult(
                             text=f"OpenCode timed out: no output after {self.config.first_byte_timeout}s"
                         )
                     if saw_output and elapsed >= self.config.activity_timeout:
-                        await _kill_process(proc)
+                        await cleanup()
                         return AdapterResult(
                             text=f"OpenCode timed out: no activity for {self.config.activity_timeout}s"
                         )
@@ -190,11 +182,13 @@ class OpenCodeAdapter(AgentAdapter):
                             else "\n".join(response_parts)
                         )
 
-            except asyncio.CancelledError:
-                await _kill_process(proc)
-                raise
-
-        await proc.wait()
+            await proc.wait()
+        except asyncio.CancelledError:
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
+            raise
 
         stderr_text = ""
         if proc.returncode != 0:

@@ -72,17 +72,19 @@ class _FakeProcess:
             self.returncode = -9
 
 
-def _config():
-    return AgentConfig(
-        id="win-opencode",
-        token="",
-        adapter="opencode",
-        opencode_bin="opencode",
-        work_dir=".",
-        timeout=30,
-        first_byte_timeout=5,
-        activity_timeout=5,
-    )
+def _config(**overrides):
+    values = {
+        "id": "win-opencode",
+        "token": "",
+        "adapter": "opencode",
+        "opencode_bin": "opencode",
+        "work_dir": ".",
+        "timeout": 30,
+        "first_byte_timeout": 5,
+        "activity_timeout": 5,
+    }
+    values.update(overrides)
+    return AgentConfig(**values)
 
 
 class OpenCodeAdapterRetryTests(unittest.TestCase):
@@ -170,9 +172,22 @@ class OpenCodeAdapterCancellationTests(unittest.IsolatedAsyncioTestCase):
         async def fake_create(*args, **kwargs):
             return proc
 
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
         adapter = OpenCodeAdapter(_config())
-        with patch(
-            "multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create
+        with (
+            patch(
+                "multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create
+            ),
+            patch(
+                "multinexus.adapters.opencode.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
         ):
             task = asyncio.create_task(adapter.call("hello"))
             await asyncio.wait_for(started.wait(), timeout=5)
@@ -181,6 +196,68 @@ class OpenCodeAdapterCancellationTests(unittest.IsolatedAsyncioTestCase):
                 await task
 
         self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
+
+    async def test_spawn_kwargs_and_first_byte_timeout_cleanup(self):
+        proc = _FakeProcess([], hang=True, returncode=None)
+        spawn_kwargs = {}
+        cleanup_calls = []
+
+        async def fake_create(*args, **kwargs):
+            spawn_kwargs.update(kwargs)
+            return proc
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
+        adapter = OpenCodeAdapter(_config(first_byte_timeout=0))
+        with (
+            patch(
+                "multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create
+            ),
+            patch(
+                "multinexus.adapters.opencode.async_subprocess_kwargs",
+                return_value={"start_new_session": True},
+            ),
+            patch(
+                "multinexus.adapters.opencode.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
+            result = await adapter.call("hello")
+
+        self.assertIs(spawn_kwargs["start_new_session"], True)
+        self.assertIs(spawn_kwargs["stdin"], asyncio.subprocess.PIPE)
+        self.assertEqual(cleanup_calls, [proc])
+        self.assertIn("no output", result.text)
+
+    async def test_cleanup_failure_is_explicit_and_not_retried(self):
+        proc = _FakeProcess([], hang=True, returncode=None)
+        cleanup_calls = []
+
+        async def fake_create(*args, **kwargs):
+            return proc
+
+        async def failing_cleanup(target):
+            cleanup_calls.append(target)
+            raise RuntimeError("process group cleanup failed")
+
+        adapter = OpenCodeAdapter(_config(first_byte_timeout=0))
+        with (
+            patch(
+                "multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create
+            ),
+            patch(
+                "multinexus.adapters.opencode.terminate_owned_process_group",
+                new=failing_cleanup,
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "process group cleanup failed"):
+                await adapter.call("hello")
+
+        self.assertEqual(cleanup_calls, [proc])
 
 
 if __name__ == "__main__":

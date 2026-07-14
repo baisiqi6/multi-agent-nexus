@@ -7,7 +7,7 @@ from typing import Any
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 log = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class CodexAdapter(AgentAdapter):
                 cwd=effective_cwd,
                 env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return CodexRunResult(f"Codex CLI not found: {self.config.codex_bin}")
@@ -231,17 +231,26 @@ class CodexAdapter(AgentAdapter):
                 cwd=effective_cwd,
                 env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"Codex CLI not found: {self.config.codex_bin}")
 
-        assert proc.stdin is not None
-        proc.stdin.write(full_prompt.encode("utf-8"))
-        await proc.stdin.drain()
-        proc.stdin.close()
+        cleanup_attempted = False
+
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
         try:
+            assert proc.stdin is not None
+            proc.stdin.write(full_prompt.encode("utf-8"))
+            await proc.stdin.drain()
+            proc.stdin.close()
+
             response_text = ""
             error_text = ""
             session_id: str | None = None
@@ -252,7 +261,7 @@ class CodexAdapter(AgentAdapter):
             while True:
                 now = loop.time()
                 if now >= deadline:
-                    proc.kill()
+                    await cleanup()
                     return AdapterResult(text=f"Codex timed out after {timeout}s")
 
                 assert proc.stdout is not None
@@ -261,7 +270,7 @@ class CodexAdapter(AgentAdapter):
                     raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
                 except asyncio.TimeoutError:
                     if loop.time() - last_activity >= self.config.activity_timeout:
-                        proc.kill()
+                        await cleanup()
                         return AdapterResult(
                             text=f"Codex stopped responding for {self.config.activity_timeout}s"
                         )
@@ -302,11 +311,10 @@ class CodexAdapter(AgentAdapter):
                 resumed=True,
             )
         except asyncio.CancelledError:
-            proc.kill()
-            try:
-                await asyncio.wait_for(proc.wait(), timeout=5)
-            except asyncio.TimeoutError:
-                pass
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
             raise
 
     async def health_check(self) -> dict:
@@ -325,11 +333,6 @@ async def _run_codex_process(
     timeout: int,
     activity_timeout: int,
 ) -> CodexRunResult:
-    assert proc.stdin is not None
-    proc.stdin.write(full_prompt.encode("utf-8"))
-    await proc.stdin.drain()
-    proc.stdin.close()
-
     response_text = ""
     session_id: str | None = None
     stdout_tail: list[str] = []
@@ -337,12 +340,25 @@ async def _run_codex_process(
     loop = asyncio.get_event_loop()
     deadline = loop.time() + timeout
     last_activity = loop.time()
+    cleanup_attempted = False
+
+    async def cleanup() -> None:
+        nonlocal cleanup_attempted
+        if cleanup_attempted:
+            return
+        cleanup_attempted = True
+        await terminate_owned_process_group(proc)
 
     try:
+        assert proc.stdin is not None
+        proc.stdin.write(full_prompt.encode("utf-8"))
+        await proc.stdin.drain()
+        proc.stdin.close()
+
         while True:
             now = loop.time()
             if now >= deadline:
-                proc.kill()
+                await cleanup()
                 return CodexRunResult(f"Codex timed out after {timeout}s", session_id=session_id)
 
             assert proc.stdout is not None
@@ -351,7 +367,7 @@ async def _run_codex_process(
                 raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
             except asyncio.TimeoutError:
                 if loop.time() - last_activity >= activity_timeout:
-                    proc.kill()
+                    await cleanup()
                     return CodexRunResult(
                         f"Codex stopped responding for {activity_timeout}s",
                         session_id=session_id,
@@ -397,9 +413,8 @@ async def _run_codex_process(
             )
         return CodexRunResult(response_text.strip() or "(no response)", session_id=session_id)
     except asyncio.CancelledError:
-        proc.kill()
-        try:
-            await asyncio.wait_for(proc.wait(), timeout=5)
-        except asyncio.TimeoutError:
-            pass
+        await cleanup()
+        raise
+    except Exception:
+        await cleanup()
         raise

@@ -80,16 +80,25 @@ class ClaudeAdapterProgressTests(unittest.IsolatedAsyncioTestCase):
         ]
         proc = _FakeProcess(events)
         progress = []
+        spawn_kwargs = {}
 
         async def fake_exec(*args, **kwargs):
+            spawn_kwargs.update(kwargs)
             return proc
 
         adapter = ClaudeAdapter(_config())
-        with patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.claude.async_subprocess_kwargs",
+                return_value={"start_new_session": True},
+            ),
+        ):
             result = await adapter.call("do work", on_progress=progress.append)
 
         self.assertEqual(result.text, "done")
         self.assertEqual(result.session_id, "sess-1")
+        self.assertIs(spawn_kwargs["start_new_session"], True)
         self.assertIn(
             {"stage": "session", "summary": "Claude session initialized", "session_id": "sess-1"},
             progress,
@@ -110,11 +119,25 @@ class ClaudeAdapterCleanupTests(unittest.IsolatedAsyncioTestCase):
         async def fake_exec(*args, **kwargs):
             return proc
 
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
         adapter = ClaudeAdapter(_config(timeout=30, activity_timeout=0))
-        with patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.claude.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
             result = await adapter.call("hang")
 
         self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
         self.assertEqual(result.session_id, "sess-timeout")
         self.assertEqual(result.metadata["timeout"]["kind"], "activity")
         self.assertTrue(result.metadata["timeout"]["resume_allowed"])
@@ -125,8 +148,21 @@ class ClaudeAdapterCleanupTests(unittest.IsolatedAsyncioTestCase):
         async def fake_exec(*args, **kwargs):
             return proc
 
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
         adapter = ClaudeAdapter(_config())
-        with patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.claude.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
             task = asyncio.create_task(adapter.call("hang"))
             await asyncio.sleep(0)
             task.cancel()
@@ -134,3 +170,29 @@ class ClaudeAdapterCleanupTests(unittest.IsolatedAsyncioTestCase):
                 await task
 
         self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
+
+    async def test_cleanup_failure_is_reported_without_retry(self):
+        proc = _FakeProcess(hang=True)
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        cleanup_calls = []
+
+        async def failing_cleanup(target):
+            cleanup_calls.append(target)
+            raise RuntimeError("process group cleanup failed")
+
+        adapter = ClaudeAdapter(_config(first_byte_timeout=0))
+        with (
+            patch("multinexus.adapters.claude.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.claude.terminate_owned_process_group",
+                new=failing_cleanup,
+            ),
+        ):
+            result = await adapter.call("hang")
+
+        self.assertEqual(cleanup_calls, [proc])
+        self.assertIn("process group cleanup failed", result.text)
