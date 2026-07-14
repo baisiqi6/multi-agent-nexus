@@ -2474,7 +2474,7 @@
     {
       "id": "p9-3b-runtime-lease-wiring",
       "title": "P9-3B Runtime Lease Wiring",
-      "status": "doing",
+      "status": "done",
       "phase": "ready",
       "priority": "p1",
       "owner": "mac-claude",
@@ -2490,18 +2490,18 @@
         "reason": null
       },
       "selected_in_session": "p9-3b-kimi-corrections-20260714",
-      "updated_at": "2026-07-14",
+      "updated_at": "2026-07-14T18:57:12Z",
       "workflow": {
-        "status": "review_approved",
+        "status": "closed",
         "branch": "agents/mac-claude/p9-3b-runtime-lease-wiring",
-        "updated_at": "2026-07-14"
+        "updated_at": "2026-07-14T18:57:12Z"
       },
       "artifacts": {
         "plan": "docs/project-harness/tasks/p9-3b-runtime-lease-wiring/plan.md",
         "branch": "agents/mac-claude/p9-3b-runtime-lease-wiring",
         "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
-      "verification": "",
+      "verification": "Coordinate 2396 passed plus 493 subtests with 9 exact historical failures; MultiNexus 650 passed 2 skipped; synchronized production deploy healthy; DB integrity ok schema 13 active leases 0; review approved 3e93a81f",
       "review": {
         "decision": "approved",
         "reviewer": "mac-codex",
@@ -2529,6 +2529,12 @@
         "acquired_at": "2026-07-14T18:51:52Z",
         "expires_at": "2026-07-14T20:51:52Z",
         "ttl_minutes": 120
+      },
+      "completion_receipt": {
+        "receipt_id": "8f36d34c-0485-4cef-be54-8eaad08404e2",
+        "before_fingerprint": "07bf20b961012279dbe225684ca8577e22178b7948547e6754f0c545bbdb75ee",
+        "after_fingerprint": "e407e9608d602f88716fc4da8fbbbf3adc97ad91ea74a9962877f01933beed40",
+        "applied_at": "2026-07-14T18:57:12Z"
       }
     }
   ]
