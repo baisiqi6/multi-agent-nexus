@@ -552,3 +552,105 @@ MultiNexus (GLM Round 3 + DeepSeek Round 4 corrections):
 
 Coordinate: `375669b7e7b80db715cfbd59b1d48bfff6960cb0`
 MultiNexus: `4a4af5cf09620b57a49a5ba3f280657856aee042`
+
+## Result Review Correction Round 5/6 — Final Local Gate
+
+- Approved plan SHA-256:
+  `d75486b42e8d3315bda488db1129e02c03c0a2c152c04a60cccce917a385d99e`
+- Superseded review verdict: `changes_requested` in `result-review-round3.md`.
+- Coordinate correction commit:
+  `af8461efdf6beb7c47560fe3d17b30f2ac6696ba`.
+- MultiNexus correction commit:
+  `5f2db610dac3a16479598dbef3bceb520bf47cad`.
+
+Round 5 used `deepseek/deepseek-v4-pro`, provider session
+`019f5e52-4078-7000-a66e-4d10625965b0`. Its Coordinate correction was independently
+reviewed and accepted, but its MultiNexus test weakening was rejected: checking for a
+generic `sudo rm` log line does not prove that remote staging, snapshot, and backup
+artifacts were removed.
+
+Round 6 used `minimax-code-cn/MiniMax-M3`, provider session
+`019f5e65-d098-7000-bbb6-31d84ebf2a5c`, in a fresh MultiNexus worktree. The provider
+aborted while constructing the complete DB fixture. Codex retained only reviewed design
+intent and completed the correction under the result-review gate; no incomplete worker
+commit was accepted.
+
+### Coordinate closure for R3.1-R3.4
+
+- Snapshot restore now requires exact enabled-binding policy coverage before DELETE.
+- Canonical UTC values are parsed as real `%Y-%m-%dT%H:%M:%SZ` timestamps.
+- The complete current target projection is validated before mutation, including orphan
+  policies, source linkage, policy-id recomputation, capacities, timestamps, and coverage.
+- Source paths reject Unicode control characters.
+- Atomic output cleanup removes the final path when a post-`os.replace()` operation
+  fails.
+- Recomputed-digest and current-corruption adversarial tests prove zero mutation on
+  rejection.
+
+Independent verification:
+
+```text
+PYTHONPATH=src python -m pytest \
+  tests/test_executor_capacity.py \
+  tests/test_execution_resources.py \
+  tests/test_execution_leases.py \
+  tests/test_db.py \
+  tests/test_execution_cli.py \
+  --import-mode=importlib -q
+226 passed, 5 subtests passed
+
+PYTHONPATH=src python -m pytest tests/ --import-mode=importlib -q
+9 failed, 2314 passed, 493 subtests passed
+```
+
+The nine failures are the unchanged historical baseline: eight CLI rewind/hash contract
+tests and one issue-handler AST-body test. Seventeen targeted adversarial selectors also
+passed independently.
+
+### MultiNexus closure for R3.5-R3.6
+
+- Staging, capacity snapshot, and authority backup paths share a unique per-invocation
+  run id derived from reviewed SHA, deploy-shell PID, and portable UTC timestamp.
+- Global trap state survives function scope; the EXIT trap is fallback-only.
+- Capture, rollback, and accepted paths perform explicit cleanup; accepted cleanup must
+  succeed before `VERSION_DEPLOYED` or service restart.
+- Restore failures are loud `recovery-failure` outcomes; no primary restore is swallowed
+  with `|| true`.
+- The fake SSH environment maps `/tmp` into an isolated remote filesystem and assertions
+  inspect actual residue, not cleanup-command presence.
+- Complete ordered `SELECT *` snapshots cover workspace, roster source/entries,
+  agent/runner rows, executor source/definitions/bindings, and capacity source/policies.
+  Successful rollback compares every captured column and exact authority bytes.
+- Prior absence records complete roster/executor state plus exact empty capacity. Restore
+  hard failure compares every component actually restored and proves v2 capacity remains.
+- Fault coverage includes success, rollback, post-write capture failure, source-mutation
+  plus restore double failure, accepted-cleanup first failure with EXIT retry, and repeated
+  same-SHA path isolation.
+- The controlled source replacement uses `rsync --checksum`; this closes a same-size,
+  same-second-mtime case where `rsync -a` can otherwise retain stale authority bytes.
+
+Independent verification:
+
+```text
+bash -n scripts/deploy-server.sh
+python -m py_compile tests/test_deploy_contract.py
+
+PYTHONPATH=. python -m pytest \
+  tests/test_executor_capacity_authority.py \
+  tests/test_deploy_contract.py \
+  tests/test_smoke_contract.py -q
+38 passed
+
+PYTHONPATH=. python -m pytest tests -q
+530 passed, 2 skipped, 1 warning, 36 subtests passed
+```
+
+`git diff --check` passed in both repositories.
+
+### Final local verdict
+
+R3.1 through R3.7 are closed at the local code/result-review gate. The implementation is
+approved for canonical integration and the separately gated production backup, deploy,
+restart, smoke, data-integrity, dogfood, receipt, and documentation closeout. P9-3A still
+does not make capacity a runtime claim authority; production safety requires zero active
+execution leases until P9-3B replaces this temporary rollout assumption.
