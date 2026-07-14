@@ -10,19 +10,16 @@ Verifies that:
 
 import asyncio
 import hashlib
+import importlib.util
 import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from multinexus.models import AgentConfig
 from multinexus.protocol import (
     AgentRequest,
-    AgentResponse,
-    Platform,
-    PlatformDestination,
-    PlatformOrigin,
 )
 
 
@@ -146,13 +143,8 @@ class TestKookBridgeImportBehavior(unittest.TestCase):
 
     def test_kook_bridge_requires_coordinator_cli(self):
         """KookBridge in agentd_mode without coordinator_cli_path must fail."""
-        import sys
-        if "khl" not in sys.modules:
-            try:
-                import khl
-            except ImportError:
-                self.skipTest("khl not installed")
-                return
+        if importlib.util.find_spec("khl") is None:
+            self.skipTest("khl not installed")
 
         from multinexus.kook.bot import KookBridge
         cfg = _config(
@@ -167,13 +159,8 @@ class TestKookBridgeImportBehavior(unittest.TestCase):
 
     def test_kook_bridge_no_embedded_agentd(self):
         """KookBridge must not have embedded AgentDaemon."""
-        import sys
-        if "khl" not in sys.modules:
-            try:
-                import khl
-            except ImportError:
-                self.skipTest("khl not installed")
-                return
+        if importlib.util.find_spec("khl") is None:
+            self.skipTest("khl not installed")
 
         from multinexus.kook.bot import KookBridge
         cfg = _config(agentd_mode=False, kook_poll_channel_ids=[123])
@@ -301,7 +288,6 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
 
         # Capture the command that would be run
         import subprocess
-        original_run = subprocess.run
         commands_seen = []
 
         def mock_run(cmd, **kwargs):
@@ -349,7 +335,6 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
     def test_both_bridges_submit_via_coordinate(self):
         """Both bridges submit to coordinate runtime for the same agent."""
         from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
-        from multinexus.models import AgentConfig
 
         # Verify both configs point to the same coordinate instance
         cfg = _config(
@@ -392,7 +377,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -445,7 +430,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -492,7 +477,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker.adapter = FailingAdapter(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -508,8 +493,8 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         self.assertEqual(len(reported_jobs), 1)
         self.assertEqual(reported_jobs[0]["status"], "failed")
 
-    def test_worker_reports_failed_job_on_invalid_payload(self):
-        """AgentdWorker reports 'failed' for invalid payload_json."""
+    def test_worker_drops_untrusted_invalid_payload_without_report(self):
+        """A lease-less malformed payload cannot be proven legacy; fail closed."""
         from multinexus.agentd.worker import AgentdWorker
 
         cfg = _config(
@@ -518,9 +503,10 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         )
 
         worker = AgentdWorker(cfg)
+        worker.adapter = AsyncMock()
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -533,8 +519,9 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         finally:
             loop.close()
 
-        self.assertEqual(len(reported_jobs), 1)
-        self.assertEqual(reported_jobs[0]["status"], "failed")
+        worker.adapter.call.assert_not_awaited()
+        worker.adapter.resume.assert_not_awaited()
+        self.assertEqual(reported_jobs, [])
 
     def test_worker_run_exits_on_stop(self):
         """AgentdWorker.run() exits its loop when stop() is called."""
@@ -549,12 +536,12 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         claim_count = 0
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             nonlocal claim_count
             claim_count += 1
             if claim_count >= 2:
                 worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
 
@@ -573,10 +560,12 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         seen = {}
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             seen["recoverable"] = recoverable
+            seen["recovery_reason"] = recovery_reason
+            seen["prior_process_stopped"] = prior_process_stopped
             worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
         loop = asyncio.new_event_loop()
@@ -587,6 +576,8 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         self.assertIn("recoverable", seen)
         self.assertFalse(seen["recoverable"], "default worker.run must pass recoverable=False")
+        self.assertEqual(seen.get("recovery_reason"), "")
+        self.assertFalse(seen.get("prior_process_stopped"), "default worker.run must pass prior_process_stopped=False")
 
     def test_worker_run_recoverable_mode_passes_recoverable(self):
         """8.4.3 P1 #3 fix: operator recovery mode (--recoverable) passes recoverable=True to claim."""
@@ -597,20 +588,24 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         seen = {}
 
-        async def mock_claim(*, agent_id, recoverable=False):
+        async def mock_claim(*, agent_id, recoverable=False, recovery_reason="", prior_process_stopped=False):
             seen["recoverable"] = recoverable
+            seen["recovery_reason"] = recovery_reason
+            seen["prior_process_stopped"] = prior_process_stopped
             worker.stop()
-            return None
+            return {"claimed": False, "reason": "queue_empty"}
 
         worker.coordinate.claim_job = mock_claim
         loop = asyncio.new_event_loop()
         try:
-            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True))
+            loop.run_until_complete(worker.run(poll_interval=0.01, recoverable=True, recovery_reason="prior-process-crashed", prior_process_stopped=True))
         finally:
             loop.close()
 
         self.assertIn("recoverable", seen)
         self.assertTrue(seen["recoverable"], "recovery mode worker.run must pass recoverable=True")
+        self.assertEqual(seen.get("recovery_reason"), "prior-process-crashed")
+        self.assertTrue(seen.get("prior_process_stopped"), "recovery mode worker.run must pass prior_process_stopped=True")
         self.assertFalse(worker._running)
 
     def test_is_error_recognizes_codex_resume_failed(self):
@@ -878,7 +873,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
         worker.coordinate.report_job = mock_report
 
@@ -914,7 +909,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status})
         worker.coordinate.report_job = mock_report
 
@@ -975,7 +970,7 @@ class TestWorkerSessionResume(unittest.TestCase):
             progress.append(kwargs)
             return {"result": {}}
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1039,7 +1034,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1101,7 +1096,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1163,7 +1158,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1254,7 +1249,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "text": result_json.get("response_text", "")})
         worker.coordinate.report_job = mock_report
 

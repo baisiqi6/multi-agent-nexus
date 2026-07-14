@@ -1,7 +1,9 @@
 """Tests for agentd worker integration of the executor binding validator."""
+
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import tempfile
 import unittest
@@ -25,17 +27,29 @@ def _config(**overrides):
 
 
 def _make_binding(**overrides) -> dict[str, object]:
-    fixture = json.loads(
-        (Path(__file__).resolve().parent.parent / "tests" / "fixtures" / "executor_binding_v1.json")
-        .read_text(encoding="utf-8")
+    snapshot = {
+        "contract_version": 1,
+        "source_id": "multinexus.discord",
+        "source_version": 1,
+        "catalog_hash": "8d7632488bea64fe5b5145110004c07b016af92e446b1e54c7f234f9823216bc",
+        "executor_definition_id": "omp-code",
+        "executor_instance_id": "mac-omp",
+        "runner_profile_id": "mac-omp",
+        "provider": "kimi-code",
+        "adapter": "omp",
+        "capabilities": ["coding", "review"],
+    }
+    snapshot.update(overrides)
+    canonical = json.dumps(
+        snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":")
     )
-    fixture.update(overrides)
-    return fixture
+    snapshot["binding_id"] = (
+        "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    )
+    return snapshot
 
 
 def _make_context(job_id: str = "request:e1") -> dict[str, object]:
-    import hashlib
-
     ctx = {
         "job_id": job_id,
         "workspace_id": "ws",
@@ -51,13 +65,66 @@ def _make_context(job_id: str = "request:e1") -> dict[str, object]:
         "log_handle": {"kind": "coordinate_job", "job_id": job_id, "logs_path": None},
         "contract_version": 1,
     }
-    canonical = json.dumps(ctx, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-    ctx["context_id"] = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    canonical = json.dumps(
+        ctx, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    ctx["context_id"] = (
+        "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    )
     return ctx
 
 
-def _claim_result(binding: dict[str, object] | None = None) -> dict[str, object]:
+def _make_lease(
+    *,
+    job_id: str = "request:e1",
+    agent_id: str = "mac-omp",
+    runner_profile_id: str = "mac-omp",
+    host_id: str = "host1",
+    worktree_path: str = "/host/ws",
+    attempt_token: int = 1,
+) -> dict[str, object]:
+    import hashlib
+    import json
+
+    resource = {
+        "contract_version": 1,
+        "resource_kind": "worktree",
+        "host_id": host_id,
+        "normalized_path": worktree_path,
+    }
+    canonical = json.dumps(
+        resource, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    resource_key = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
     return {
+        "contract_version": 1,
+        "lease_id": "039bdcda-de94-4bbd-9f26-13f39b2d33bf",
+        "job_id": job_id,
+        "attempt_token": attempt_token,
+        "agent_id": agent_id,
+        "runner_profile_id": runner_profile_id,
+        "host_id": host_id,
+        "resource_kind": "worktree",
+        "resource_key": resource_key,
+        "normalized_path": worktree_path,
+        "capacity_policy_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "max_concurrent_jobs": 1,
+        "acquired_at": "2026-07-14T12:00:00Z",
+        "expires_at": "2026-07-14T12:02:00Z",
+        "server_now": "2026-07-14T12:00:00Z",
+        "ttl_seconds": 120,
+        "renew_interval_seconds": 30,
+    }
+
+
+def _claim_result(
+    binding: dict[str, object] | None = None,
+    include_lease: bool = True,
+) -> dict[str, object]:
+    payload: dict[str, object] = {"prompt": "hello"}
+    if binding is not None:
+        payload["executor_binding"] = binding
+    result: dict[str, object] = {
         "claimed": True,
         "job": {
             "id": "request:e1",
@@ -65,7 +132,7 @@ def _claim_result(binding: dict[str, object] | None = None) -> dict[str, object]
             "assigned_agent": "mac-omp",
             "attempt_count": 1,
             "payload_json": json.dumps(
-                {"prompt": "hello", "executor_binding": binding},
+                payload,
                 ensure_ascii=False,
                 sort_keys=True,
                 separators=(",", ":"),
@@ -74,13 +141,18 @@ def _claim_result(binding: dict[str, object] | None = None) -> dict[str, object]
         "attempt_token": 1,
         "execution_context": _make_context(),
     }
+    if include_lease:
+        result["execution_lease"] = _make_lease()
+    return result
 
 
 class WorkerBindingIntegrationTests(unittest.TestCase):
     def _make_worker(self, config=None):
         worker = AgentdWorker(config or _config())
         worker.adapter = AsyncMock()
-        worker.adapter.call = AsyncMock(return_value=AdapterResult(text="ok", session_id="s1"))
+        worker.adapter.call = AsyncMock(
+            return_value=AdapterResult(text="ok", session_id="s1")
+        )
         return worker
 
     def _run(self, coro):
@@ -94,7 +166,9 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(
+            *, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None
+        ):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
@@ -110,11 +184,13 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(
+            *, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None
+        ):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
-        self._run(worker._process_job(_claim_result(None)))
+        self._run(worker._process_job(_claim_result(None, include_lease=False)))
 
         self.assertEqual(len(reported), 1)
         self.assertEqual(reported[0]["status"], "done")
@@ -125,8 +201,16 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker(_config(adapter="claude"))
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
-            reported.append({"status": status, "result_json": result_json, "attempt_token": attempt_token})
+        async def mock_report(
+            *, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None
+        ):
+            reported.append(
+                {
+                    "status": status,
+                    "result_json": result_json,
+                    "attempt_token": attempt_token,
+                }
+            )
 
         worker.coordinate.report_job = mock_report
         self._run(worker._process_job(_claim_result(_make_binding())))
@@ -141,12 +225,24 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(
+            *, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None
+        ):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
         binding = _make_binding()
         binding["executor_instance_id"] = "other"
+        binding["runner_profile_id"] = "other"
+        canonical = json.dumps(
+            {k: v for k, v in binding.items() if k != "binding_id"},
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        binding["binding_id"] = (
+            "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        )
         self._run(worker._process_job(_claim_result(binding)))
 
         self.assertEqual(len(reported), 1)

@@ -6,7 +6,7 @@ from collections.abc import Callable
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 log = logging.getLogger(__name__)
 
@@ -90,92 +90,105 @@ class OpenCodeAdapter(AgentAdapter):
                 cwd=cwd,
                 env=filtered_env(cwd=cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"OpenCode CLI not found: {self.config.opencode_bin}")
 
-        # Write prompt to stdin, then close
-        assert proc.stdin is not None
-        proc.stdin.write(full_prompt.encode("utf-8"))
-        await proc.stdin.drain()
-        proc.stdin.close()
+        cleanup_attempted = False
 
-        loop = asyncio.get_event_loop()
-        deadline = loop.time() + timeout
-        last_activity = loop.time()
-        saw_output = False
-        response_parts: list[str] = []
-        session_id: str | None = resume_session_id
-        event_types_seen: set[str] = set()
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
-        while True:
-            now = loop.time()
-            if now >= deadline:
-                proc.kill()
-                await proc.wait()
-                return AdapterResult(text=f"OpenCode timed out after {timeout}s")
+        try:
+            # Write prompt to stdin, then close
+            assert proc.stdin is not None
+            proc.stdin.write(full_prompt.encode("utf-8"))
+            await proc.stdin.drain()
+            proc.stdin.close()
 
-            assert proc.stdout is not None
-            idle_timeout = (
-                self.config.activity_timeout if saw_output else self.config.first_byte_timeout
-            )
-            read_timeout = min(idle_timeout, deadline - now)
-            try:
-                raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
-            except asyncio.TimeoutError:
-                elapsed = loop.time() - last_activity
-                if not saw_output and elapsed >= self.config.first_byte_timeout:
-                    proc.kill()
-                    await proc.wait()
-                    return AdapterResult(
-                        text=f"OpenCode timed out: no output after {self.config.first_byte_timeout}s"
-                    )
-                if saw_output and elapsed >= self.config.activity_timeout:
-                    proc.kill()
-                    await proc.wait()
-                    return AdapterResult(
-                        text=f"OpenCode timed out: no activity for {self.config.activity_timeout}s"
-                    )
-                continue
-            if not raw:
-                break
+            loop = asyncio.get_event_loop()
+            deadline = loop.time() + timeout
             last_activity = loop.time()
-            saw_output = True
-            line = raw.decode("utf-8", errors="replace").strip()
-            if not line:
-                continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
+            saw_output = False
+            response_parts: list[str] = []
+            session_id: str | None = resume_session_id
+            event_types_seen: set[str] = set()
 
-            # Capture sessionID from any event
-            if not session_id and event.get("sessionID"):
-                session_id = event["sessionID"]
+            while True:
+                now = loop.time()
+                if now >= deadline:
+                    await cleanup()
+                    return AdapterResult(text=f"OpenCode timed out after {timeout}s")
 
-            event_type = event.get("type", "")
-            if event_type:
-                event_types_seen.add(event_type)
-            if event_type == "text":
-                text = event.get("part", {}).get("text", "")
-                if text:
-                    response_parts.append(text)
-                    if on_progress:
-                        try:
-                            on_progress("\n".join(response_parts))
-                        except Exception:
-                            pass
-            elif on_progress and event_type == "tool_use":
-                tool = event.get("part", {}).get("tool", "")
-                if tool:
-                    on_progress(
-                        f"[using tool: {tool}]"
-                        if not response_parts
-                        else "\n".join(response_parts)
-                    )
+                assert proc.stdout is not None
+                idle_timeout = (
+                    self.config.activity_timeout if saw_output else self.config.first_byte_timeout
+                )
+                read_timeout = min(idle_timeout, deadline - now)
+                try:
+                    raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
+                except asyncio.TimeoutError:
+                    elapsed = loop.time() - last_activity
+                    if not saw_output and elapsed >= self.config.first_byte_timeout:
+                        await cleanup()
+                        return AdapterResult(
+                            text=f"OpenCode timed out: no output after {self.config.first_byte_timeout}s"
+                        )
+                    if saw_output and elapsed >= self.config.activity_timeout:
+                        await cleanup()
+                        return AdapterResult(
+                            text=f"OpenCode timed out: no activity for {self.config.activity_timeout}s"
+                        )
+                    continue
+                if not raw:
+                    break
+                last_activity = loop.time()
+                saw_output = True
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
 
-        await proc.wait()
+                # Capture sessionID from any event
+                if not session_id and event.get("sessionID"):
+                    session_id = event["sessionID"]
+
+                event_type = event.get("type", "")
+                if event_type:
+                    event_types_seen.add(event_type)
+                if event_type == "text":
+                    text = event.get("part", {}).get("text", "")
+                    if text:
+                        response_parts.append(text)
+                        if on_progress:
+                            try:
+                                on_progress("\n".join(response_parts))
+                            except Exception:
+                                pass
+                elif on_progress and event_type == "tool_use":
+                    tool = event.get("part", {}).get("tool", "")
+                    if tool:
+                        on_progress(
+                            f"[using tool: {tool}]"
+                            if not response_parts
+                            else "\n".join(response_parts)
+                        )
+
+            await proc.wait()
+        except asyncio.CancelledError:
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
+            raise
 
         stderr_text = ""
         if proc.returncode != 0:

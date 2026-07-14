@@ -7,7 +7,7 @@ from typing import Any
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 log = logging.getLogger(__name__)
 
@@ -205,7 +205,7 @@ class CodexAdapter(AgentAdapter):
                 cwd=effective_cwd,
                 env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return CodexRunResult(f"Codex CLI not found: {self.config.codex_bin}")
@@ -231,75 +231,91 @@ class CodexAdapter(AgentAdapter):
                 cwd=effective_cwd,
                 env=filtered_env(cwd=effective_cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"Codex CLI not found: {self.config.codex_bin}")
 
-        assert proc.stdin is not None
-        proc.stdin.write(full_prompt.encode("utf-8"))
-        await proc.stdin.drain()
-        proc.stdin.close()
+        cleanup_attempted = False
 
-        response_text = ""
-        error_text = ""
-        session_id: str | None = None
-        loop = asyncio.get_event_loop()
-        deadline = loop.time() + timeout
-        last_activity = loop.time()
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
-        while True:
-            now = loop.time()
-            if now >= deadline:
-                proc.kill()
-                return AdapterResult(text=f"Codex timed out after {timeout}s")
+        try:
+            assert proc.stdin is not None
+            proc.stdin.write(full_prompt.encode("utf-8"))
+            await proc.stdin.drain()
+            proc.stdin.close()
 
-            assert proc.stdout is not None
-            read_timeout = min(self.config.activity_timeout, deadline - now)
-            try:
-                raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
-            except asyncio.TimeoutError:
-                if loop.time() - last_activity >= self.config.activity_timeout:
-                    proc.kill()
-                    return AdapterResult(
-                        text=f"Codex stopped responding for {self.config.activity_timeout}s"
-                    )
-                continue
-            if not raw:
-                break
+            response_text = ""
+            error_text = ""
+            session_id: str | None = None
+            loop = asyncio.get_event_loop()
+            deadline = loop.time() + timeout
             last_activity = loop.time()
-            line = raw.decode("utf-8", errors="replace").strip()
-            if not line:
-                continue
-            try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if event.get("type") == "thread.started" and event.get("thread_id"):
-                session_id = event["thread_id"]
-            error_text = extract_codex_error(event) or error_text
-            partial = extract_codex_text(event)
-            if partial:
-                response_text = partial
 
-        await proc.wait()
+            while True:
+                now = loop.time()
+                if now >= deadline:
+                    await cleanup()
+                    return AdapterResult(text=f"Codex timed out after {timeout}s")
 
-        # Check for resume failure
-        if proc.returncode != 0:
-            assert proc.stderr is not None
-            stderr = (await proc.stderr.read()).decode("utf-8", errors="replace").strip()
-            detail = stderr or error_text or f"exit code {proc.returncode}"
+                assert proc.stdout is not None
+                read_timeout = min(self.config.activity_timeout, deadline - now)
+                try:
+                    raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
+                except asyncio.TimeoutError:
+                    if loop.time() - last_activity >= self.config.activity_timeout:
+                        await cleanup()
+                        return AdapterResult(
+                            text=f"Codex stopped responding for {self.config.activity_timeout}s"
+                        )
+                    continue
+                if not raw:
+                    break
+                last_activity = loop.time()
+                line = raw.decode("utf-8", errors="replace").strip()
+                if not line:
+                    continue
+                try:
+                    event = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("type") == "thread.started" and event.get("thread_id"):
+                    session_id = event["thread_id"]
+                error_text = extract_codex_error(event) or error_text
+                partial = extract_codex_text(event)
+                if partial:
+                    response_text = partial
+
+            await proc.wait()
+
+            # Check for resume failure
+            if proc.returncode != 0:
+                assert proc.stderr is not None
+                stderr = (await proc.stderr.read()).decode("utf-8", errors="replace").strip()
+                detail = stderr or error_text or f"exit code {proc.returncode}"
+                return AdapterResult(
+                    text=f"Codex resume failed ({proc.returncode}): {detail[:500]}",
+                    session_id=session_id,
+                    resumed=True,
+                )
+
             return AdapterResult(
-                text=f"Codex resume failed ({proc.returncode}): {detail[:500]}",
+                text=response_text.strip() or "(no response)",
                 session_id=session_id,
                 resumed=True,
             )
-
-        return AdapterResult(
-            text=response_text.strip() or "(no response)",
-            session_id=session_id,
-            resumed=True,
-        )
+        except asyncio.CancelledError:
+            await cleanup()
+            raise
+        except Exception:
+            await cleanup()
+            raise
 
     async def health_check(self) -> dict:
         found = shutil.which(self.config.codex_bin)
@@ -317,11 +333,6 @@ async def _run_codex_process(
     timeout: int,
     activity_timeout: int,
 ) -> CodexRunResult:
-    assert proc.stdin is not None
-    proc.stdin.write(full_prompt.encode("utf-8"))
-    await proc.stdin.drain()
-    proc.stdin.close()
-
     response_text = ""
     session_id: str | None = None
     stdout_tail: list[str] = []
@@ -329,61 +340,81 @@ async def _run_codex_process(
     loop = asyncio.get_event_loop()
     deadline = loop.time() + timeout
     last_activity = loop.time()
+    cleanup_attempted = False
 
-    while True:
-        now = loop.time()
-        if now >= deadline:
-            proc.kill()
-            return CodexRunResult(f"Codex timed out after {timeout}s", session_id=session_id)
+    async def cleanup() -> None:
+        nonlocal cleanup_attempted
+        if cleanup_attempted:
+            return
+        cleanup_attempted = True
+        await terminate_owned_process_group(proc)
 
-        assert proc.stdout is not None
-        read_timeout = min(activity_timeout, deadline - now)
-        try:
-            raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
-        except asyncio.TimeoutError:
-            if loop.time() - last_activity >= activity_timeout:
-                proc.kill()
-                return CodexRunResult(
-                    f"Codex stopped responding for {activity_timeout}s",
-                    session_id=session_id,
-                )
-            continue
-        if not raw:
-            break
-        last_activity = loop.time()
-        line = raw.decode("utf-8", errors="replace").strip()
-        if not line:
-            continue
-        stdout_tail.append(line)
-        stdout_tail = stdout_tail[-20:]
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        # Capture thread_id from thread.started event
-        if event.get("type") == "thread.started" and event.get("thread_id"):
-            session_id = event["thread_id"]
-        error_text = extract_codex_error(event) or error_text
-        partial = extract_codex_text(event)
-        if partial:
-            response_text = partial
-        elif event.get("type") and event.get("type") not in NON_TEXT_CODEX_EVENTS:
-            log.debug("Codex unmatched event: %s", str(event)[:300])
+    try:
+        assert proc.stdin is not None
+        proc.stdin.write(full_prompt.encode("utf-8"))
+        await proc.stdin.drain()
+        proc.stdin.close()
 
-    await proc.wait()
-    if not response_text and proc.returncode != 0:
-        assert proc.stderr is not None
-        stderr = (await proc.stderr.read()).decode("utf-8", errors="replace")
-        detail = stderr.strip() or error_text.strip() or "\n".join(stdout_tail)[-1000:]
-        capacity_error = is_capacity_error(detail)
-        log.error(
-            "Codex CLI failed: model= rc=%s capacity=%s",
-            proc.returncode,
-            capacity_error,
-        )
-        return CodexRunResult(
-            f"Codex CLI failed ({proc.returncode}): {detail[:500]}",
-            session_id=session_id,
-            capacity_error=capacity_error,
-        )
-    return CodexRunResult(response_text.strip() or "(no response)", session_id=session_id)
+        while True:
+            now = loop.time()
+            if now >= deadline:
+                await cleanup()
+                return CodexRunResult(f"Codex timed out after {timeout}s", session_id=session_id)
+
+            assert proc.stdout is not None
+            read_timeout = min(activity_timeout, deadline - now)
+            try:
+                raw = await asyncio.wait_for(proc.stdout.readline(), timeout=read_timeout)
+            except asyncio.TimeoutError:
+                if loop.time() - last_activity >= activity_timeout:
+                    await cleanup()
+                    return CodexRunResult(
+                        f"Codex stopped responding for {activity_timeout}s",
+                        session_id=session_id,
+                    )
+                continue
+            if not raw:
+                break
+            last_activity = loop.time()
+            line = raw.decode("utf-8", errors="replace").strip()
+            if not line:
+                continue
+            stdout_tail.append(line)
+            stdout_tail = stdout_tail[-20:]
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            # Capture thread_id from thread.started event
+            if event.get("type") == "thread.started" and event.get("thread_id"):
+                session_id = event["thread_id"]
+            error_text = extract_codex_error(event) or error_text
+            partial = extract_codex_text(event)
+            if partial:
+                response_text = partial
+            elif event.get("type") and event.get("type") not in NON_TEXT_CODEX_EVENTS:
+                log.debug("Codex unmatched event: %s", str(event)[:300])
+
+        await proc.wait()
+        if not response_text and proc.returncode != 0:
+            assert proc.stderr is not None
+            stderr = (await proc.stderr.read()).decode("utf-8", errors="replace")
+            detail = stderr.strip() or error_text.strip() or "\n".join(stdout_tail)[-1000:]
+            capacity_error = is_capacity_error(detail)
+            log.error(
+                "Codex CLI failed: model= rc=%s capacity=%s",
+                proc.returncode,
+                capacity_error,
+            )
+            return CodexRunResult(
+                f"Codex CLI failed ({proc.returncode}): {detail[:500]}",
+                session_id=session_id,
+                capacity_error=capacity_error,
+            )
+        return CodexRunResult(response_text.strip() or "(no response)", session_id=session_id)
+    except asyncio.CancelledError:
+        await cleanup()
+        raise
+    except Exception:
+        await cleanup()
+        raise

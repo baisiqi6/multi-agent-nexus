@@ -92,16 +92,26 @@ class TestOmpBuildCmd(unittest.TestCase):
 
 class TestOmpCall(unittest.IsolatedAsyncioTestCase):
     async def test_basic_response(self):
+        spawn_kwargs = {}
+
         async def fake_exec(*args, **kwargs):
+            spawn_kwargs.update(kwargs)
             return FakeProcess(stdout=b"Hello from omp\n")
 
         adapter = OmpAdapter(_make_config())
-        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.omp.async_subprocess_kwargs",
+                return_value={"start_new_session": True},
+            ),
+        ):
             result = await adapter.call("test prompt")
 
         self.assertIsInstance(result, AdapterResult)
         self.assertEqual(result.text, "Hello from omp")
         self.assertFalse(result.resumed)
+        self.assertIs(spawn_kwargs["start_new_session"], True)
 
     async def test_empty_stdout_returns_no_response(self):
         async def fake_exec(*args, **kwargs):
@@ -181,12 +191,92 @@ class TestOmpTimeout(unittest.IsolatedAsyncioTestCase):
         async def fake_exec(*args, **kwargs):
             return proc
 
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
         adapter = OmpAdapter(_make_config(timeout=5))
-        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+        with (
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.omp.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
             result = await adapter.call("test")
 
         self.assertIn("timed out after 5s", result.text)
         self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
+
+    async def test_cancellation_kills_process(self):
+        proc = FakeProcess()
+        started = asyncio.Event()
+
+        async def hanging_communicate(_input=None):
+            started.set()
+            await asyncio.Event().wait()
+
+        proc.communicate = hanging_communicate
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        cleanup_calls = []
+
+        async def fake_cleanup(target):
+            cleanup_calls.append(target)
+            target.kill()
+            await target.wait()
+
+        adapter = OmpAdapter(_make_config())
+        with (
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.omp.terminate_owned_process_group",
+                new=fake_cleanup,
+            ),
+        ):
+            task = asyncio.create_task(adapter.call("test"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
+        self.assertTrue(proc.killed)
+        self.assertEqual(cleanup_calls, [proc])
+
+    async def test_cleanup_failure_is_explicit_and_not_retried(self):
+        proc = FakeProcess()
+        cleanup_calls = []
+
+        async def hanging_communicate(_input=None):
+            raise asyncio.TimeoutError
+
+        proc.communicate = hanging_communicate
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        async def failing_cleanup(target):
+            cleanup_calls.append(target)
+            raise RuntimeError("process group cleanup failed")
+
+        adapter = OmpAdapter(_make_config(timeout=5))
+        with (
+            patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec),
+            patch(
+                "multinexus.adapters.omp.terminate_owned_process_group",
+                new=failing_cleanup,
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "process group cleanup failed"):
+                await adapter.call("test")
+
+        self.assertEqual(cleanup_calls, [proc])
 
 
 class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):

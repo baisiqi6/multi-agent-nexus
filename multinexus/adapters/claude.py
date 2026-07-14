@@ -1,10 +1,9 @@
 import asyncio
 import json
-import contextlib
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
-from .utils import NO_WINDOW, filtered_env
+from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
 
 
 def _timeout_message(kind: str, elapsed_seconds: int, total_seconds: int) -> str:
@@ -12,17 +11,6 @@ def _timeout_message(kind: str, elapsed_seconds: int, total_seconds: int) -> str
         f"Claude timeout:{kind} after {elapsed_seconds}s "
         f"(total budget {total_seconds}s). Aborted, no handoff."
     )
-
-
-async def _kill_process(proc: asyncio.subprocess.Process) -> None:
-    if proc.returncode is not None:
-        return
-    with contextlib.suppress(ProcessLookupError):
-        proc.kill()
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=5)
-    except asyncio.TimeoutError:
-        pass
 
 
 def _emit_progress(on_progress, update: dict) -> None:
@@ -129,7 +117,7 @@ class ClaudeAdapter(AgentAdapter):
                 cwd=cwd,
                 env=filtered_env(cwd=cwd),
                 limit=10 * 1024 * 1024,
-                **NO_WINDOW,
+                **async_subprocess_kwargs(),
             )
         except FileNotFoundError:
             return AdapterResult(text=f"Claude CLI not found: {self.config.claude_bin}")
@@ -140,6 +128,14 @@ class ClaudeAdapter(AgentAdapter):
         deadline = loop.time() + timeout
         last_activity = loop.time()
         saw_output = False
+        cleanup_attempted = False
+
+        async def cleanup() -> None:
+            nonlocal cleanup_attempted
+            if cleanup_attempted:
+                return
+            cleanup_attempted = True
+            await terminate_owned_process_group(proc)
 
         try:
             full_prompt = self._with_system_prompt(prompt)
@@ -151,7 +147,7 @@ class ClaudeAdapter(AgentAdapter):
             while True:
                 now = loop.time()
                 if now >= deadline:
-                    await _kill_process(proc)
+                    await cleanup()
                     return AdapterResult(
                         text=_timeout_message("total", timeout, timeout),
                         session_id=session_id,
@@ -175,7 +171,7 @@ class ClaudeAdapter(AgentAdapter):
                 except asyncio.TimeoutError:
                     elapsed = loop.time() - last_activity
                     if not saw_output and elapsed >= self.config.first_byte_timeout:
-                        await _kill_process(proc)
+                        await cleanup()
                         return AdapterResult(
                             text=_timeout_message("first_byte", self.config.first_byte_timeout, timeout),
                             session_id=session_id,
@@ -189,7 +185,7 @@ class ClaudeAdapter(AgentAdapter):
                             },
                         )
                     if saw_output and elapsed >= self.config.activity_timeout:
-                        await _kill_process(proc)
+                        await cleanup()
                         return AdapterResult(
                             text=_timeout_message("activity", self.config.activity_timeout, timeout),
                             session_id=session_id,
@@ -255,10 +251,11 @@ class ClaudeAdapter(AgentAdapter):
                 session_id=session_id,
             )
         except asyncio.CancelledError:
-            await _kill_process(proc)
+            await cleanup()
             raise
         except Exception as exc:
-            await _kill_process(proc)
+            if not cleanup_attempted:
+                await cleanup()
             return AdapterResult(text=f"Claude error: {exc}", session_id=session_id)
 
     async def health_check(self) -> dict:

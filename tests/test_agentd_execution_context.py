@@ -15,9 +15,7 @@ from multinexus.agentd.coordinate_client import (
     CoordinateRuntimeError,
 )
 from multinexus.agentd.execution_context import (
-    CONTRACT_VERSION,
     ExecutionContextError,
-    ExecutionContextV1,
     parse_execution_context,
     validate_claim_response,
 )
@@ -254,7 +252,7 @@ class WorkerContextUsageTests(unittest.TestCase):
         worker.config.work_dir = "/config/wrong"
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
@@ -274,8 +272,8 @@ class WorkerContextUsageTests(unittest.TestCase):
         worker, calls, _ = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
-            reported.append({"status": status, "result_json": result_json, "attempt_token": attempt_token})
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
+            reported.append({"status": status, "result_json": result_json, "attempt_token": attempt_token, "lease_id": lease_id})
 
         worker.coordinate.report_job = mock_report
 
@@ -292,6 +290,7 @@ class WorkerContextUsageTests(unittest.TestCase):
         self.assertEqual(len(reported), 1)
         self.assertEqual(reported[0]["status"], "failed")
         self.assertEqual(reported[0]["attempt_token"], 1)
+        self.assertIsNone(reported[0]["lease_id"])
 
     def test_sequential_jobs_change_cwd_and_session_scope(self) -> None:
         worker, calls, _ = self._make_worker()
@@ -375,7 +374,6 @@ class HandoffParsingTests(unittest.TestCase):
 class ManagedHandoffNoSQLiteTests(unittest.TestCase):
     def test_agentd_mode_handoff_does_not_call_resolve_workspace_path(self) -> None:
         from multinexus.coordinator_handoff import CoordinatorHandoffMixin
-        from multinexus.handoff_handler import resolve_workspace_path
 
         # Build a minimal mixin instance in agentd_mode.
         class DummyMixin(CoordinatorHandoffMixin):
@@ -716,7 +714,6 @@ class ManagedHandoffFailClosedTests(unittest.TestCase):
         return DummyMixin()
 
     def test_agentd_mode_returns_handoff_path_even_when_empty(self):
-        from multinexus.handoff_handler import resolve_workspace_path
 
         mixin = self._mixin(agentd_mode=True)
         handoff = CoordinatorHandoff(
