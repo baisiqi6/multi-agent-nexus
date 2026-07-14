@@ -29,8 +29,10 @@ def main() -> int:
     group.add_argument("--restore", metavar="IN_PATH", help="Restore snapshot from file")
     args = parser.parse_args()
 
-    conn = sqlite3.connect(args.db)
+    conn = sqlite3.connect(args.db, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
     try:
         if args.capture:
             capture_capacity_snapshot(conn, args.target_source_id, args.capture)

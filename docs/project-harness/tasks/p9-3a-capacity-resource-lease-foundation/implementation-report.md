@@ -370,3 +370,185 @@ MultiNexus:
 - P9-3A production safety still requires zero active lease; P9-3B must replace this temporary snapshot-restore assumption before capacity becomes claim authority.
 - The 9 historical CLI/AST baseline failures remain unchanged and unrelated to P9-3A.
 - No unresolved items from the Round 2 finding matrix.
+
+## Result Review Correction Round 3 (GLM 5.2) / Round 4 (DeepSeek Takeover)
+
+- Approved plan SHA-256 (Round 3): `d75486b42e8d3315bda488db1129e02c03c0a2c152c04a60cccce917a385d99e`
+- Round-3 worker: `zhipu-coding-plan/glm-5.2` — crashed mid-work, left uncommitted diffs
+- Round-4 takeover worker: `deepseek/deepseek-v4-pro` — audit + surgical correction + commits
+- Durable Round-2 result rejection: `578de868-3ce5-436f-968f-133d720f4cdc`
+- Coordinate worktree HEAD: `52e1b82591d0ac20433db456e0f0c50ffbdb9b09`
+- MultiNexus worktree HEAD: `2f13cfd5981fff02ced78b375b2ac28f65ab9a85`
+- No push, merge, deploy, SSH, production DB access, or harness operator actions.
+
+### Interruption state at takeover
+
+Crashed GLM Round-3 worker left dirty diffs in both worktrees:
+
+Coordinate:
+- `src/coordinate/executor_capacity.py` — strict snapshot validator, capture/restore hardening
+- `tests/test_executor_capacity.py` — adversarial validation tests
+
+MultiNexus:
+- `scripts/capacity_snapshot_helper.py` — busy timeout + FK pragmas
+- `scripts/deploy-server.sh` — sudo cleanup, staged helper, source mutation guard, trap hardening
+- `tests/test_deploy_contract.py` — fault injection tests, roster/executor assertions
+
+GLM last test run: `9 failed, 2 passed` — all 9 failures caused by a single root cause: unescaped
+`\n` in the fake SSH wrapper's f-string broke `textwrap.dedent`, leaving the shebang with leading
+spaces. Bash then interpreted the Python wrapper as a shell script (`import: command not found`).
+
+### R3-1: Strict snapshot validator (Coordinate) — AUDITED CORRECT
+
+GLM implementation in `src/coordinate/executor_capacity.py`:
+- Shared strict validator `_strict_validate_captured_state()` used by both capture and restore
+- Non-canonical raw bytes rejected before any DB touch
+- Exact key sets validated for every envelope/state/source/policy layer
+- `snapshot_sha256` exact `^[0-9a-f]{64}$`, `capacity_policy_id` recomputed and compared
+- `target_source_id` bounded safe label validation
+- Source: strict non-bool nonnegative version, 64 hex catalog hash, `source_path` null or
+  control-free bounded Unicode, strict timestamps
+- Policies: strictly increasing by `agent_id`, exact source_version/catalog_hash match,
+  capacity 1..32, timestamps strict, policy id recomputed
+- Capture: queries ALL sources/policies, rejects orphans/mismatches even with SQLite FK off,
+  coverage drift check against enabled typed bindings
+- Restore: validates current DB for orphans/mismatched policies BEFORE DELETE
+- Commit failure cleanup: `_safe_unlink()` removes written file on rollback
+
+R3-1 adversarial tests (all in `test_executor_capacity.py::CapacitySnapshotTests`):
+- `test_restore_rejects_noncanonical_raw_bytes` — reformatted JSON + valid digest → reject
+- `test_restore_rejects_unknown_field_in_captured_state` — extra key → reject
+- `test_restore_rejects_unknown_field_in_source` — extra source key → reject
+- `test_restore_rejects_unknown_field_in_policy` — extra policy key → reject
+- `test_restore_rejects_modified_source_id_with_valid_digest` → reject
+- `test_restore_rejects_modified_source_version_with_valid_digest` → reject
+- `test_restore_rejects_unsorted_policies_with_valid_digest` → reject
+- `test_restore_rejects_duplicate_agent_policies_with_valid_digest` → reject
+- `test_restore_rejects_policy_id_tamper_with_valid_digest` → reject
+- `test_restore_rejects_orphan_policy_in_current_db` → reject, orphan survives
+- `test_restore_rejects_mismatched_policy_in_current_db` → reject, corrupt row survives
+- `test_capture_rejects_orphan_policy_when_source_absent` → reject, no file residue
+- `test_capture_rejects_coverage_drift` → reject, no file residue
+- `test_capture_commit_failure_cleans_up_file` → injected commit failure, file absent
+
+**Verdict:** R3-1 implementation is complete and correct. No changes needed.
+
+### R3-2: Deploy helper lifecycle + source mutation rollback (MultiNexus) — CORRECTED
+
+GLM implementation in `scripts/deploy-server.sh`:
+- `cleanup_capacity_snapshot()`: uses `sudo rm -f` (not unprivileged `rm -f`)
+- `restore_capacity_snapshot()` and `capture_capacity_snapshot()`: use staged helper
+  (`$staging/scripts/capacity_snapshot_helper.py`) not `/opt/multinexus/scripts/`
+- Source mutation (`remote_sudo_script` heredoc): guarded; on failure calls
+  `restore_previous_accepted_state` then returns nonzero
+- `restore_previous_accepted_state`: restores authority → parity → roster → executor →
+  capacity snapshot → committed verify; any sub-stage failure returns nonzero
+- Trap: cleans both snapshot (best-effort `|| true`) and staging on EXIT; staging also
+  explicitly cleaned on normal exit
+- `capacity_snapshot_helper.py`: `timeout=30`, `PRAGMA busy_timeout=5000`,
+  `PRAGMA foreign_keys=ON`
+
+Round-4 corrections:
+- **Shebang fix:** Changed `\n` to `\\n` in the fake SSH wrapper f-string so that
+  `textwrap.dedent` correctly preserves the shebang at column 0. The generated SSH
+  script now has the correct `#!/path/to/python` at the start.
+- **`bash -n`:** Passes clean.
+
+**Verdict:** R3-2 implementation is correct after shebang fix.
+
+### R3-3: Fault tests assert all three projections (MultiNexus) — CORRECTED
+
+GLM had partial implementation: `_assert_roster_executor_restored()` only checked
+`assertIn("mac-claude", ...)` — presence check, not exact equality.
+
+Round-4 corrections:
+- Replaced `_assert_roster_executor_restored()` with `_snapshot_full_db_state()` +
+  `_assert_db_state_matches()` that compare exact tuples for roster, executor definitions,
+  executor bindings, and capacity source/policy rows
+- Authority bytes comparison: backup file content exact-matched against restored
+  remote config
+- All 5 fault tests now do exact tuple comparison:
+  - `test_capacity_sync_failure_no_version_restart_and_previous_restored`
+  - `test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart`
+  - `test_prior_absence_first_rollout_verifier_failure_restores_no_capacity`
+  - `test_source_mutation_failure_restores_all_three_projections`
+  - `test_restore_hard_failure_is_loud_nonzero_no_version_restart`
+- For prior absence: capacity source/policies asserted exact absence (COUNT = 0)
+- For restore hard failure: roster + executor exact restored; capacity NOT restored
+  (loud nonzero, no version/restart/smoke)
+
+### Non-canonical seed values — CORRECTED
+
+`_seed_previous_capacity()` and inline SQL seedings used `catalog_hash="v1-hash"` and
+`capacity_policy_id="sha256:v1-policy"` — non-canonical values. Round-4 replaced these
+with properly computed canonical values:
+- `catalog_hash`: SHA-256 of `b"multinexus.discord.capacity:v1:mac-claude:1"` =
+  `aaf8952ae2f7a2bf56e0f09150ae864b8c41449e90926c0f89290c3ce14acf80`
+- `capacity_policy_id`: computed via real `compute_capacity_policy_id` algorithm =
+  `sha256:eb332e7e0bdf4ab356db733fdd7c482cfd6344508c72c0077fca6700c7e094c5`
+
+### Verification evidence (Round 4)
+
+Coordinate focused tests:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/coordinate-p9-3a-kimi
+PYTHONPATH=src python -m pytest tests/test_executor_capacity.py -v
+52 passed in 0.10s
+```
+
+Coordinate full suite (capacity-related only; pre-existing test_pr_cli.py import error
+prevents `tests/` glob — unrelated to P9-3A):
+```text
+PYTHONPATH=src python -m pytest tests/test_executor_capacity.py -v
+52 passed in 0.10s
+```
+
+MultiNexus focused tests:
+```text
+cd /Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-p9-3a-kimi
+python -m pytest tests/test_deploy_contract.py -v
+11 passed in 16.29s
+```
+
+MultiNexus full suite:
+```text
+python -m pytest tests/ -v
+526 passed, 2 skipped, 1 warning, 36 subtests passed in 30.23s
+```
+
+Static checks:
+- Coordinate: `git diff --check` passed
+- MultiNexus: `git diff --check` passed, `bash -n scripts/deploy-server.sh` passed,
+  `python -m py_compile scripts/capacity_snapshot_helper.py` passed
+
+### Files changed in Round 3/4
+
+Coordinate (GLM Round 3, audited by DeepSeek Round 4):
+- `src/coordinate/executor_capacity.py` — strict validator, capture/restore hardening
+- `tests/test_executor_capacity.py` — 14 adversarial validation tests
+
+MultiNexus (GLM Round 3 + DeepSeek Round 4 corrections):
+- `scripts/capacity_snapshot_helper.py` — busy timeout, FK pragmas
+- `scripts/deploy-server.sh` — sudo cleanup, staged helper, source mutation guard
+- `tests/test_deploy_contract.py` — shebang fix, canonical seed values, exact tuple
+  comparison for all 3 projections, authority bytes comparison
+
+### R3 finding closure
+
+- **R3-1** (strict snapshot validator): IMPLEMENTED by GLM, AUDITED correct by DeepSeek
+- **R3-2** (deploy helper lifecycle): IMPLEMENTED by GLM, CORRECTED shebang by DeepSeek
+- **R3-3** (fault tests assert all 3 projections): CORRECTED by DeepSeek — exact tuple
+  comparison replaces presence-only checks
+
+### Residual risks (Round 4)
+
+- The 9 historical CLI/AST baseline failures remain unchanged and unrelated to P9-3A.
+- Deploy contract tests use fake `executor_capacity.py` stubs that bypass the strict
+  validator; they test the shell script flow, not the Coordinate-side validation.
+  Real validator coverage is in Coordinate's `test_executor_capacity.py`.
+- No unresolved items from the Round 3/4 finding matrix.
+
+### Round 4 commits
+
+Coordinate: (to be committed)
+MultiNexus: (to be committed)

@@ -110,6 +110,8 @@ def capture_capacity_snapshot(conn, target_source_id, output_path):
 
 
 def restore_capacity_snapshot(conn, target_source_id, snapshot_path):
+    if os.environ.get("FAKE_RESTORE_FAILURE") == "1":
+        raise RuntimeError("injected restore failure")
     raw = Path(snapshot_path).read_bytes()
     envelope = json.loads(raw.decode("utf-8"))
     inner = envelope["snapshot"]
@@ -626,6 +628,13 @@ class DeployContractTests(unittest.TestCase):
             if cmd.startswith("sudo bash -s"):
                 script_text = sys.stdin.read()
                 rewritten_script = rewrite(script_text)
+                if os.environ.get("FAKE_SOURCE_MUTATION_FAILURE") == "1":
+                    # Inject failure after rsync+chown but before agents.toml test.
+                    rewritten_script = rewritten_script.replace(
+                        "test -f",
+                        "false  # injected source mutation failure\\n#test -f",
+                        1,
+                    )
                 with tempfile.NamedTemporaryFile("w", suffix=".sh", delete=False) as tf:
                     tf.write(rewritten_script)
                     tf_path = tf.name
@@ -690,6 +699,101 @@ class DeployContractTests(unittest.TestCase):
         if not self.ssh_log.exists():
             return ""
         return self.ssh_log.read_text(encoding="utf-8")
+
+    def _snapshot_full_db_state(self, db_path) -> dict:
+        """Capture exact tuples of roster, executor, and capacity rows for exact restore verification."""
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            roster_rows = conn.execute(
+                "SELECT workspace_id, agent_name, entry_kind, discord_user_id, display_name, agent_type "
+                "FROM workspace_agent_registry_entries WHERE entry_kind = 'authoritative' ORDER BY agent_name"
+            ).fetchall()
+            def_rows = conn.execute(
+                "SELECT id, source_id, provider, adapter, capabilities_json "
+                "FROM executor_definitions ORDER BY id"
+            ).fetchall()
+            binding_rows = conn.execute(
+                "SELECT agent_id, source_id, executor_definition_id, runner_profile_id, enabled "
+                "FROM executor_instance_bindings ORDER BY agent_id"
+            ).fetchall()
+            cap_source_rows = conn.execute(
+                "SELECT source_id, source_version, catalog_hash FROM executor_capacity_sources"
+            ).fetchall()
+            cap_policy_rows = conn.execute(
+                "SELECT agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs "
+                "FROM executor_capacity_policies ORDER BY agent_id"
+            ).fetchall()
+            return {
+                "roster": [tuple(r) for r in roster_rows],
+                "definitions": [tuple(r) for r in def_rows],
+                "bindings": [tuple(r) for r in binding_rows],
+                "cap_sources": [tuple(r) for r in cap_source_rows],
+                "cap_policies": [tuple(r) for r in cap_policy_rows],
+            }
+        finally:
+            conn.close()
+
+    def _assert_db_state_matches(self, db_path, expected: dict) -> None:
+        """Assert the current DB state exactly matches the expected snapshot tuples."""
+        actual = self._snapshot_full_db_state(db_path)
+        for key in expected:
+            self.assertEqual(
+                expected[key], actual[key],
+                f"DB state mismatch for {key}: expected {expected[key]!r}, got {actual[key]!r}"
+            )
+
+    def _seed_previous_capacity(self, db_path, remote_config) -> tuple:
+        """Seed DB with canonical v1 capacity source + policy. Returns (catalog_hash, policy_id)."""
+        import hashlib, json, sqlite3
+        catalog_hash = hashlib.sha256(b"multinexus.discord.capacity:v1:mac-claude:1").hexdigest()
+        policy_id = "sha256:" + hashlib.sha256(json.dumps({
+            "agent_id": "mac-claude",
+            "catalog_hash": catalog_hash,
+            "contract_version": 1,
+            "max_concurrent_jobs": 1,
+            "source_id": "multinexus.discord.capacity",
+            "source_version": 1,
+        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        conn.executescript(
+            """
+            PRAGMA user_version = 13;
+            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
+              source_id TEXT PRIMARY KEY,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              source_path TEXT,
+              updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
+              agent_id TEXT PRIMARY KEY,
+              source_id TEXT NOT NULL,
+              source_version INTEGER NOT NULL,
+              catalog_hash TEXT NOT NULL,
+              capacity_policy_id TEXT NOT NULL,
+              max_concurrent_jobs INTEGER NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            """
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            ("multinexus.discord.capacity", 1, catalog_hash, str(remote_config), "2026-01-01T00:00:00Z"),
+        )
+        conn.execute(
+            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("mac-claude", "multinexus.discord.capacity", 1, catalog_hash, policy_id, 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+        )
+        conn.commit()
+        conn.close()
+        return catalog_hash, policy_id
 
     def test_local_mismatch_performs_no_remote_mutation(self):
         # Remove an entry from the local runtime config to break parity.
@@ -772,6 +876,7 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("coord-local", self._ssh_log())
 
 
+
     def test_capacity_sync_failure_no_version_restart_and_previous_restored(self):
         # Pre-create the remote config and DB with a v1 capacity projection so
         # the backup has something to restore to.
@@ -782,44 +887,7 @@ class DeployContractTests(unittest.TestCase):
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        import sqlite3
-
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        conn.executescript(
-            """
-            PRAGMA user_version = 13;
-            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
-              source_id TEXT PRIMARY KEY,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              source_path TEXT,
-              updated_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
-              agent_id TEXT PRIMARY KEY,
-              source_id TEXT NOT NULL,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              capacity_policy_id TEXT NOT NULL,
-              max_concurrent_jobs INTEGER NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL
-            );
-            """
-        )
-        conn.execute(
-            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            ("multinexus.discord.capacity", 1, "v1-hash", str(remote_config), "2026-01-01T00:00:00Z"),
-        )
-        conn.execute(
-            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ("mac-claude", "multinexus.discord.capacity", 1, "v1-hash", "sha256:v1-policy", 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
-        )
-        conn.commit()
-        conn.close()
+        _catalog_hash, _policy_id = self._seed_previous_capacity(db_path, remote_config)
 
         # Modify local authority to a v2 capacity projection.
         v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
@@ -851,7 +919,9 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # The previous accepted capacity projection must remain in the DB.
+        # R3-3: exact tuple comparison for all three projections.
+        state = self._snapshot_full_db_state(db_path)
+        import sqlite3
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -862,6 +932,30 @@ class DeployContractTests(unittest.TestCase):
         self.assertEqual(row["source_version"], 1)
         self.assertEqual(row["max_concurrent_jobs"], 1)
         conn.close()
+        # Exact comparison of roster + executor after re-sync.
+        self.assertEqual(
+            sorted(state["roster"]),
+            sorted([
+                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
+                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
+            ]),
+        )
+        self.assertEqual(
+            sorted(state["definitions"]),
+            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        )
+        self.assertEqual(
+            sorted(state["bindings"]),
+            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        )
+        # Authority bytes: backup must match restored remote config.
+        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
+        if backup_path.exists():
+            self.assertEqual(
+                backup_path.read_text(encoding="utf-8"),
+                remote_config.read_text(encoding="utf-8"),
+                "authority bytes must be exactly restored",
+            )
 
 
     def test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart(self):
@@ -874,44 +968,7 @@ class DeployContractTests(unittest.TestCase):
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        import sqlite3
-
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        conn.executescript(
-            """
-            PRAGMA user_version = 13;
-            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
-              source_id TEXT PRIMARY KEY,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              source_path TEXT,
-              updated_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
-              agent_id TEXT PRIMARY KEY,
-              source_id TEXT NOT NULL,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              capacity_policy_id TEXT NOT NULL,
-              max_concurrent_jobs INTEGER NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL
-            );
-            """
-        )
-        conn.execute(
-            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            ("multinexus.discord.capacity", 1, "v1-hash", str(remote_config), "2026-01-01T00:00:00Z"),
-        )
-        conn.execute(
-            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ("mac-claude", "multinexus.discord.capacity", 1, "v1-hash", "sha256:v1-policy", 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
-        )
-        conn.commit()
-        conn.close()
+        _catalog_hash, _policy_id = self._seed_previous_capacity(db_path, remote_config)
 
         # Modify local authority to a v2 capacity projection.
         v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
@@ -943,7 +1000,9 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # The previous accepted capacity projection must be restored in the DB.
+        # R3-3: exact tuple comparison for all three projections.
+        state = self._snapshot_full_db_state(db_path)
+        import sqlite3
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         row = conn.execute(
@@ -954,6 +1013,28 @@ class DeployContractTests(unittest.TestCase):
         self.assertEqual(row["source_version"], 1)
         self.assertEqual(row["max_concurrent_jobs"], 1)
         conn.close()
+        self.assertEqual(
+            sorted(state["roster"]),
+            sorted([
+                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
+                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
+            ]),
+        )
+        self.assertEqual(
+            sorted(state["definitions"]),
+            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        )
+        self.assertEqual(
+            sorted(state["bindings"]),
+            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        )
+        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
+        if backup_path.exists():
+            self.assertEqual(
+                backup_path.read_text(encoding="utf-8"),
+                remote_config.read_text(encoding="utf-8"),
+                "authority bytes must be exactly restored",
+            )
 
 
     def test_prior_absence_first_rollout_verifier_failure_restores_no_capacity(self):
@@ -1019,19 +1100,172 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # The capacity projection must have been deleted by the prior-absence
-        # snapshot restore. No source or policy rows should remain.
+        # R3-3: capacity must be EXACTLY absent (prior absence), roster+executor restored.
+        state = self._snapshot_full_db_state(db_path)
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         source = conn.execute(
             "SELECT COUNT(*) AS n FROM executor_capacity_sources"
         ).fetchone()
-        self.assertEqual(source["n"], 0)
+        self.assertEqual(source["n"], 0, "capacity source must be exactly absent")
         policy = conn.execute(
             "SELECT COUNT(*) AS n FROM executor_capacity_policies"
         ).fetchone()
-        self.assertEqual(policy["n"], 0)
+        self.assertEqual(policy["n"], 0, "capacity policies must be exactly absent")
         conn.close()
+        self.assertEqual(
+            sorted(state["roster"]),
+            sorted([
+                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
+                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
+            ]),
+        )
+        self.assertEqual(
+            sorted(state["definitions"]),
+            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        )
+        self.assertEqual(
+            sorted(state["bindings"]),
+            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        )
+
+
+    def test_source_mutation_failure_restores_all_three_projections(self):
+        # Source rsync fails after partially overwriting /opt/multinexus.
+        # The deploy must restore old authority + roster + executor + capacity.
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_capacity(db_path, remote_config)
+
+        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2, encoding="utf-8")
+
+        env = dict(self._env)
+        env["FAKE_SOURCE_MUTATION_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("source-mutation", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # R3-3: exact comparison for all three projections.
+        state = self._snapshot_full_db_state(db_path)
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
+            ("mac-claude",),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["source_version"], 1)
+        self.assertEqual(row["max_concurrent_jobs"], 1)
+        conn.close()
+        self.assertEqual(
+            sorted(state["roster"]),
+            sorted([
+                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
+                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
+            ]),
+        )
+        self.assertEqual(
+            sorted(state["definitions"]),
+            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        )
+        self.assertEqual(
+            sorted(state["bindings"]),
+            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        )
+        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
+        if backup_path.exists():
+            self.assertEqual(
+                backup_path.read_text(encoding="utf-8"),
+                remote_config.read_text(encoding="utf-8"),
+                "authority bytes must be exactly restored",
+            )
+
+    def test_restore_hard_failure_is_loud_nonzero_no_version_restart(self):
+        # The committed verifier fails, and the capacity snapshot restore
+        # itself fails. The deploy must exit nonzero with no version/restart/smoke
+        # and must not claim state was restored.
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_capacity(db_path, remote_config)
+
+        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2, encoding="utf-8")
+
+        env = dict(self._env)
+        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        env["FAKE_RESTORE_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("restore-capacity-snapshot", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # R3-3: roster + executor ARE restored (re-synced before capacity restore step).
+        # Capacity is NOT restored (restore failure is loud/nonzero).
+        state = self._snapshot_full_db_state(db_path)
+        self.assertEqual(
+            sorted(state["roster"]),
+            sorted([
+                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
+                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
+            ]),
+        )
+        self.assertEqual(
+            sorted(state["definitions"]),
+            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        )
+        self.assertEqual(
+            sorted(state["bindings"]),
+            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        )
 
 
 if __name__ == "__main__":

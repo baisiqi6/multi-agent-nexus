@@ -273,12 +273,17 @@ capture_capacity_snapshot() {
 
 cleanup_capacity_snapshot() {
   local snapshot_path="$1"
-  ssh "$HOST" "rm -f '$snapshot_path' 2>/dev/null || true"
+  # Must use sudo: snapshot is owned by coord with mode 0600. In sticky-bit
+  # /tmp, the SSH user cannot unlink it. Do not swallow failure with || true.
+  ssh "$HOST" "sudo rm -f '$snapshot_path'"
 }
 
 restore_capacity_snapshot() {
   local snapshot_path="$1"
-  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/coordinate/src /opt/coordinate/.venv/bin/python /opt/multinexus/scripts/capacity_snapshot_helper.py --db /var/lib/coordinate/coord.sqlite3 --target-source-id multinexus.discord.capacity --restore '$snapshot_path'"; then
+  local staging="$2"
+  # Use the same staged reviewed helper as capture — do not depend on the
+  # just-written /opt/multinexus/scripts/ which may be partially overwritten.
+  if ! ssh "$HOST" "sudo -u coord env PYTHONPATH=/opt/coordinate/src /opt/coordinate/.venv/bin/python '$staging/scripts/capacity_snapshot_helper.py' --db /var/lib/coordinate/coord.sqlite3 --target-source-id multinexus.discord.capacity --restore '$snapshot_path'"; then
     echo "error: failed to restore capacity snapshot (stage: restore-capacity-snapshot)" >&2
     return 1
   fi
@@ -289,6 +294,7 @@ restore_previous_accepted_state() {
   # before this deploy. Then re-run all three projection syncs and the committed verifier.
   local backup_path="$1"
   local snapshot_path="$2"
+  local staging="$3"
   if ! ssh "$HOST" "test -f '$backup_path' || exit 0; sudo cp -f '$backup_path' /opt/multinexus/config/agent-registry.toml"; then
     echo "error: failed to restore previous accepted authority (stage: restore-source)" >&2
     return 1
@@ -305,7 +311,7 @@ restore_previous_accepted_state() {
     echo "error: restored executor sync failed (stage: restore-executor-sync)" >&2
     return 1
   fi
-  if ! restore_capacity_snapshot "$snapshot_path"; then
+  if ! restore_capacity_snapshot "$snapshot_path" "$staging"; then
     echo "error: restored capacity snapshot failed (stage: restore-capacity-snapshot)" >&2
     return 1
   fi
@@ -383,12 +389,15 @@ deploy_multinexus() {
   # Backup the currently accepted authority and capture the exact capacity projection
   # snapshot before overwriting the authority. Any later stage failure triggers
   # restore_previous_accepted_state, which restores both the authority file and the
-  # capacity snapshot. The temporary snapshot is removed by the EXIT trap.
+  # capacity snapshot. Staging is kept until the gate completes so that capture and
+  # restore use the same reviewed helper. The snapshot and staging are trap-cleaned.
   ssh "$HOST" "test -f /opt/multinexus/config/agent-registry.toml || exit 0; sudo cp -f /opt/multinexus/config/agent-registry.toml '$backup_path'"
   capture_capacity_snapshot "$staging" "$snapshot_path" || return 1
-  trap '[ -n "${snapshot_path:-}" ] && cleanup_capacity_snapshot "$snapshot_path"' EXIT
+  trap 'if [ -n "${snapshot_path:-}" ]; then cleanup_capacity_snapshot "$snapshot_path" || true; fi; if [ -n "${staging:-}" ]; then ssh "$HOST" "sudo rm -rf '\''$staging'\''" 2>/dev/null || true; fi' EXIT
 
-  remote_sudo_script <<EOF
+  # Guarded source mutation: partial rsync/chown/test failure must trigger a full
+  # restore of the previous accepted state before returning nonzero.
+  if ! remote_sudo_script <<EOF
 set -euo pipefail
 mkdir -p /opt/multinexus
 rsync -a --delete \\
@@ -415,17 +424,21 @@ if [[ -d /opt/multinexus/docs/project-harness ]]; then
   find /opt/multinexus/docs/project-harness -type f -exec chmod 0664 {} +
 fi
 test -f /opt/multinexus/agents.toml
-rm -rf '$staging'
 EOF
+  then
+    echo "error: source mutation failed (stage: source-mutation)" >&2
+    restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging" || true
+    return 1
+  fi
 
   # Guarded deploy: do not write VERSION_DEPLOYED, restart, or run smoke until all
   # parity/sync/list/committed stages succeed. If any stage fails, restore the
   # previous accepted authority and the exact capacity snapshot before returning nonzero.
-  verify_remote_registry_parity || { restore_previous_accepted_state "$backup_path" "$snapshot_path"; return 1; }
-  sync_registry_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path"; return 1; }
-  sync_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path"; return 1; }
-  list_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path"; return 1; }
-  verify_committed_registry || { restore_previous_accepted_state "$backup_path" "$snapshot_path"; return 1; }
+  verify_remote_registry_parity || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
+  sync_registry_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
+  sync_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
+  list_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
+  verify_committed_registry || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
 
   if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     ssh "$HOST" "sudo -u multinexus python3 -m venv /opt/multinexus/.venv && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/python -m pip install --upgrade pip setuptools wheel && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt"
@@ -438,6 +451,7 @@ EOF
   fi
 
   cleanup_capacity_snapshot "$snapshot_path"
+  ssh "$HOST" "sudo rm -rf '$staging'"
   trap - EXIT
 }
 
