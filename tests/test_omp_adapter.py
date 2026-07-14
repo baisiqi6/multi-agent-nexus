@@ -188,6 +188,29 @@ class TestOmpTimeout(unittest.IsolatedAsyncioTestCase):
         self.assertIn("timed out after 5s", result.text)
         self.assertTrue(proc.killed)
 
+    async def test_cancellation_kills_process(self):
+        proc = FakeProcess()
+        started = asyncio.Event()
+
+        async def hanging_communicate(_input=None):
+            started.set()
+            await asyncio.Event().wait()
+
+        proc.communicate = hanging_communicate
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        adapter = OmpAdapter(_make_config())
+        with patch("multinexus.adapters.omp.asyncio.create_subprocess_exec", new=fake_exec):
+            task = asyncio.create_task(adapter.call("test"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
+        self.assertTrue(proc.killed)
+
 
 class TestOmpHealthCheck(unittest.IsolatedAsyncioTestCase):
     async def test_found(self):

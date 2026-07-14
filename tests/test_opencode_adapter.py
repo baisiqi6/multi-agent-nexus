@@ -20,6 +20,25 @@ class _FakeStream:
         return b""
 
 
+class _HangingStream:
+    def __init__(self, started: asyncio.Event | None = None):
+        self._started = started
+
+    async def readline(self):
+        if self._started is not None:
+            self._started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            # Ensure the started event is set even if cancellation races before
+            # the first await point, so callers never block forever.
+            if self._started is not None:
+                self._started.set()
+
+    async def read(self):
+        return b""
+
+
 class _FakeStdin:
     def write(self, data):
         self.data = data
@@ -32,11 +51,14 @@ class _FakeStdin:
 
 
 class _FakeProcess:
-    def __init__(self, events, returncode=0):
+    def __init__(self, events, returncode=0, hang=False, started: asyncio.Event | None = None):
         self.stdin = _FakeStdin()
-        self.stdout = _FakeStream(
-            [(json.dumps(event) + "\n").encode("utf-8") for event in events]
-        )
+        if hang:
+            self.stdout = _HangingStream(started=started)
+        else:
+            self.stdout = _FakeStream(
+                [(json.dumps(event) + "\n").encode("utf-8") for event in events]
+            )
         self.stderr = _FakeStream([])
         self.returncode = returncode
         self.killed = False
@@ -46,6 +68,8 @@ class _FakeProcess:
 
     def kill(self):
         self.killed = True
+        if self.returncode is None:
+            self.returncode = -9
 
 
 def _config():
@@ -136,3 +160,28 @@ class OpenCodeAdapterRetryTests(unittest.TestCase):
 
         self.assertEqual(result.text, "OpenCode returned no text (events=step_start)")
         self.assertEqual(len(calls), 5)
+
+
+class OpenCodeAdapterCancellationTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cancellation_kills_subprocess(self):
+        started = asyncio.Event()
+        proc = _FakeProcess([], hang=True, returncode=None, started=started)
+
+        async def fake_create(*args, **kwargs):
+            return proc
+
+        adapter = OpenCodeAdapter(_config())
+        with patch(
+            "multinexus.adapters.opencode.asyncio.create_subprocess_exec", fake_create
+        ):
+            task = asyncio.create_task(adapter.call("hello"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
+        self.assertTrue(proc.killed)
+
+
+if __name__ == "__main__":
+    unittest.main()

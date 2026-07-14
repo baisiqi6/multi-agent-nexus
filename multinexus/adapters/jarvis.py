@@ -14,6 +14,7 @@ agents.toml 配置：
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import os
 from collections.abc import Callable
@@ -86,8 +87,21 @@ class JarvisAdapter(AgentAdapter):
                 timeout=timeout,
             )
         except asyncio.TimeoutError:
-            proc.kill()
+            with contextlib.suppress(Exception):
+                proc.kill()
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    pass
             return AdapterResult(text="Jarvis 响应超时（Pad 可能休眠）", metadata={"error": "timeout"})
+        except asyncio.CancelledError:
+            with contextlib.suppress(Exception):
+                proc.kill()
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    pass
+            raise
 
         if proc.returncode != 0:
             err = stderr.decode("utf-8", errors="replace").strip()[:500]
@@ -182,7 +196,6 @@ class LocalBrainAdapter(AgentAdapter):
 
     async def health_check(self) -> dict:
         """Check if jarvis_pkg is importable and wake service is running."""
-        import shutil
         try:
             self._get_brain()
         except Exception as e:

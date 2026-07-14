@@ -10,19 +10,16 @@ Verifies that:
 
 import asyncio
 import hashlib
+import importlib.util
 import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock, AsyncMock
+from unittest.mock import patch, MagicMock
 
 from multinexus.models import AgentConfig
 from multinexus.protocol import (
     AgentRequest,
-    AgentResponse,
-    Platform,
-    PlatformDestination,
-    PlatformOrigin,
 )
 
 
@@ -146,13 +143,8 @@ class TestKookBridgeImportBehavior(unittest.TestCase):
 
     def test_kook_bridge_requires_coordinator_cli(self):
         """KookBridge in agentd_mode without coordinator_cli_path must fail."""
-        import sys
-        if "khl" not in sys.modules:
-            try:
-                import khl
-            except ImportError:
-                self.skipTest("khl not installed")
-                return
+        if importlib.util.find_spec("khl") is None:
+            self.skipTest("khl not installed")
 
         from multinexus.kook.bot import KookBridge
         cfg = _config(
@@ -167,13 +159,8 @@ class TestKookBridgeImportBehavior(unittest.TestCase):
 
     def test_kook_bridge_no_embedded_agentd(self):
         """KookBridge must not have embedded AgentDaemon."""
-        import sys
-        if "khl" not in sys.modules:
-            try:
-                import khl
-            except ImportError:
-                self.skipTest("khl not installed")
-                return
+        if importlib.util.find_spec("khl") is None:
+            self.skipTest("khl not installed")
 
         from multinexus.kook.bot import KookBridge
         cfg = _config(agentd_mode=False, kook_poll_channel_ids=[123])
@@ -301,7 +288,6 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
 
         # Capture the command that would be run
         import subprocess
-        original_run = subprocess.run
         commands_seen = []
 
         def mock_run(cmd, **kwargs):
@@ -349,7 +335,6 @@ class TestCoordinateRuntimeBoundary(unittest.TestCase):
     def test_both_bridges_submit_via_coordinate(self):
         """Both bridges submit to coordinate runtime for the same agent."""
         from multinexus.agentd.coordinate_client import CoordinateRuntimeClient
-        from multinexus.models import AgentConfig
 
         # Verify both configs point to the same coordinate instance
         cfg = _config(
@@ -392,7 +377,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -445,7 +430,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
 
         reported_jobs = []
 
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -492,7 +477,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker.adapter = FailingAdapter(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -520,7 +505,7 @@ class TestAgentdWorkerCoordinateFlow(unittest.TestCase):
         worker = AgentdWorker(cfg)
 
         reported_jobs = []
-        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report_job(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported_jobs.append({"job_id": job_id, "status": status})
             return {"result": {}}
         worker.coordinate.report_job = mock_report_job
@@ -878,7 +863,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
         worker.coordinate.report_job = mock_report
 
@@ -914,7 +899,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status})
         worker.coordinate.report_job = mock_report
 
@@ -975,7 +960,7 @@ class TestWorkerSessionResume(unittest.TestCase):
             progress.append(kwargs)
             return {"result": {}}
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1039,7 +1024,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1101,7 +1086,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1163,7 +1148,7 @@ class TestWorkerSessionResume(unittest.TestCase):
 
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
             return {"result": {}}
 
@@ -1254,7 +1239,7 @@ class TestWorkerSessionResume(unittest.TestCase):
         }
 
         reported = []
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "text": result_json.get("response_text", "")})
         worker.coordinate.report_job = mock_report
 

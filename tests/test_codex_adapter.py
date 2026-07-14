@@ -1,10 +1,77 @@
+import asyncio
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from multinexus.adapters.codex import CodexAdapter
 from multinexus.config import _load_toml_agent
 from multinexus.models import AgentConfig
+
+
+class _FakeStream:
+    def __init__(self, lines=None, *, hang=False):
+        self._lines = list(lines or [])
+        self._hang = hang
+
+    async def readline(self):
+        if self._lines:
+            return self._lines.pop(0)
+        if self._hang:
+            await asyncio.Event().wait()
+        return b""
+
+    async def read(self):
+        return b""
+
+
+class _FakeStdin:
+    def __init__(self):
+        self.data = b""
+
+    def write(self, data):
+        self.data += data
+
+    async def drain(self):
+        return None
+
+    def close(self):
+        return None
+
+
+class _FakeProcess:
+    def __init__(self, events=None, *, hang=False, returncode=0):
+        lines = [(json.dumps(event) + "\n").encode("utf-8") for event in (events or [])]
+        self.stdin = _FakeStdin()
+        self.stdout = _FakeStream(lines, hang=hang)
+        self.stderr = _FakeStream([])
+        self.returncode = None
+        self._final_returncode = returncode
+        self.killed = False
+
+    async def wait(self):
+        self.returncode = self._final_returncode
+        return self.returncode
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+
+def _config(**overrides):
+    values = {
+        "id": "mac-codex",
+        "token": "token",
+        "adapter": "codex",
+        "codex_bin": "codex",
+        "codex_sandbox": "danger-full-access",
+        "work_dir": "/tmp",
+        "timeout": 30,
+        "activity_timeout": 5,
+    }
+    values.update(overrides)
+    return AgentConfig(**values)
 
 
 class TestCodexAdapterPermissions(unittest.TestCase):
@@ -97,3 +164,21 @@ class TestCodexResumePermissions(unittest.TestCase):
         self.assertNotIn("--dangerously-bypass-approvals-and-sandbox", cmd)
         self.assertIn("-c", cmd)
         self.assertIn("sandbox_permissions=[\"danger-full-access\"]", cmd)
+
+
+class TestCodexCancellation(unittest.IsolatedAsyncioTestCase):
+    async def test_cancellation_kills_process(self):
+        proc = _FakeProcess(hang=True)
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        adapter = CodexAdapter(_config())
+        with patch("multinexus.adapters.codex.asyncio.create_subprocess_exec", new=fake_exec):
+            task = asyncio.create_task(adapter.call("hang"))
+            await asyncio.sleep(0)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
+        self.assertTrue(proc.killed)

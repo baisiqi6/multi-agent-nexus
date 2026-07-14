@@ -1,7 +1,7 @@
 import asyncio
 import logging
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from multinexus.adapters.base import AdapterResult
 from multinexus.adapters.hermes import HermesAdapter
@@ -113,7 +113,6 @@ class TestHermesTimeout(unittest.IsolatedAsyncioTestCase):
     async def test_timeout_kills_process(self):
         proc = FakeProcess()
         # Make communicate raise TimeoutError
-        original_communicate = proc.communicate
 
         async def hanging_communicate():
             raise asyncio.TimeoutError
@@ -128,6 +127,29 @@ class TestHermesTimeout(unittest.IsolatedAsyncioTestCase):
             result = await adapter.call("test")
 
         self.assertIn("timed out after 5s", result.text)
+        self.assertTrue(proc.killed)
+
+    async def test_cancellation_kills_process(self):
+        proc = FakeProcess()
+        started = asyncio.Event()
+
+        async def hanging_communicate():
+            started.set()
+            await asyncio.Event().wait()
+
+        proc.communicate = hanging_communicate
+
+        async def fake_exec(*args, **kwargs):
+            return proc
+
+        adapter = HermesAdapter(_make_config())
+        with patch("multinexus.adapters.hermes.asyncio.create_subprocess_exec", new=fake_exec):
+            task = asyncio.create_task(adapter.call("test"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
         self.assertTrue(proc.killed)
 
 

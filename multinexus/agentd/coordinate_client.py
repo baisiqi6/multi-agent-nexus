@@ -125,6 +125,7 @@ class CoordinateRuntimeClient:
         status: str,
         result_json: dict,
         attempt_token: int | None = None,
+        lease_id: str | None = None,
     ) -> dict:
         """Report job result back to coordinate."""
         cmd = [
@@ -137,6 +138,8 @@ class CoordinateRuntimeClient:
         ]
         if attempt_token is not None:
             cmd.extend(["--attempt-token", str(attempt_token)])
+        if lease_id is not None:
+            cmd.extend(["--lease-id", lease_id])
         return await asyncio.to_thread(self._run_cli, cmd)
 
     async def record_progress(
@@ -148,6 +151,7 @@ class CoordinateRuntimeClient:
         summary: str = "",
         session_id: str = "",
         attempt_token: int | None = None,
+        lease_id: str | None = None,
     ) -> dict:
         """Record a bounded progress checkpoint for a running job."""
         cmd = [
@@ -164,6 +168,42 @@ class CoordinateRuntimeClient:
             cmd.extend(["--session-id", session_id])
         if attempt_token is not None:
             cmd.extend(["--attempt-token", str(attempt_token)])
+        if lease_id is not None:
+            cmd.extend(["--lease-id", lease_id])
+        return await asyncio.to_thread(self._run_cli, cmd)
+
+    async def renew_lease(
+        self,
+        *,
+        job_id: str,
+        agent_id: str,
+        attempt_token: int,
+        lease_id: str,
+    ) -> dict:
+        """Renew one managed lease."""
+        cmd = [
+            *self._base_cmd,
+            "runtime", "job", "lease", "renew",
+            job_id,
+            "--agent-id", agent_id,
+            "--attempt-token", str(attempt_token),
+            "--lease-id", lease_id,
+        ]
+        return await asyncio.to_thread(self._run_cli, cmd)
+
+    async def reap_leases(
+        self,
+        *,
+        actor: str = "agentd",
+        batch_size: int = 100,
+    ) -> dict:
+        """Expire due active leases and make their jobs recoverable."""
+        cmd = [
+            *self._base_cmd,
+            "runtime", "job", "lease", "reap",
+            "--actor", actor,
+            "--batch-size", str(batch_size),
+        ]
         return await asyncio.to_thread(self._run_cli, cmd)
 
     async def wait_for_job_result(

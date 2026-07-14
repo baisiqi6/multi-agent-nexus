@@ -94,7 +94,7 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
@@ -110,7 +110,7 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report
@@ -125,7 +125,7 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker(_config(adapter="claude"))
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json, "attempt_token": attempt_token})
 
         worker.coordinate.report_job = mock_report
@@ -141,7 +141,7 @@ class WorkerBindingIntegrationTests(unittest.TestCase):
         worker = self._make_worker()
         reported = []
 
-        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None):
+        async def mock_report(*, job_id, agent_id, status, result_json, attempt_token=None, lease_id=None):
             reported.append({"status": status, "result_json": result_json})
 
         worker.coordinate.report_job = mock_report

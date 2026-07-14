@@ -24,8 +24,16 @@ from ..sessions.store import SessionStore
 from .coordinate_client import CoordinateRuntimeClient, CoordinateRuntimeError
 from .execution_context import ExecutionContextError, validate_claim_response
 from .executor_binding import ExecutorBindingError, validate_executor_binding
+from .execution_lease import ExecutionLeaseError, validate_execution_lease
 
 log = logging.getLogger(__name__)
+
+
+class LeaseLostError(RuntimeError):
+    """Raised when the managed lease is lost or renewal fails authoritatively."""
+
+
+RENEWAL_SAFETY_MARGIN_SECONDS = 5
 
 
 class AgentdWorker:
@@ -83,7 +91,37 @@ class AgentdWorker:
     async def _process_job(self, claim_result: dict[str, Any]) -> None:
         job = claim_result.get("job") or {}
         job_id = job.get("id", "?")
-        attempt_token = claim_result.get("attempt_token")
+        raw_attempt_token = claim_result.get("attempt_token")
+        attempt_token = raw_attempt_token if isinstance(raw_attempt_token, int) else None
+
+        # P9-3B: validate lease identity before context/binding are trusted.
+        raw_lease = claim_result.get("execution_lease")
+        lease_id: str | None = None
+        if raw_lease is not None and isinstance(raw_lease, dict):
+            try:
+                lease = validate_execution_lease(
+                    raw_lease,
+                    expected_agent_id=self.config.id,
+                    expected_job_id=job_id if job_id != "?" else None,
+                    expected_attempt_token=attempt_token,
+                )
+                lease_id = lease.lease_id
+            except ExecutionLeaseError as exc:
+                log.error("Invalid execution lease for agent %s: %s", self.config.id, exc)
+                # No provider invocation; report failed only if we have a usable
+                # attempt token. Without one, expiry recovery will clean the job.
+                if isinstance(attempt_token, int):
+                    try:
+                        await self.coordinate.report_job(
+                            job_id=job_id,
+                            agent_id=self.config.id,
+                            status="failed",
+                            result_json={"error": f"execution lease rejected: {exc}"},
+                            attempt_token=attempt_token,
+                        )
+                    except CoordinateRuntimeError:
+                        log.exception("Lease rejection report failed for %s", job_id)
+                return
 
         try:
             job, ctx, attempt_token = validate_claim_response(
@@ -92,19 +130,54 @@ class AgentdWorker:
             )
         except ExecutionContextError as exc:
             log.error("Invalid execution context for agent %s: %s", self.config.id, exc)
-            # Fail closed: report the job as failed using the attempt token from
-            # Coordinate when available, without invoking any provider adapter.
-            await self.coordinate.report_job(
-                job_id=job_id,
-                agent_id=self.config.id,
-                status="failed",
-                result_json={
-                    "error": f"execution context rejected: {exc}",
-                    "execution_context_id": "",
-                },
-                attempt_token=attempt_token if isinstance(attempt_token, int) else None,
-            )
+            # P9-3B: if lease identity is already trusted, report failed with lease.
+            if lease_id is not None and isinstance(attempt_token, int):
+                try:
+                    await self.coordinate.report_job(
+                        job_id=job_id,
+                        agent_id=self.config.id,
+                        status="failed",
+                        result_json={"error": f"execution context rejected: {exc}"},
+                        attempt_token=attempt_token,
+                        lease_id=lease_id,
+                    )
+                except CoordinateRuntimeError:
+                    log.exception("Context rejection report failed for %s", job_id)
+            elif isinstance(attempt_token, int):
+                await self.coordinate.report_job(
+                    job_id=job_id,
+                    agent_id=self.config.id,
+                    status="failed",
+                    result_json={
+                        "error": f"execution context rejected: {exc}",
+                        "execution_context_id": "",
+                    },
+                    attempt_token=attempt_token,
+                )
             return
+
+        # P9-3B: re-validate lease against the now-trusted execution context.
+        if raw_lease is not None and isinstance(raw_lease, dict):
+            try:
+                lease = validate_execution_lease(
+                    raw_lease,
+                    expected_agent_id=self.config.id,
+                    expected_job_id=ctx.job_id,
+                    expected_attempt_token=attempt_token,
+                    execution_context=ctx.to_dict(),
+                )
+                lease_id = lease.lease_id
+            except ExecutionLeaseError as exc:
+                log.error("Lease cross-check failed for agent %s: %s", self.config.id, exc)
+                await self.coordinate.report_job(
+                    job_id=job_id,
+                    agent_id=self.config.id,
+                    status="failed",
+                    result_json={"error": f"execution lease cross-check failed: {exc}"},
+                    attempt_token=attempt_token,
+                    lease_id=lease_id,
+                )
+                return
 
         try:
             payload = self._extract_payload(job)
@@ -116,6 +189,7 @@ class AgentdWorker:
                 status="failed",
                 result_json={"error": str(exc)},
                 attempt_token=attempt_token,
+                lease_id=lease_id,
             )
             return
 
@@ -134,17 +208,40 @@ class AgentdWorker:
                 status="failed",
                 result_json={"error": str(exc)},
                 attempt_token=attempt_token,
+                lease_id=lease_id,
             )
             return
 
+        # P9-3B: cross-check lease against the trusted executor binding.
+        if raw_lease is not None and isinstance(raw_lease, dict) and binding is not None:
+            try:
+                lease = validate_execution_lease(
+                    raw_lease,
+                    expected_agent_id=self.config.id,
+                    expected_job_id=ctx.job_id,
+                    expected_attempt_token=attempt_token,
+                    execution_context=ctx.to_dict(),
+                    executor_binding=binding_snapshot,
+                )
+                lease_id = lease.lease_id
+            except ExecutionLeaseError as exc:
+                log.error("Lease binding cross-check failed for agent %s: %s", self.config.id, exc)
+                await self.coordinate.report_job(
+                    job_id=job_id,
+                    agent_id=self.config.id,
+                    status="failed",
+                    result_json={"error": f"execution lease binding cross-check failed: {exc}"},
+                    attempt_token=attempt_token,
+                    lease_id=lease_id,
+                )
+                return
+
         prompt = payload.get("prompt", "")
         log.info(
-            "Processing job %s: agent=%s prompt_len=%d cwd=%s",
-            job_id, self.config.id, len(prompt), ctx.cwd,
+            "Processing job %s: agent=%s prompt_len=%d cwd=%s lease=%s",
+            job_id, self.config.id, len(prompt), ctx.cwd, lease_id,
         )
 
-        # Session scope and filesystem authority come from the validated
-        # Coordinate execution context, not from bridge payload or config.work_dir.
         session_scope_id = ctx.session_scope_id
         legacy_scope_ids = ctx.legacy_scope_ids
         work_dir = ctx.cwd
@@ -154,21 +251,87 @@ class AgentdWorker:
             session_scope_id=session_scope_id,
             work_dir=work_dir,
             attempt_token=attempt_token,
+            lease_id=lease_id,
         )
 
-        start = time.time()
-        try:
-            result = await self._call_or_resume(
-                prompt,
-                session_scope_id,
-                legacy_scope_ids,
-                work_dir,
-                on_progress=progress_callback,
-                recovery_session_id=recovery_session_id,
+        # P9-3B: start dedicated renewal supervisor before provider invocation.
+        lease_lost = asyncio.Event()
+        renewal_task: asyncio.Task | None = None
+        if lease_id is not None and isinstance(attempt_token, int) and raw_lease is not None:
+            renewal_task = asyncio.create_task(
+                self._renewal_supervisor(
+                    lease=raw_lease,
+                    lease_lost=lease_lost,
+                )
             )
+
+        start = time.time()
+        provider_task: asyncio.Task | None = None
+        try:
+            provider_task = asyncio.create_task(
+                self._call_or_resume(
+                    prompt,
+                    session_scope_id,
+                    legacy_scope_ids,
+                    work_dir,
+                    on_progress=progress_callback,
+                    recovery_session_id=recovery_session_id,
+                )
+            )
+            coros = [provider_task]
+            if renewal_task is not None:
+                coros.append(renewal_task)
+            done, pending = await asyncio.wait(
+                coros,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            if renewal_task in done:
+                # Authoritative lease loss: cancel provider and do not report normally.
+                if provider_task and not provider_task.done():
+                    provider_task.cancel()
+                    try:
+                        await provider_task
+                    except asyncio.CancelledError:
+                        pass
+                log.error("Lease lost for job %s; provider cancelled", job_id)
+                if progress_tasks:
+                    await asyncio.gather(*progress_tasks, return_exceptions=True)
+                return
+            # Provider finished first.
+            result = provider_task.result()
+            if renewal_task and not renewal_task.done():
+                renewal_task.cancel()
+                try:
+                    await renewal_task
+                except asyncio.CancelledError:
+                    pass
         except asyncio.CancelledError:
+            if provider_task and not provider_task.done():
+                provider_task.cancel()
+                try:
+                    await provider_task
+                except asyncio.CancelledError:
+                    pass
+            if renewal_task and not renewal_task.done():
+                renewal_task.cancel()
+                try:
+                    await renewal_task
+                except asyncio.CancelledError:
+                    pass
             raise
         except Exception as exc:
+            if provider_task and not provider_task.done():
+                provider_task.cancel()
+                try:
+                    await provider_task
+                except asyncio.CancelledError:
+                    pass
+            if renewal_task and not renewal_task.done():
+                renewal_task.cancel()
+                try:
+                    await renewal_task
+                except asyncio.CancelledError:
+                    pass
             result = AdapterResult(text=f"Agent error: {exc}")
 
         if progress_tasks:
@@ -210,8 +373,92 @@ class AgentdWorker:
             status=status,
             result_json=result_json,
             attempt_token=attempt_token,
+            lease_id=lease_id,
         )
         log.info("Job %s complete: status=%s duration=%dms", job_id, status, duration_ms)
+
+    async def _renewal_supervisor(
+        self,
+        *,
+        lease: dict[str, Any],
+        lease_lost: asyncio.Event,
+    ) -> None:
+        """Dedicated heartbeat: renew the lease before its monotonic deadline.
+
+        Converts Coordinate's server_now + expires_at into a local monotonic
+        deadline with a fixed safety margin. Ordinary renewals update the lease
+        row without event spam; authoritative rejection or transport failure
+        marks the lease lost and exits so the worker can cancel the provider.
+        """
+        from datetime import datetime, timezone
+
+        lease_id = lease["lease_id"]
+        job_id = lease["job_id"]
+        attempt_token = lease["attempt_token"]
+        agent_id = lease["agent_id"]
+        renew_interval_seconds = lease["renew_interval_seconds"]
+
+        def _to_monotonic_deadline(server_now: str, expires_at: str) -> float:
+            server_dt = datetime.strptime(server_now, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            expires_dt = datetime.strptime(expires_at, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            remaining = (expires_dt - server_dt).total_seconds()
+            return time.monotonic() + remaining - RENEWAL_SAFETY_MARGIN_SECONDS
+
+        deadline = _to_monotonic_deadline(lease["server_now"], lease["expires_at"])
+
+        while True:
+            now = time.monotonic()
+            if now >= deadline:
+                log.warning("Lease %s deadline reached without successful renewal", lease_id)
+                lease_lost.set()
+                return
+
+            sleep_until = min(deadline, now + max(1, renew_interval_seconds))
+            try:
+                await asyncio.wait_for(lease_lost.wait(), timeout=sleep_until - now)
+                return
+            except asyncio.TimeoutError:
+                pass
+
+            try:
+                response = await self.coordinate.renew_lease(
+                    job_id=job_id,
+                    agent_id=agent_id,
+                    attempt_token=attempt_token,
+                    lease_id=lease_id,
+                )
+            except CoordinateRuntimeError as exc:
+                log.error("Lease renewal transport error for %s: %s", lease_id, exc)
+                # Fail closed: treat transport failure as lease lost.
+                lease_lost.set()
+                return
+
+            if not isinstance(response, dict):
+                log.error("Lease renewal returned non-dict for %s", lease_id)
+                lease_lost.set()
+                return
+
+            result = response.get("result")
+            if not isinstance(result, dict):
+                log.error("Lease renewal missing result for %s", lease_id)
+                lease_lost.set()
+                return
+
+            new_expires_at = result.get("expires_at")
+            new_server_now = result.get("server_now")
+            if not isinstance(new_expires_at, str) or not isinstance(new_server_now, str):
+                log.error("Lease renewal missing timestamps for %s", lease_id)
+                lease_lost.set()
+                return
+
+            try:
+                deadline = _to_monotonic_deadline(new_server_now, new_expires_at)
+            except ValueError as exc:
+                log.error("Lease renewal returned invalid timestamps for %s: %s", lease_id, exc)
+                lease_lost.set()
+                return
+
+            log.debug("Lease %s renewed; new deadline %s", lease_id, deadline)
 
     def _make_coordinate_progress_callback(
         self,
@@ -220,6 +467,7 @@ class AgentdWorker:
         session_scope_id: str,
         work_dir: str,
         attempt_token: int | None = None,
+        lease_id: str | None = None,
     ):
         tasks: list[asyncio.Task] = []
         state: dict[str, str] = {}
@@ -256,6 +504,7 @@ class AgentdWorker:
                         summary=progress.get("summary", ""),
                         session_id=session_id,
                         attempt_token=attempt_token,
+                        lease_id=lease_id,
                     )
                 )
             )

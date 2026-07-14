@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import shutil
 import logging
 
@@ -61,9 +62,21 @@ class HermesAdapter(AgentAdapter):
                 proc.communicate(), timeout=timeout
             )
         except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
+            with contextlib.suppress(Exception):
+                proc.kill()
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    pass
             return AdapterResult(text=f"Hermes timed out after {timeout}s")
+        except asyncio.CancelledError:
+            with contextlib.suppress(Exception):
+                proc.kill()
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=5)
+                except asyncio.TimeoutError:
+                    pass
+            raise
 
         stdout_text = stdout.decode("utf-8", errors="replace").strip()
         stderr_text = stderr.decode("utf-8", errors="replace").strip()

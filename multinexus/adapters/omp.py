@@ -102,6 +102,13 @@ class OmpAdapter(AgentAdapter):
             except asyncio.TimeoutError:
                 pass
             return AdapterResult(text=f"omp timed out after {timeout}s")
+        except asyncio.CancelledError:
+            proc.kill()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5)
+            except asyncio.TimeoutError:
+                pass
+            raise
 
         response_text = stdout.decode("utf-8", errors="replace").strip()
         session_id = resume_session_id

@@ -2,7 +2,6 @@ import asyncio
 import unittest
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from multinexus.adapters.base import AdapterResult
 from multinexus.adapters.jarvis import JarvisAdapter
 from multinexus.models import AgentConfig
 
@@ -75,6 +74,25 @@ class TestJarvisCallFailure(unittest.IsolatedAsyncioTestCase):
             result = await adapter.call("hi")
         self.assertIn("超时", result.text)
         self.assertEqual(result.metadata["error"], "timeout")
+        self.assertTrue(proc.killed)
+
+    async def test_cancellation(self):
+        adapter = JarvisAdapter(_make_config())
+        proc = FakeProcess()
+        started = asyncio.Event()
+
+        async def _hang(_input=None):
+            started.set()
+            await asyncio.Event().wait()
+
+        proc.communicate = _hang
+        with patch("multinexus.adapters.jarvis.asyncio.create_subprocess_exec", return_value=proc):
+            task = asyncio.create_task(adapter.call("hi"))
+            await asyncio.wait_for(started.wait(), timeout=5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+
         self.assertTrue(proc.killed)
 
     async def test_ssh_missing(self):
