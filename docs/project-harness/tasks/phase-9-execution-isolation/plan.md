@@ -135,10 +135,13 @@ run concurrently; the same worktree is exclusive by default.
 
 Status (2026-07-14): P9-3A and P9-3B are deployed and durably `done/closed`; exact
 P9-3B evidence is in `../p9-3b-runtime-lease-wiring/closeout.md`. P9-3C is now the
-next detailed-plan gate for the disposable production concurrency/recovery matrix and
-P9-3 stage closeout. P9-3C execution remains blocked until fresh measurement, an
-independently reviewed exact plan revision, checklist registration, and a new worker
-bootstrap are complete.
+next gate for the disposable production concurrency/recovery matrix and P9-3 stage
+closeout. P9-3C measurement and plan revision
+`6321e77be6cfd50c82d9c7f995691fb523196c1b3ce238c501eadb4c385f6652` are
+independently approved only for the read-only P9-3C0 fixture assessment; see
+`../p9-3c-production-concurrency-recovery-matrix/plan-approval.md`. P9-3C0 coding and
+all P9-3C1 production execution remain blocked pending the fixture assessment, a
+separate exact-revision implementation plan if needed, and a fresh independent review.
 
 ### P9-4 — Provider-neutral observation contract
 

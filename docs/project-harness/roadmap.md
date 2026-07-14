@@ -245,8 +245,9 @@ Outcome: safely run multiple projects, task lines, providers, and executor insta
 without session, worktree, queue, log, authority, or result contamination.
 
 Status (2026-07-14): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C
-fresh measurement and independently reviewed detailed planning is the next gate; no
-production concurrency/crash matrix is authorized before that approval.
+fresh measurement and detailed plan are approved only for the read-only P9-3C0 fixture
+assessment. No P9-3C0 coding or P9-3C1 production concurrency/crash matrix is
+authorized until the exact fixture contract and a fresh independent review close.
 
 ## Scheduling model
 

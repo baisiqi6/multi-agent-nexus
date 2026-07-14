@@ -2,6 +2,21 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-14 — P9-3C plan gate and P9-3C0 boundary
+
+- Kimi planning worker via Claude Sonnet produced the fresh P9-3C measurement/plan;
+  provider-native stream confirmed `message.model=kimi-for-coding`.
+- Round-1 Codex adversarial review rejected blind DB restore, impossible capacity-1
+  concurrency, invented capacity usage, manual-renew false proof, restart/crash
+  conflation, unscoped recovery, and incomplete fixture boundaries.
+- The corrected plan splits P9-3C0 local/sidecar fixture proof from P9-3C1 production,
+  uses two capacity-1 executors correctly, requires global quiescence, forbids paid
+  provider calls, and makes whole-DB restore an explicit last-resort incident gate.
+- Independent Kimi Round-2 approved exact plan SHA
+  `6321e77be6cfd50c82d9c7f995691fb523196c1b3ce238c501eadb4c385f6652`
+  only for the read-only P9-3C0 fixture assessment. Coding, checklist assignment, and
+  production jobs/leases/reap/restart remain blocked.
+
 ## 2026-07-14 — P9-3B terminal receipt consumed
 
 - Host-aware receipt `8f36d34c...` moved the canonical item from
