@@ -550,5 +550,5 @@ MultiNexus (GLM Round 3 + DeepSeek Round 4 corrections):
 
 ### Round 4 commits
 
-Coordinate: (to be committed)
-MultiNexus: (to be committed)
+Coordinate: `375669b7e7b80db715cfbd59b1d48bfff6960cb0`
+MultiNexus: `4a4af5cf09620b57a49a5ba3f280657856aee042`
