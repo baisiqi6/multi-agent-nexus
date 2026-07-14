@@ -2,7 +2,7 @@
 
 Harness root: `docs/project-harness/`
 
-## 2026-07-15 — P9-3C0 Package 1 accepted for inert deployment
+## 2026-07-15 — P9-3C0 Package 1 deployed and closed
 
 - Claude Code in `sonnet` outer mode used Kimi for Coding as the implementation worker;
   provider-native JSONL confirmed `message.model=kimi-for-coding`. The final Coordinate
@@ -15,14 +15,23 @@ Harness root: `docs/project-harness/`
   failed`; all nine failures exactly match the historical base baseline.
 - A fresh independent Kimi result review found no blocking findings and returned
   `APPROVED_FOR_P9_3C0_PACKAGE1_MERGE_AND_INERT_DEPLOY`.
-- Merge, push, a production single-source backup, inert Coordinate deployment, and
-  read-only post-deploy verification are authorized. No second source, fixture agent,
-  fixture unit, fixture job, lease, concurrency, reap, or crash exercise is authorized.
+- Coordinate `a7397b9` and the result-review documentation were merged, pushed, and
+  deployed. A canonical capacity exact retry through the new code returned
+  `changed=false` with all eight policies unchanged; source, installed package, and
+  deployed core-file digests match.
+- Production recovery evidence includes a mode-600 online SQLite backup and a mode-600
+  capacity snapshot. Final integrity/schema/FK is `ok` / `13` / `0`; active/total
+  leases are `0/0`; nonterminal jobs and fixture residue are empty; both services are
+  active/running with `NRestarts=0` and server smoke passed.
+- No second source, fixture agent, fixture unit, fixture job, lease, concurrency, reap,
+  or crash exercise was performed or authorized.
 - Before a second capacity source is activated, the current single-source
   snapshot/restore contract must pass a separate compatibility assessment, plan,
   independent review, implementation, and result-review gate.
 - Exact result-review evidence:
   `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-coordinate-package1-result-review.md`.
+- Exact deployment and dogfood evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-coordinate-package1-deployment-dogfood.md`.
 
 ## 2026-07-14 — P9-3C plan gate and P9-3C0 boundary
 
