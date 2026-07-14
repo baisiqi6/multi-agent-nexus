@@ -2,6 +2,28 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-15 — P9-3C0 Package 1 accepted for inert deployment
+
+- Claude Code in `sonnet` outer mode used Kimi for Coding as the implementation worker;
+  provider-native JSONL confirmed `message.model=kimi-for-coding`. The final Coordinate
+  revision is `a7397b9fd2e5bc7101ce9dcc7c9c42ebc6526de5` on base `3eaa7bf`.
+- The package decouples `sync_capacity_catalog` from the historical single-source
+  assumption while preserving global typed-binding coverage, deterministic
+  cross-source ownership, exact retry validation, and active-lease replacement guards.
+- Codex verification passed the focused gate (`186 passed, 5 subtests passed`), diff
+  check, and compileall. Full-suite output is `2415 passed, 493 subtests passed, 9
+  failed`; all nine failures exactly match the historical base baseline.
+- A fresh independent Kimi result review found no blocking findings and returned
+  `APPROVED_FOR_P9_3C0_PACKAGE1_MERGE_AND_INERT_DEPLOY`.
+- Merge, push, a production single-source backup, inert Coordinate deployment, and
+  read-only post-deploy verification are authorized. No second source, fixture agent,
+  fixture unit, fixture job, lease, concurrency, reap, or crash exercise is authorized.
+- Before a second capacity source is activated, the current single-source
+  snapshot/restore contract must pass a separate compatibility assessment, plan,
+  independent review, implementation, and result-review gate.
+- Exact result-review evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-coordinate-package1-result-review.md`.
+
 ## 2026-07-14 — P9-3C plan gate and P9-3C0 boundary
 
 - Kimi planning worker via Claude Sonnet produced the fresh P9-3C measurement/plan;

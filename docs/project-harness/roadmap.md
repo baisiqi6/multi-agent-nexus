@@ -244,10 +244,12 @@ Canonical overview:
 Outcome: safely run multiple projects, task lines, providers, and executor instances
 without session, worktree, queue, log, authority, or result contamination.
 
-Status (2026-07-14): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C
-fresh measurement and detailed plan are approved only for the read-only P9-3C0 fixture
-assessment. No P9-3C0 coding or P9-3C1 production concurrency/crash matrix is
-authorized until the exact fixture contract and a fresh independent review close.
+Status (2026-07-15): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C0
+Package 1 Coordinate capacity-source decoupling is independently accepted for merge and
+inert production deployment at `a7397b9`. Before any second capacity source is
+activated, the single-source snapshot/restore contract requires a separate compatibility
+gate. Fixture assets, fixture activation, and the P9-3C1 production concurrency/crash
+matrix remain unauthorized until their own detailed plans and reviews close.
 
 ## Scheduling model
 
