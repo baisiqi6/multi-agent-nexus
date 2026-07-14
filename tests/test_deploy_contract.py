@@ -2,13 +2,14 @@
 
 These tests execute the real deploy script with fake ssh/git/tar/chown binaries
 and safe fixtures.  They are standalone: no Coordinate worktree path is
-hardcoded.  The fake `coord-local` writes the minimal v12 schema/rows the
+hardcoded.  The fake `coord-local` writes the v13 projection schema/rows the
 read-after-write verifier inspects, and a tiny fake `coordinate.db` stub
 satisfies the verify helper's single Coordinate import.
 """
 
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -100,6 +101,8 @@ def capture_capacity_snapshot(conn, target_source_id, output_path):
             f.write(_cj(envelope).encode("utf-8"))
         os.replace(tmp, str(p))
         os.chmod(str(p), 0o600)
+        if os.environ.get("FAKE_SNAPSHOT_CAPTURE_FAILURE_AFTER_WRITE") == "1":
+            raise RuntimeError("injected post-write snapshot capture failure")
     except Exception:
         try:
             os.unlink(tmp)
@@ -157,7 +160,7 @@ db_path = Path(root) / "var/lib/coordinate/coord.sqlite3" if root else Path("coo
 db_path.parent.mkdir(parents=True, exist_ok=True)
 conn = sqlite3.connect(str(db_path))
 conn.row_factory = sqlite3.Row
-now = datetime.now(timezone.utc).isoformat()
+now = os.environ.get("FAKE_COORD_NOW") or datetime.now(timezone.utc).isoformat()
 
 conn.executescript("""
 PRAGMA user_version = 13;
@@ -576,6 +579,7 @@ class DeployContractTests(unittest.TestCase):
             "FAKE_GIT_SHA": self.git_sha,
             "FAKE_GIT_BRANCH": self.git_branch,
             "FAKE_GIT_STATUS": "",
+            "FAKE_COORD_NOW": "2026-01-01T00:00:00Z",
         }
 
     def _write_fake_git(self):
@@ -617,6 +621,7 @@ class DeployContractTests(unittest.TestCase):
                 s = s.replace("/opt/coordinate", os.path.join(root, "opt/coordinate"))
                 s = s.replace("/var/lib/coordinate", os.path.join(root, "var/lib/coordinate"))
                 s = s.replace("/usr/local/bin/coord-local", coord_local)
+                s = s.replace("/tmp/", os.path.join(root, "tmp/"))
                 # Drop sudo wrappers; the test runner has local filesystem rights.
                 s = s.replace("sudo -u coord env ", "env ")
                 s = s.replace("sudo -u multinexus ", "")
@@ -624,6 +629,15 @@ class DeployContractTests(unittest.TestCase):
                 return s
 
             rewritten = rewrite(cmd)
+
+            cleanup_marker = os.path.join(root, ".cleanup_failure_done")
+            if (
+                os.environ.get("FAKE_CLEANUP_FAILURE_ONCE") == "1"
+                and "sudo rm -f '/tmp/capacity-snapshot-" in cmd
+                and not os.path.exists(cleanup_marker)
+            ):
+                open(cleanup_marker, "w", encoding="utf-8").close()
+                sys.exit(1)
 
             if cmd.startswith("sudo bash -s"):
                 script_text = sys.stdin.read()
@@ -695,38 +709,81 @@ class DeployContractTests(unittest.TestCase):
         ] + list(extra_args)
         return subprocess.run(cmd, capture_output=True, text=True, env=env)
 
+    def _run_deploy_with_env(self, **env_updates) -> subprocess.CompletedProcess:
+        env = dict(os.environ)
+        env.update(self._env)
+        env.update(env_updates)
+        return subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
     def _ssh_log(self) -> str:
         if not self.ssh_log.exists():
             return ""
         return self.ssh_log.read_text(encoding="utf-8")
 
     def _snapshot_full_db_state(self, db_path) -> dict:
-        """Capture exact tuples of roster, executor, and capacity rows for exact restore verification."""
+        """Capture exact tuples (all columns, stable ordering) of every
+        rollback-affected projection so post-rollback comparison can verify
+        byte-level fidelity to the captured accepted pre-state.
+        """
         import sqlite3
         conn = sqlite3.connect(str(db_path))
         conn.row_factory = sqlite3.Row
         try:
+            workspace_rows = conn.execute(
+                "SELECT * FROM workspaces WHERE id = 'discord-nexus' ORDER BY id"
+            ).fetchall()
+            roster_source_rows = conn.execute(
+                "SELECT * FROM workspace_agent_registry_sources "
+                "WHERE workspace_id = 'discord-nexus' ORDER BY workspace_id"
+            ).fetchall()
             roster_rows = conn.execute(
-                "SELECT workspace_id, agent_name, entry_kind, discord_user_id, display_name, agent_type "
-                "FROM workspace_agent_registry_entries WHERE entry_kind = 'authoritative' ORDER BY agent_name"
+                "SELECT * FROM workspace_agent_registry_entries "
+                "WHERE entry_kind = 'authoritative' ORDER BY workspace_id, agent_name"
+            ).fetchall()
+            agent_rows = conn.execute(
+                "SELECT * FROM agents WHERE id IN ('mac-claude', 'server-hermes') ORDER BY id"
+            ).fetchall()
+            runner_rows = conn.execute(
+                "SELECT * FROM runner_profiles WHERE id IN ('mac-claude', 'server-hermes') ORDER BY id"
+            ).fetchall()
+            executor_source_rows = conn.execute(
+                "SELECT * FROM executor_catalog_sources "
+                "WHERE source_id = 'multinexus.discord' ORDER BY source_id"
             ).fetchall()
             def_rows = conn.execute(
-                "SELECT id, source_id, provider, adapter, capabilities_json "
-                "FROM executor_definitions ORDER BY id"
+                "SELECT * FROM executor_definitions ORDER BY source_id, id"
             ).fetchall()
             binding_rows = conn.execute(
-                "SELECT agent_id, source_id, executor_definition_id, runner_profile_id, enabled "
-                "FROM executor_instance_bindings ORDER BY agent_id"
+                "SELECT * FROM executor_instance_bindings ORDER BY source_id, agent_id"
             ).fetchall()
             cap_source_rows = conn.execute(
-                "SELECT source_id, source_version, catalog_hash FROM executor_capacity_sources"
+                "SELECT * FROM executor_capacity_sources ORDER BY source_id"
             ).fetchall()
             cap_policy_rows = conn.execute(
-                "SELECT agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs "
-                "FROM executor_capacity_policies ORDER BY agent_id"
+                "SELECT * FROM executor_capacity_policies ORDER BY source_id, agent_id"
             ).fetchall()
             return {
+                "workspaces": [tuple(r) for r in workspace_rows],
+                "roster_sources": [tuple(r) for r in roster_source_rows],
                 "roster": [tuple(r) for r in roster_rows],
+                "agents": [tuple(r) for r in agent_rows],
+                "runner_profiles": [tuple(r) for r in runner_rows],
+                "executor_sources": [tuple(r) for r in executor_source_rows],
                 "definitions": [tuple(r) for r in def_rows],
                 "bindings": [tuple(r) for r in binding_rows],
                 "cap_sources": [tuple(r) for r in cap_source_rows],
@@ -744,56 +801,47 @@ class DeployContractTests(unittest.TestCase):
                 f"DB state mismatch for {key}: expected {expected[key]!r}, got {actual[key]!r}"
             )
 
-    def _seed_previous_capacity(self, db_path, remote_config) -> tuple:
-        """Seed DB with canonical v1 capacity source + policy. Returns (catalog_hash, policy_id)."""
-        import hashlib, json, sqlite3
-        catalog_hash = hashlib.sha256(b"multinexus.discord.capacity:v1:mac-claude:1").hexdigest()
-        policy_id = "sha256:" + hashlib.sha256(json.dumps({
-            "agent_id": "mac-claude",
-            "catalog_hash": catalog_hash,
-            "contract_version": 1,
-            "max_concurrent_jobs": 1,
-            "source_id": "multinexus.discord.capacity",
-            "source_version": 1,
-        }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    def _seed_previous_accepted_state(self, remote_config, *, include_capacity=True) -> None:
+        """Materialize the full accepted roster/executor/capacity projection."""
+        shutil.copytree(
+            self.source_dir / "multinexus",
+            self.remote_opt / "multinexus",
+            dirs_exist_ok=True,
+        )
+        commands = [
+            ["workspace", "agent", "sync", "discord-nexus", "--source", str(remote_config), "--replace"],
+            ["runtime", "executor", "sync", "--source", str(remote_config)],
+        ]
+        if include_capacity:
+            commands.append(["runtime", "capacity", "sync", "--source", str(remote_config)])
+        env = dict(os.environ)
+        env.update(self._env)
+        for command in commands:
+            result = subprocess.run(
+                [str(self.bin_dir / "coord-local"), *command],
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
 
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        conn.executescript(
-            """
-            PRAGMA user_version = 13;
-            CREATE TABLE IF NOT EXISTS executor_capacity_sources (
-              source_id TEXT PRIMARY KEY,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              source_path TEXT,
-              updated_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS executor_capacity_policies (
-              agent_id TEXT PRIMARY KEY,
-              source_id TEXT NOT NULL,
-              source_version INTEGER NOT NULL,
-              catalog_hash TEXT NOT NULL,
-              capacity_policy_id TEXT NOT NULL,
-              max_concurrent_jobs INTEGER NOT NULL,
-              created_at TEXT NOT NULL,
-              updated_at TEXT NOT NULL
-            );
-            """
+    def _deploy_residue(self) -> list[str]:
+        tmp_root = self.fake_root / "tmp"
+        if not tmp_root.exists():
+            return []
+        prefixes = (
+            "deploy-multinexus-",
+            "capacity-snapshot-",
+            "agent-registry.toml.capacity-backup-",
         )
-        conn.execute(
-            "INSERT INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            ("multinexus.discord.capacity", 1, catalog_hash, str(remote_config), "2026-01-01T00:00:00Z"),
+        return sorted(
+            str(path.relative_to(self.fake_root))
+            for path in tmp_root.iterdir()
+            if path.name.startswith(prefixes)
         )
-        conn.execute(
-            "INSERT INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            ("mac-claude", "multinexus.discord.capacity", 1, catalog_hash, policy_id, 1, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
-        )
-        conn.commit()
-        conn.close()
-        return catalog_hash, policy_id
+
+    def _assert_no_deploy_residue(self) -> None:
+        self.assertEqual(self._deploy_residue(), [])
 
     def test_local_mismatch_performs_no_remote_mutation(self):
         # Remove an entry from the local runtime config to break parity.
@@ -851,6 +899,7 @@ class DeployContractTests(unittest.TestCase):
         self.assertIn("--strict-effective", log)
         version_file = self.remote_opt / "VERSION_DEPLOYED"
         self.assertTrue(version_file.exists())
+        self._assert_no_deploy_residue()
 
     def test_no_restart_still_syncs_and_verifies(self):
         result = self._run_deploy("--no-restart")
@@ -882,19 +931,27 @@ class DeployContractTests(unittest.TestCase):
         # the backup has something to restore to.
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
         remote_config.parent.mkdir(parents=True, exist_ok=True)
-        v1_authority = self.authority.read_text(encoding="utf-8")
-        remote_config.write_text(v1_authority, encoding="utf-8")
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        _catalog_hash, _policy_id = self._seed_previous_capacity(db_path, remote_config)
+        self._seed_previous_accepted_state(remote_config)
+
+        # Capture the COMPLETE accepted pre-state (every column, every row)
+        # before any mutation, so post-rollback comparison can prove exact
+        # fidelity of the restore.
+        pre_state = self._snapshot_full_db_state(db_path)
 
         # Modify local authority to a v2 capacity projection.
-        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
-        self.authority.write_text(v2, encoding="utf-8")
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
 
         # Inject capacity sync failure on the remote side.
-        env = dict(self._env)
+        env = dict(os.environ)
+        env.update(self._env)
         env["FAKE_CAPACITY_SYNC_FAILURE"] = "1"
         result = subprocess.run(
             [
@@ -919,43 +976,16 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # R3-3: exact tuple comparison for all three projections.
-        state = self._snapshot_full_db_state(db_path)
-        import sqlite3
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
-            ("mac-claude",),
-        ).fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(row["source_version"], 1)
-        self.assertEqual(row["max_concurrent_jobs"], 1)
-        conn.close()
-        # Exact comparison of roster + executor after re-sync.
+        # R3-6: post-rollback DB must be byte-identical to the captured pre-state.
+        self._assert_db_state_matches(db_path, pre_state)
+
+        # Authority bytes: restored remote config must be byte-identical to v1.
         self.assertEqual(
-            sorted(state["roster"]),
-            sorted([
-                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
-                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
-            ]),
+            remote_config.read_text(encoding="utf-8"),
+            v1_authority_bytes,
+            "remote authority must be byte-identical to v1 after rollback",
         )
-        self.assertEqual(
-            sorted(state["definitions"]),
-            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
-        )
-        self.assertEqual(
-            sorted(state["bindings"]),
-            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
-        )
-        # Authority bytes: backup must match restored remote config.
-        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
-        if backup_path.exists():
-            self.assertEqual(
-                backup_path.read_text(encoding="utf-8"),
-                remote_config.read_text(encoding="utf-8"),
-                "authority bytes must be exactly restored",
-            )
+        self._assert_no_deploy_residue()
 
 
     def test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart(self):
@@ -963,19 +993,25 @@ class DeployContractTests(unittest.TestCase):
         # the backup has something to restore to.
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
         remote_config.parent.mkdir(parents=True, exist_ok=True)
-        v1_authority = self.authority.read_text(encoding="utf-8")
-        remote_config.write_text(v1_authority, encoding="utf-8")
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        _catalog_hash, _policy_id = self._seed_previous_capacity(db_path, remote_config)
+        self._seed_previous_accepted_state(remote_config)
+
+        # Capture the COMPLETE accepted pre-state before any mutation.
+        pre_state = self._snapshot_full_db_state(db_path)
 
         # Modify local authority to a v2 capacity projection.
-        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
-        self.authority.write_text(v2, encoding="utf-8")
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
 
         # Inject a one-time capacity policy id tamper so the committed verifier fails.
-        env = dict(self._env)
+        env = dict(os.environ)
+        env.update(self._env)
         env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
         result = subprocess.run(
             [
@@ -1000,42 +1036,16 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # R3-3: exact tuple comparison for all three projections.
-        state = self._snapshot_full_db_state(db_path)
-        import sqlite3
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
-            ("mac-claude",),
-        ).fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(row["source_version"], 1)
-        self.assertEqual(row["max_concurrent_jobs"], 1)
-        conn.close()
-        self.assertEqual(
-            sorted(state["roster"]),
-            sorted([
-                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
-                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
-            ]),
-        )
-        self.assertEqual(
-            sorted(state["definitions"]),
-            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
-        )
-        self.assertEqual(
-            sorted(state["bindings"]),
-            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
-        )
-        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
-        if backup_path.exists():
-            self.assertEqual(
-                backup_path.read_text(encoding="utf-8"),
-                remote_config.read_text(encoding="utf-8"),
-                "authority bytes must be exactly restored",
-            )
+        # R3-6: post-rollback DB must be byte-identical to the captured pre-state.
+        self._assert_db_state_matches(db_path, pre_state)
 
+        # Authority bytes: restored remote config must be byte-identical to v1.
+        self.assertEqual(
+            remote_config.read_text(encoding="utf-8"),
+            v1_authority_bytes,
+            "remote authority must be byte-identical to v1 after rollback",
+        )
+        self._assert_no_deploy_residue()
 
     def test_prior_absence_first_rollout_verifier_failure_restores_no_capacity(self):
         # First rollout: remote has an OLD authority without capacity roots and
@@ -1044,7 +1054,7 @@ class DeployContractTests(unittest.TestCase):
         # delete the newly created capacity projection (prior-absence restore).
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
         remote_config.parent.mkdir(parents=True, exist_ok=True)
-        old_authority = textwrap.dedent("""\
+        old_authority_bytes = textwrap.dedent("""\
             [registry]
             id = "multinexus.discord"
             version = 2
@@ -1067,15 +1077,32 @@ class DeployContractTests(unittest.TestCase):
             display_name = "Hermes"
             discord_user_id = "1505562531706568928"
             """)
-        remote_config.write_text(old_authority, encoding="utf-8")
+        remote_config.write_text(old_authority_bytes, encoding="utf-8")
+
+        # Pre-create the agents.toml so the deploy heredoc `test -f` passes.
+        # The deploy also writes the agents.toml into remote_opt before the
+        # rsync runs (setUp), but the local parity check at the start of the
+        # deploy validates the v1 authority against the same v1 runtime, so
+        # we are good here.
 
         # No capacity projection pre-exists in the DB (prior absence).
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
-        import sqlite3
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config, include_capacity=False)
+
+        # Capture the COMPLETE prior-absence pre-state. For prior absence the
+        # capacity tables must be empty; roster/executor capture whatever
+        # exists before the deploy runs.
+        pre_state = self._snapshot_full_db_state(db_path)
+        self.assertEqual(pre_state["cap_sources"], [],
+                          "prior-absence pre-state must have no capacity sources")
+        self.assertEqual(pre_state["cap_policies"], [],
+                          "prior-absence pre-state must have no capacity policies")
 
         # Inject a one-time capacity policy id tamper so the committed verifier
         # fails after the new capacity sync succeeds.
-        env = dict(self._env)
+        env = dict(os.environ)
+        env.update(self._env)
         env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
         result = subprocess.run(
             [
@@ -1100,34 +1127,16 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # R3-3: capacity must be EXACTLY absent (prior absence), roster+executor restored.
-        state = self._snapshot_full_db_state(db_path)
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        source = conn.execute(
-            "SELECT COUNT(*) AS n FROM executor_capacity_sources"
-        ).fetchone()
-        self.assertEqual(source["n"], 0, "capacity source must be exactly absent")
-        policy = conn.execute(
-            "SELECT COUNT(*) AS n FROM executor_capacity_policies"
-        ).fetchone()
-        self.assertEqual(policy["n"], 0, "capacity policies must be exactly absent")
-        conn.close()
+        # R3-6: post-rollback DB must be byte-identical to prior-absence pre-state.
+        self._assert_db_state_matches(db_path, pre_state)
+
+        # Authority bytes: restored remote config must be byte-identical to the old authority.
         self.assertEqual(
-            sorted(state["roster"]),
-            sorted([
-                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
-                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
-            ]),
+            remote_config.read_text(encoding="utf-8"),
+            old_authority_bytes,
+            "remote authority must be byte-identical to old authority after rollback",
         )
-        self.assertEqual(
-            sorted(state["definitions"]),
-            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
-        )
-        self.assertEqual(
-            sorted(state["bindings"]),
-            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
-        )
+        self._assert_no_deploy_residue()
 
 
     def test_source_mutation_failure_restores_all_three_projections(self):
@@ -1135,17 +1144,23 @@ class DeployContractTests(unittest.TestCase):
         # The deploy must restore old authority + roster + executor + capacity.
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
         remote_config.parent.mkdir(parents=True, exist_ok=True)
-        v1_authority = self.authority.read_text(encoding="utf-8")
-        remote_config.write_text(v1_authority, encoding="utf-8")
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._seed_previous_capacity(db_path, remote_config)
+        self._seed_previous_accepted_state(remote_config)
 
-        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
-        self.authority.write_text(v2, encoding="utf-8")
+        # Capture the COMPLETE accepted pre-state before any mutation.
+        pre_state = self._snapshot_full_db_state(db_path)
 
-        env = dict(self._env)
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        env = dict(os.environ)
+        env.update(self._env)
         env["FAKE_SOURCE_MUTATION_FAILURE"] = "1"
         result = subprocess.run(
             [
@@ -1170,41 +1185,16 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # R3-3: exact comparison for all three projections.
-        state = self._snapshot_full_db_state(db_path)
-        import sqlite3
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies WHERE agent_id = ?",
-            ("mac-claude",),
-        ).fetchone()
-        self.assertIsNotNone(row)
-        self.assertEqual(row["source_version"], 1)
-        self.assertEqual(row["max_concurrent_jobs"], 1)
-        conn.close()
+        # R3-6: post-rollback DB must be byte-identical to the captured pre-state.
+        self._assert_db_state_matches(db_path, pre_state)
+
+        # Authority bytes: restored remote config must be byte-identical to v1.
         self.assertEqual(
-            sorted(state["roster"]),
-            sorted([
-                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
-                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
-            ]),
+            remote_config.read_text(encoding="utf-8"),
+            v1_authority_bytes,
+            "remote authority must be byte-identical to v1 after rollback",
         )
-        self.assertEqual(
-            sorted(state["definitions"]),
-            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
-        )
-        self.assertEqual(
-            sorted(state["bindings"]),
-            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
-        )
-        backup_path = self.fake_root / "tmp" / "agent-registry.toml.capacity-backup"
-        if backup_path.exists():
-            self.assertEqual(
-                backup_path.read_text(encoding="utf-8"),
-                remote_config.read_text(encoding="utf-8"),
-                "authority bytes must be exactly restored",
-            )
+        self._assert_no_deploy_residue()
 
     def test_restore_hard_failure_is_loud_nonzero_no_version_restart(self):
         # The committed verifier fails, and the capacity snapshot restore
@@ -1212,34 +1202,24 @@ class DeployContractTests(unittest.TestCase):
         # and must not claim state was restored.
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
         remote_config.parent.mkdir(parents=True, exist_ok=True)
-        v1_authority = self.authority.read_text(encoding="utf-8")
-        remote_config.write_text(v1_authority, encoding="utf-8")
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
 
         db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
         db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._seed_previous_capacity(db_path, remote_config)
+        self._seed_previous_accepted_state(remote_config)
 
-        v2 = v1_authority.replace('version = 1', 'version = 2').replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
-        self.authority.write_text(v2, encoding="utf-8")
+        # Capture the COMPLETE accepted pre-state before any mutation.
+        pre_state = self._snapshot_full_db_state(db_path)
 
-        env = dict(self._env)
-        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
-        env["FAKE_RESTORE_FAILURE"] = "1"
-        result = subprocess.run(
-            [
-                "bash",
-                str(self.deploy_script),
-                "multinexus",
-                "--multinexus-src",
-                str(self.source_dir),
-                "--host",
-                "fake-host",
-                "--skip-install",
-                "--no-smoke",
-            ],
-            capture_output=True,
-            text=True,
-            env=env,
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        result = self._run_deploy_with_env(
+            FAKE_CAPACITY_VERIFY_FAILURE="1",
+            FAKE_RESTORE_FAILURE="1",
         )
 
         self.assertNotEqual(result.returncode, 0, result.stderr)
@@ -1248,24 +1228,123 @@ class DeployContractTests(unittest.TestCase):
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
 
-        # R3-3: roster + executor ARE restored (re-synced before capacity restore step).
-        # Capacity is NOT restored (restore failure is loud/nonzero).
-        state = self._snapshot_full_db_state(db_path)
-        self.assertEqual(
-            sorted(state["roster"]),
-            sorted([
-                ("discord-nexus", "mac-claude", "authoritative", "1507329791982833775", "Mac Claude", "managed"),
-                ("discord-nexus", "server-hermes", "authoritative", "1505562531706568928", "Hermes", "external"),
-            ]),
+        # R3-6 partial: only the components actually restored (roster,
+        # executor, authority) must match the pre-state. Capacity restore
+        # hard-failed; assert that capacity is NOT the pre-state, proving we
+        # did not falsely claim it was restored.
+        actual_state = self._snapshot_full_db_state(db_path)
+        restored_components = (
+            "workspaces",
+            "roster_sources",
+            "roster",
+            "agents",
+            "runner_profiles",
+            "executor_sources",
+            "definitions",
+            "bindings",
         )
-        self.assertEqual(
-            sorted(state["definitions"]),
-            [("claude-code", "multinexus.discord", "anthropic-claude", "claude", '["coding", "review"]')],
+        for component in restored_components:
+            self.assertEqual(
+                actual_state[component],
+                pre_state[component],
+                f"{component} must match pre-state after partial restore",
+            )
+
+        # Capacity must NOT match pre-state — restore hard-failed before
+        # any DELETE, so the v2 capacity synced during the deploy remains.
+        # Proving non-equality is enough to prove we did not falsely report
+        # capacity restored.
+        self.assertNotEqual(
+            actual_state["cap_sources"], pre_state["cap_sources"],
+            "capacity sources must NOT match pre-state (restore hard-failed)",
         )
-        self.assertEqual(
-            sorted(state["bindings"]),
-            [("mac-claude", "multinexus.discord", "claude-code", "mac-claude", 1)],
+        self.assertNotEqual(
+            actual_state["cap_policies"], pre_state["cap_policies"],
+            "capacity policies must NOT match pre-state (restore hard-failed)",
         )
+        # Specifically the v2 max_concurrent_jobs (2) and source_version (2)
+        # prove the synced v2 capacity is what remains.
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT source_version, max_concurrent_jobs FROM executor_capacity_policies "
+            "WHERE agent_id = ?",
+            ("mac-claude",),
+        ).fetchone()
+        self.assertIsNotNone(row)
+        self.assertEqual(row["source_version"], 2)
+        self.assertEqual(row["max_concurrent_jobs"], 2)
+        conn.close()
+
+        # Authority bytes: the source was restored (cp backup → v1) before
+        # the capacity restore failed.
+        self.assertEqual(
+            remote_config.read_text(encoding="utf-8"),
+            v1_authority_bytes,
+            "remote authority must be byte-identical to v1 after partial restore",
+        )
+        self._assert_no_deploy_residue()
+
+    def test_snapshot_capture_failure_after_write_cleans_all_residue(self):
+        result = self._run_deploy_with_env(
+            FAKE_SNAPSHOT_CAPTURE_FAILURE_AFTER_WRITE="1"
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("snapshot-capture", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+        self._assert_no_deploy_residue()
+
+    def test_source_mutation_restore_double_failure_is_loud_and_cleans_residue(self):
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        remote_config.write_bytes(self.authority.read_bytes())
+        self._seed_previous_accepted_state(remote_config)
+
+        result = self._run_deploy_with_env(
+            FAKE_SOURCE_MUTATION_FAILURE="1",
+            FAKE_RESTORE_FAILURE="1",
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("source-mutation", result.stderr)
+        self.assertIn("recovery-failure", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+        self._assert_no_deploy_residue()
+
+    def test_checked_success_cleanup_failure_blocks_acceptance_and_trap_retries(self):
+        result = self._run_deploy_with_env(FAKE_CLEANUP_FAILURE_ONCE="1")
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("cleanup-artifacts", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+        self._assert_no_deploy_residue()
+
+    def test_same_sha_invocations_use_isolated_artifact_paths(self):
+        first = self._run_deploy()
+        second = self._run_deploy()
+        self.assertEqual(first.returncode, 0, first.stderr)
+        self.assertEqual(second.returncode, 0, second.stderr)
+
+        log = self._ssh_log()
+        run_ids = set(
+            re.findall(r"/tmp/capacity-snapshot-([^' ]+)\.json", log)
+        )
+        self.assertEqual(len(run_ids), 2, log)
+        for run_id in run_ids:
+            self.assertIn(f"/tmp/deploy-multinexus-{run_id}", log)
+            self.assertIn(
+                f"/tmp/agent-registry.toml.capacity-backup-{run_id}",
+                log,
+            )
+        self._assert_no_deploy_residue()
 
 
 if __name__ == "__main__":

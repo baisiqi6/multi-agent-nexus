@@ -13,6 +13,12 @@ NO_RESTART=0
 NO_SMOKE=0
 SKIP_INSTALL=0
 
+# EXIT-trap state must outlive deploy_multinexus() local scope.  These values
+# are populated per invocation and cleared only after checked cleanup.
+DEPLOY_CLEANUP_SNAPSHOT=""
+DEPLOY_CLEANUP_BACKUP=""
+DEPLOY_CLEANUP_STAGING=""
+
 usage() {
   cat <<'USAGE'
 Usage:
@@ -278,6 +284,51 @@ cleanup_capacity_snapshot() {
   ssh "$HOST" "sudo rm -f '$snapshot_path'"
 }
 
+cleanup_backup() {
+  # Backup file lives in /tmp; owner is the SSH user, mode preserved by cp.
+  # Use sudo so the cleanup succeeds regardless of owner or sticky-bit
+  # permissions, mirroring cleanup_capacity_snapshot.
+  local backup_path="$1"
+  ssh "$HOST" "sudo rm -f '$backup_path'"
+}
+
+# Best-effort EXIT-trap cleanup. Primary cleanup of every per-deploy artifact
+# is performed in the deploy success path with explicit error checks; this
+# trap only runs as a fallback on unexpected exit and must never be used to
+# claim a successful cleanup.
+deploy_multinexus_cleanup_trap() {
+  if [ -n "$DEPLOY_CLEANUP_SNAPSHOT" ]; then
+    cleanup_capacity_snapshot "$DEPLOY_CLEANUP_SNAPSHOT" 2>/dev/null || true
+  fi
+  if [ -n "$DEPLOY_CLEANUP_BACKUP" ]; then
+    cleanup_backup "$DEPLOY_CLEANUP_BACKUP" 2>/dev/null || true
+  fi
+  if [ -n "$DEPLOY_CLEANUP_STAGING" ]; then
+    cleanup_staging "$DEPLOY_CLEANUP_STAGING" 2>/dev/null || true
+  fi
+}
+
+cleanup_staging() {
+  local staging="$1"
+  ssh "$HOST" "sudo rm -rf '$staging'"
+}
+
+cleanup_deploy_artifacts() {
+  local snapshot_path="$1"
+  local backup_path="$2"
+  local staging="$3"
+  cleanup_capacity_snapshot "$snapshot_path" || return 1
+  cleanup_backup "$backup_path" || return 1
+  cleanup_staging "$staging" || return 1
+}
+
+clear_deploy_cleanup_trap() {
+  DEPLOY_CLEANUP_SNAPSHOT=""
+  DEPLOY_CLEANUP_BACKUP=""
+  DEPLOY_CLEANUP_STAGING=""
+  trap - EXIT
+}
+
 restore_capacity_snapshot() {
   local snapshot_path="$1"
   local staging="$2"
@@ -288,6 +339,7 @@ restore_capacity_snapshot() {
     return 1
   fi
 }
+
 
 restore_previous_accepted_state() {
   # Restore the previously accepted authority and the exact capacity snapshot captured
@@ -319,6 +371,24 @@ restore_previous_accepted_state() {
     echo "error: restored committed parity failed (stage: restore-committed)" >&2
     return 1
   fi
+  return 0
+}
+
+rollback_previous_accepted_state() {
+  local failed_stage="$1"
+  local backup_path="$2"
+  local snapshot_path="$3"
+  local staging="$4"
+
+  if ! restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; then
+    echo "error: $failed_stage rollback restore failed (stage: recovery-failure)" >&2
+    return 1
+  fi
+  if ! cleanup_deploy_artifacts "$snapshot_path" "$backup_path" "$staging"; then
+    echo "error: $failed_stage rollback cleanup failed (stage: recovery-cleanup-failure)" >&2
+    return 1
+  fi
+  clear_deploy_cleanup_trap
   return 0
 }
 
@@ -358,13 +428,17 @@ deploy_multinexus() {
   repo_meta "$MULTINEXUS_SRC"
   verify_local_registry_parity
 
-  local sha branch deployed_at staging
+  local sha branch deployed_at run_id staging backup_path snapshot_path
   sha="$(git_sha "$MULTINEXUS_SRC")"
   branch="$(git_branch "$MULTINEXUS_SRC")"
   deployed_at="$(timestamp_utc)"
-  staging="/tmp/deploy-multinexus-$sha"
-  local backup_path="/tmp/agent-registry.toml.capacity-backup"
-  local snapshot_path="/tmp/capacity-snapshot-$sha.json"
+  # Per-invocation isolation: the deploy shell PID is unique across concurrent
+  # invocations.  The UTC stamp keeps paths readable without relying on GNU
+  # date extensions that are unavailable on macOS.
+  run_id="${sha}-$$-$(date -u +%Y%m%dT%H%M%SZ)"
+  staging="/tmp/deploy-multinexus-${run_id}"
+  backup_path="/tmp/agent-registry.toml.capacity-backup-${run_id}"
+  snapshot_path="/tmp/capacity-snapshot-${run_id}.json"
 
   echo "==> Deploy multinexus $branch@$sha to $HOST"
   sync_to_remote_staging "$MULTINEXUS_SRC" "$staging" \
@@ -386,21 +460,47 @@ deploy_multinexus() {
     --exclude .DS_Store \
     --exclude VERSION_DEPLOYED
 
-  # Backup the currently accepted authority and capture the exact capacity projection
-  # snapshot before overwriting the authority. Any later stage failure triggers
-  # restore_previous_accepted_state, which restores both the authority file and the
-  # capacity snapshot. Staging is kept until the gate completes so that capture and
-  # restore use the same reviewed helper. The snapshot and staging are trap-cleaned.
-  ssh "$HOST" "test -f /opt/multinexus/config/agent-registry.toml || exit 0; sudo cp -f /opt/multinexus/config/agent-registry.toml '$backup_path'"
-  capture_capacity_snapshot "$staging" "$snapshot_path" || return 1
-  trap 'if [ -n "${snapshot_path:-}" ]; then cleanup_capacity_snapshot "$snapshot_path" || true; fi; if [ -n "${staging:-}" ]; then ssh "$HOST" "sudo rm -rf '\''$staging'\''" 2>/dev/null || true; fi' EXIT
+  # Install the EXIT trap BEFORE the backup cp and the snapshot capture so a
+  # failure at any of those stages also cleans up. The trap is best-effort
+  # only — the success path performs checked cleanup and then clears the
+  # trap. Trap must clean snapshot, staging, and backup so no per-deploy
+  # artifact is ever left behind in /tmp.
+  DEPLOY_CLEANUP_SNAPSHOT="$snapshot_path"
+  DEPLOY_CLEANUP_BACKUP="$backup_path"
+  DEPLOY_CLEANUP_STAGING="$staging"
+  trap deploy_multinexus_cleanup_trap EXIT
 
-  # Guarded source mutation: partial rsync/chown/test failure must trigger a full
-  # restore of the previous accepted state before returning nonzero.
+  # Backup the currently accepted authority and capture the exact capacity
+  # projection snapshot before overwriting the authority. Any later stage
+  # failure triggers restore_previous_accepted_state, which restores both the
+  # authority file and the capacity snapshot. Staging is kept until the gate
+  # completes so capture and restore use the same reviewed helper.
+  if ! ssh "$HOST" "test -f /opt/multinexus/config/agent-registry.toml || exit 0; sudo cp -f /opt/multinexus/config/agent-registry.toml '$backup_path'"; then
+    echo "error: failed to back up accepted authority (stage: source-backup)" >&2
+    cleanup_deploy_artifacts "$snapshot_path" "$backup_path" "$staging" || {
+      echo "error: source-backup cleanup failed (stage: recovery-cleanup-failure)" >&2
+      return 1
+    }
+    clear_deploy_cleanup_trap
+    return 1
+  fi
+  if ! capture_capacity_snapshot "$staging" "$snapshot_path"; then
+    cleanup_deploy_artifacts "$snapshot_path" "$backup_path" "$staging" || {
+      echo "error: snapshot-capture cleanup failed (stage: recovery-cleanup-failure)" >&2
+      return 1
+    }
+    clear_deploy_cleanup_trap
+    return 1
+  fi
+
+  # Guarded source mutation: partial rsync/chown/test failure must trigger a
+  # full restore of the previous accepted state before returning nonzero. A
+  # restore failure here is a recovery failure — emit a distinct loud stage
+  # marker and return nonzero; never silently swallow with `|| true`.
   if ! remote_sudo_script <<EOF
 set -euo pipefail
 mkdir -p /opt/multinexus
-rsync -a --delete \\
+rsync -a --checksum --delete \\
   --exclude .venv \\
   --exclude agents.toml \\
   --exclude agents.toml.bak \\
@@ -427,32 +527,57 @@ test -f /opt/multinexus/agents.toml
 EOF
   then
     echo "error: source mutation failed (stage: source-mutation)" >&2
-    restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging" || true
+    # Restore failure here is a recovery failure. restore_previous_accepted_state
+    # already emitted its own loud stage error; surface the recovery failure
+    # explicitly and return nonzero so the caller knows rollback did not
+    # recover the previous accepted state.
+    rollback_previous_accepted_state "source-mutation" "$backup_path" "$snapshot_path" "$staging" || return 1
     return 1
   fi
 
-  # Guarded deploy: do not write VERSION_DEPLOYED, restart, or run smoke until all
-  # parity/sync/list/committed stages succeed. If any stage fails, restore the
-  # previous accepted authority and the exact capacity snapshot before returning nonzero.
-  verify_remote_registry_parity || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
-  sync_registry_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
-  sync_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
-  list_capacity_to_coordinate || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
-  verify_committed_registry || { restore_previous_accepted_state "$backup_path" "$snapshot_path" "$staging"; return 1; }
+  # Guarded deploy: do not write VERSION_DEPLOYED, restart, or run smoke
+  # until all parity/sync/list/committed stages succeed. If any stage fails,
+  # restore the previous accepted authority and the exact capacity snapshot
+  # before returning nonzero. A restore failure is again a recovery failure
+  # and must be loud/nonzero, never silently swallowed.
+  if ! verify_remote_registry_parity; then
+    rollback_previous_accepted_state "remote-parity" "$backup_path" "$snapshot_path" "$staging" || return 1
+    return 1
+  fi
+  if ! sync_registry_to_coordinate; then
+    rollback_previous_accepted_state "registry-sync" "$backup_path" "$snapshot_path" "$staging" || return 1
+    return 1
+  fi
+  if ! sync_capacity_to_coordinate; then
+    rollback_previous_accepted_state "capacity-sync" "$backup_path" "$snapshot_path" "$staging" || return 1
+    return 1
+  fi
+  if ! list_capacity_to_coordinate; then
+    rollback_previous_accepted_state "capacity-list" "$backup_path" "$snapshot_path" "$staging" || return 1
+    return 1
+  fi
+  if ! verify_committed_registry; then
+    rollback_previous_accepted_state "committed-state" "$backup_path" "$snapshot_path" "$staging" || return 1
+    return 1
+  fi
 
   if [[ "$SKIP_INSTALL" -ne 1 ]]; then
     ssh "$HOST" "sudo -u multinexus python3 -m venv /opt/multinexus/.venv && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/python -m pip install --upgrade pip setuptools wheel && sudo -u multinexus env HTTPS_PROXY=http://127.0.0.1:7890 HTTP_PROXY=http://127.0.0.1:7890 ALL_PROXY=http://127.0.0.1:7890 /opt/multinexus/.venv/bin/pip install -r /opt/multinexus/requirements.txt"
   fi
+
+  # Checked explicit success cleanup of every per-deploy artifact. A failed
+  # cleanup must make the deploy nonzero before VERSION_DEPLOYED or restart.
+  if ! cleanup_deploy_artifacts "$snapshot_path" "$backup_path" "$staging"; then
+    echo "error: accepted deploy cleanup failed (stage: cleanup-artifacts)" >&2
+    return 1
+  fi
+  clear_deploy_cleanup_trap
 
   write_remote_version "/opt/multinexus/VERSION_DEPLOYED" "multinexus" "multinexus" "multinexus" "$MULTINEXUS_SRC" "$branch" "$sha" "$deployed_at"
 
   if [[ "$NO_RESTART" -ne 1 ]]; then
     ssh "$HOST" "sudo systemctl daemon-reload && sudo systemctl restart multinexus-discord-bridge"
   fi
-
-  cleanup_capacity_snapshot "$snapshot_path"
-  ssh "$HOST" "sudo rm -rf '$staging'"
-  trap - EXIT
 }
 
 require_cmd git
