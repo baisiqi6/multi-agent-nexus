@@ -9,6 +9,38 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-14（P9-3A capacity/resource lease foundation）
+
+### 1. cleanup 命令出现不等于远端残留已清零
+
+- 状态：fixed / retained invariant。
+- DeepSeek Round 5 曾把精确 residue 断言弱化成检查 SSH log 中存在通用 `sudo rm`；Codex
+  拒绝接收。最终 fake SSH 把 `/tmp` 映射到 hermetic remote filesystem，success、rollback、
+  capture-after-write、double failure、cleanup retry 都直接检查 staging/snapshot/backup 实体不存在。
+- 生产部署后 `/tmp` 三类 per-run artifact 实际为空。
+
+### 2. rsync 的 size+mtime quick check 会隐藏同尺寸 authority 更新
+
+- 状态：fixed。
+- restore-hard-failure 测试最初偶发保留 v1 capacity bytes；根因是 v1/v2 文件长度相同且在
+  同一秒写入，`rsync -a` 判定无需复制。受控 MultiNexus source mutation 改为
+  `rsync --checksum`，测试与生产都不再依赖 mtime 碰巧变化。
+
+### 3. P9-3A dogfood 必须保持生产 lease 为零
+
+- 状态：fixed / accepted boundary。
+- 生产只同步 capacity source/policies；lease primitives 在生产 DB 的一次性 `/tmp` sidecar
+  上完成 reserve -> exact replay -> renew -> release，随后删除 sidecar。
+- dogfood 前后 production `execution_attempt_leases` 都是 0，避免把 P9-3A foundation 偷偷
+  变成 P9-3B runtime claim authority。
+
+### 4. worker 输出仍必须经过独立证据审核
+
+- 状态：mitigated / retained reviewer gate。
+- DeepSeek 的 MultiNexus 证明弱化被拒绝；MiniMax provider 在补 fixture 时 abort，未完成 diff
+  没有直接接收。Codex 只接收独立复核通过的 Coordinate 变更，并在 fresh MultiNexus worktree
+  重建门禁。Provider JSONL、diff、真实测试和 artifact state 必须交叉验证。
+
 ## 2026-07-13（P9-2B deterministic routed execution）
 
 ### 1. 不带target的确定性路由已跑通生产闭环

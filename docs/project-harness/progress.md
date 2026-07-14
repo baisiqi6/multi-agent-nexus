@@ -2,6 +2,28 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-14 — P9-3A production deployment and sidecar dogfood
+
+- Integrated and pushed Coordinate `af8461e` and MultiNexus `9b19727`; independent
+  verification is Coordinate focused 226 passed / full 2314 passed plus the exact nine
+  historical failures, and MultiNexus focused 38 / full 530 passed, 2 skipped.
+- Created mode-600 online backup
+  `/var/lib/coordinate/backups/coord.sqlite3.p9-3a.20260714T024320Z`, integrity `ok`,
+  schema 12, SHA-256 `30a5f29b...79ee99` before migration.
+- Deployed producer-before-consumer. Production is schema 13 with integrity `ok`, zero
+  FK violations, capacity source `multinexus.discord.capacity` v1, exact coverage for
+  eight enabled typed bindings, and zero execution leases.
+- Source/deployed/installed Coordinate capacity code and three critical MultiNexus files
+  match by SHA. Both services are active/running with `NRestarts=0`; bounded server smoke
+  passed and staging/snapshot/backup residue is empty.
+- Disposable `/tmp` DB sidecar proved reserve -> exact replay -> renew -> release and was
+  deleted. The production lease table remained empty before and after dogfood.
+- Control-plane closeout `f8746e14...` and final review approval `945fa31a...` are durable.
+  Canonical harness projection is now `review_approved`; receipt closeout is the remaining
+  P9-3A lifecycle gate.
+- Exact evidence:
+  `tasks/p9-3a-capacity-resource-lease-foundation/deployment-dogfood.md`.
+
 ## 2026-07-13 — P9-2B deterministic routing durable closeout
 
 - Coordinate `90783b2` and MultiNexus P9-2B implementation/review head `6f52630`

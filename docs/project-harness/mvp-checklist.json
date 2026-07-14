@@ -2,7 +2,7 @@
   "project": "multinexus",
   "harness_root": "docs/project-harness",
   "version": 1,
-  "updated_at": "2026-07-13",
+  "updated_at": "2026-07-14",
   "items": [
     {
       "id": "phase-3.3-runtime-launchd",
@@ -2408,10 +2408,10 @@
     {
       "id": "p9-3a-capacity-resource-lease-foundation",
       "title": "P9-3A Capacity and Resource Lease Foundation",
-      "status": "todo",
+      "status": "doing",
       "phase": "ready",
       "priority": "p1",
-      "owner": null,
+      "owner": "mac-omp",
       "human_gate_required": true,
       "plan_path": "docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md",
       "acceptance": "Use the plan acceptance criteria as source of truth: docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md",
@@ -2423,18 +2423,26 @@
         "to": null,
         "reason": null
       },
-      "selected_in_session": null,
-      "updated_at": "2026-07-13T16:02:12Z",
+      "selected_in_session": "p9-3a-closeout-20260714",
+      "updated_at": "2026-07-14",
       "workflow": {
-        "status": "todo",
-        "branch": null,
-        "updated_at": "2026-07-13T16:02:12Z"
+        "status": "review_approved",
+        "branch": "agents/mac-omp/p9-3a-capacity-resource-lease-foundation-round6",
+        "updated_at": "2026-07-14"
       },
       "artifacts": {
-        "plan": "docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md"
+        "plan": "docs/project-harness/tasks/p9-3a-capacity-resource-lease-foundation/plan.md",
+        "branch": "agents/mac-omp/p9-3a-capacity-resource-lease-foundation-round6",
+        "closeout_packet": "docs/project-harness/current/closeout-packet.md"
       },
       "verification": "",
-      "review": {},
+      "review": {
+        "decision": "approved",
+        "reviewer": "codex-operator",
+        "phase": "closeout_requested",
+        "updated_at": "2026-07-14",
+        "summary": "Approved after Round 4 local result review: R3.1-R3.7 closed; exact fail-closed snapshot validation and deploy rollback cleanup verified; complete pre/post projections and real remote residue checks passed; production schema 13, capacity v1 coverage 8, zero leases, sidecar lease lifecycle, smoke and integrity all passed."
+      },
       "split_operation": {
         "contract_version": 1,
         "operation_id": "6ae6f9f1-7fc0-46a7-ac6c-d739c43485be",
@@ -2448,6 +2456,13 @@
         "before_fingerprint": "8fdb1b1f3754b3dd18719f4975c855a00c56418873dadb5ba053f26dbf5b3a3a",
         "after_fingerprint": "28573057db913235834aef47e2c098c39c96203cde4e0145e3ede84940b525c7",
         "files_applied_at": "2026-07-13T16:02:12Z"
+      },
+      "lease": {
+        "owner": "mac-omp",
+        "session": "p9-3a-closeout-20260714",
+        "acquired_at": "2026-07-14T02:50:23Z",
+        "expires_at": "2026-07-14T04:50:23Z",
+        "ttl_minutes": 120
       }
     }
   ]
