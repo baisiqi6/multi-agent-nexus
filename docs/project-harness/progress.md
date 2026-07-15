@@ -2150,3 +2150,26 @@ evidence package. The same session spans two provider/model intervals:
   `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-multinexus-c2-deployment-dogfood.md`.
 - Next gate: Package 2 fixture assets detailed plan/bootstrap and independent review.
   Production fixture activation remains blocked until P9-3C1.
+
+## 2026-07-15 — P9-3C0 Package 2 inert fixture assets accepted
+
+- Claude Code Sonnet with provider-native `kimi-for-coding` produced exact candidate
+  `efc75c9`; Codex red-team corrections closed cgroup read-failure, path, identity,
+  state-mode, realpath-wrapper, and literal-JSON runbook gaps.
+- Fresh exact-revision review approved the one-commit/eleven-file candidate after
+  focused `72 passed, 26 subtests` and combined `161 passed, 46 subtests`. A first
+  reviewer that improvised a temporary venv was terminated and discarded; the
+  accepted reviewer used the existing environment and changed no tracked file.
+- Integrated, pushed, and deployed MultiNexus `619aa0e`. Merged main passed focused
+  `72 passed, 26 subtests` and full `735 passed, 2 skipped, 81 subtests`, plus shell,
+  compile, and diff gates.
+- Production SHA/mode matched all eleven assets. Roster/executor/capacity syncs were
+  exact retries; DB stayed `ok` at schema 13 with one canonical executor source, one
+  capacity source, eight policies, zero fixture/job/lease/unit/process state, healthy
+  services, no deploy residue, and an empty bounded breaker scan.
+- Exact evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package2-result-review.md`
+  and
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package2-deployment-dogfood.md`.
+- Next gate: Package 3 isolated sidecar detailed plan and independent review.
+  P9-3C1 production activation remains blocked.
