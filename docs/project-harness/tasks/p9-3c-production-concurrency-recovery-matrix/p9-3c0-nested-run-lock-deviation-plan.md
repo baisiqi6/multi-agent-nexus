@@ -1,6 +1,6 @@
 # P9-3C0 Package 3 nested run lock 偏差计划
 
-状态：`PLAN_REVIEW_APPROVED`
+状态：`RESULT_REVIEW_APPROVED_PENDING_PRODUCTION_RUN_M`
 
 ## 1. 触发证据
 
