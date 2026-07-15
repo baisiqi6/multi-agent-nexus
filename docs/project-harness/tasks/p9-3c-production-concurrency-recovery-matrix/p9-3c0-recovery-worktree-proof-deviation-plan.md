@@ -1,6 +1,6 @@
 # P9-3C0 Package 3 recovery worktree proof 偏差计划
 
-状态：`PLAN_REVIEW_APPROVED`
+状态：`RESULT_REVIEW_APPROVED_PENDING_DEPLOY`
 
 ## 1. 触发证据
 
@@ -69,3 +69,12 @@ fixture environment mismatch:
   `model=kimi-for-coding`，permission denial 0；
 - reviewer caveat：primary E1 worktree 必须在把 `P9C0_RUN_ID` 切换到 recovery
   namespace 之前计算并保存；实现与测试必须锁定该顺序。
+
+## 6. 独立结果审核
+
+- verdict：`APPROVE`
+- reviewer：Claude Code `--model sonnet`；JSONL assistant 事件实际
+  `model=kimi-for-coding`，permission denial 0；
+- reviewer 独立验证：targeted `2 passed`，focused process-tree/recovery
+  `27 passed`，完整 Package 3 scripts `116 passed`，静态门全通过；
+- residual gate：fresh production sidecar run `l` 尚未执行，不能据此收口。
