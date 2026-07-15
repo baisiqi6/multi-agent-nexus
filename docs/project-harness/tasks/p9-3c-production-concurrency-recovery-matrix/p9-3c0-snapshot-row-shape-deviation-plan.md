@@ -1,6 +1,6 @@
 # P9-3C0 Package 3 production snapshot row-shape 偏差计划
 
-状态：`PLAN_REVIEW_APPROVED`
+状态：`RESULT_REVIEW_APPROVED_PENDING_DEPLOY`
 
 ## 1. 触发证据
 
@@ -68,3 +68,13 @@ capture 的 `json.dump` 把 tuple 序列化为 JSON array；compare 的 `json.lo
 - session：`p9-3c0-snapshot-row-shape-plan-review-claude-kimi`
 - 限制：reviewer 对仓库文件的直接 `Read` 请求被权限层拒绝；审核依据本 prompt
   内完整给出的根因、最小修复、回归与部署边界完成，不记作直接文件读取。
+
+## 6. 独立结果审核
+
+- round 1：未形成 verdict。reviewer 已读取 diff，但 Claude Code 权限层拒绝
+  pytest，因此停在请求批准，不计为通过或驳回；
+- round 2：`APPROVE`。使用 Claude Code `--model sonnet`，JSONL assistant 事件
+  实际 `model=kimi-for-coding`，权限拒绝数为 0；
+- reviewer 独立复跑 targeted regression：`2 passed, 112 deselected`；
+- residual risk：真实 production run `k` 尚未执行，必须在 `--no-restart` 同步后
+  完成，不能以单元测试替代。
