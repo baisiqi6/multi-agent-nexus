@@ -1,6 +1,6 @@
 # P9-3C0 Package 3 Deployment and Dogfood
 
-状态：`PASS_PENDING_INDEPENDENT_CLOSEOUT_REVIEW`
+状态：`PASS_CLOSEOUT_APPROVED`
 
 日期：2026-07-15
 

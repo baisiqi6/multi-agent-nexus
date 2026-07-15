@@ -138,7 +138,7 @@ Package 3 implementation, inert deploy, and the fresh production-host isolated s
 run `m` have completed all functional/data/cleanup gates without canonical service
 restart or production fixture residue. Exact evidence is in
 `../p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`;
-Package 3 closeout remains pending fresh independent closeout review. P9-3C1 production
+fresh independent live closeout review approved Package 3 and closed P9-3C0. P9-3C1 production
 catalog activation and production job/lease/reap/crash execution remain blocked and
 require a new exact-revision plan, independent review, bootstrap, and authorization.
 

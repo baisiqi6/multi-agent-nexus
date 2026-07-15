@@ -1,6 +1,6 @@
 # P9-3C0 Package 3 Closeout
 
-状态：`PENDING_INDEPENDENT_CLOSEOUT_REVIEW`
+状态：`APPROVED_P9_3C0_CLOSED`
 
 日期：2026-07-15
 
@@ -40,3 +40,18 @@ isolated sidecar run `m`、production compare 与 cleanup 均已完成。run `l`
 不得对 production 做 reap/recovery/crash matrix，也不得重启 canonical services。任何
 P9-3C1 下一步都需要新的 exact-revision detailed plan、独立 plan review、bootstrap 与
 明确授权。
+
+## 独立 closeout review
+
+Round 1 对 live/retained evidence 与文档边界均无功能异议，但 exact closeout revision
+因 deployment-dogfood EOF 多一空行未通过 `git diff --check`，因此返回
+`REQUEST_CHANGES`。提交 `a4ebb06` 只删除该空行。
+
+Fresh Round 2 reviewer 使用 Claude Code `--model sonnet`，provider-native JSONL 实际
+model 为 `kimi-for-coding`。Reviewer 对 exact head
+`a4ebb06b34854c80daffe7b2f4857bbbc72086e4` 重新执行 diff-check、harness validate 与
+生产机只读核验后返回 `APPROVE`。
+
+批准范围只关闭 P9-3C0 Package 3，并由此关闭 P9-3C0 isolated fixture scope；P9-3C1
+没有继承任何授权。精确审核记录：
+`p9-3c0-fixture-package3-closeout-review.md`。

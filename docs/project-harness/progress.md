@@ -2,7 +2,7 @@
 
 Harness root: `docs/project-harness/`
 
-## 2026-07-15 — P9-3C0 Package 3 isolated sidecar completed
+## 2026-07-15 — P9-3C0 Package 3 closed
 
 - MultiNexus `805901e` was independently reviewed, pushed, and deployed with
   `--no-restart`; deployed `p9-3c0-local-verify.sh` SHA matches source.
@@ -19,10 +19,13 @@ Harness root: `docs/project-harness/`
 - Earlier run/deploy deviations, including the one accidental bridge restart and the
   run `l` nested FD 9 lock loss, are preserved in the deployment dogfood rather than
   erased by the final PASS.
-- Package 3 closeout is awaiting a fresh independent closeout review. P9-3C1 remains
-  blocked and unauthorized.
+- Fresh independent closeout review Round 2 returned `APPROVE` after live server/DB
+  verification; Package 3 and the P9-3C0 isolated fixture scope are closed. P9-3C1
+  remains blocked and unauthorized.
 - Exact evidence:
   `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`.
+- Exact closeout review:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-closeout-review.md`.
 
 ## 2026-07-15 — P9-3C0 Coordinate C1 bootstrap approved for worker launch
 
