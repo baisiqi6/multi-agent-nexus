@@ -7,6 +7,7 @@ read-after-write verifier inspects, and a tiny fake `coordinate.db` stub
 satisfies the verify helper's single Coordinate import.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -51,96 +52,449 @@ import tempfile
 from pathlib import Path
 
 EXPECTED_CAPACITY_SOURCE_ID = "multinexus.discord.capacity"
-SNAPSHOT_CONTRACT_VERSION = 1
+SNAPSHOT_CONTRACT_VERSION = 2
+CAPACITY_POLICY_ID_CONTRACT_VERSION = 1
 
 
 class CapacityError(ValueError):
     pass
 
 
-def _cj(v):
-    return json.dumps(v, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+def _canonical_json_bytes(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _recompute_capacity_policy_id(*, agent_id, catalog_hash, max_concurrent_jobs, source_id, source_version):
+    payload = {
+        "agent_id": agent_id,
+        "catalog_hash": catalog_hash,
+        "contract_version": CAPACITY_POLICY_ID_CONTRACT_VERSION,
+        "max_concurrent_jobs": max_concurrent_jobs,
+        "source_id": source_id,
+        "source_version": source_version,
+    }
+    return "sha256:" + hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()
+
+
+def _row_to_dict(row):
+    if row is None:
+        return None
+    return {k: row[k] for k in row.keys()}
+
+
+def _read_all_sources(conn):
+    try:
+        rows = conn.execute(
+            "SELECT source_id, source_version, catalog_hash, source_path, updated_at "
+            "FROM executor_capacity_sources ORDER BY source_id"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [_row_to_dict(r) for r in rows]
+
+
+def _read_all_policies(conn):
+    try:
+        rows = conn.execute(
+            "SELECT agent_id, source_id, source_version, catalog_hash, capacity_policy_id, "
+            "max_concurrent_jobs, created_at, updated_at "
+            "FROM executor_capacity_policies ORDER BY agent_id"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [_row_to_dict(r) for r in rows]
+
+
+def _read_enabled_bindings(conn):
+    try:
+        rows = conn.execute(
+            "SELECT agent_id, source_id, executor_definition_id, runner_profile_id, enabled "
+            "FROM executor_instance_bindings"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    return {_row_to_dict(r)["agent_id"]: _row_to_dict(r) for r in rows}
+
+
+def _read_agents(conn):
+    try:
+        rows = conn.execute("SELECT id FROM agents").fetchall()
+    except sqlite3.OperationalError:
+        return set()
+    return {r["id"] for r in rows}
+
+
+def _validate_projection_state(sources, policies, bindings, agent_ids):
+    """Validate capacity projection invariants for a concrete state."""
+    source_by_id = {s["source_id"]: s for s in sources}
+
+    # Every policy has a matching source.
+    for p in policies:
+        if p["source_id"] not in source_by_id:
+            raise CapacityError(f"orphan policy for missing source {p['source_id']!r}")
+
+    # Source version/hash agree with its policies and id recomputes correctly.
+    seen_agents = set()
+    for p in policies:
+        source = source_by_id[p["source_id"]]
+        if p["source_version"] != source["source_version"]:
+            raise CapacityError(
+                f"policy {p['agent_id']!r} source_version mismatch: {p['source_version']} vs {source['source_version']}"
+            )
+        if p["catalog_hash"] != source["catalog_hash"]:
+            raise CapacityError(f"policy {p['agent_id']!r} catalog_hash mismatch")
+        expected_id = _recompute_capacity_policy_id(
+            agent_id=p["agent_id"],
+            catalog_hash=p["catalog_hash"],
+            max_concurrent_jobs=p["max_concurrent_jobs"],
+            source_id=p["source_id"],
+            source_version=p["source_version"],
+        )
+        if p["capacity_policy_id"] != expected_id:
+            raise CapacityError(
+                f"policy {p['agent_id']!r} id mismatch: expected {expected_id!r}, got {p['capacity_policy_id']!r}"
+            )
+        if p["agent_id"] in seen_agents:
+            raise CapacityError(f"duplicate agent ownership: {p['agent_id']!r}")
+        seen_agents.add(p["agent_id"])
+
+    # Every policy agent has a typed executor binding.
+    for p in policies:
+        if p["agent_id"] not in bindings:
+            raise CapacityError(f"policy {p['agent_id']!r} has no typed executor binding")
+
+    # Every enabled typed binding is covered by the union of all policies.
+    covered = {p["agent_id"] for p in policies}
+    for agent_id, b in bindings.items():
+        if b["enabled"] and agent_id not in covered:
+            raise CapacityError(f"enabled binding {agent_id!r} is not covered by any capacity policy")
+
+    # All referenced agents exist.
+    for agent_id in bindings:
+        if agent_id not in agent_ids:
+            raise CapacityError(f"binding references unknown agent {agent_id!r}")
+
+
+def _validate_full_projection(conn):
+    sources = _read_all_sources(conn)
+    policies = _read_all_policies(conn)
+    bindings = _read_enabled_bindings(conn)
+    agent_ids = _read_agents(conn)
+    _validate_projection_state(sources, policies, bindings, agent_ids)
+    return sources, policies
+
+
+def _validate_envelope_keys(envelope, *, expected_top_keys, expected_inner_keys):
+    if set(envelope.keys()) != expected_top_keys:
+        raise CapacityError("invalid envelope top-level keys")
+    inner = envelope["snapshot"]
+    if not isinstance(inner, dict) or set(inner.keys()) != expected_inner_keys:
+        raise CapacityError("invalid snapshot inner keys")
+
+
+def _inject_witness_drift_into_fixture(conn):
+    """Test-only: mutate the fixture policy after capture so restore sees drift.
+
+    The caller is responsible for transaction boundaries; this helper only issues
+    the UPDATE statement.
+    """
+    new_max = 4
+    policy_id = _recompute_capacity_policy_id(
+        agent_id="fixture-agent",
+        catalog_hash="fixture-catalog-hash",
+        max_concurrent_jobs=new_max,
+        source_id="p9-3c0-fixture-capacity",
+        source_version=1,
+    )
+    conn.execute(
+        "UPDATE executor_capacity_policies SET max_concurrent_jobs = ?, capacity_policy_id = ?, updated_at = ? "
+        "WHERE agent_id = ?",
+        (new_max, policy_id, "2026-01-02T00:00:00Z", "fixture-agent"),
+    )
 
 
 def capture_capacity_snapshot(conn, target_source_id, output_path):
-    source = None
+    if target_source_id != EXPECTED_CAPACITY_SOURCE_ID:
+        raise CapacityError(f"unexpected target source id: {target_source_id!r}")
+
+    out_path = Path(output_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    envelope = None
+    tmp = None
+    conn.execute("BEGIN IMMEDIATE")
     try:
-        row = conn.execute(
-            "SELECT * FROM executor_capacity_sources WHERE source_id = ?",
-            (target_source_id,),
-        ).fetchone()
-        if row is not None:
-            source = dict(row)
-    except sqlite3.OperationalError:
-        pass
-    if source is None:
-        captured_state = None
-    else:
-        policies = []
+        # Validate projection inside the transaction before any write.
+        sources, policies = _validate_full_projection(conn)
+
+        target_source = None
+        target_policies = []
+        for s in sources:
+            if s["source_id"] == target_source_id:
+                target_source = s
+        for p_obj in policies:
+            if p_obj["source_id"] == target_source_id:
+                target_policies.append(p_obj)
+
+        if target_source is None:
+            captured_state = None
+        else:
+            captured_state = {"source": target_source, "policies": target_policies}
+
+        preserved_sources = [s for s in sources if s["source_id"] != target_source_id]
+        preserved_policies = [p for p in policies if p["source_id"] != target_source_id]
+
+        if os.environ.get("FAKE_SNAPSHOT_V1_DOWNGRADE") == "1":
+            inner = {
+                "contract_version": 1,
+                "target_source_id": target_source_id,
+                "captured_state": captured_state,
+            }
+        else:
+            inner = {
+                "contract_version": SNAPSHOT_CONTRACT_VERSION,
+                "target_source_id": target_source_id,
+                "captured_state": captured_state,
+                "preserved_state": {"sources": preserved_sources, "policies": preserved_policies},
+            }
+        inner_bytes = _canonical_json_bytes(inner)
+        digest = hashlib.sha256(inner_bytes).hexdigest()
+        envelope = {"snapshot": inner, "snapshot_sha256": digest}
+        envelope_bytes = _canonical_json_bytes(envelope)
+
+        # All validation finished; create the temp file only when we are ready to write.
+        fd, tmp = tempfile.mkstemp(dir=str(out_path.parent), prefix=".cap-snap-", suffix=".tmp")
         try:
-            for r in conn.execute(
-                "SELECT * FROM executor_capacity_policies WHERE source_id = ? ORDER BY agent_id",
-                (target_source_id,),
-            ).fetchall():
-                policies.append(dict(r))
-        except sqlite3.OperationalError:
-            pass
-        captured_state = {"source": source, "policies": policies}
-    inner = {
-        "contract_version": SNAPSHOT_CONTRACT_VERSION,
-        "target_source_id": target_source_id,
-        "captured_state": captured_state,
-    }
-    digest = hashlib.sha256(_cj(inner).encode("utf-8")).hexdigest()
-    envelope = {"snapshot": inner, "snapshot_sha256": digest}
-    p = Path(output_path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=str(p.parent), prefix=".cap-snap-", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(_cj(envelope).encode("utf-8"))
-        os.replace(tmp, str(p))
-        os.chmod(str(p), 0o600)
-        if os.environ.get("FAKE_SNAPSHOT_CAPTURE_FAILURE_AFTER_WRITE") == "1":
-            raise RuntimeError("injected post-write snapshot capture failure")
+            with os.fdopen(fd, "wb") as f:
+                f.write(envelope_bytes)
+            os.replace(tmp, str(out_path))
+            os.chmod(str(out_path), 0o600)
+            tmp = None  # ownership transferred to final path
+
+            if os.environ.get("FAKE_SNAPSHOT_CAPTURE_FAILURE_AFTER_WRITE") == "1":
+                raise RuntimeError("injected post-write snapshot capture failure")
+            conn.commit()
+        except Exception:
+            try:
+                if tmp is not None and os.path.exists(tmp):
+                    os.unlink(tmp)
+            except OSError:
+                pass
+            try:
+                if os.path.exists(str(out_path)):
+                    os.unlink(str(out_path))
+            except OSError:
+                pass
+            raise
+
     except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
+        conn.rollback()
         raise
+
+    # Optional drift injection is committed as a separate mutation, never inside
+    # the capture transaction.
+    if os.environ.get("FAKE_INJECT_WITNESS_DRIFT_AFTER_CAPTURE") == "1":
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            _inject_witness_drift_into_fixture(conn)
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
     return envelope
 
 
 def restore_capacity_snapshot(conn, target_source_id, snapshot_path):
     if os.environ.get("FAKE_RESTORE_FAILURE") == "1":
         raise RuntimeError("injected restore failure")
+
     raw = Path(snapshot_path).read_bytes()
     envelope = json.loads(raw.decode("utf-8"))
+
+    # Top-level envelope shape and digest come first, before version-specific parsing.
+    if set(envelope.keys()) != {"snapshot", "snapshot_sha256"}:
+        raise CapacityError("invalid envelope top-level keys")
     inner = envelope["snapshot"]
-    captured_state = inner["captured_state"]
-    try:
-        conn.execute("DELETE FROM executor_capacity_policies WHERE source_id = ?", (target_source_id,))
-    except sqlite3.OperationalError:
-        pass
-    try:
-        conn.execute("DELETE FROM executor_capacity_sources WHERE source_id = ?", (target_source_id,))
-    except sqlite3.OperationalError:
-        pass
-    if captured_state is not None:
-        s = captured_state["source"]
-        conn.execute(
-            "INSERT OR REPLACE INTO executor_capacity_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (s["source_id"], s["source_version"], s["catalog_hash"], s.get("source_path"), s["updated_at"]),
+    if not isinstance(inner, dict):
+        raise CapacityError("snapshot inner must be a dict")
+    if inner.get("target_source_id") != target_source_id:
+        raise CapacityError("target source id mismatch")
+
+    # raw must be exactly the canonical serialization of the parsed envelope.
+    if raw != _canonical_json_bytes(envelope):
+        raise CapacityError("snapshot is not canonical")
+
+    expected_digest = hashlib.sha256(_canonical_json_bytes(inner)).hexdigest()
+    if envelope["snapshot_sha256"] != expected_digest:
+        raise CapacityError("snapshot digest mismatch")
+
+    contract_version = inner.get("contract_version")
+    if type(contract_version) is not int or contract_version not in (1, 2):
+        raise CapacityError(f"unsupported contract version: {contract_version!r}")
+
+    if contract_version == 1:
+        _validate_envelope_keys(
+            envelope,
+            expected_top_keys={"snapshot", "snapshot_sha256"},
+            expected_inner_keys={"contract_version", "target_source_id", "captured_state"},
         )
-        for p in captured_state.get("policies", []):
+        witness = {"sources": [], "policies": []}
+    else:
+        _validate_envelope_keys(
+            envelope,
+            expected_top_keys={"snapshot", "snapshot_sha256"},
+            expected_inner_keys={"contract_version", "target_source_id", "captured_state", "preserved_state"},
+        )
+        witness = inner["preserved_state"]
+        if not isinstance(witness, dict) or set(witness.keys()) != {"sources", "policies"}:
+            raise CapacityError("invalid preserved_state keys")
+
+    def _row_tuple(row, kind):
+        if kind == "source":
+            return (row["source_id"], row["source_version"], row["catalog_hash"], row.get("source_path"), row["updated_at"])
+        return (
+            row["agent_id"], row["source_id"], row["source_version"], row["catalog_hash"],
+            row["capacity_policy_id"], row["max_concurrent_jobs"], row["created_at"], row["updated_at"],
+        )
+
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        # Validate the full current projection FIRST, exactly as Coordinate C1 does.
+        # This keeps the target inside the projection fail-closed validation.
+        current_sources, current_policies = _validate_full_projection(conn)
+
+        # Reject active leases on any source only after projection validation.
+        try:
+            active = conn.execute(
+                "SELECT COUNT(*) AS n FROM execution_attempt_leases WHERE status = 'active'"
+            ).fetchone()["n"]
+        except sqlite3.OperationalError:
+            active = 0
+        if active:
+            raise CapacityError("active lease blocks restore")
+
+        current_preserved_sources = [s for s in current_sources if s["source_id"] != target_source_id]
+        current_preserved_policies = [p for p in current_policies if p["source_id"] != target_source_id]
+
+        # v1 envelope carries no witness metadata; it is only valid when restoring
+        # into a DB that currently contains nothing except the target source.
+        if contract_version == 1 and (current_preserved_sources or current_preserved_policies):
+            raise CapacityError("v1 snapshot cannot restore a multi-source capacity DB")
+
+        # Witness equality: every non-target row must match the snapshot exactly.
+        witness_sources = sorted(witness["sources"], key=lambda r: r["source_id"])
+        witness_policies = sorted(witness["policies"], key=lambda r: r["agent_id"])
+        if (
+            [_row_tuple(r, "source") for r in witness_sources]
+            != [_row_tuple(r, "source") for r in current_preserved_sources]
+        ):
+            raise CapacityError("witness source mismatch")
+        if (
+            [_row_tuple(r, "policy") for r in witness_policies]
+            != [_row_tuple(r, "policy") for r in current_preserved_policies]
+        ):
+            raise CapacityError("witness policy mismatch")
+
+        captured_state = inner["captured_state"]
+
+        # Explicit ownership check before any DELETE: captured_state, if present,
+        # must belong to the target source. Any mismatch is a corrupt snapshot and
+        # must fail closed without mutation.
+        if captured_state is not None:
+            captured_source = captured_state.get("source")
+            if captured_source is None or captured_source.get("source_id") != target_source_id:
+                raise CapacityError("captured source does not belong to target source")
+            for p in captured_state.get("policies", []):
+                if p.get("source_id") != target_source_id:
+                    raise CapacityError(
+                        f"captured policy {p.get('agent_id')!r} source_id does not belong to target source"
+                    )
+
+        # Build the exact post-restore projection and validate it before mutation.
+        proposed_sources = list(witness_sources)
+        proposed_policies = list(witness_policies)
+        if captured_state is not None:
+            proposed_sources.append(captured_state["source"])
+            proposed_policies.extend(captured_state.get("policies", []))
+
+        bindings = _read_enabled_bindings(conn)
+        agent_ids = _read_agents(conn)
+        _validate_projection_state(proposed_sources, proposed_policies, bindings, agent_ids)
+
+        # Ensure no agent ownership collision between preserved and captured policies.
+        witness_agents = {p["agent_id"] for p in witness_policies}
+        if captured_state is not None:
+            for p in captured_state.get("policies", []):
+                if p["agent_id"] in witness_agents:
+                    raise CapacityError(
+                        f"target snapshot claims agent owned by preserved source: {p['agent_id']!r}"
+                    )
+
+        # All validation passed; now mutate only the target source.
+        conn.execute("DELETE FROM executor_capacity_policies WHERE source_id = ?", (target_source_id,))
+        conn.execute("DELETE FROM executor_capacity_sources WHERE source_id = ?", (target_source_id,))
+
+        if captured_state is not None:
+            s = captured_state["source"]
             conn.execute(
-                "INSERT OR REPLACE INTO executor_capacity_policies (agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (p["agent_id"], p["source_id"], p["source_version"], p["catalog_hash"], p["capacity_policy_id"], p["max_concurrent_jobs"], p["created_at"], p["updated_at"]),
+                "INSERT OR REPLACE INTO executor_capacity_sources "
+                "(source_id, source_version, catalog_hash, source_path, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (s["source_id"], s["source_version"], s["catalog_hash"], s.get("source_path"), s["updated_at"]),
             )
-    conn.commit()
+            for p in captured_state.get("policies", []):
+                conn.execute(
+                    "INSERT OR REPLACE INTO executor_capacity_policies "
+                    "(agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    (p["agent_id"], p["source_id"], p["source_version"], p["catalog_hash"],
+                     p["capacity_policy_id"], p["max_concurrent_jobs"], p["created_at"], p["updated_at"]),
+                )
+
+        # Post-write verification: re-read full projection and validate exact match.
+        post_sources, post_policies = _validate_full_projection(conn)
+        post_target_source = None
+        post_target_policies = []
+        for s in post_sources:
+            if s["source_id"] == target_source_id:
+                post_target_source = s
+        for p in post_policies:
+            if p["source_id"] == target_source_id:
+                post_target_policies.append(p)
+
+        if captured_state is None:
+            if post_target_source is not None or post_target_policies:
+                raise CapacityError("post-write target not absent")
+        else:
+            if post_target_source is None:
+                raise CapacityError("post-write target source missing")
+            if _row_tuple(post_target_source, "source") != _row_tuple(captured_state["source"], "source"):
+                raise CapacityError("post-write target source mismatch")
+            captured_policies = sorted(captured_state.get("policies", []), key=lambda r: r["agent_id"])
+            if [_row_tuple(p, "policy") for p in captured_policies] != [_row_tuple(p, "policy") for p in post_target_policies]:
+                raise CapacityError("post-write target policy mismatch")
+
+        post_preserved_sources = [s for s in post_sources if s["source_id"] != target_source_id]
+        post_preserved_policies = [p for p in post_policies if p["source_id"] != target_source_id]
+        if [_row_tuple(r, "source") for r in witness_sources] != [_row_tuple(r, "source") for r in post_preserved_sources]:
+            raise CapacityError("post-write witness source mismatch")
+        if [_row_tuple(r, "policy") for r in witness_policies] != [_row_tuple(r, "policy") for r in post_preserved_policies]:
+            raise CapacityError("post-write witness policy mismatch")
+
+        # Re-check active leases before commit.
+        try:
+            active2 = conn.execute(
+                "SELECT COUNT(*) AS n FROM execution_attempt_leases WHERE status = 'active'"
+            ).fetchone()["n"]
+        except sqlite3.OperationalError:
+            active2 = 0
+        if active2:
+            raise CapacityError("active lease appeared during restore")
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return envelope
 '''
 
@@ -354,6 +708,18 @@ if args[0] == "workspace" and args[1] == "agent":
             "VALUES (?, ?, 'agent', 'agent', 'current_dir', 0, '{}', ?, ?)",
             (e.id, e.id, now, now),
         )
+    # Bindings: authoritative agents with an executor_definition_id get a typed binding.
+    # If the authority carries the P9-3C0 legacy executor root, recreate bindings there.
+    conn.execute("DELETE FROM executor_instance_bindings WHERE source_id = ?", (authority.source_id,))
+    for e in authority.entries:
+        if getattr(e, "executor_definition_id", None) and getattr(e, "runner_profile_id", None):
+            enabled = 1 if getattr(e, "enabled", True) else 0
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_instance_bindings "
+                "(agent_id, source_id, executor_definition_id, runner_profile_id, enabled, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (e.id, authority.source_id, e.executor_definition_id, e.runner_profile_id, enabled, now, now),
+            )
 elif args[0] == "runtime" and args[1] == "executor":
     conn.execute(
         "INSERT OR REPLACE INTO executor_catalog_sources (source_id, source_version, catalog_hash, source_path, updated_at) "
@@ -413,8 +779,9 @@ elif args[0] == "runtime" and args[1] == "capacity":
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (p.agent_id, capacity.source_id, capacity.source_version, capacity.catalog_hash, policy_id, p.max_concurrent_jobs, now, now),
         )
-    # Fault-injection: tamper a policy id once so the committed verifier fails on
-    # the first attempt, then leave the marker so the restore attempt is clean.
+    # Fault-injection: tamper a policy id once so the current projection is
+    # internally inconsistent. Strict restore must reject this before any
+    # DELETE, not silently roll back to a "previous" state.
     tamper_marker = Path(root) / ".capacity_verify_tamper_done"
     if os.environ.get("FAKE_CAPACITY_VERIFY_FAILURE") == "1" and not tamper_marker.exists():
         conn.execute(
@@ -639,6 +1006,15 @@ class DeployContractTests(unittest.TestCase):
                 open(cleanup_marker, "w", encoding="utf-8").close()
                 sys.exit(1)
 
+            committed_marker = os.path.join(root, ".committed_verify_failure_done")
+            if (
+                os.environ.get("FAKE_COMMITTED_VERIFY_FAILURE") == "1"
+                and "agent_registry_deploy_verify.py" in cmd
+                and not os.path.exists(committed_marker)
+            ):
+                open(committed_marker, "w", encoding="utf-8").close()
+                sys.exit(1)
+
             if cmd.startswith("sudo bash -s"):
                 script_text = sys.stdin.read()
                 rewritten_script = rewrite(script_text)
@@ -825,6 +1201,128 @@ class DeployContractTests(unittest.TestCase):
             )
             self.assertEqual(result.returncode, 0, result.stderr)
 
+    def _seed_fixture_capacity_source(self, *, agent_enabled: bool = True) -> None:
+        """Seed one internally valid non-target fixture executor/capacity projection."""
+        import sqlite3
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(str(db_path))
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_catalog_sources "
+                "(source_id, source_version, catalog_hash, source_path, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("p9-3c0-fixture-capacity", 1, "fixture-catalog-hash", "/fixture", "2026-01-01T00:00:00Z"),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_definitions "
+                "(id, source_id, provider, adapter, capabilities_json, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ("fixture-executor", "p9-3c0-fixture-capacity", "test", "test", "[]", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO agents "
+                "(id, name, role, capabilities_json, online_state, current_load, created_at, updated_at) "
+                "VALUES (?, ?, 'agent', '[]', 'offline', 0, ?, ?)",
+                ("fixture-agent", "Fixture Agent", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO runner_profiles "
+                "(id, name, runner_type, command, working_directory_strategy, supports_stream_attach, env_json, created_at, updated_at) "
+                "VALUES (?, ?, 'agent', 'agent', 'current_dir', 0, '{}', ?, ?)",
+                ("fixture-agent", "fixture-agent", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_instance_bindings "
+                "(agent_id, source_id, executor_definition_id, runner_profile_id, enabled, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                ("fixture-agent", "p9-3c0-fixture-capacity", "fixture-executor", "fixture-agent", int(agent_enabled), "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_capacity_sources "
+                "(source_id, source_version, catalog_hash, source_path, updated_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                ("p9-3c0-fixture-capacity", 1, "fixture-catalog-hash", "/fixture", "2026-01-01T00:00:00Z"),
+            )
+            policy_id = "sha256:" + hashlib.sha256(
+                json.dumps({
+                    "agent_id": "fixture-agent",
+                    "catalog_hash": "fixture-catalog-hash",
+                    "contract_version": 1,
+                    "max_concurrent_jobs": 3,
+                    "source_id": "p9-3c0-fixture-capacity",
+                    "source_version": 1,
+                }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            conn.execute(
+                "INSERT OR REPLACE INTO executor_capacity_policies "
+                "(agent_id, source_id, source_version, catalog_hash, capacity_policy_id, max_concurrent_jobs, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("fixture-agent", "p9-3c0-fixture-capacity", 1, "fixture-catalog-hash", policy_id, 3, "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z"),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _inject_witness_drift(self) -> None:
+        """Mutate only the fixture policy into another internally valid state."""
+        import sqlite3
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        conn = sqlite3.connect(str(db_path))
+        try:
+            new_max = 4
+            policy_id = "sha256:" + hashlib.sha256(
+                json.dumps({
+                    "agent_id": "fixture-agent",
+                    "catalog_hash": "fixture-catalog-hash",
+                    "contract_version": 1,
+                    "max_concurrent_jobs": new_max,
+                    "source_id": "p9-3c0-fixture-capacity",
+                    "source_version": 1,
+                }, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            conn.execute(
+                "UPDATE executor_capacity_policies SET max_concurrent_jobs = ?, capacity_policy_id = ?, updated_at = ? "
+                "WHERE agent_id = ?",
+                (new_max, policy_id, "2026-01-02T00:00:00Z", "fixture-agent"),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def _write_v1_target_only_snapshot(self, snapshot_path: Path) -> None:
+        """Emit a valid v1 target-only snapshot artifact for stale-artifact injection."""
+        inner = {
+            "contract_version": 1,
+            "target_source_id": "multinexus.discord.capacity",
+            "captured_state": {
+                "source": {
+                    "source_id": "multinexus.discord.capacity",
+                    "source_version": 1,
+                    "catalog_hash": "v1-catalog-hash",
+                    "source_path": None,
+                    "updated_at": "2026-01-01T00:00:00Z",
+                },
+                "policies": [
+                    {
+                        "agent_id": "mac-claude",
+                        "source_id": "multinexus.discord.capacity",
+                        "source_version": 1,
+                        "catalog_hash": "v1-catalog-hash",
+                        "capacity_policy_id": "sha256:v1-policy-id",
+                        "max_concurrent_jobs": 1,
+                        "created_at": "2026-01-01T00:00:00Z",
+                        "updated_at": "2026-01-01T00:00:00Z",
+                    }
+                ],
+            },
+        }
+        inner_bytes = json.dumps(inner, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        digest = hashlib.sha256(inner_bytes).hexdigest()
+        envelope = {"snapshot": inner, "snapshot_sha256": digest}
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        snapshot_path.write_bytes(json.dumps(envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+
     def _deploy_residue(self) -> list[str]:
         tmp_root = self.fake_root / "tmp"
         if not tmp_root.exists():
@@ -988,7 +1486,8 @@ class DeployContractTests(unittest.TestCase):
         self._assert_no_deploy_residue()
 
 
-    def test_capacity_policy_id_mismatch_restores_previous_and_no_version_restart(self):
+    def test_committed_verifier_failure_restores_previous_and_no_version_restart(self):
+        """Committed verifier failure (no DB corruption) restores previous state."""
         # Pre-create the remote config and DB with a v1 capacity projection so
         # the backup has something to restore to.
         remote_config = self.remote_opt / "config" / "agent-registry.toml"
@@ -1009,10 +1508,10 @@ class DeployContractTests(unittest.TestCase):
         ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
         self.authority.write_text(v2_authority_bytes, encoding="utf-8")
 
-        # Inject a one-time capacity policy id tamper so the committed verifier fails.
+        # Inject a one-time committed verifier failure; DB remains consistent.
         env = dict(os.environ)
         env.update(self._env)
-        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        env["FAKE_COMMITTED_VERIFY_FAILURE"] = "1"
         result = subprocess.run(
             [
                 "bash",
@@ -1071,6 +1570,7 @@ class DeployContractTests(unittest.TestCase):
             discord_user_id = "1507329791982833775"
             executor_definition_id = "claude-code"
             runner_profile_id = "mac-claude"
+            enabled = false
 
             [[external_agents]]
             id = "server-hermes"
@@ -1099,11 +1599,11 @@ class DeployContractTests(unittest.TestCase):
         self.assertEqual(pre_state["cap_policies"], [],
                           "prior-absence pre-state must have no capacity policies")
 
-        # Inject a one-time capacity policy id tamper so the committed verifier
-        # fails after the new capacity sync succeeds.
+        # Inject a one-time committed verifier failure after the new capacity
+        # sync succeeds; DB remains consistent.
         env = dict(os.environ)
         env.update(self._env)
-        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        env["FAKE_COMMITTED_VERIFY_FAILURE"] = "1"
         result = subprocess.run(
             [
                 "bash",
@@ -1218,7 +1718,7 @@ class DeployContractTests(unittest.TestCase):
         self.authority.write_text(v2_authority_bytes, encoding="utf-8")
 
         result = self._run_deploy_with_env(
-            FAKE_CAPACITY_VERIFY_FAILURE="1",
+            FAKE_COMMITTED_VERIFY_FAILURE="1",
             FAKE_RESTORE_FAILURE="1",
         )
 
@@ -1296,6 +1796,8 @@ class DeployContractTests(unittest.TestCase):
         log = self._ssh_log()
         self.assertNotIn("VERSION_DEPLOYED", log)
         self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+        # Capture failure must be cleanup-only: no restore invocation in the log.
+        self.assertNotIn("--restore", log)
         self._assert_no_deploy_residue()
 
     def test_source_mutation_restore_double_failure_is_loud_and_cleans_residue(self):
@@ -1344,6 +1846,219 @@ class DeployContractTests(unittest.TestCase):
                 f"/tmp/agent-registry.toml.capacity-backup-{run_id}",
                 log,
             )
+        self._assert_no_deploy_residue()
+
+    def test_deploy_with_second_capacity_source_succeeds(self):
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config)
+        self._seed_fixture_capacity_source()
+
+        # Capture the COMPLETE accepted pre-state (both sources).
+        pre_state = self._snapshot_full_db_state(db_path)
+        self.assertEqual(len(pre_state["cap_sources"]), 2)
+        self.assertEqual(len(pre_state["cap_policies"]), 2)
+
+        result = self._run_deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self._ssh_log()
+        self.assertIn("VERSION_DEPLOYED", log)
+        self.assertIn("systemctl restart multinexus-discord-bridge", log)
+
+        # Exact retry: no change in canonical authority, so DB must be unchanged.
+        self._assert_db_state_matches(db_path, pre_state)
+        self._assert_no_deploy_residue()
+
+    def test_deploy_rollback_with_second_capacity_source_preserves_witness(self):
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config)
+        self._seed_fixture_capacity_source()
+
+        # Capture the COMPLETE accepted pre-state (both sources).
+        pre_state = self._snapshot_full_db_state(db_path)
+
+        # Mutate local canonical authority so a successful sync would differ.
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        result = self._run_deploy_with_env(FAKE_CAPACITY_SYNC_FAILURE="1")
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("capacity-sync", result.stderr)
+        log = self._ssh_log()
+        self.assertIn("--restore", log)
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # Both canonical and fixture rows must be exact/value-identical.
+        self._assert_db_state_matches(db_path, pre_state)
+        self._assert_no_deploy_residue()
+
+    def test_rollback_with_witness_drift_is_loud_recovery_failure(self):
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config)
+        self._seed_fixture_capacity_source()
+
+        # Mutate local canonical authority so a rollback path is reached.
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        # Inject witness drift after the capture writes the snapshot envelope.
+        # The drift is internally valid (new policy id, same source) but does
+        # not match the captured witness, so restore must fail closed.
+        result = self._run_deploy_with_env(
+            FAKE_CAPACITY_SYNC_FAILURE="1",
+            FAKE_INJECT_WITNESS_DRIFT_AFTER_CAPTURE="1",
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("restore-capacity-snapshot", result.stderr)
+        self.assertIn("recovery-failure", result.stderr)
+        log = self._ssh_log()
+        self.assertIn("--restore", log)
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # The fixture drift must remain visible; target rows were not deleted.
+        actual = self._snapshot_full_db_state(db_path)
+        self.assertEqual(len(actual["cap_sources"]), 2)
+        self.assertEqual(len(actual["cap_policies"]), 2)
+        fixture_policy = next(p for p in actual["cap_policies"] if p[0] == "fixture-agent")
+        self.assertEqual(fixture_policy[5], 4, "fixture drift must remain visible")
+
+        # Explicit EXIT-trap cleanup: snapshot helper is invoked for capture, then
+        # cleanup after the failure. The trap itself cannot swallow the error.
+        self.assertIn("capacity-snapshot-", log)
+        self._assert_no_deploy_residue()
+
+    def test_capacity_policy_id_corruption_fails_strict_restore(self):
+        """Real policy-id corruption in the current projection is rejected.
+
+        Strict restore validates the full current projection (including target)
+        before any DELETE. A corrupt policy id means restore itself fails,
+        leaving the corrupted v2 capacity in place and surfacing a recovery
+        failure. The test must not claim a successful rollback.
+        """
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config)
+
+        # Modify local authority to a v2 capacity projection.
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        # Inject real policy-id corruption into the current projection during sync.
+        env = dict(os.environ)
+        env.update(self._env)
+        env["FAKE_CAPACITY_VERIFY_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "multinexus",
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("committed-state", result.stderr)
+        self.assertIn("restore-capacity-snapshot", result.stderr)
+        self.assertIn("recovery-failure", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # The corrupt v2 capacity projection must remain visible because strict
+        # restore rejected the snapshot before deleting the target.
+        import sqlite3
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        try:
+            row = conn.execute(
+                "SELECT source_version, capacity_policy_id FROM executor_capacity_policies "
+                "WHERE agent_id = ?",
+                ("mac-claude",),
+            ).fetchone()
+            self.assertIsNotNone(row)
+            self.assertEqual(row["source_version"], 2)
+            self.assertEqual(row["capacity_policy_id"], "sha256:tampered")
+        finally:
+            conn.close()
+
+        self._assert_no_deploy_residue()
+
+    def test_v1_snapshot_downgrade_fails_on_multi_source_db(self):
+        remote_config = self.remote_opt / "config" / "agent-registry.toml"
+        remote_config.parent.mkdir(parents=True, exist_ok=True)
+        v1_authority_bytes = self.authority.read_text(encoding="utf-8")
+        remote_config.write_text(v1_authority_bytes, encoding="utf-8")
+
+        db_path = self.fake_root / "var" / "lib" / "coordinate" / "coord.sqlite3"
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._seed_previous_accepted_state(remote_config)
+        self._seed_fixture_capacity_source()
+
+        # Mutate local canonical authority so rollback is reached.
+        v2_authority_bytes = v1_authority_bytes.replace(
+            'version = 1', 'version = 2'
+        ).replace('max_concurrent_jobs = 1', 'max_concurrent_jobs = 2')
+        self.authority.write_text(v2_authority_bytes, encoding="utf-8")
+
+        # Inject a v1 downgrade at capture time: the snapshot helper will write a
+        # valid v1 target-only envelope. Restore must reject it because the DB is
+        # multi-source, leaving both capacity sources intact.
+        result = self._run_deploy_with_env(
+            FAKE_CAPACITY_SYNC_FAILURE="1",
+            FAKE_SNAPSHOT_V1_DOWNGRADE="1",
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stderr)
+        self.assertIn("restore-capacity-snapshot", result.stderr)
+        self.assertIn("recovery-failure", result.stderr)
+        log = self._ssh_log()
+        self.assertNotIn("VERSION_DEPLOYED", log)
+        self.assertNotIn("systemctl restart multinexus-discord-bridge", log)
+
+        # Target capacity rows were not deleted.
+        actual = self._snapshot_full_db_state(db_path)
+        self.assertEqual(len(actual["cap_sources"]), 2)
+        self.assertEqual(len(actual["cap_policies"]), 2)
         self._assert_no_deploy_residue()
 
 
