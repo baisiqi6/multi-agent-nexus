@@ -45,6 +45,11 @@
   三项 canonical PID/NRestarts 完全不变。
 - 结论：授权“不要重启”不能只存在于计划文字；部署命令与 post-deploy PID gate 都必须
   成为可复制 evidence。
+- Closeout 文档 projection 的首次 smoke 在 Discord proxy probe 遇一次
+  `curl: (35) SSL_ERROR_SYSCALL`；部署文件与 VERSION 已同步，但 Operator 没有把退出码
+  35 包装成成功。bounded `deploy-server.sh status` 重试完整 PASS，PID/NRestarts/DB 未变。
+  结论：外网 smoke 可瞬时失败，但只能在 live state 健康且 bounded retry 通过后分类为
+  transient，不能直接忽略或重启服务。
 
 ## 2026-07-14（P9-3B runtime lease wiring）
 

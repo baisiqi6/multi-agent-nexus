@@ -8,7 +8,7 @@
 
 - Coordinate source/deployed：
   `9804bbd74c4b826d0620c5939b00e01be9c1120d`。
-- MultiNexus source/main/deployed：
+- MultiNexus execution revision at run `m`：
   `805901e635531e5cfe53bacce89536137727bfad`。
 - 部署命令：
   `scripts/deploy-server.sh multinexus --host kook-hermes-admin --no-restart`。
@@ -133,3 +133,18 @@ Production：
 canonical production read-only comparison。它没有把 fixture executor/capacity source
 注册到 production DB，没有执行付费 provider request，也没有授权 P9-3C1 production
 catalog activation、真实 production jobs/leases/reap 或 canonical service restart。
+
+## 7. Post-closeout documentation projection
+
+Independent closeout approval was projected in source commit `d84a667`. Its first
+`--no-restart` deployment copied the projection and updated `VERSION_DEPLOYED`, but the
+final smoke's Discord proxy probe returned one transient
+`curl: (35) SSL_ERROR_SYSCALL`. The deployment was therefore not reported as a clean
+success. A bounded read-only `deploy-server.sh status --host kook-hermes-admin` retry
+then passed the full server smoke without restart.
+
+After the retry, canonical PID/NRestarts remained `836234/0`, `1276892/0`, and
+`4551/0`; production DB remained integrity/schema `ok/13` with zero nonterminal jobs,
+active leases, and fixture agents; deployed verifier SHA remained
+`bf1d86d183462fa6c903a2f351ff28d589ad837d3f1d7ff3c7ebbee335f13061`.
+This follow-up is documentation-only and does not reopen or rerun Package 3.
