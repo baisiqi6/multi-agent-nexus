@@ -34,6 +34,36 @@ _p9c0_real_realpath() {
     realpath "$1"
 }
 
+# Canonicalize a path that may have non-existent leaf components, resolving
+# all symlinks in the existing ancestor chain. Requires an absolute path and
+# rejects missing suffix components that are empty, ".", or ".." so the
+# reassembled value remains canonical. Fail-closed: if an existing ancestor
+# cannot be resolved (e.g. permission denied or broken symlink), return
+# non-zero. Do not use eval.
+_p9c0_real_realpath_missing_ok() {
+    local candidate="$1" parent resolved rest component
+    candidate="${candidate%/}"
+    [[ -n "$candidate" && "$candidate" == /* ]] || return 1
+    if [[ -e "$candidate" || -L "$candidate" ]]; then
+        realpath "$candidate"
+        return $?
+    fi
+    parent="$candidate"
+    rest=""
+    while [[ "$parent" != "/" ]]; do
+        if [[ -e "$parent" || -L "$parent" ]]; then
+            break
+        fi
+        component="${parent##*/}"
+        [[ -n "$component" && "$component" != "." && "$component" != ".." ]] || return 1
+        rest="/${component}${rest}"
+        parent="${parent%/*}"
+        [[ -n "$parent" ]] || parent="/"
+    done
+    resolved="$(realpath "$parent")" || return 1
+    printf '%s%s\n' "$resolved" "$rest"
+}
+
 _p9c0_real_stat_file() {
     stat -c '%d:%i:%s:%h:%u:%g:%a' "$1"
 }
@@ -89,6 +119,7 @@ _p9c0_euid() { _p9c0_real_euid; }
 _p9c0_identity_lookup_user() { _p9c0_real_identity_lookup_user "$@"; }
 _p9c0_identity_lookup_group() { _p9c0_real_identity_lookup_group "$@"; }
 _p9c0_realpath() { _p9c0_real_realpath "$@"; }
+_p9c0_realpath_missing_ok() { _p9c0_real_realpath_missing_ok "$@"; }
 _p9c0_stat_file() { _p9c0_real_stat_file "$@"; }
 _p9c0_sha256_file() { _p9c0_real_sha256_file "$@"; }
 _p9c0_chown() { _p9c0_real_chown "$@"; }
@@ -599,11 +630,6 @@ _p9c0_enforce_wrapper_authority() {
         || _p9c0_die "wrapper SHA drift: $wrapper_raw" 40
 }
 
-_p9c0_is_resolved_production_db() {
-    local db="$1" production="$2"
-    _p9c0_is_production_resolved "$db" "$production"
-}
-
 _p9c0_enforce_unit_identity() {
     local user="$1" group="$2" uid_owned="$3" gid_owned="$4" db="$5" production_db="$6"
     [[ "$user" != "root" ]] || _p9c0_die "unit user cannot be root" 50
@@ -619,14 +645,16 @@ _p9c0_enforce_unit_identity() {
     [[ "$gid" == "$gid_owned" ]] || _p9c0_die "gid mismatch for $group" 59
     _p9c0_is_under_root "$db" "$(_p9c0_controller_state_prefix)" \
         || _p9c0_die "isolation db raw path escapes state prefix: $db" 60
-    local db_resolved prefix_resolved
-    db_resolved="$(_p9c0_realpath "$db")" || _p9c0_die "isolation db realpath failed: $db" 60
-    prefix_resolved="$(_p9c0_realpath "$(_p9c0_controller_state_prefix)")" \
+    local db_resolved prefix_resolved production_db_resolved
+    db_resolved="$(_p9c0_realpath_missing_ok "$db")" || _p9c0_die "isolation db realpath failed: $db" 60
+    prefix_resolved="$(_p9c0_realpath_missing_ok "$(_p9c0_controller_state_prefix)")" \
         || _p9c0_die "state prefix realpath failed" 60
+    production_db_resolved="$(_p9c0_realpath "$production_db")" \
+        || _p9c0_die "production db realpath failed" 60
     _p9c0_is_under_root "$db_resolved" "$prefix_resolved" \
         || _p9c0_die "isolation db resolved path escapes state prefix: $db" 60
-    _p9c0_is_resolved_production_db "$db" "$production_db" \
-        && _p9c0_die "isolation db resolves to production: $db" 60
+    [[ "$db_resolved" != "$production_db_resolved" ]] \
+        || _p9c0_die "isolation db resolves to production: $db" 60
     return 0
 }
 
