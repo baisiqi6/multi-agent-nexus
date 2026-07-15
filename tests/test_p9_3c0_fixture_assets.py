@@ -1061,6 +1061,106 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run \
             "termination=crash kill_signal=SIGKILL kill_result=ok", ledger
         )
 
+    def test_crash_stop_accepts_effective_nonzero_before_graceful_cleanup(self):
+        self.setUp()
+        unit, _ = self._seed_unit_line()
+        calls = self.tmp / "systemd_crash_effective_nonzero_calls.txt"
+        killed = self.tmp / "killed"
+        stopped = self.tmp / "stopped"
+        cgroup_procs = self.tmp / "cgroup_crash_effective_nonzero.procs"
+        cgroup_procs.write_text("", encoding="utf-8")
+        script = self._source_with_mocks(f"""
+cgroup_procs="{cgroup_procs}"
+killed="{killed}"
+stopped="{stopped}"
+_p9c0_real_cgroup_procs_path() {{ printf '%s\n' "$cgroup_procs"; }}
+_p9c0_real_sleep() {{ :; }}
+_p9c0_real_systemctl() {{
+    printf '%s\n' "$*" >> "{calls}"
+    if [[ $1 == kill ]]; then : > "$killed"; return 9; fi
+    if [[ $1 == stop ]]; then : > "$stopped"; return 0; fi
+    if [[ $1 == show && $3 == ActiveState ]]; then
+        [[ -f "$killed" || -f "$stopped" ]] && echo failed || echo active
+    fi
+}}
+_p9c0_real_date_ms() {{ echo 160000; }}
+_p9c0_cmd_stop --state-root {self.state_root} --run-id test-run \
+    --agent-id p9-3c-fixture-e1 --crash \
+    --fixture-start-monotonic-ms 80000 --evidence-run-id test-run
+""")
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = calls.read_text(encoding="utf-8").splitlines()
+        kill = f"kill --kill-whom=all --signal=SIGKILL {unit}"
+        stop = f"stop {unit}"
+        self.assertLess(lines.index(kill), lines.index(stop))
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
+        self.assertIn("kill_result=effective-nonzero", ledger)
+
+    def test_crash_stop_nonzero_terminal_state_with_nonempty_cgroup_fails(self):
+        self.setUp()
+        unit, _ = self._seed_unit_line()
+        calls = self.tmp / "systemd_crash_nonempty_before_stop_calls.txt"
+        killed = self.tmp / "killed"
+        cgroup_procs = self.tmp / "cgroup_crash_nonempty_before_stop.procs"
+        cgroup_procs.write_text("4321\n", encoding="utf-8")
+        script = self._source_with_mocks(f"""
+cgroup_procs="{cgroup_procs}"
+killed="{killed}"
+_p9c0_real_cgroup_procs_path() {{ printf '%s\n' "$cgroup_procs"; }}
+_p9c0_real_sleep() {{ :; }}
+_p9c0_real_systemctl() {{
+    printf '%s\n' "$*" >> "{calls}"
+    if [[ $1 == kill ]]; then : > "$killed"; return 9; fi
+    if [[ $1 == stop ]]; then : > "$cgroup_procs"; return 0; fi
+    if [[ $1 == show && $3 == ActiveState ]]; then
+        [[ -f "$killed" ]] && echo failed || echo active
+    fi
+}}
+_p9c0_real_date_ms() {{ echo 160000; }}
+_p9c0_cmd_stop --state-root {self.state_root} --run-id test-run \
+    --agent-id p9-3c-fixture-e1 --crash \
+    --fixture-start-monotonic-ms 80000 --evidence-run-id test-run
+""")
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"stop {unit}", calls.read_text(encoding="utf-8"))
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
+        self.assertIn("kill_result=failed", ledger)
+        self.assertNotIn("kill_result=effective-nonzero", ledger)
+
+    def test_crash_stop_nonzero_terminal_state_with_unreadable_cgroup_fails(self):
+        self.setUp()
+        unit, _ = self._seed_unit_line()
+        calls = self.tmp / "systemd_crash_unreadable_before_stop_calls.txt"
+        killed = self.tmp / "killed"
+        cgroup_procs = self.tmp / "cgroup_crash_unreadable_before_stop"
+        cgroup_procs.mkdir()
+        script = self._source_with_mocks(f"""
+cgroup_procs="{cgroup_procs}"
+killed="{killed}"
+_p9c0_real_cgroup_procs_path() {{ printf '%s\n' "$cgroup_procs"; }}
+_p9c0_real_sleep() {{ :; }}
+_p9c0_real_systemctl() {{
+    printf '%s\n' "$*" >> "{calls}"
+    if [[ $1 == kill ]]; then : > "$killed"; return 9; fi
+    if [[ $1 == stop ]]; then rmdir "$cgroup_procs"; : > "$cgroup_procs"; return 0; fi
+    if [[ $1 == show && $3 == ActiveState ]]; then
+        [[ -f "$killed" ]] && echo failed || echo active
+    fi
+}}
+_p9c0_real_date_ms() {{ echo 160000; }}
+_p9c0_cmd_stop --state-root {self.state_root} --run-id test-run \
+    --agent-id p9-3c-fixture-e1 --crash \
+    --fixture-start-monotonic-ms 80000 --evidence-run-id test-run
+""")
+        result = subprocess.run(["bash", "-c", script], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(f"stop {unit}", calls.read_text(encoding="utf-8"))
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
+        self.assertIn("kill_result=failed", ledger)
+        self.assertNotIn("kill_result=effective-nonzero", ledger)
+
     def test_crash_stop_active_kill_failure_cleans_then_fails_closed(self):
         self.setUp()
         unit, _ = self._seed_unit_line()

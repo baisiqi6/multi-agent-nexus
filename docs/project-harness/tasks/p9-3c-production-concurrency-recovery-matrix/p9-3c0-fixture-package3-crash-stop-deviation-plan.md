@@ -37,6 +37,41 @@ systemctl kill --kill-whom=all --signal=SIGKILL <exact-unit>
 6. E2 stop、failure trap、independent cleanup 与普通 operator stop 绝不能传
    `--crash`。
 
+## 3.1 systemd 255 effective-nonzero 修订
+
+真实 sidecar run `p9-3c0-pkg3-20260715i` 证明：`systemctl kill` 已向 exact unit
+的 main、fixture child 与 descendant 发送 `SIGKILL`，unit 随后以
+`status=9/KILL`、`Result=signal` 进入 `failed`，attempt N 仍保持
+`running + active lease`；但 systemd 在清理 auxiliary process 时发生 race，命令
+最终返回 nonzero。仅按 rc 判定会把已经成功形成的 crash 错报为失败。
+
+本修订只增加一个窄分类 `effective-nonzero`：
+
+1. kill 前使用 start ledger 中唯一 exact-unit record 的 `cgroup=` 路径；不得从
+   kill 后状态重建、猜测或替换该 authority。
+2. rc=0 仍记为 `ok`；kill 前已为 `inactive|failed` 且 rc nonzero 记为
+   `not-needed`。
+3. kill 前为 active 且 rc nonzero 时，必须在调用 graceful `systemctl stop`
+   **之前**做最多 1 秒 bounded proof；同一次 poll 内同时满足 exact unit 为
+   `inactive|failed`，且 ledger-recorded cgroup 已不存在或其 `cgroup.procs` 是
+   readable regular file 且内容为空，才记为 `effective-nonzero`。
+4. `effective-nonzero` 与 `ok` 都是成功结果：最终 cleanup proof 通过后 helper
+   返回 0，不触发 fail-closed。
+5. 如果 pre-stop proof 超时、unit 仍 active、cgroup nonempty、unreadable、读取
+   失败或 authority 无效，必须记为 `failed`；完成 exact graceful cleanup 后返回
+   nonzero。
+6. 无论 kill 分类如何，最终仍调用 exact `systemctl stop`，bounded wait 接受
+   `inactive|failed` 任一 terminal state；当前固定上限为 60 次、每次 0.5 秒，
+   即最多 30 秒。随后再次证明 ledger-recorded cgroup absent/empty。不得要求
+   `failed` 自动变回 `inactive`，也不新增 `reset-failed`。
+7. 禁止以 journal 文本、PID/name pattern、kill rc 单独作为
+   `effective-nonzero` authority。
+
+ledger 枚举相应扩展为
+`kill_result=not-requested|ok|not-needed|effective-nonzero|failed`。
+`not-needed` 与 `ok`、`effective-nonzero` 一样，在最终 cleanup proof 通过后返回
+0。
+
 ## 4. 禁止扩展
 
 - 不改 Coordinate、agentd shutdown 语义、TTL 120 或 renewal interval 30；
@@ -46,7 +81,9 @@ systemctl kill --kill-whom=all --signal=SIGKILL <exact-unit>
 ## 5. 验证门
 
 - helper mock tests 证明 flag parsing、kill-before-stop、graceful 不 kill、active
-  kill failure 的 cleanup-then-fail、inactive nonzero 的 `not-needed`、ledger 字段；
+  kill failure 的 cleanup-then-fail、inactive nonzero 的 `not-needed`、active
+  nonzero + pre-stop terminal/empty proof 的 `effective-nonzero`、terminal 但
+  nonempty/unreadable 仍 fail closed，以及 ledger 字段；
 - controller tests 证明仅 hold N 与 recovery N+1 传 `--crash`；
 - shell parse、focused/adjacent/full pytest 与 merged-main validation 全通过；
 - inert deploy 后使用全新 run id；N stop 后必须仍为 `running + active lease`，过

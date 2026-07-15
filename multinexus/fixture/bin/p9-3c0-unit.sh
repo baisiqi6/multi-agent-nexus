@@ -1871,6 +1871,13 @@ _p9c0_stop_exact_unit() {
             P9C0_STOP_KILL_RESULT="ok"
         elif [[ $pre_state == inactive || $pre_state == failed ]]; then
             P9C0_STOP_KILL_RESULT="not-needed"
+        elif _p9c0_crash_effective_after_nonzero "$unit" "$recorded_cgroup"; then
+            # systemd can return non-zero after it has killed the unit's main
+            # and child processes (for example, an auxiliary-process race).
+            # Accept that narrow case only when unit state and the exact
+            # start-time cgroup independently prove completion before the
+            # graceful cleanup stop below can influence either observation.
+            P9C0_STOP_KILL_RESULT="effective-nonzero"
         else
             P9C0_STOP_KILL_RESULT="failed"
             kill_failed=1
@@ -1937,6 +1944,36 @@ _p9c0_stop_exact_unit() {
     fi
 
     [[ $kill_failed -eq 0 ]]
+}
+
+# A non-zero `systemctl kill` is not sufficient evidence that SIGKILL failed:
+# systemd 255 may report an auxiliary-process race after the cgroup is already
+# empty.  This bounded, pre-cleanup proof accepts only a terminal unit state and
+# the exact ledger-recorded cgroup being absent or readable-and-empty in the
+# same poll.  Journal text, process-name matching, and the command rc alone are
+# deliberately not authority.
+_p9c0_crash_effective_after_nonzero() {
+    local unit="$1" recorded_cgroup="$2"
+    local cgroup_path state procs attempts=0
+
+    [[ -n $recorded_cgroup ]] || return 1
+    cgroup_path=$(_p9c0_cgroup_procs_path "$recorded_cgroup") || return 1
+
+    while [[ $attempts -lt 20 ]]; do
+        state=$(_p9c0_systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)
+        if [[ $state == inactive || $state == failed ]]; then
+            if [[ ! -e $cgroup_path ]]; then
+                return 0
+            fi
+            if [[ -f $cgroup_path && -r $cgroup_path ]]; then
+                procs=$(_p9c0_read_cgroup_procs "$cgroup_path" 2>/dev/null) || procs="__read_failed__"
+                [[ -z $procs ]] && return 0
+            fi
+        fi
+        attempts=$((attempts + 1))
+        _p9c0_sleep 0.05
+    done
+    return 1
 }
 
 # ---------------------------------------------------------------------------
