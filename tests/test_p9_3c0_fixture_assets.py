@@ -922,6 +922,7 @@ _p9c0_real_systemctl() {{
             PrivateTmp) echo yes ;;
             ProtectSystem) echo strict ;;
             ProtectHome) echo yes ;;
+            BindPaths) echo {self.state_root}:{self.state_root}:rbind ;;
             ReadWritePaths) echo {self.state_root} ;;
             UnsetEnvironment) echo "${{P9C0_UNSET_ENVIRONMENT_NAMES//,/ }}" ;;
             UMask) echo 0077 ;;
@@ -946,6 +947,7 @@ _p9c0_cmd_start --state-root {self.state_root} --run-id test-run --agent-id p9-3
         self.assertIn("--property=RuntimeMaxSec=300", calls_text)
         self.assertIn("--property=IPAddressDeny=any", calls_text)
         self.assertIn("--property=RestrictAddressFamilies=AF_UNIX", calls_text)
+        self.assertIn(f"--property=BindPaths={self.state_root}", calls_text)
         self.assertIn("env -i", calls_text)
         self.assertIn(f"env -i -C {self.repo_root}", calls_text)
         self.assertIn("--property=UnsetEnvironment=", calls_text)
@@ -983,6 +985,7 @@ _p9c0_real_systemctl() {{
             PrivateTmp) echo yes ;;
             ProtectSystem) echo strict ;;
             ProtectHome) echo yes ;;
+            BindPaths) echo {self.state_root}:{self.state_root}:rbind ;;
             ReadWritePaths) echo {self.state_root} ;;
             UMask) echo 0077 ;;
             *) echo "" ;;
