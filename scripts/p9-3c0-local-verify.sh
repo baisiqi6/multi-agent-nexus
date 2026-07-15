@@ -89,7 +89,7 @@ _p9c0_real_install() {
 }
 
 _p9c0_real_runuser() {
-    env -i PATH=/usr/local/bin:/usr/bin:/bin runuser "$@"
+    env -i PATH=/usr/local/bin:/usr/bin:/bin /usr/sbin/runuser "$@"
 }
 
 _p9c0_real_helper_exact_stop() {
