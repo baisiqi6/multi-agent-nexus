@@ -2730,6 +2730,7 @@ class TestLocalVerifyScenarioContracts:
         assert '"python3", fixture_bin, "-p", "--verbose", "--output-format"' in source
         assert 'actual_executable=pathlib.Path(f"/proc/{fixture_pid}/exe")' in source
         assert 'PWD={expected_worktree}' in source
+        assert '"LC_CTYPE=C.UTF-8"' in source
         assert "fixture executable mismatch" not in source
 
     def test_submit_uses_exact_compact_fixture_and_literal_json_argv(self, tmp_path: Path):

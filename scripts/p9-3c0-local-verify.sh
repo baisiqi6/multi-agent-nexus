@@ -1644,7 +1644,13 @@ for _ in range(20):
         time.sleep(.1); continue
     main_env=env(main); fixture_env=env(fixture_pid)
     if main_env != ["PATH=/usr/local/bin:/usr/bin:/bin"]: raise SystemExit(f"agentd environment mismatch: {main_env}")
-    expected_env=["PATH=/usr/local/bin:/usr/bin:/bin", f"PWD={expected_worktree}"]
+    # CPython's PEP 538 locale coercion adds this exact non-secret value to
+    # ``os.environ`` after process start, so filtered_env forwards it even
+    # though the agentd process's original /proc environ contains only PATH.
+    expected_env=[
+        "PATH=/usr/local/bin:/usr/bin:/bin", "LC_CTYPE=C.UTF-8",
+        f"PWD={expected_worktree}",
+    ]
     if sorted(fixture_env) != sorted(expected_env): raise SystemExit(f"fixture environment mismatch: {fixture_env}")
     with fixture_path.open("rb") as source:
         if source.readline().rstrip(b"\r\n") != b"#!/usr/bin/env python3": raise SystemExit("fixture shebang mismatch")
