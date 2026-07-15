@@ -133,4 +133,3 @@ Production：
 canonical production read-only comparison。它没有把 fixture executor/capacity source
 注册到 production DB，没有执行付费 provider request，也没有授权 P9-3C1 production
 catalog activation、真实 production jobs/leases/reap 或 canonical service restart。
-
