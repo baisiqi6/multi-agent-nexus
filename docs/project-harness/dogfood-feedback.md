@@ -1164,3 +1164,21 @@
 - Route：后续应提供server-only `task revise-record`（或使`create-record`支持已存在task的
   plan revision），原子重算SHA、写superseding`plan.ready`且绝不触碰harness文件；在此之前
   每次兼容revision后必须重新部署并校验source/deployed checklist fingerprint。
+
+## 2026-07-15（P9-3C0 snapshot compatibility C2）
+
+- 状态：C2 deploy-contract coverage已reviewed / merged / pushed / deployed / accepted；
+  production仍是单一canonical capacity source，未激活fixture或live restore。
+- Claude Code外层固定`claude-sonnet-4-6`，provider-native JSONL确认实际
+  `message.model=kimi-for-coding`。JSONL能证明agent仍在思考/调用工具，但不能证明其声称的
+  Git结果已经落盘：worker曾报告`ebfb713...`已amend且clean，Operator通过
+  `git status --porcelain=v2`、`git diff`与`git show HEAD:`发现修正仍未stage，立即终止了
+  错误revision上的review，重新stage/amend并对`952522d`做fresh exact-revision review。
+- Route：worker完成声明必须按`provider activity -> working-tree diff -> index/HEAD blob ->
+  exact revision tests -> independent verdict`分层验收；不能把JSONL activity或最终文字当作
+  committed state。
+- Production部署`c5cf5f2`，roster/executor/capacity均为exact retry，其中executor与capacity
+  `changed=false`；DB integrity/schema/FK为`ok/13/0`，1 source / 8 policies，0 leases，
+  0 pending/running jobs，服务healthy且无snapshot/staging/backup residue。
+- 完整证据：
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-multinexus-c2-deployment-dogfood.md`。

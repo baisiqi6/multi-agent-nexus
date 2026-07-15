@@ -2127,3 +2127,26 @@ evidence package. The same session spans two provider/model intervals:
   into Git source automatically, and code-sync/`VERSION_DEPLOYED` does not prove the
   venv package or DB schema was upgraded. Exact evidence is in
   `tasks/slice-4c1-task-create-operation-contract/closeout.md`.
+
+## 2026-07-15 — P9-3C0 snapshot compatibility C2 accepted
+
+- Coordinate C1 dependency remains deployed at `1e36d9b`; MultiNexus C2 candidate
+  `952522d` received fresh exact-revision approval after `20 passed` focused and
+  `663 passed, 2 skipped` full verification.
+- C2 was merged with the approved candidate preserved as a parent, pushed, and deployed
+  as MultiNexus `c5cf5f2`; the deployed test-file blob exactly matches the reviewed
+  candidate.
+- Production roster/executor/capacity syncs were exact retries; executor and capacity
+  reported `changed=false`. Post-deploy DB remains `ok` at schema 13 with one canonical
+  source, eight policies, zero leases/jobs/fixtures, healthy services, and no deploy
+  residue. No live restore or second-source activation occurred.
+- Worker JSONL supervision caught activity and provider routing, while independent Git
+  object checks caught one falsely claimed amend before review. This establishes the
+  durable evidence order: activity, working tree, committed blob, exact tests, reviewer
+  verdict.
+- Exact evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-multinexus-c2-result-review.md`
+  and
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-snapshot-compatibility-multinexus-c2-deployment-dogfood.md`.
+- Next gate: Package 2 fixture assets detailed plan/bootstrap and independent review.
+  Production fixture activation remains blocked until P9-3C1.
