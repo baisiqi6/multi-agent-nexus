@@ -2190,3 +2190,23 @@ evidence package. The same session spans two provider/model intervals:
   scope; P9-3C1 activation remains blocked.
 - No implementation/bootstrap is authorized. Next gate: commit the measurement and
   detailed plan, then obtain fresh independent exact-revision review.
+
+## 2026-07-15 — P9-3C0 Package 3 plan review Round 1 rejected
+
+- Claude Code Sonnet/provider-native `kimi-for-coding` session
+  `83d9041f-9740-4eee-97b9-2abe07cc7b0b` reviewed exact revision `2e91e6c` read-only
+  and returned `REQUEST_CHANGES`.
+- The revision now anchors hold timing to the exact ClaudeAdapter first-byte monotonic
+  clock, defines systemd 255 semantic property normalization, removes the unsupported
+  `systemd-run --dry-run` path, and adds canonical launch regression scope.
+- It also defines root-controller/non-root-unit ownership, immutable wrapper manifest,
+  exact quiescence queries, initial renewal baseline, stale-report DB/event immutability,
+  process hierarchy, interrupted cleanup, and active-lease checks before every catalog
+  mutation.
+- Reviewer premises requiring an unavailable “offline agent row” and a root-owned
+  `0700` wrapper were corrected: liveness comes from exact unit/cgroup proof, and the
+  root-owned wrapper is group-executable `0750` with inode/hash self-check.
+- Empty executor/capacity source metadata residues are now distinguished from removed
+  bindings/definitions/policies; sync does not unregister source rows.
+- Bootstrap remains unauthorized. Next gate: commit the revised plan and obtain fresh
+  Round 2 exact-revision review.

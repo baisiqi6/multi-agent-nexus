@@ -101,10 +101,11 @@ for fixture units while leaving the normal default at INFO.
 The helper records monotonic time before `systemd-run`, which is earlier than the
 adapter child's stdin/start boundary. Its `stop` command correctly accepts an external
 `--fixture-start-monotonic-ms`, but Package 3 currently has no reviewed producer for
-that value. The sidecar verifier must poll the exact ledger-recorded cgroup, require
-exactly one PID whose `/proc/<pid>/cmdline` contains the reviewed absolute fixture
-path, and record local monotonic milliseconds at first observation. It must never use
-`pgrep`, wildcard unit names, or a guessed PID for this proof.
+that value. Polling the exact ledger-recorded cgroup can prove PID/cmdline identity but
+occurs after the adapter timer starts and is not a valid timing anchor. The adapter
+must expose the exact monotonic value used by its first-byte timer; cgroup observation
+then cross-checks the recorded PID only. Neither path may use `pgrep`, wildcard unit
+names, or a guessed PID.
 
 ### 5. Queue freeze and real-executor non-interference need an honest boundary
 
@@ -118,6 +119,25 @@ non-interference would contradict the zero-provider objective. The valid proof i
   field-for-field unchanged before and after the sidecar run.
 
 This proves isolation without claiming a paid production request was sent.
+
+### 6. System unit privilege and isolated-state ownership are not yet defined
+
+The deployed helper invokes the system manager, while its transient unit sets a
+non-root `User=`/`Group=`. Running the whole helper as that user may fail system-manager
+authorization; running everything as root would create an isolated DB/config tree the
+unit user cannot safely write/read. Package 3 therefore needs an explicit privilege
+split: root-only controller and systemd/cgroup/journal operations, a root-owned
+non-replaceable wrapper, and Coordinate/DB/work/context operations executed as the
+exact non-root unit user.
+
+### 7. The adapter has no machine-readable first-byte clock anchor
+
+`ClaudeAdapter._run` sets `last_activity = loop.time()` before writing stdin and uses
+that value for the first-byte timeout. It does not currently log or export the value.
+The later appearance of a fixture PID in the unit cgroup proves identity but cannot
+reconstruct this earlier clock exactly. Package 3 needs an opt-in DEBUG record carrying
+the same monotonic value and child PID, without emitting provider stdout/progress or
+changing the default production log level.
 
 ## Resulting Package 3 boundary
 
