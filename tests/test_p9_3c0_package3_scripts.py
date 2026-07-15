@@ -1980,7 +1980,28 @@ class TestLocalVerifyControllerFoundation:
         source = LOCAL_VERIFY.read_text()
         assert 'exec \\"\\$EXPECTED_EXEC\\" --db \\"\\$EXPECTED_DB\\" \\"\\$@\\"' in source
         assert "/bin/sh -c" not in source
-        assert "env -i PATH=/usr/local/bin:/usr/bin:/bin runuser" in source
+        assert (
+            "env -i PATH=/usr/local/bin:/usr/bin:/bin /usr/sbin/runuser" in source
+        )
+
+    def test_real_runuser_uses_absolute_binary_outside_clean_path(self):
+        script = f'''
+        set -euo pipefail
+        source "{LOCAL_VERIFY}"
+        env() {{ printf '<%s>\\n' "$@"; }}
+        _p9c0_real_runuser --user coord -- /bin/true
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [
+            "<-i>",
+            "<PATH=/usr/local/bin:/usr/bin:/bin>",
+            "</usr/sbin/runuser>",
+            "<--user>",
+            "<coord>",
+            "<-->",
+            "</bin/true>",
+        ]
 
     def test_run_id_bound_and_exact_credential_name_expansion(self):
         script = f'''
