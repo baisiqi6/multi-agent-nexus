@@ -2225,3 +2225,14 @@ evidence package. The same session spans two provider/model intervals:
   plan, not an implementation claim.
 - Only bootstrap drafting is authorized. Next gate: bind the worker base and exact plan
   SHA in a Package 3 bootstrap, then obtain a fresh independent bootstrap review.
+
+## 2026-07-15 — P9-3C0 Package 3 bootstrap drafted
+
+- The bootstrap binds implementation base `27b506d`, approved plan SHA-256
+  `358c28ec...8ee5`, exact ten-path allowlist/modes, Claude Code Sonnet/provider Kimi,
+  no-subagent role separation, mocked-only tests, and a one-commit/no-push handoff.
+- It translates the approved plan into explicit helper, wrapper, ownership, systemd,
+  adapter clock, log-level, verify/cleanup state-machine, stale-attempt, environment,
+  process-tree, test, and stop requirements.
+- No implementation worktree or worker is authorized yet. Next gate: fresh independent
+  exact-bootstrap review; only its approval token may open worker execution.
