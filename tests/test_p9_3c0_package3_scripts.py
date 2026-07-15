@@ -1995,6 +1995,7 @@ def _local_verify_mock_prelude(state_root: Path) -> str:
             */agents.rendered.toml) echo "1:14:128:1:0:{MOCK_GID}:640" ;;
             *.toml) echo "1:14:128:1:0:0:644" ;;
             */control|*/lock|*/ledger|*/evidence) echo "1:2:0:3:0:0:700" ;;
+            */work/p9-3c-fixture-e1|*/work/p9-3c-fixture-e2) echo "1:3:0:2:{MOCK_UID}:{MOCK_GID}:700" ;;
             */db|*/work|*/harness|*/context) echo "1:3:0:3:{MOCK_UID}:{MOCK_GID}:700" ;;
             *) echo "1:4:0:3:0:{MOCK_GID}:750" ;;
         esac
@@ -2669,7 +2670,8 @@ class TestLocalVerifyScenarioContracts:
         calls = tmp_path / "coordinate.argv"
         script = prelude + f'''
         P9C0_RUN_ID=pkg3-submit-exact
-        P9C0_UNIT_USER={MOCK_USER}; P9C0_UNIT_UID={MOCK_UID}
+        P9C0_UNIT_USER={MOCK_USER}; P9C0_UNIT_GROUP={MOCK_GROUP}
+        P9C0_UNIT_UID={MOCK_UID}; P9C0_UNIT_GID={MOCK_GID}
         _p9c0_controller_run_coordinate() {{ printf '<%s>\n' "$@" > "{calls}"; }}
         _p9c0_submit_request p9-3c-fixture-e1 hold true hold
         '''
@@ -2679,7 +2681,31 @@ class TestLocalVerifyScenarioContracts:
         assert '<{"contract_version":1,"mode":"hold","quiet_seconds":75,"spawn_descendant":true}>' in argv
         assert '<{"platform":"local-fixture","destination":"p9-3c-fixture-e1","session_scope_id":"pkg3-submit-exact:p9-3c-fixture-e1:hold","message_id":"pkg3-submit-exact-p9-3c-fixture-e1-hold"}>' in argv
         assert '<{"platform":"local-fixture","destination":"p9-3c-fixture-e1"}>' in argv
+        assert '<--worktree-path>' in argv
+        assert f'<{state_root / "pkg3-submit-exact" / "work" / "p9-3c-fixture-e1"}>' in argv
         assert not any("@" in item for item in argv)
+
+    def test_submit_freezes_distinct_allowlisted_worktrees(self, tmp_path: Path):
+        state_root, prelude = self._prepared(tmp_path, "pkg3-submit-worktrees")
+        calls = tmp_path / "coordinate.calls"
+        script = prelude + f'''
+        P9C0_RUN_ID=pkg3-submit-worktrees
+        P9C0_UNIT_USER={MOCK_USER}; P9C0_UNIT_GROUP={MOCK_GROUP}
+        P9C0_UNIT_UID={MOCK_UID}; P9C0_UNIT_GID={MOCK_GID}
+        _p9c0_controller_run_coordinate() {{ printf '%s\n' "$*" >> "{calls}"; }}
+        _p9c0_submit_request p9-3c-fixture-e1 complete false e1
+        _p9c0_submit_request p9-3c-fixture-e2 complete false e2
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        lines = calls.read_text().splitlines()
+        assert len(lines) == 2
+        e1 = state_root / "pkg3-submit-worktrees" / "work" / "p9-3c-fixture-e1"
+        e2 = state_root / "pkg3-submit-worktrees" / "work" / "p9-3c-fixture-e2"
+        assert e1 != e2
+        assert e1.is_dir() and e2.is_dir()
+        assert f"--target-agent p9-3c-fixture-e1 --worktree-path {e1}" in lines[0]
+        assert f"--target-agent p9-3c-fixture-e2 --worktree-path {e2}" in lines[1]
 
     def test_catalog_authority_is_sealed_and_forward_order_is_exact(self, tmp_path: Path):
         state_root, prelude = self._prepared(tmp_path, "pkg3-catalog-order")

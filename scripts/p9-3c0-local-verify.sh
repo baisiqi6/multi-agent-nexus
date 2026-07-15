@@ -431,6 +431,17 @@ _p9c0_per_run_root() {
     printf '%s/%s\n' "$(_p9c0_controller_state_prefix)" "${P9C0_RUN_ID:-}"
 }
 
+_p9c0_worktree_path_for_agent() {
+    local agent="$1" allowed
+    for allowed in "${P9C0_AGENT_ALLOWLIST[@]}"; do
+        if [[ "$agent" == "$allowed" ]]; then
+            printf '%s/work/%s\n' "$(_p9c0_per_run_root)" "$agent"
+            return 0
+        fi
+    done
+    return 1
+}
+
 _p9c0_wrapper_path() {
     printf '%s/%s\n' "$(_p9c0_per_run_root)" "$P9C0_WRAPPER_BASENAME"
 }
@@ -520,6 +531,18 @@ _p9c0_layout_per_run() {
         _p9c0_mkdir 700 "$target" || _p9c0_die "unit subdir create failed: $target" 23
         _p9c0_chown "$unit_uid" "$unit_gid" "$target" || _p9c0_die "unit subdir chown failed: $target" 23
         _p9c0_chmod 700 "$target" || _p9c0_die "unit subdir chmod failed: $target" 23
+    done
+
+    local agent worktree
+    for agent in "${P9C0_AGENT_ALLOWLIST[@]}"; do
+        worktree="$(_p9c0_worktree_path_for_agent "$agent")" \
+            || _p9c0_die "worktree path derivation failed: $agent" 23
+        _p9c0_mkdir 700 "$worktree" \
+            || _p9c0_die "agent worktree create failed: $worktree" 23
+        _p9c0_chown "$unit_uid" "$unit_gid" "$worktree" \
+            || _p9c0_die "agent worktree chown failed: $worktree" 23
+        _p9c0_chmod 700 "$worktree" \
+            || _p9c0_die "agent worktree chmod failed: $worktree" 23
     done
 
     local ledger
@@ -1383,7 +1406,7 @@ _p9c0_unit_stop() {
 
 _p9c0_submit_request() {
     local agent="$1" mode="$2" descendant="$3" suffix="$4"
-    local prompt origin reply key
+    local prompt origin reply key worktree
     [[ "$(cat "$(_p9c0_intake_record_path)" 2>/dev/null)" == \
        "intake=$P9C0_INTAKE_OPEN" ]] \
         || _p9c0_die "fixture intake is frozen; submit refused before Coordinate" 97
@@ -1391,9 +1414,14 @@ _p9c0_submit_request() {
     origin="{\"platform\":\"local-fixture\",\"destination\":\"$agent\",\"session_scope_id\":\"$P9C0_RUN_ID:$agent:$suffix\",\"message_id\":\"$P9C0_RUN_ID-$agent-$suffix\"}"
     reply="{\"platform\":\"local-fixture\",\"destination\":\"$agent\"}"
     key="p9-3c0:$P9C0_RUN_ID:$agent:$suffix"
+    worktree="$(_p9c0_worktree_path_for_agent "$agent")" \
+        || _p9c0_die "fixture worktree agent is not allowlisted: $agent" 97
+    _p9c0_enforce_root_owned_dir "$worktree" "700" \
+        "$P9C0_UNIT_UID" "$P9C0_UNIT_GID" \
+        || _p9c0_die "fixture worktree authority rejected: $worktree" 97
     _p9c0_controller_run_coordinate "$P9C0_UNIT_USER" "$P9C0_UNIT_UID" \
         runtime request submit "$P9C0_WORKSPACE_ID" \
-        --target-agent "$agent" --prompt "$prompt" \
+        --target-agent "$agent" --worktree-path "$worktree" --prompt "$prompt" \
         --origin-json "$origin" --reply-json "$reply" \
         --idempotency-key "$key" --actor p9-3c0-local-verify
 }
@@ -1405,13 +1433,16 @@ import datetime as dt, json, os, pathlib, sqlite3, sys, time
 db_raw, run_id, output = sys.argv[1:]
 ids = ("p9-3c-fixture-e1", "p9-3c-fixture-e2")
 expected_prompt = '{"contract_version":1,"mode":"complete","quiet_seconds":75,"spawn_descendant":false}'
-conn = sqlite3.connect(pathlib.Path(db_raw).resolve().as_uri() + "?mode=ro", uri=True)
+db_path = pathlib.Path(db_raw).resolve()
+expected_worktrees = {agent: str(db_path.parent.parent / "work" / agent) for agent in ids}
+conn = sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True)
 conn.row_factory = sqlite3.Row
 seen_running = {a: False for a in ids}
 deadlines = {a: [] for a in ids}
 initial = {}
 started = time.monotonic()
 rows_by_agent = {}
+resource_keys = {}
 
 def stamp(raw):
     value = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
@@ -1431,6 +1462,10 @@ while time.monotonic() - started < 105:
         payload = json.loads(job["payload_json"])
         if payload.get("prompt") != expected_prompt:
             raise SystemExit(f"base prompt mismatch for {agent}")
+        expected_worktree = expected_worktrees[agent]
+        context = payload.get("execution_context")
+        if job["worktree_path"] != expected_worktree or not isinstance(context, dict) or context.get("worktree_path") != expected_worktree:
+            raise SystemExit(f"base worktree authority mismatch for {agent}")
         origin, reply = payload.get("origin", {}), payload.get("reply", {})
         if origin.get("platform") != "local-fixture" or origin.get("destination") != agent or reply != {"platform":"local-fixture","destination":agent}:
             raise SystemExit(f"base envelope routing mismatch for {agent}")
@@ -1442,6 +1477,9 @@ while time.monotonic() - started < 105:
             lease = leases[0]
             if lease["attempt_token"] != 1 or lease["agent_id"] != agent or lease["runner_profile_id"] != agent or lease["host_id"] == "":
                 raise SystemExit(f"base lease identity mismatch for {agent}")
+            if lease["normalized_path"] != expected_worktree:
+                raise SystemExit(f"base lease worktree mismatch for {agent}")
+            resource_keys[agent] = lease["resource_key"]
             expiry = lease["expires_at"]
             if agent not in initial:
                 acquired, first = stamp(lease["acquired_at"]), stamp(expiry)
@@ -1462,6 +1500,8 @@ while time.monotonic() - started < 105:
 else:
     raise SystemExit("base jobs did not complete in bounded window")
 
+if len(resource_keys) != 2 or len(set(resource_keys.values())) != 2:
+    raise SystemExit("base worktree resource keys are not distinct")
 evidence=[]
 for agent in ids:
     job=rows_by_agent[agent]
@@ -1477,7 +1517,7 @@ for agent in ids:
         raise SystemExit(f"base fixture emitted progress for {agent}")
     lease=conn.execute("SELECT * FROM execution_attempt_leases WHERE job_id=?",(job["id"],)).fetchone()
     if lease["status"] != "released": raise SystemExit(f"base lease not released for {agent}")
-    evidence.append({"agent_id":agent,"job_id":job["id"],"lease_id":lease["lease_id"],"attempt_token":1,"deadlines":deadlines[agent],"duration_ms":duration})
+    evidence.append({"agent_id":agent,"job_id":job["id"],"lease_id":lease["lease_id"],"attempt_token":1,"deadlines":deadlines[agent],"duration_ms":duration,"worktree_path":expected_worktrees[agent],"resource_key":resource_keys[agent]})
 fd=os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
 with os.fdopen(fd,"w",encoding="utf-8") as f:
     for row in evidence: f.write(json.dumps(row,sort_keys=True,separators=(",",":"))+"\n")
@@ -1523,6 +1563,7 @@ import json, pathlib, sqlite3, time, sys
 db=pathlib.Path(sys.argv[1]).resolve()
 conn=sqlite3.connect(db.as_uri()+"?mode=ro",uri=True); conn.row_factory=sqlite3.Row
 agent="p9-3c-fixture-e1"
+expected_worktree=str(db.parent.parent / "work" / agent)
 prompt='{"contract_version":1,"mode":"hold","quiet_seconds":75,"spawn_descendant":true}'
 start=time.monotonic()
 while time.monotonic()-start < 5:
@@ -1534,10 +1575,13 @@ while time.monotonic()-start < 5:
     if len(matches)>1: raise SystemExit("multiple hold jobs")
     if matches and matches[0]["status"]=="running":
         job=matches[0]
+        payload=json.loads(job["payload_json"]); context=payload.get("execution_context")
+        if job["worktree_path"]!=expected_worktree or not isinstance(context,dict) or context.get("worktree_path")!=expected_worktree: raise SystemExit("hold worktree authority mismatch")
         leases=conn.execute("SELECT * FROM execution_attempt_leases WHERE job_id=? AND status='active'",(job["id"],)).fetchall()
         if len(leases)!=1: raise SystemExit("hold active lease count mismatch")
         lease=leases[0]
         if lease["attempt_token"]!=1 or lease["agent_id"]!=agent: raise SystemExit("hold lease identity mismatch")
+        if lease["normalized_path"]!=expected_worktree: raise SystemExit("hold lease worktree mismatch")
         print(json.dumps({"job_id":job["id"],"lease_id":lease["lease_id"],"attempt_token":1,"acquired_at":lease["acquired_at"],"expires_at":lease["expires_at"]},sort_keys=True,separators=(",",":")))
         raise SystemExit(0)
     time.sleep(.1)
@@ -1750,15 +1794,19 @@ _p9c0_real_recovery_monitor() {
     python3 - "$(_p9c0_controller_db_path)" "$old_authority" "$output" <<'PY'
 import datetime as dt,json,os,pathlib,sqlite3,sys,time
 db,old_path,out=sys.argv[1:]; old=json.loads(pathlib.Path(old_path).read_text())
-conn=sqlite3.connect(pathlib.Path(db).resolve().as_uri()+"?mode=ro",uri=True); conn.row_factory=sqlite3.Row
+db_path=pathlib.Path(db).resolve(); agent="p9-3c-fixture-e1"; expected_worktree=str(db_path.parent.parent / "work" / agent)
+conn=sqlite3.connect(db_path.as_uri()+"?mode=ro",uri=True); conn.row_factory=sqlite3.Row
 start=time.monotonic()
 while time.monotonic()-start<5:
     job=conn.execute("SELECT * FROM jobs WHERE id=?",(old["job_id"],)).fetchone()
     if job and job["status"]=="running" and job["attempt_count"]==old["attempt_token"]+1:
+        payload=json.loads(job["payload_json"]); context=payload.get("execution_context")
+        if job["worktree_path"]!=expected_worktree or not isinstance(context,dict) or context.get("worktree_path")!=expected_worktree: raise SystemExit("recovery worktree authority mismatch")
         leases=conn.execute("SELECT * FROM execution_attempt_leases WHERE job_id=? AND status='active'",(job["id"],)).fetchall()
         if len(leases)!=1: raise SystemExit("recovery active lease count mismatch")
         lease=leases[0]; attempt=old["attempt_token"]+1
-        if lease["attempt_token"]!=attempt or lease["lease_id"]==old["lease_id"] or lease["agent_id"]!="p9-3c-fixture-e1": raise SystemExit("recovery lease identity mismatch")
+        if lease["attempt_token"]!=attempt or lease["lease_id"]==old["lease_id"] or lease["agent_id"]!=agent: raise SystemExit("recovery lease identity mismatch")
+        if lease["normalized_path"]!=expected_worktree: raise SystemExit("recovery lease worktree mismatch")
         acquired=dt.datetime.fromisoformat(lease["acquired_at"].replace("Z","+00:00")); expiry=dt.datetime.fromisoformat(lease["expires_at"].replace("Z","+00:00"))
         if (expiry-acquired).total_seconds()!=120: raise SystemExit("recovery lease TTL mismatch")
         events=conn.execute("SELECT payload_json FROM events WHERE event_type='job.claimed' AND idempotency_key=?",(f"runtime:job:{job['id']}:claimed:{attempt}",)).fetchall()
