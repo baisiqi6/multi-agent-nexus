@@ -1,0 +1,11 @@
+[capacity_registry]
+id = "p9-3c0-fixture-capacity"
+version = 1
+
+[[executor_capacities]]
+agent_id = "p9-3c-fixture-e1"
+max_concurrent_jobs = 1
+
+[[executor_capacities]]
+agent_id = "p9-3c-fixture-e2"
+max_concurrent_jobs = 1

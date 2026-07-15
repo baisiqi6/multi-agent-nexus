@@ -1,0 +1,20 @@
+[defaults]
+agentd_mode = true
+adapter = "claude"
+timeout = 240
+first_byte_timeout = 90
+activity_timeout = 90
+system_prompt = ""
+claude_bin = "__P9C0_E1_CLAUDE_BIN__"
+work_dir = "__P9C0_WORK_DIR__"
+coordinator_cli_path = "__P9C0_COORDINATOR_CLI__"
+coordinator_db_path = "__P9C0_COORDINATOR_DB__"
+context_db_path = "__P9C0_E1_CONTEXT_DB__"
+
+[[agents]]
+id = "p9-3c-fixture-e1"
+
+[[agents]]
+id = "p9-3c-fixture-e2"
+claude_bin = "__P9C0_E2_CLAUDE_BIN__"
+context_db_path = "__P9C0_E2_CONTEXT_DB__"
