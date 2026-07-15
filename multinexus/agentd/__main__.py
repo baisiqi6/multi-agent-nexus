@@ -20,15 +20,16 @@ log = logging.getLogger(__name__)
 
 
 def main(argv: list[str] | None = None) -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(name)s %(levelname)s %(message)s",
-    )
-
     parser = argparse.ArgumentParser(description="MultiNexus agentd — coordinate worker")
     parser.add_argument("--config", default="agents.toml")
     parser.add_argument("--agent", required=True, help="Agent ID to run agentd for")
     parser.add_argument("--poll-interval", type=float, default=2.0, help="Job poll interval (seconds)")
+    parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Logging level (default: INFO).",
+    )
     parser.add_argument(
         "--recoverable",
         action="store_true",
@@ -48,6 +49,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Evidence: the prior process handling this agent was confirmed stopped before recovery.",
     )
     args = parser.parse_args(argv)
+
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
 
     if args.recoverable:
         try:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import subprocess
 import unittest
 from pathlib import Path
@@ -616,6 +617,86 @@ class CliRecoveryArgumentTests(unittest.TestCase):
             recovery_reason="prior-process-crashed",
             prior_process_stopped=True,
         )
+
+
+class CliLogLevelArgumentTests(unittest.TestCase):
+    """E) CLI --log-level must be parsed before basicConfig; default INFO."""
+
+    def test_default_log_level_is_info(self):
+        from multinexus.agentd.__main__ import main
+
+        mock_config = MagicMock()
+        mock_config.id = "test-agent"
+        mock_worker = MagicMock()
+        mock_worker.run = AsyncMock()
+        mock_worker.stop = MagicMock()
+
+        with (
+            patch("multinexus.agentd.__main__.load_config", return_value=mock_config),
+            patch("multinexus.agentd.__main__.AgentdWorker", return_value=mock_worker),
+            patch("multinexus.agentd.__main__.logging.basicConfig") as mock_config_fn,
+        ):
+            main(["--agent", "test-agent"])
+
+        mock_config_fn.assert_called_once()
+        self.assertEqual(mock_config_fn.call_args.kwargs["level"], logging.INFO)
+
+    def test_debug_log_level_accepted(self):
+        from multinexus.agentd.__main__ import main
+
+        mock_config = MagicMock()
+        mock_config.id = "test-agent"
+        mock_worker = MagicMock()
+        mock_worker.run = AsyncMock()
+        mock_worker.stop = MagicMock()
+
+        with (
+            patch("multinexus.agentd.__main__.load_config", return_value=mock_config),
+            patch("multinexus.agentd.__main__.AgentdWorker", return_value=mock_worker),
+            patch("multinexus.agentd.__main__.logging.basicConfig") as mock_config_fn,
+        ):
+            main(["--agent", "test-agent", "--log-level", "DEBUG"])
+
+        self.assertEqual(mock_config_fn.call_args.kwargs["level"], logging.DEBUG)
+
+    def test_invalid_log_level_rejected_before_worker_creation(self):
+        from multinexus.agentd.__main__ import main
+
+        with patch("multinexus.agentd.__main__.load_config") as mock_load:
+            with self.assertRaises(SystemExit):
+                main(["--agent", "test-agent", "--log-level", "TRACE"])
+        mock_load.assert_not_called()
+
+    def test_launchd_argv_without_log_level_defaults_info(self):
+        from multinexus.agentd.__main__ import main
+
+        mock_config = MagicMock()
+        mock_config.id = "mac-claude"
+        mock_worker = MagicMock()
+        mock_worker.run = AsyncMock()
+        mock_worker.stop = MagicMock()
+
+        launchd_argv = [
+            "/Users/yinxin/projects/multinexus/.venv/bin/python",
+            "-m",
+            "multinexus.agentd",
+            "--config",
+            "/Users/yinxin/projects/multinexus/agents.toml",
+            "--agent",
+            "mac-claude",
+            "--poll-interval",
+            "2",
+        ]
+
+        with (
+            patch("multinexus.agentd.__main__.load_config", return_value=mock_config),
+            patch("multinexus.agentd.__main__.AgentdWorker", return_value=mock_worker),
+            patch("multinexus.agentd.__main__.logging.basicConfig") as mock_config_fn,
+        ):
+            main(launchd_argv[3:])
+
+        self.assertEqual(mock_config_fn.call_args.kwargs["level"], logging.INFO)
+        mock_worker.run.assert_awaited_once()
 
 
 if __name__ == "__main__":

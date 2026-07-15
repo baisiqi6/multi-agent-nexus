@@ -3,7 +3,7 @@
 This runbook covers three separated tracks:
 
 1. Package 2 inert deployment verification only.
-2. Unauthorized-until-approved Package 3 isolated preview.
+2. Reviewed Package 3 isolated-sidecar operator workflow.
 3. P9-3C1 production activation outline.
 
 Package 2 assets are deliberately inert. They do not sync catalogs, start real
@@ -64,92 +64,91 @@ After deploy, confirm:
 
 ---
 
-## 2. Package 3 isolated sidecar preview (UNAUTHORIZED until approved)
+## 2. Package 3 isolated sidecar operator contract
 
-> **The commands below are informational only.** Do not run them until a fresh
-> Package 3 bootstrap is independently reviewed and approved.
+Package 3 is executable only after its exact implementation commit has passed
+review, merged-main validation, inert deployment, and deployed SHA/mode parity.
+It never activates fixture identities in the production Coordinate DB or canonical
+`agents.toml`/registry. Production services, configs, and DB are read-only baseline
+authority.
 
-### 2.1 Immutable forward/cleanup catalog order
+### 2.1 Prepare a fresh namespace
 
-Forward:
-
-1. `coordinate runtime executor sync --source /isolated/root/executor.fixture.v1-disabled.toml`
-2. `coordinate runtime capacity sync --source /isolated/root/capacity.fixture.v1.toml`
-3. `coordinate runtime executor sync --source /isolated/root/executor.fixture.v2-enabled.toml`
-
-Cleanup:
-
-1. `coordinate runtime executor sync --source /isolated/root/executor.fixture.v3-disabled.toml`
-2. `coordinate runtime capacity sync --source /isolated/root/capacity.fixture.v2-empty.toml`
-3. `coordinate runtime executor sync --source /isolated/root/executor.fixture.v4-empty.toml`
-
-### 2.2 Runner/agent registration (placeholder values)
+Choose a new lowercase run id of at most 61 characters. The verifier derives the
+exact `<run-id>-r2` recovery namespace, so neither namespace may already exist.
+Use the reviewed non-root fixture account; never use `root`.
 
 ```bash
-# Replace <isolated-db>, <isolated-wrapper>, and <isolated-root> with approved
-# Package 3 isolated paths only. Replace <host-id> with the approved host
-# identifier for the isolated runtime. Do not run these commands until Package 3
-# is approved.
-coordinate runner add p9-3c-fixture-e1 \
-  --runner-type agent \
-  --command '<isolated-wrapper> --db <isolated-db> ...'
-coordinate runtime agent register \
-  --agent-id p9-3c-fixture-e1 \
-  --host-id <host-id>
-coordinate runner add p9-3c-fixture-e2 \
-  --runner-type agent \
-  --command '<isolated-wrapper> --db <isolated-db> ...'
-coordinate runtime agent register \
-  --agent-id p9-3c-fixture-e2 \
-  --host-id <host-id>
+sudo /opt/multinexus/scripts/p9-3c0-local-verify.sh prepare \
+  --run-id <run-id> \
+  --unit-user <fixture-user> \
+  --unit-group <fixture-group> \
+  --agent local-operator
 ```
 
-### 2.3 Exact request envelope and unit lifecycle
+`prepare` creates only `/var/tmp/multinexus-p9-3c0/<run-id>`, the isolated DB
+parents, work/harness/context directories, root-sealed wrapper and manifest,
+rendered fixture config, static systemd definition, locks, ledger, and evidence.
+It performs no catalog sync, job submission, or unit start.
 
-The fixture control envelope is:
-
-```json
-{
-  "contract_version": 1,
-  "mode": "hold",
-  "quiet_seconds": 75,
-  "spawn_descendant": true
-}
-```
-
-Timing boundaries for Package 3 hold stop evidence:
-
-- Operator target elapsed time: `80000` ms after recorded fixture-start boundary.
-- Accepted interval: `75000 <= elapsed < 85000` ms.
-- Absolute adapter `first_byte_timeout` is `90` s; the entire hold stop must
-  complete well before that.
-
-The `p9-3c0-unit.sh` helper records the Package 3 fixture-start boundary and
-validates the monotonic elapsed interval. A late or malformed boundary still
-forces exact unit stop, inactive wait, and cgroup-empty cleanup before the
-command returns nonzero.
-
-### 2.4 Submit target request
+### 2.2 Run or resume the bounded verification
 
 ```bash
-# Unauthorized until Package 3 approval. Replace <workspace-id> with the
-# approved isolated workspace identifier. Do not run these commands until
-# Package 3 is independently reviewed and approved.
-coordinate runtime request submit <workspace-id> \
-  --target-agent p9-3c-fixture-e1 \
-  --prompt '...' \
-  --origin-json '{"field": "<origin-value>"}' \
-  --reply-json '{"field": "<reply-value>"}'
+sudo /opt/multinexus/scripts/p9-3c0-local-verify.sh verify \
+  --run-id <run-id> \
+  --unit-user <fixture-user> \
+  --unit-group <fixture-group>
 ```
 
-> **Do not use `--origin-json @<file>` or `--reply-json @<file>`.** The fixture
-> helper parses these values as literal JSON strings, not as file references.
+The durable phase machine performs, in order:
 
-### 2.5 Evidence and cleanup
+1. exact read-only production DB/config/service baseline;
+2. isolated workspace, host profile, agentd runners, and immutable catalog sync
+   `executor v1 disabled -> capacity v1 -> executor v2 enabled`;
+3. two concurrent exact 75-second complete requests, each with initial TTL 120,
+   renew interval 30, two observed later deadlines, two matching DEBUG journal
+   renewals, and exact `fixture complete` result;
+4. E1 hold/descendant process-tree proof, atomic intake freeze, and exact stop at
+   the adapter monotonic 80-second target (`75000 <= elapsed < 85000`, complete
+   cleanup before 88 seconds);
+5. exact expiry/reap of attempt N, `<run-id>-r2` recovery against the same isolated
+   DB, rejection and immutability proof for one old-N stale report, then exact stop,
+   expiry, and reap of N+1;
+6. production-baseline comparison and idempotent cleanup in the fixed order
+   `executor v3 disabled -> capacity v2 empty -> executor v4 empty`.
 
-Preserve the ledger, unit show output, and cgroup `cgroup.procs` emptiness
-proof. Run `p9-3c0-unit.sh stop` and `p9-3c0-unit.sh cleanup` for each exact
-unit. Do not use wildcard units, `pkill`, or guessed PIDs.
+Re-run the same `verify` command after interruption. Completed verification phases
+are not repeated. Cleanup has its own adjacent durable phase record and resumes from
+the last verified transition. A failed pre-cleanup scenario is evidence-preserving
+and is not automatically retried.
+
+### 2.3 Independent cleanup entrypoint
+
+If verification has frozen intake but was interrupted, cleanup may be invoked
+directly with the same sealed identity:
+
+```bash
+sudo /opt/multinexus/scripts/p9-3c0-cleanup.sh cleanup \
+  --run-id <run-id> \
+  --unit-user <fixture-user> \
+  --unit-group <fixture-group>
+```
+
+Cleanup follows only exact primary/recovery ledger links and unit names. It waits
+past ledgered active-lease expiry, reaps through the isolated wrapper, proves every
+recorded cgroup empty, checks zero active/in-flight work before every catalog sync,
+and retains the isolated DB, wrappers, manifests, ledgers, and evidence for review.
+It never uses wildcard units, direct SQLite writes/deletes, `pkill`, `pgrep`, guessed
+PIDs, mutable TOML edits, provider credentials, or network access.
+
+### 2.4 Expected retained residue
+
+Success retains exactly two dormant fixture agent/agentd-runner rows, executor source
+v4, capacity source v2, two completed base jobs with released leases, and one
+recoverable timed-out hold job with expired N/N+1 leases. Definitions, bindings,
+capacity policies, active leases, and pending/running jobs are empty. Production must
+still contain zero fixture identity and the three canonical services must match their
+captured `MainPID`, `NRestarts`, state, and fragment hashes.
 
 ---
 
