@@ -2236,3 +2236,15 @@ evidence package. The same session spans two provider/model intervals:
   process-tree, test, and stop requirements.
 - No implementation worktree or worker is authorized yet. Next gate: fresh independent
   exact-bootstrap review; only its approval token may open worker execution.
+
+## 2026-07-15 — P9-3C0 Package 3 bootstrap approved
+
+- Fresh Claude Code Sonnet/provider-native `kimi-for-coding` session
+  `b8dc158d-57a6-4822-aac6-11203d55841a` approved bootstrap SHA-256
+  `f2814d44...517c6` with no P0/P1/P2/P3 and token
+  `APPROVED_FOR_P9_3C0_FIXTURE_PACKAGE3_WORKER`.
+- It verified exact base `27b506d`, ten-path allowlist/modes, plan coverage, current
+  test/interpreter paths, canonical boundary, one-commit/no-push handoff, and separate
+  deploy/operator gates.
+- Local implementation and mocked tests are now authorized from the exact base. Merge,
+  deploy, SSH, real systemd, sidecar execution, and P9-3C1 remain separate blocked gates.
