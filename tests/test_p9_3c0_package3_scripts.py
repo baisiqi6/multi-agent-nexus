@@ -623,6 +623,7 @@ class TestStartLifecycle:
                         PrivateTmp) v=yes ;;
                         ProtectSystem) v=strict ;;
                         ProtectHome) v=yes ;;
+                        BindPaths) v="{state_root}:{state_root}:rbind" ;;
                         ReadWritePaths) v="{state_root}" ;;
                         UnsetEnvironment) v="${{P9C0_UNSET_ENVIRONMENT_NAMES//,/ }}" ;;
                         RestrictAddressFamilies) v=AF_UNIX ;;
@@ -702,6 +703,9 @@ class TestStartLifecycle:
         assert result.returncode == 0, result.stderr
         args = capture.read_text()
         assert "--log-level DEBUG" in args
+        assert (
+            f"--property=BindPaths={rendered_state['state_root']}" in args
+        )
         assert "--recoverable" not in args
         assert "--prior-process-stopped" not in args
 
@@ -941,6 +945,30 @@ class TestSystemd255Normalizers:
             "restrict-address-families", "AF_INET AF_UNIX", ""
         )
         assert result.returncode != 0
+
+    def test_bind_paths_accepts_exact_systemd_255_same_path_rbind(self, tmp_path):
+        root = tmp_path / "state"
+        root.mkdir()
+        result = self._norm(
+            "bind-paths", f"{root}:{root}:rbind", str(root)
+        )
+        assert result.returncode == 0, result.stderr
+
+    def test_bind_paths_rejects_extra_or_different_host_path(self, tmp_path):
+        root = tmp_path / "state"
+        outside = tmp_path / "outside"
+        root.mkdir()
+        outside.mkdir()
+        escaped = self._norm(
+            "bind-paths", f"{outside}:{root}:rbind", str(root)
+        )
+        extra = self._norm(
+            "bind-paths",
+            f"{root}:{root}:rbind {outside}:{outside}:rbind",
+            str(root),
+        )
+        assert escaped.returncode != 0
+        assert extra.returncode != 0
 
     def test_unset_environment_accepts_only_the_exact_sealed_set(self):
         result = self._norm(
@@ -1569,6 +1597,7 @@ class TestRecoveryOriginalPresence:
                         PrivateTmp) v=yes ;;
                         ProtectSystem) v=strict ;;
                         ProtectHome) v=yes ;;
+                        BindPaths) v="{state_root}:{state_root}:rbind" ;;
                         ReadWritePaths) v="{state_root}" ;;
                         UnsetEnvironment) v="${{P9C0_UNSET_ENVIRONMENT_NAMES//,/ }}" ;;
                         RestrictAddressFamilies) v=AF_UNIX ;;
@@ -1822,6 +1851,7 @@ class TestDurableStaticDefinitionAuthority:
             "PrivateTmp=yes",
             "ProtectSystem=strict",
             "ProtectHome=yes",
+            f"BindPaths={facts['state_root']}",
             f"ReadWritePaths={facts['state_root']}",
             "UnsetEnvironment=",
             "KillMode=control-group",

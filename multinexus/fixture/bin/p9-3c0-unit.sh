@@ -94,7 +94,7 @@ _p9c0_real_systemd_analyze() {
 _p9c0_real_python_normalize() {
     # Argument form: <normalizer-name> <value> <expected>
     # Normalizer names: runtime-max-usec, timeout-stop-usec, kill-mode,
-    # umask, bool, protect-system, read-write-paths,
+    # umask, bool, protect-system, read-write-paths, bind-paths,
     # restrict-address-families, ip-address-deny.
     local name="$1" value="$2" expected="$3"
     "${P9C0_PYTHON:-python3}" - "$name" "$value" "$expected" <<'PYEOF'
@@ -201,6 +201,29 @@ elif name == 'read-write-paths':
     expected_canonical = os.path.realpath(expected_root)
     if canonical != expected_canonical:
         sys.stderr.write(f'normalize: ReadWritePaths canonical {canonical} != {expected_canonical}\n')
+        sys.exit(2)
+elif name == 'bind-paths':
+    # systemd 255 renders a same-source/destination recursive bind as
+    # "source:destination:rbind". Require exactly that one binding so
+    # PrivateTmp cannot hide the approved /var/tmp state root and no other
+    # host path becomes visible inside the unit.
+    tokens = [t for t in str(value).strip().split() if t]
+    if len(tokens) != 1:
+        sys.stderr.write(f'normalize: BindPaths must be exactly one binding: {value!r}\n')
+        sys.exit(2)
+    parts = tokens[0].split(':')
+    if len(parts) != 3 or parts[2] != 'rbind':
+        sys.stderr.write(f'normalize: BindPaths encoding rejected: {value!r}\n')
+        sys.exit(2)
+    import os
+    expected_canonical = os.path.realpath(str(expected))
+    source_canonical = os.path.realpath(parts[0])
+    destination_canonical = os.path.realpath(parts[1])
+    if source_canonical != expected_canonical or destination_canonical != expected_canonical:
+        sys.stderr.write(
+            f'normalize: BindPaths canonical pair {source_canonical}:{destination_canonical} '
+            f'!= {expected_canonical}:{expected_canonical}\n'
+        )
         sys.exit(2)
 elif name == 'restrict-address-families':
     # Must be a positive allow-set containing only AF_UNIX; deny/complement
@@ -800,6 +823,7 @@ _p9c0_render_unit_definition() {
         printf 'PrivateTmp=yes\n'
         printf 'ProtectSystem=strict\n'
         printf 'ProtectHome=yes\n'
+        printf 'BindPaths=%s\n' "$state_root"
         printf 'ReadWritePaths=%s\n' "$state_root"
         printf 'UnsetEnvironment=%s\n' "${P9C0_UNSET_ENVIRONMENT_NAMES//,/ }"
         printf 'UMask=0077\n'
@@ -965,6 +989,9 @@ _p9c0_post_start_verify() {
             ReadWritePaths)
                 _p9c0_python_normalize read-write-paths "$actual" "$state_root" || failures+=("ReadWritePaths=$actual")
                 ;;
+            BindPaths)
+                _p9c0_python_normalize bind-paths "$actual" "$state_root" || failures+=("BindPaths=$actual")
+                ;;
             UnsetEnvironment)
                 _p9c0_python_normalize unset-environment "$actual" "$P9C0_UNSET_ENVIRONMENT_NAMES" || failures+=("UnsetEnvironment=$actual")
                 ;;
@@ -978,7 +1005,7 @@ _p9c0_post_start_verify() {
                 failures+=("unknown post-start key=$key")
                 ;;
         esac
-    done < <(printf '%s\n' User Group WorkingDirectory RuntimeMaxUSec TimeoutStopUSec KillMode UMask NoNewPrivileges PrivateTmp ProtectSystem ProtectHome ReadWritePaths UnsetEnvironment RestrictAddressFamilies IPAddressDeny)
+    done < <(printf '%s\n' User Group WorkingDirectory RuntimeMaxUSec TimeoutStopUSec KillMode UMask NoNewPrivileges PrivateTmp ProtectSystem ProtectHome BindPaths ReadWritePaths UnsetEnvironment RestrictAddressFamilies IPAddressDeny)
 
     if (( ${#failures[@]} > 0 )); then
         local f
@@ -1638,6 +1665,7 @@ _p9c0_start_locked() {
     properties+=(--property="PrivateTmp=yes")
     properties+=(--property="ProtectSystem=strict")
     properties+=(--property="ProtectHome=yes")
+    properties+=(--property="BindPaths=$P9C0_STATE_ROOT")
     properties+=(--property="ReadWritePaths=$P9C0_STATE_ROOT")
     properties+=(--property="UnsetEnvironment=${P9C0_UNSET_ENVIRONMENT_NAMES//,/ }")
     properties+=(--property="UMask=0077")
