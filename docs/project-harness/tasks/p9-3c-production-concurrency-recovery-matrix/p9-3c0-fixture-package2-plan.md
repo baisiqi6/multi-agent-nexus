@@ -167,6 +167,14 @@ No child/descendant may start before both CLI and stdin validation succeed.
   `result="fixture complete"`; then exit `0` without another line.
 - `hold`: remain silent after the boundary until the exact transient unit is stopped.
   It must not invent a provider session id or terminal result.
+- `hold` is deliberately short-lived: Package 3 must command the exact-unit stop at
+  a target elapsed time of 80 seconds after its recorded fixture-start boundary,
+  accept timing evidence only while `75 <= elapsed < 85`, and always remain below the
+  adapter's absolute `first_byte_timeout=90`. The five-second evidence margin is for
+  scheduling jitter and bounded shutdown initiation, not extra hold time.
+- A stop initiated at or after 85 seconds is an evidence failure. The helper must
+  still stop and prove cleanup of the exact unit/cgroup before returning nonzero; it
+  must never preserve a process merely because the timing row is already invalid.
 - `spawn_descendant=true`: start one bounded, silent descendant owned by the same unit
   cgroup, solely for Package 3's cgroup cleanup proof. The fixture must never daemonize,
   escape the cgroup, or create a second session manager.
@@ -236,7 +244,22 @@ Immutable states:
 - v4: the source is empty.
 
 Each version must parse through `load_authority`, have a distinct canonical hash, and
-contain no roster/Discord identities or canonical agent ids.
+contain no real or canonical roster/Discord identities or canonical agent ids. The
+shared parser nevertheless requires a quoted positive decimal `discord_user_id` for
+each managed entry. Therefore every non-empty executor version must use these exact
+synthetic parser-only placeholders:
+
+- E1: `discord_user_id="1"`;
+- E2: `discord_user_id="2"`.
+
+These values are deliberately too short to be real Discord snowflakes. They are not
+an official Discord-reserved namespace, convey no routing identity, and must never be
+passed to `workspace agent sync`, a roster verifier, or any deploy-time roster path.
+Tests must prove the two values are exact and unique, are absent from the current
+canonical `config/agent-registry.toml`, and cannot collide with any canonical
+`discord_user_id`. Fixture executor files are valid only as inputs to
+`coordinate runtime executor sync --source` in the separately authorized Package 3
+isolated workflow.
 
 ### 8.2 Capacity source
 
@@ -276,7 +299,9 @@ contain no test-mode environment switch, backend override, or production bypass.
 - every mutating subcommand holds one exclusive `flock` under an explicit state root;
 - the state root, lock, rendered config, and JSON/line ledger are mode `0700`/`0600`;
 - ledger binds run id, agent id, exact unit, config path, Coordinate wrapper path,
-  isolated DB path, work dir, start time, and observed cgroup;
+  isolated DB path, work dir, unit start time, Package 3's recorded fixture-start
+  boundary when present, requested stop time, actual stop-command time, timing verdict,
+  and observed cgroup;
 - status/stop/cleanup derive the exact unit only from this ledger and reject any
   caller-supplied mismatch;
 - no `pkill`, wildcard unit pattern, guessed PID, process-name match, or unbounded
@@ -316,7 +341,9 @@ Mandatory unit properties:
 
 - explicit `User`/`Group`;
 - exact `WorkingDirectory`;
-- `RuntimeMaxSec=300`;
+- `RuntimeMaxSec=300`, derived from `timeout=240` plus a bounded 60-second shutdown
+  and cleanup ceiling; it is a last-resort unit safety ceiling and never a valid
+  `hold` success window;
 - `TimeoutStopSec` bounded;
 - `KillMode=control-group`;
 - `IPAddressDeny=any`;
@@ -330,7 +357,8 @@ Mandatory unit properties:
   credential variables.
 
 If the systemd manager cannot enforce the network properties, the helper refuses to
-start; packet capture is not a substitute.
+start after appending a bounded failure record to the run ledger; packet capture is
+not a substitute.
 
 ### 9.4 Start/status/stop/cleanup
 
@@ -340,9 +368,16 @@ start; packet capture is not a substitute.
 - After start, inspect the exact unit properties and persist `MainPID`, `ControlGroup`,
   state, and result. A mismatch triggers exact stop and returns nonzero.
 - `status` uses `systemctl show <exact-unit>` with bounded property names only.
+- For a Package 3 `hold` row, its controller supplies the recorded fixture-start
+  boundary to the exact-unit stop operation. The helper validates a monotonic elapsed
+  duration, records both requested and actual stop-command time, and accepts the
+  timing row only for `75 <= elapsed < 85`. The operator target is 80 seconds. Package
+  3 must derive the boundary from its isolated request/worker evidence and bind it to
+  the same run id; Package 2 does not submit or observe the request itself.
 - `stop` freezes only the fixture ledger intake marker, stops the exact unit, waits
   boundedly for inactive, then proves the recorded cgroup's `cgroup.procs` is empty or
-  the cgroup no longer exists.
+  the cgroup no longer exists. Missing, mismatched, non-monotonic, or late hold timing
+  evidence makes the command nonzero only after this cleanup proof.
 - `cleanup` is allowed only after the stop proof; it removes only ledger-listed
   run-specific files and keeps an append-only bounded evidence record.
 
@@ -357,7 +392,9 @@ The runbook must contain three visually separate tracks:
    verify no fixture DB/unit/job/lease/catalog state changed.
 2. **Package 3 isolated sidecar preview** — exact commands with placeholders for an
    isolated DB/wrapper/root, immutable forward/cleanup catalog ordering, exact request
-   envelope, unit lifecycle, and evidence paths. Mark every command unauthorized until
+   envelope, unit lifecycle, and evidence paths. It must show the 80-second target,
+   the accepted `75 <= elapsed < 85` interval, the absolute 90-second first-byte
+   timeout, and cleanup-before-failure behavior. Mark every command unauthorized until
    the Package 3 bootstrap is approved.
 3. **P9-3C1 production activation outline** — list prerequisites and explicitly state
    that Package 2's helper rejects the production DB/wrapper. Do not provide a bypass.
@@ -395,7 +432,11 @@ All Package 2 tests are local and isolated.
 - rendered config loads with `require_token=False` and exact timeout/bin/path values;
 - raw/unrendered or partially rendered config is rejected by the helper;
 - no token, provider key, URL, Discord/KOOK identity, canonical id, or canonical
-  authority mutation appears;
+  authority mutation appears, except the exact parser-only synthetic values `"1"`
+  and `"2"` in non-empty fixture executor authorities;
+- synthetic ids are exact/unique, absent from canonical authority, do not collide with
+  current canonical Discord ids, and the fixture executor sources are never routed to
+  roster/workspace sync;
 - every immutable authority parses, hashes deterministically, has exact ids/versions,
   and encodes the reviewed staging order;
 - both capacity policies equal one and ownership sets are disjoint from canonical ids.
@@ -410,7 +451,10 @@ All Package 2 tests are local and isolated.
   proves exact systemd arguments, mandatory sandbox properties, post-start mismatch
   cleanup, exact status/stop, bounded inactive wait, and cgroup empty proof without
   calling a real manager;
-- unsupported network property refuses start;
+- hold timing accepts the 80-second target and boundary values inside
+  `75 <= elapsed < 85`, rejects missing/mismatched/non-monotonic or `>=85` evidence,
+  and still performs exact-unit/cgroup cleanup before returning failure;
+- unsupported network property records bounded ledger evidence and refuses start;
 - cleanup cannot run before stop/cgroup proof and cannot delete outside the ledger;
 - no test invokes the real systemd manager, SSH, production DB, or network.
 
