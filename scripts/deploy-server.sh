@@ -12,6 +12,11 @@ ALLOW_DIRTY=0
 NO_RESTART=0
 NO_SMOKE=0
 SKIP_INSTALL=0
+LOCK_HELPER_SOURCE="$SCRIPT_DIR/production-mutation-lock.py"
+LOCK_HELPER_REMOTE="/usr/local/sbin/coordinate-production-mutation-lock"
+LOCK_TOKEN=""
+LOCK_HELPER_STATE="unvalidated"
+LOCK_RELEASE_ATTEMPTED=0
 
 # EXIT-trap state must outlive deploy_multinexus() local scope.  These values
 # are populated per invocation and cleared only after checked cleanup.
@@ -326,7 +331,190 @@ clear_deploy_cleanup_trap() {
   DEPLOY_CLEANUP_SNAPSHOT=""
   DEPLOY_CLEANUP_BACKUP=""
   DEPLOY_CLEANUP_STAGING=""
-  trap - EXIT
+}
+
+acquire_production_mutation_lock() {
+  local owner_host
+  owner_host="$(hostname | sed 's/[^A-Za-z0-9_:-]/_/g')"
+  LOCK_TOKEN="$(
+    ssh "$HOST" "sudo python3 - acquire --owner deploy-server --action '$COMPONENT' --owner-host '$owner_host' --owner-pid '$$'" < "$LOCK_HELPER_SOURCE"
+  )"
+  if [[ ! "$LOCK_TOKEN" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "error: production mutation lock returned an invalid token" >&2
+    LOCK_TOKEN=""
+    return 1
+  fi
+}
+
+release_production_mutation_lock() {
+  local token="$LOCK_TOKEN"
+  LOCK_RELEASE_ATTEMPTED=1
+  if [[ ! "$token" =~ ^[0-9a-f]{64}$ ]]; then
+    echo "error: refusing production mutation lock release with invalid token" >&2
+    return 1
+  fi
+
+  if [[ "$LOCK_HELPER_STATE" == "validated" ]]; then
+    if ! ssh "$HOST" "sudo '$LOCK_HELPER_REMOTE' release --token '$token'" >/dev/null; then
+      echo "error: production mutation lock installed-helper release failed; lock retained" >&2
+      return 1
+    fi
+    LOCK_TOKEN=""
+    return 0
+  fi
+
+  echo "WARNING: PRODUCTION_MUTATION_LOCK_STREAMED_FALLBACK_RELEASE" >&2
+  if ! ssh "$HOST" "sudo python3 - release --token '$token'" < "$LOCK_HELPER_SOURCE" >/dev/null; then
+    echo "error: production mutation lock streamed fallback release failed; lock retained" >&2
+    return 1
+  fi
+  LOCK_TOKEN=""
+}
+
+production_mutation_exit_trap() {
+  local rc="$1"
+  local signal_name="$2"
+  local release_rc=0
+  trap - EXIT INT TERM
+  set +e
+
+  deploy_multinexus_cleanup_trap
+  if [[ -n "$LOCK_TOKEN" && "$LOCK_RELEASE_ATTEMPTED" -eq 0 ]]; then
+    release_production_mutation_lock
+    release_rc=$?
+  fi
+  if [[ "$release_rc" -ne 0 && "$rc" -eq 0 ]]; then
+    rc="$release_rc"
+  fi
+  if [[ "$signal_name" != "EXIT" && "$rc" -eq 0 ]]; then
+    rc=1
+  fi
+  exit "$rc"
+}
+
+install_production_mutation_lock_helper() {
+  local local_sha installed_sha status_json
+  local_sha="$(
+    python3 -c 'import hashlib,sys; print(hashlib.sha256(open(sys.argv[1],"rb").read()).hexdigest())' "$LOCK_HELPER_SOURCE"
+  )"
+
+  # stdin contains only the reviewed helper bytes. The installer itself is
+  # passed with python3 -c so source and payload never share one stdin stream.
+  cat "$LOCK_HELPER_SOURCE" | ssh "$HOST" "sudo python3 -c '
+import os
+import sys
+import time
+
+data = sys.stdin.buffer.read()
+if not data:
+    raise SystemExit(\"empty helper payload\")
+parent = \"/usr/local/sbin\"
+target = \"coordinate-production-mutation-lock\"
+tmp = f\".{target}.install.{os.getpid()}.{time.monotonic_ns()}\"
+dir_fd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+fd = None
+try:
+    fd = os.open(
+        tmp,
+        os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW,
+        0o600,
+        dir_fd=dir_fd,
+    )
+    view = memoryview(data)
+    while view:
+        written = os.write(fd, view)
+        if written <= 0:
+            raise OSError(\"short helper write\")
+        view = view[written:]
+    os.fchmod(fd, 0o755)
+    os.fchown(fd, 0, 0)
+    os.fsync(fd)
+    os.close(fd)
+    fd = None
+    os.replace(tmp, target, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+    os.fsync(dir_fd)
+except BaseException:
+    if fd is not None:
+        os.close(fd)
+    try:
+        os.unlink(tmp, dir_fd=dir_fd)
+    except FileNotFoundError:
+        pass
+    raise
+finally:
+    os.close(dir_fd)
+'"
+
+  installed_sha="$(
+    ssh "$HOST" "sudo python3 -c '
+import hashlib
+import os
+import stat
+
+path = \"/usr/local/sbin/coordinate-production-mutation-lock\"
+fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+try:
+    st = os.fstat(fd)
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+        raise SystemExit(\"installed helper is not a single-link regular file\")
+    if st.st_uid != 0 or st.st_gid != 0 or stat.S_IMODE(st.st_mode) != 0o755:
+        raise SystemExit(\"installed helper ownership or mode mismatch\")
+    digest = hashlib.sha256()
+    while True:
+        chunk = os.read(fd, 65536)
+        if not chunk:
+            break
+        digest.update(chunk)
+    print(digest.hexdigest())
+finally:
+    os.close(fd)
+'"
+  )"
+  if [[ "$installed_sha" != "$local_sha" ]]; then
+    echo "error: installed production mutation lock helper SHA-256 mismatch" >&2
+    return 1
+  fi
+
+  status_json="$(
+    ssh "$HOST" "sudo '$LOCK_HELPER_REMOTE' status --expect-token '$LOCK_TOKEN'"
+  )"
+  if ! printf '%s' "$status_json" | python3 -c '
+import json
+import sys
+obj = json.load(sys.stdin)
+raise SystemExit(0 if obj.get("state") == "held" and obj.get("token_matches") is True else 1)
+'; then
+    echo "error: installed production mutation lock helper token verification failed" >&2
+    return 1
+  fi
+  LOCK_HELPER_STATE="validated"
+}
+
+validate_local_request() {
+  case "$COMPONENT" in
+    coordinate)
+      repo_meta "$COORDINATE_SRC"
+      ;;
+    multinexus)
+      repo_meta "$MULTINEXUS_SRC"
+      verify_local_registry_parity
+      ;;
+    all)
+      repo_meta "$COORDINATE_SRC"
+      repo_meta "$MULTINEXUS_SRC"
+      verify_local_registry_parity
+      ;;
+  esac
+}
+
+read_only_status() {
+  local helper_rc=0
+  local smoke_rc=0
+  ssh "$HOST" "if sudo test -x '$LOCK_HELPER_REMOTE'; then sudo '$LOCK_HELPER_REMOTE' status; else echo 'lock_helper=absent'; exit 127; fi" || helper_rc=$?
+  "$SCRIPT_DIR/server-smoke.sh" --host "$HOST" || smoke_rc=$?
+  if [[ "$helper_rc" -ne 0 || "$smoke_rc" -ne 0 ]]; then
+    return 1
+  fi
 }
 
 restore_capacity_snapshot() {
@@ -468,8 +656,6 @@ deploy_multinexus() {
   DEPLOY_CLEANUP_SNAPSHOT="$snapshot_path"
   DEPLOY_CLEANUP_BACKUP="$backup_path"
   DEPLOY_CLEANUP_STAGING="$staging"
-  trap deploy_multinexus_cleanup_trap EXIT
-
   # Backup the currently accepted authority and capture the exact capacity
   # projection snapshot before overwriting the authority. Any later stage
   # failure triggers restore_previous_accepted_state, which restores both the
@@ -583,12 +769,23 @@ EOF
 require_cmd git
 require_cmd ssh
 require_cmd tar
+require_cmd python3
 
 case "$COMPONENT" in
   status)
-    "$SCRIPT_DIR/server-smoke.sh" --host "$HOST"
-    exit 0
+    read_only_status
+    exit $?
     ;;
+esac
+
+validate_local_request
+acquire_production_mutation_lock
+trap 'production_mutation_exit_trap "$?" EXIT' EXIT
+trap 'production_mutation_exit_trap 130 INT' INT
+trap 'production_mutation_exit_trap 143 TERM' TERM
+install_production_mutation_lock_helper
+
+case "$COMPONENT" in
   coordinate)
     deploy_coordinate
     ;;
@@ -604,3 +801,8 @@ esac
 if [[ "$NO_SMOKE" -ne 1 ]]; then
   "$SCRIPT_DIR/server-smoke.sh" --host "$HOST"
 fi
+
+if ! release_production_mutation_lock; then
+  exit 1
+fi
+trap - EXIT INT TERM

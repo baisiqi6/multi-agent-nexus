@@ -13,10 +13,12 @@ import os
 import re
 import shutil
 import stat
+import signal
 import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -971,7 +973,7 @@ class DeployContractTests(unittest.TestCase):
         script.write_text(
             textwrap.dedent(f"""\
             #!{sys.executable}
-            import os, sys, subprocess, tempfile, textwrap
+            import errno, hashlib, json, os, re, sys, subprocess, tempfile, textwrap, time
 
             log_path = os.environ["FAKE_SSH_LOG"]
             root = os.environ["FAKE_SSH_ROOT"]
@@ -982,6 +984,141 @@ class DeployContractTests(unittest.TestCase):
 
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"{{host}}: {{cmd}}\\n")
+
+            lock_token_path = os.path.join(root, ".production-mutation-token")
+            fixed_lock_token = "a" * 64
+
+            def lock_arg(name):
+                pattern = (
+                    r"--" + re.escape(name)
+                    + r" ['\\\"]?([0-9a-f]{{64}})['\\\"]?"
+                )
+                match = re.search(pattern, cmd)
+                return match.group(1) if match else ""
+
+            # Minimal command recognition for the production lock lifecycle.
+            # The real helper is covered by its focused unit tests; deploy
+            # contract tests only need deterministic command/order/failure
+            # behavior without touching root-owned production paths.
+            if "sudo python3 - acquire " in cmd:
+                sys.stdin.read()
+                if os.environ.get("FAKE_LOCK_ACQUIRE_INVALID") == "1":
+                    print(json.dumps({{"state": "invalid"}}), file=sys.stderr)
+                    sys.exit(3)
+                if os.environ.get("FAKE_LOCK_ACQUIRE_FAILURE") == "1":
+                    sys.exit(5)
+                try:
+                    fd = os.open(
+                        lock_token_path,
+                        os.O_CREAT | os.O_EXCL | os.O_WRONLY,
+                        0o600,
+                    )
+                except OSError as exc:
+                    if exc.errno != errno.EEXIST:
+                        raise
+                    print(json.dumps({{"state": "blocked"}}), file=sys.stderr)
+                    sys.exit(5)
+                with os.fdopen(fd, "w", encoding="ascii") as f:
+                    f.write(fixed_lock_token)
+                hold = float(os.environ.get("FAKE_LOCK_HOLD_AFTER_ACQUIRE", "0"))
+                if hold > 0:
+                    time.sleep(hold)
+                sys.stdout.write(fixed_lock_token + "\\n")
+                sys.exit(0)
+
+            if "sudo python3 - release " in cmd:
+                sys.stdin.read()
+                if os.environ.get("FAKE_LOCK_RELEASE_FAILURE") == "1":
+                    sys.exit(6)
+                token = lock_arg("token")
+                if not os.path.exists(lock_token_path):
+                    sys.exit(6)
+                with open(lock_token_path, "r", encoding="ascii") as f:
+                    expected = f.read()
+                if token != expected:
+                    sys.exit(6)
+                os.unlink(lock_token_path)
+                print(json.dumps({{"state": "released", "phase": "free"}}))
+                sys.exit(0)
+
+            if (
+                "/usr/local/sbin/coordinate-production-mutation-lock" in cmd
+                and " release --token " in cmd
+            ):
+                if os.environ.get("FAKE_LOCK_RELEASE_FAILURE") == "1":
+                    sys.exit(6)
+                token = lock_arg("token")
+                if not os.path.exists(lock_token_path):
+                    sys.exit(6)
+                with open(lock_token_path, "r", encoding="ascii") as f:
+                    expected = f.read()
+                if token != expected:
+                    sys.exit(6)
+                os.unlink(lock_token_path)
+                print(json.dumps({{"state": "released", "phase": "free"}}))
+                sys.exit(0)
+
+            if (
+                "sudo python3 -c" in cmd
+                and "coordinate-production-mutation-lock" in cmd
+                and "monotonic_ns" in cmd
+            ):
+                payload = sys.stdin.buffer.read()
+                if os.environ.get("FAKE_LOCK_INSTALL_FAILURE") == "1":
+                    sys.exit(1)
+                target = os.path.join(
+                    root, "usr/local/sbin/coordinate-production-mutation-lock"
+                )
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                tmp = target + ".fake-install"
+                with open(tmp, "wb") as f:
+                    f.write(payload)
+                os.chmod(tmp, 0o755)
+                os.replace(tmp, target)
+                sys.exit(0)
+
+            if (
+                "sudo python3 -c" in cmd
+                and "installed helper is not a single-link regular file" in cmd
+            ):
+                target = os.path.join(
+                    root, "usr/local/sbin/coordinate-production-mutation-lock"
+                )
+                if not os.path.isfile(target):
+                    sys.exit(1)
+                if os.environ.get("FAKE_LOCK_INSTALLED_SHA_MISMATCH") == "1":
+                    print("0" * 64)
+                    sys.exit(0)
+                with open(target, "rb") as f:
+                    print(hashlib.sha256(f.read()).hexdigest())
+                sys.exit(0)
+
+            if "/usr/local/sbin/coordinate-production-mutation-lock" in cmd:
+                if (
+                    os.environ.get("FAKE_LOCK_HELPER_ABSENT") == "1"
+                    and " status" in cmd
+                ):
+                    print("lock_helper=absent")
+                    sys.exit(127)
+                if os.environ.get("FAKE_LOCK_STATUS_FAILURE") == "1":
+                    sys.exit(3)
+                if " status" in cmd:
+                    hold = float(os.environ.get("FAKE_LOCK_STATUS_HOLD", "0"))
+                    if hold > 0:
+                        time.sleep(hold)
+                    if not os.path.exists(lock_token_path):
+                        print(json.dumps({{"state": "free", "phase": "free"}}))
+                        sys.exit(0)
+                    with open(lock_token_path, "r", encoding="ascii") as f:
+                        expected = f.read()
+                    result = {{"state": "held", "phase": "held"}}
+                    if "--expect-token" in cmd:
+                        result["token_matches"] = (
+                            lock_arg("expect-token") == expected
+                            and os.environ.get("FAKE_LOCK_STATUS_TOKEN_MISMATCH") != "1"
+                        )
+                    print(json.dumps(result))
+                    sys.exit(0)
 
             def rewrite(s):
                 s = s.replace("/opt/multinexus", os.path.join(root, "opt/multinexus"))
@@ -2060,6 +2197,336 @@ class DeployContractTests(unittest.TestCase):
         self.assertEqual(len(actual["cap_sources"]), 2)
         self.assertEqual(len(actual["cap_policies"]), 2)
         self._assert_no_deploy_residue()
+
+    def test_lock_acquire_is_first_remote_mutation_and_release_is_exactly_once(self):
+        result = self._run_deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self._ssh_log()
+        remote_calls = [line for line in log.splitlines() if line.startswith("fake-host:")]
+        self.assertTrue(remote_calls, log)
+        self.assertIn("sudo python3 - acquire", remote_calls[0])
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("sudo python3 - release", log)
+        self.assertLess(
+            log.index("sudo python3 - acquire"),
+            log.index("monotonic_ns"),
+        )
+        self.assertLess(
+            log.index("monotonic_ns"),
+            log.index("/tmp/deploy-multinexus-"),
+        )
+        self.assertIn(
+            "status --expect-token '" + ("a" * 64) + "'",
+            log,
+        )
+        self.assertIn(
+            "release --token '" + ("a" * 64) + "'",
+            log,
+        )
+
+    def test_all_components_share_one_lock_token(self):
+        env = dict(os.environ)
+        env.update(self._env)
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "all",
+                "--coordinate-src",
+                str(self.source_dir),
+                "--multinexus-src",
+                str(self.source_dir),
+                "--host",
+                "fake-host",
+                "--skip-install",
+                "--no-restart",
+                "--no-smoke",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("sudo python3 - release", log)
+        self.assertIn("/tmp/deploy-coordinate-", log)
+        self.assertIn("/tmp/deploy-multinexus-", log)
+
+    def test_lock_install_failure_releases_before_any_deploy_mutation(self):
+        result = self._run_deploy_with_env(FAKE_LOCK_INSTALL_FAILURE="1")
+        self.assertNotEqual(result.returncode, 0)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertEqual(log.count("sudo python3 - release"), 1)
+        self.assertIn(
+            "PRODUCTION_MUTATION_LOCK_STREAMED_FALLBACK_RELEASE",
+            result.stderr,
+        )
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+        self.assertNotIn("VERSION_DEPLOYED", log)
+
+    def test_lock_acquire_failure_has_zero_follow_on_remote_mutation(self):
+        result = self._run_deploy_with_env(FAKE_LOCK_ACQUIRE_FAILURE="1")
+        self.assertNotEqual(result.returncode, 0)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertNotIn("monotonic_ns", log)
+        self.assertNotIn("sudo python3 - release", log)
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+
+    def test_release_failure_turns_successful_deploy_nonzero_without_retry(self):
+        result = self._run_deploy_with_env(FAKE_LOCK_RELEASE_FAILURE="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("installed-helper release failed", result.stderr)
+        log = self._ssh_log()
+        self.assertIn("VERSION_DEPLOYED", log)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("sudo python3 - release", log)
+
+    def test_deploy_failure_still_releases_once(self):
+        result = self._run_deploy_with_env(FAKE_CAPACITY_SYNC_FAILURE="1")
+        self.assertNotEqual(result.returncode, 0)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("sudo python3 - release", log)
+
+    def test_sha_validation_failure_uses_one_streamed_fallback_before_staging(self):
+        result = self._run_deploy_with_env(
+            FAKE_LOCK_INSTALLED_SHA_MISMATCH="1"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "PRODUCTION_MUTATION_LOCK_STREAMED_FALLBACK_RELEASE",
+            result.stderr,
+        )
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - release"), 1)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+
+    def test_token_validation_failure_uses_one_streamed_fallback_before_staging(self):
+        result = self._run_deploy_with_env(
+            FAKE_LOCK_STATUS_TOKEN_MISMATCH="1"
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            "PRODUCTION_MUTATION_LOCK_STREAMED_FALLBACK_RELEASE",
+            result.stderr,
+        )
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - release"), 1)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+
+    def test_existing_helper_is_replaced_under_lock_then_installed_release_is_used(self):
+        helper = (
+            self.fake_root
+            / "usr"
+            / "local"
+            / "sbin"
+            / "coordinate-production-mutation-lock"
+        )
+        helper.parent.mkdir(parents=True, exist_ok=True)
+        helper.write_text("old-helper", encoding="utf-8")
+        result = self._run_deploy()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotEqual(helper.read_text(encoding="utf-8"), "old-helper")
+        log = self._ssh_log()
+        self.assertLess(
+            log.index("sudo python3 - acquire"),
+            log.index("monotonic_ns"),
+        )
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertNotIn("sudo python3 - release", log)
+
+    def test_valid_contention_preserves_authority_and_blocks_before_staging(self):
+        token_path = self.fake_root / ".production-mutation-token"
+        original = "b" * 64
+        token_path.write_text(original, encoding="ascii")
+        result = self._run_deploy()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(token_path.read_text(encoding="ascii"), original)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+        self.assertNotIn(" release --token ", log)
+
+    def test_invalid_authority_blocks_before_staging_without_mutation(self):
+        marker = self.fake_root / ".invalid-lock-authority"
+        marker.write_bytes(b"invalid-authority")
+        result = self._run_deploy_with_env(FAKE_LOCK_ACQUIRE_INVALID="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(marker.read_bytes(), b"invalid-authority")
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 1)
+        self.assertNotIn("/tmp/deploy-multinexus-", log)
+        self.assertNotIn(" release --token ", log)
+
+    def test_two_concurrent_deploys_have_one_holder_and_one_pre_staging_block(self):
+        env = dict(os.environ)
+        env.update(self._env)
+        env["FAKE_LOCK_HOLD_AFTER_ACQUIRE"] = "1.0"
+        cmd = [
+            "bash",
+            str(self.deploy_script),
+            "multinexus",
+            "--multinexus-src",
+            str(self.source_dir),
+            "--host",
+            "fake-host",
+            "--skip-install",
+            "--no-smoke",
+        ]
+        first = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        token_path = self.fake_root / ".production-mutation-token"
+        deadline = time.monotonic() + 5
+        while not token_path.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertTrue(token_path.exists(), "first deploy never acquired fake lock")
+        second = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=15,
+        )
+        first_stdout, first_stderr = first.communicate(timeout=20)
+        self.assertEqual(first.returncode, 0, first_stderr)
+        self.assertNotEqual(second.returncode, 0, second.stderr)
+        log = self._ssh_log()
+        self.assertEqual(log.count("sudo python3 - acquire"), 2)
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertEqual(log.count("tar -xzf - -C '/tmp/deploy-multinexus-"), 1)
+        self.assertFalse(token_path.exists())
+        self.assertIsInstance(first_stdout, str)
+
+    def test_sigterm_during_validation_releases_exactly_once_via_streamed_fallback(self):
+        env = dict(os.environ)
+        env.update(self._env)
+        env["FAKE_LOCK_STATUS_HOLD"] = "1.0"
+        cmd = [
+            "bash",
+            str(self.deploy_script),
+            "multinexus",
+            "--multinexus-src",
+            str(self.source_dir),
+            "--host",
+            "fake-host",
+            "--skip-install",
+            "--no-smoke",
+        ]
+        proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+        deadline = time.monotonic() + 5
+        while "status --expect-token" not in self._ssh_log() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertIn("status --expect-token", self._ssh_log())
+        proc.send_signal(signal.SIGTERM)
+        _stdout, stderr = proc.communicate(timeout=15)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn(
+            "PRODUCTION_MUTATION_LOCK_STREAMED_FALLBACK_RELEASE",
+            stderr,
+        )
+        log = self._ssh_log()
+        self.assertEqual(log.count(" release --token "), 1)
+        self.assertEqual(log.count("sudo python3 - release"), 1)
+
+    def test_status_absent_reports_marker_runs_smoke_and_does_not_mutate(self):
+        env = dict(os.environ)
+        env.update(self._env)
+        env["FAKE_LOCK_HELPER_ABSENT"] = "1"
+        result = subprocess.run(
+            ["bash", str(self.deploy_script), "status", "--host", "fake-host"],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("lock_helper=absent", result.stdout)
+        log = self._ssh_log()
+        self.assertIn("SMOKE_SINCE=", log)
+        self.assertNotIn("sudo python3 - acquire", log)
+        self.assertNotIn(" release --token ", log)
+        self.assertNotIn("monotonic_ns", log)
+
+    def test_status_helper_failure_still_runs_smoke_and_never_mutates_lock(self):
+        env = dict(os.environ)
+        env.update(self._env)
+        env["FAKE_LOCK_STATUS_FAILURE"] = "1"
+        result = subprocess.run(
+            [
+                "bash",
+                str(self.deploy_script),
+                "status",
+                "--host",
+                "fake-host",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        log = self._ssh_log()
+        self.assertIn(
+            "coordinate-production-mutation-lock' status",
+            log,
+        )
+        self.assertIn("SMOKE_SINCE=", log)
+        self.assertNotIn("sudo python3 - acquire", log)
+        self.assertNotIn("sudo python3 - release", log)
+        self.assertNotIn("monotonic_ns", log)
+
+    def test_lock_install_contract_is_same_directory_atomic_and_durable(self):
+        source = self.deploy_script.read_text(encoding="utf-8")
+        required = (
+            "os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW",
+            "dir_fd=dir_fd",
+            "os.fchmod(fd, 0o755)",
+            "os.fchown(fd, 0, 0)",
+            "os.fsync(fd)",
+            "os.replace(tmp, target, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)",
+            "os.fsync(dir_fd)",
+            "hashlib.sha256",
+            "status --expect-token",
+        )
+        for fragment in required:
+            self.assertIn(fragment, source)
+        self.assertNotIn(
+            "/tmp/coordinate-production-mutation-lock.install",
+            source,
+        )
+        self.assertNotRegex(
+            source,
+            r"mv\s+[^\n]*coordinate-production-mutation-lock",
+        )
+
+    def test_global_lock_trap_is_installed_before_helper_install(self):
+        source = self.deploy_script.read_text(encoding="utf-8")
+        acquire = source.index("acquire_production_mutation_lock\ntrap ")
+        trap_exit = source.index("production_mutation_exit_trap \"$?\" EXIT", acquire)
+        install = source.index("install_production_mutation_lock_helper", trap_exit)
+        dispatch = source.index('case "$COMPONENT" in', install)
+        self.assertLess(acquire, trap_exit)
+        self.assertLess(trap_exit, install)
+        self.assertLess(install, dispatch)
+        self.assertIn("trap 'production_mutation_exit_trap 130 INT' INT", source)
+        self.assertIn("trap 'production_mutation_exit_trap 143 TERM' TERM", source)
 
 
 if __name__ == "__main__":
