@@ -2724,6 +2724,14 @@ class TestLocalVerifyScenarioContracts:
         assert len(boundaries) == 1
         assert boundaries[0].endswith("pid=202")
 
+    def test_process_tree_proof_models_env_python_shebang_exactly(self):
+        source = LOCAL_VERIFY.read_text()
+        assert 'b"#!/usr/bin/env python3"' in source
+        assert '"python3", fixture_bin, "-p", "--verbose", "--output-format"' in source
+        assert 'actual_executable=pathlib.Path(f"/proc/{fixture_pid}/exe")' in source
+        assert 'PWD={expected_worktree}' in source
+        assert "fixture executable mismatch" not in source
+
     def test_submit_uses_exact_compact_fixture_and_literal_json_argv(self, tmp_path: Path):
         state_root, prelude = self._prepared(tmp_path, "pkg3-submit-exact")
         calls = tmp_path / "coordinate.argv"

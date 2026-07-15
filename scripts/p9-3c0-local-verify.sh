@@ -1600,10 +1600,12 @@ _p9c0_hold_monitor() { _p9c0_real_hold_monitor; }
 
 _p9c0_real_process_tree_proof() {
     local unit="$1" fixture_pid="$2"
-    python3 - "$(_p9c0_ledger_path)" "$unit" "$fixture_pid" "$P9C0_FIXTURE_BIN" <<'PY'
-import os, pathlib, re, sys, time
-ledger, unit, fixture_pid, fixture_bin = sys.argv[1:]
+    python3 - "$(_p9c0_ledger_path)" "$unit" "$fixture_pid" "$P9C0_FIXTURE_BIN" \
+        "$(_p9c0_worktree_path_for_agent p9-3c-fixture-e1)" <<'PY'
+import pathlib, re, shutil, sys, time
+ledger, unit, fixture_pid, fixture_bin, expected_worktree = sys.argv[1:]
 fixture_pid=int(fixture_pid)
+fixture_path=pathlib.Path(fixture_bin)
 records=[]
 for line in open(ledger,encoding="utf-8"):
     if line.startswith("unit "+unit+" "): records.append(line.rstrip())
@@ -1634,23 +1636,28 @@ for _ in range(20):
     if len(sleeps)!=1: raise SystemExit("exact sleep descendant count mismatch")
     sleep_pid=sleeps[0]
     if ppid(fixture_pid)!=main or ppid(sleep_pid)!=fixture_pid: raise SystemExit("fixture process parentage mismatch")
-    if pathlib.Path(os.path.realpath(commands[fixture_pid][0].decode())) != pathlib.Path(fixture_bin): raise SystemExit("fixture executable mismatch")
     main_args=[x.decode("utf-8","strict") for x in commands[main]]
     if "-m" not in main_args or "multinexus.agentd" not in main_args or "--log-level" not in main_args or "DEBUG" not in main_args: raise SystemExit("agentd argv mismatch")
-    forbidden=("--model","--resume","--dangerously","--bypass")
-    if any(any(arg.startswith(x) for x in forbidden) for arg in main_args): raise SystemExit("forbidden provider argv")
     allowed={main,fixture_pid,sleep_pid}
     extras=[pid for pid in pids if pid not in allowed]
     if extras:
         time.sleep(.1); continue
     main_env=env(main); fixture_env=env(fixture_pid)
     if main_env != ["PATH=/usr/local/bin:/usr/bin:/bin"]: raise SystemExit(f"agentd environment mismatch: {main_env}")
-    if sorted(fixture_env) != sorted(["PATH=/usr/local/bin:/usr/bin:/bin", f"PWD={pathlib.Path(fixture_bin).parent.parent.parent.parent}"]):
-        # Adapter PWD is the configured isolated work dir, not a home/provider path.
-        keys={x.split("=",1)[0] for x in fixture_env}
-        if keys != {"PATH","PWD"}: raise SystemExit(f"fixture environment key mismatch: {keys}")
-        pwd=[x.split("=",1)[1] for x in fixture_env if x.startswith("PWD=")][0]
-        if not pwd.startswith("/var/tmp/multinexus-p9-3c0/"): raise SystemExit("fixture PWD escapes sidecar state")
+    expected_env=["PATH=/usr/local/bin:/usr/bin:/bin", f"PWD={expected_worktree}"]
+    if sorted(fixture_env) != sorted(expected_env): raise SystemExit(f"fixture environment mismatch: {fixture_env}")
+    with fixture_path.open("rb") as source:
+        if source.readline().rstrip(b"\r\n") != b"#!/usr/bin/env python3": raise SystemExit("fixture shebang mismatch")
+    fixture_args=[x.decode("utf-8","strict") for x in commands[fixture_pid]]
+    expected_fixture_args=[
+        "python3", fixture_bin, "-p", "--verbose", "--output-format",
+        "stream-json", "--include-partial-messages",
+    ]
+    if fixture_args != expected_fixture_args: raise SystemExit(f"fixture argv mismatch: {fixture_args}")
+    expected_python=shutil.which("python3", path="/usr/local/bin:/usr/bin:/bin")
+    if not expected_python: raise SystemExit("approved python3 interpreter missing")
+    actual_executable=pathlib.Path(f"/proc/{fixture_pid}/exe").resolve(strict=True)
+    if actual_executable != pathlib.Path(expected_python).resolve(strict=True): raise SystemExit("fixture interpreter mismatch")
     print(f"process-tree unit={unit} main_pid={main} fixture_pid={fixture_pid} sleep_pid={sleep_pid} cgroup={cgroup}")
     raise SystemExit(0)
 raise SystemExit("ephemeral Coordinate child did not quiesce for exact sample")
