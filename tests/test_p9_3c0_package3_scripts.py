@@ -10,7 +10,9 @@ not invoked directly except for the parser and pure normalizer checks.
 """
 from __future__ import annotations
 
+import os
 import re
+import sqlite3
 import stat
 import subprocess
 import sys
@@ -48,6 +50,24 @@ def _run_bash(script: str, cwd: Path | None = None) -> subprocess.CompletedProce
 
 def _chmod_exec(path: Path) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _production_snapshot_python(config_paths: tuple[Path, ...]) -> str:
+    """Extract the real embedded snapshot program with test-only config paths."""
+    source = LOCAL_VERIFY.read_text()
+    match = re.search(
+        r"_p9c0_real_production_snapshot\(\) \{.*?<<'PY'\n(?P<body>.*?)\nPY\n\}",
+        source,
+        re.DOTALL,
+    )
+    assert match is not None
+    body = match.group("body")
+    replacement = "config_paths = " + repr(tuple(str(path) for path in config_paths))
+    body, count = re.subn(
+        r"config_paths = \(\n(?:    .*\n)+?\)", replacement, body, count=1
+    )
+    assert count == 1
+    return body
 
 
 def _mocked_authority_lines() -> str:
@@ -2508,6 +2528,114 @@ esac
         assert (primary / "control" / "intake").read_text() == "intake=frozen\n"
         assert (recovery / "control" / "intake").read_text() == "intake=frozen\n"
         assert (recovery / "control" / "phase").read_text() == "phase=failed\n"
+
+
+class TestProductionSnapshotRowShape:
+    def _fixture(self, tmp_path: Path) -> tuple[str, Path, dict[str, str]]:
+        fragment = tmp_path / "canonical.service"
+        fragment.write_text("[Service]\nExecStart=/bin/true\n")
+        configs = tuple(
+            tmp_path / name
+            for name in ("registry.toml", "agents.toml", "VERSION_DEPLOYED")
+        )
+        for index, path in enumerate(configs):
+            path.write_text(f"config-{index}\n")
+
+        fake_bin = tmp_path / "bin"
+        fake_bin.mkdir()
+        systemctl = fake_bin / "systemctl"
+        systemctl.write_text(
+            "#!/bin/sh\n"
+            "unit=''\n"
+            "for arg in \"$@\"; do unit=$arg; done\n"
+            "fixture=0\n"
+            "case \"$unit\" in p9-3c-fixture-*) fixture=1;; esac\n"
+            "while [ $# -gt 0 ]; do\n"
+            "  if [ \"$1\" = -p ]; then\n"
+            "    prop=$2; shift 2\n"
+            "    case \"$prop\" in\n"
+            "      Id) value=$unit;;\n"
+            "      LoadState) [ $fixture -eq 1 ] && value=not-found || value=loaded;;\n"
+            "      ActiveState) [ $fixture -eq 1 ] && value=inactive || value=active;;\n"
+            "      SubState) value=running;;\n"
+            "      MainPID) value=4242;;\n"
+            "      NRestarts) value=0;;\n"
+            f"      FragmentPath) value='{fragment}';;\n"
+            "    esac\n"
+            "    printf '%s=%s\\n' \"$prop\" \"$value\"\n"
+            "  else\n"
+            "    shift\n"
+            "  fi\n"
+            "done\n"
+        )
+        _chmod_exec(systemctl)
+
+        db = tmp_path / "production.sqlite3"
+        conn = sqlite3.connect(db)
+        conn.executescript(
+            """
+            PRAGMA user_version=13;
+            CREATE TABLE jobs (status TEXT, assigned_agent TEXT);
+            CREATE TABLE execution_attempt_leases (status TEXT, agent_id TEXT);
+            CREATE TABLE agents (id TEXT);
+            CREATE TABLE runner_profiles (id TEXT);
+            CREATE TABLE executor_catalog_sources (
+                source_id TEXT, source_version TEXT, catalog_hash TEXT
+            );
+            CREATE TABLE executor_capacity_sources (
+                source_id TEXT, source_version TEXT, catalog_hash TEXT
+            );
+            INSERT INTO executor_catalog_sources VALUES ('executor', 'v1', 'hash-e1');
+            INSERT INTO executor_capacity_sources VALUES ('capacity', 'v1', 'hash-c1');
+            """
+        )
+        conn.commit()
+        conn.close()
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}{os.pathsep}{env['PATH']}"
+        return _production_snapshot_python(configs), db, env
+
+    @staticmethod
+    def _run_snapshot(
+        program: str, mode: str, baseline: Path, db: Path, env: dict[str, str]
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                program,
+                mode,
+                str(baseline),
+                str(db),
+                "row-shape-test",
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+    def test_unchanged_snapshot_survives_json_round_trip(self, tmp_path: Path):
+        program, db, env = self._fixture(tmp_path)
+        baseline = tmp_path / "baseline.json"
+        captured = self._run_snapshot(program, "capture", baseline, db, env)
+        assert captured.returncode == 0, captured.stderr
+        compared = self._run_snapshot(program, "compare", baseline, db, env)
+        assert compared.returncode == 0, compared.stderr
+
+    def test_source_row_value_drift_still_fails_closed(self, tmp_path: Path):
+        program, db, env = self._fixture(tmp_path)
+        baseline = tmp_path / "baseline.json"
+        captured = self._run_snapshot(program, "capture", baseline, db, env)
+        assert captured.returncode == 0, captured.stderr
+        conn = sqlite3.connect(db)
+        conn.execute(
+            "UPDATE executor_catalog_sources SET catalog_hash='hash-e2' WHERE source_id='executor'"
+        )
+        conn.commit()
+        conn.close()
+        compared = self._run_snapshot(program, "compare", baseline, db, env)
+        assert compared.returncode != 0
+        assert "production state drifted from captured baseline" in compared.stderr
 
 
 class TestLocalVerifyMissingDbRealpath:

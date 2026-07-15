@@ -1210,8 +1210,8 @@ db_state = {
     "fixture_runners": conn.execute(f"SELECT COUNT(*) FROM runner_profiles WHERE id IN ({ph})", fixture_ids).fetchone()[0],
     "fixture_jobs": conn.execute(f"SELECT COUNT(*) FROM jobs WHERE assigned_agent IN ({ph})", fixture_ids).fetchone()[0],
     "fixture_leases": conn.execute(f"SELECT COUNT(*) FROM execution_attempt_leases WHERE agent_id IN ({ph})", fixture_ids).fetchone()[0],
-    "executor_sources": [tuple(r) for r in conn.execute("SELECT source_id,source_version,catalog_hash FROM executor_catalog_sources ORDER BY source_id")],
-    "capacity_sources": [tuple(r) for r in conn.execute("SELECT source_id,source_version,catalog_hash FROM executor_capacity_sources ORDER BY source_id")],
+    "executor_sources": [list(r) for r in conn.execute("SELECT source_id,source_version,catalog_hash FROM executor_catalog_sources ORDER BY source_id")],
+    "capacity_sources": [list(r) for r in conn.execute("SELECT source_id,source_version,catalog_hash FROM executor_capacity_sources ORDER BY source_id")],
 }
 if any(db_state[k] for k in ("fixture_agents", "fixture_runners", "fixture_jobs", "fixture_leases")):
     raise SystemExit("production DB contains fixture identity")
