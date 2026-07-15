@@ -2210,3 +2210,18 @@ evidence package. The same session spans two provider/model intervals:
   bindings/definitions/policies; sync does not unregister source rows.
 - Bootstrap remains unauthorized. Next gate: commit the revised plan and obtain fresh
   Round 2 exact-revision review.
+
+## 2026-07-15 — P9-3C0 Package 3 plan Round 2 approved
+
+- Fresh Claude Code Sonnet/provider-native `kimi-for-coding` session
+  `1dcbf16d-26cb-4cdf-9730-15cc09e22681` approved exact revision `af4da59` with no
+  P0/P1/P2 finding and token
+  `APPROVED_FOR_P9_3C0_FIXTURE_PACKAGE3_BOOTSTRAP_DRAFT`.
+- The reviewer independently accepted all Round 1 closures, including the privilege/
+  ownership matrix, wrapper manifest, semantic systemd gate, exact adapter timer,
+  literal reap sets, stale-attempt immutability, interrupted cleanup, process tree,
+  environment denylist, and empty-source residue model.
+- Current code still intentionally has the pre-Package-3 behavior; approval is for the
+  plan, not an implementation claim.
+- Only bootstrap drafting is authorized. Next gate: bind the worker base and exact plan
+  SHA in a Package 3 bootstrap, then obtain a fresh independent bootstrap review.
