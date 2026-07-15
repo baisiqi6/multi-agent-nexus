@@ -1730,7 +1730,8 @@ _p9c0_real_verify_hold_scenario() {
     _p9c0_ledger_append "intake frozen run=$P9C0_RUN_ID"
     _p9c0_wait_monotonic_target "$start_ms" 80000 \
         || _p9c0_die "hold stop target wait failed" 99
-    _p9c0_unit_stop "$agent" --fixture-start-monotonic-ms "$start_ms" --evidence-run-id "$P9C0_RUN_ID" \
+    _p9c0_unit_stop "$agent" --crash \
+        --fixture-start-monotonic-ms "$start_ms" --evidence-run-id "$P9C0_RUN_ID" \
         || _p9c0_die "hold exact timed stop failed" 99
     now_ms="$(python3 -c 'import time; print(int(time.monotonic()*1000))')"
     [[ $((now_ms - start_ms)) -lt 88000 ]] \
@@ -1933,7 +1934,8 @@ _p9c0_real_verify_stale_reject() {
     recovery="$(_p9c0_recovery_run_id "$primary")"
     saved_db="$P9C0_COORD_DB"
     P9C0_RUN_ID="$recovery"; P9C0_COORD_DB="$(_p9c0_controller_state_prefix)/$primary/db/coord.sqlite3"
-    _p9c0_unit_stop "$agent" || _p9c0_die "recovery exact stop failed" 102
+    _p9c0_unit_stop "$agent" --crash \
+        || _p9c0_die "recovery exact crash stop failed" 102
     authority_line="$(_p9c0_hold_authority "$(cat "$new")" "$(_p9c0_per_run_root)/evidence/recovery-stopped-authority.json")" \
         || _p9c0_die "recovery latest expiry capture failed" 102
     _p9c0_ledger_append "$authority_line"

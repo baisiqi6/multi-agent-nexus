@@ -2687,6 +2687,7 @@ class TestLocalVerifyScenarioContracts:
     ):
         journal = tmp_path / "journal.log"
         ledger = tmp_path / "ledger.log"
+        stops = tmp_path / "stops.log"
         run_root = tmp_path / "run"
         (run_root / "evidence").mkdir(parents=True)
         journal.write_text(
@@ -2709,7 +2710,7 @@ class TestLocalVerifyScenarioContracts:
         _p9c0_ledger_append() {{ printf '%s\n' "$1" >> "{ledger}"; }}
         _p9c0_record_intake() {{ :; }}
         _p9c0_wait_monotonic_target() {{ :; }}
-        _p9c0_unit_stop() {{ :; }}
+        _p9c0_unit_stop() {{ printf '%s\n' "$*" >> "{stops}"; }}
         _p9c0_per_run_root() {{ printf '%s\n' "{run_root}"; }}
         _p9c0_hold_authority() {{ printf 'lease-active lease_id=lease\n'; }}
         _p9c0_chown() {{ :; }}
@@ -2723,6 +2724,9 @@ class TestLocalVerifyScenarioContracts:
         boundaries = [line for line in lines if line.startswith("claude_child_boundary")]
         assert len(boundaries) == 1
         assert boundaries[0].endswith("pid=202")
+        stop_lines = stops.read_text().splitlines()
+        assert "p9-3c-fixture-e1 --crash --fixture-start-monotonic-ms" in stop_lines[0]
+        assert stop_lines[1] == "p9-3c-fixture-e2"
 
     def test_process_tree_proof_models_env_python_shebang_exactly(self):
         source = LOCAL_VERIFY.read_text()
@@ -2732,6 +2736,12 @@ class TestLocalVerifyScenarioContracts:
         assert 'PWD={expected_worktree}' in source
         assert '"LC_CTYPE=C.UTF-8"' in source
         assert "fixture executable mismatch" not in source
+
+    def test_only_hold_and_recovery_stops_request_crash_semantics(self):
+        source = LOCAL_VERIFY.read_text()
+        assert source.count('_p9c0_unit_stop "$agent" --crash') == 2
+        assert '_p9c0_unit_stop p9-3c-fixture-e2 \\\n' in source
+        assert "_p9c0_unit_stop p9-3c-fixture-e2 --crash" not in source
 
     def test_submit_uses_exact_compact_fixture_and_literal_json_argv(self, tmp_path: Path):
         state_root, prelude = self._prepared(tmp_path, "pkg3-submit-exact")

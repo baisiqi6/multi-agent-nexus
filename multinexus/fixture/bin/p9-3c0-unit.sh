@@ -1763,7 +1763,7 @@ _p9c0_cmd_status() {
 # ---------------------------------------------------------------------------
 
 _p9c0_cmd_stop() {
-    local state_root="" run_id="" agent_id="" start_ms="" evidence_run_id=""
+    local state_root="" run_id="" agent_id="" start_ms="" evidence_run_id="" crash=0
     while [[ $# -gt 0 ]]; do
         case $1 in
             --state-root) state_root="$2"; shift 2 ;;
@@ -1771,6 +1771,7 @@ _p9c0_cmd_stop() {
             --agent-id) agent_id="$2"; shift 2 ;;
             --fixture-start-monotonic-ms) start_ms="$2"; shift 2 ;;
             --evidence-run-id) evidence_run_id="$2"; shift 2 ;;
+            --crash) crash=1; shift ;;
             *) _p9c0_die "stop: unknown flag $1" ;;
         esac
     done
@@ -1787,11 +1788,12 @@ _p9c0_cmd_stop() {
     unit=$(_p9c0_unit_name "$agent_id" "$run_id")
     _p9c0_require_ledger_unit "$unit"
 
-    _p9c0_with_lock "$state_root" "$run_id" _p9c0_stop_locked "$unit" "$start_ms" "$evidence_run_id"
+    _p9c0_with_lock "$state_root" "$run_id" _p9c0_stop_locked \
+        "$unit" "$start_ms" "$evidence_run_id" "$crash"
 }
 
 _p9c0_stop_locked() {
-    local unit="$1" start_ms="$2" evidence_run_id="$3"
+    local unit="$1" start_ms="$2" evidence_run_id="$3" crash="$4"
 
     local requested_ms actual_ms elapsed verdict timing_note
     requested_ms=$(_p9c0_date_ms)
@@ -1836,13 +1838,21 @@ _p9c0_stop_locked() {
         recorded_cgroup=""
     }
 
-    _p9c0_stop_exact_unit "$unit" "$recorded_cgroup"
+    local stop_rc=0 termination="graceful" kill_signal="none"
+    if [[ $crash -eq 1 ]]; then
+        termination="crash"
+        kill_signal="SIGKILL"
+    fi
+    _p9c0_stop_exact_unit "$unit" "$recorded_cgroup" "$crash" || stop_rc=$?
 
     actual_ms=$(_p9c0_date_ms)
-    _p9c0_ledger_append "stop unit=$unit $timing_note actual_ms=$actual_ms"
+    _p9c0_ledger_append "stop unit=$unit termination=$termination kill_signal=$kill_signal kill_result=${P9C0_STOP_KILL_RESULT:-unknown} $timing_note actual_ms=$actual_ms"
 
     if [[ -n $recorded_cgroup_error ]]; then
         _p9c0_die "$recorded_cgroup_error"
+    fi
+    if [[ $stop_rc -ne 0 ]]; then
+        _p9c0_die "stop: exact crash signal failed after cleanup"
     fi
     if [[ $verdict != ok ]]; then
         _p9c0_die "stop: timing evidence failed ($verdict)"
@@ -1851,7 +1861,21 @@ _p9c0_stop_locked() {
 }
 
 _p9c0_stop_exact_unit() {
-    local unit="$1" recorded_cgroup="$2"
+    local unit="$1" recorded_cgroup="$2" crash="${3:-0}"
+    local pre_state="" kill_failed=0
+
+    P9C0_STOP_KILL_RESULT="not-requested"
+    if [[ $crash -eq 1 ]]; then
+        pre_state=$(_p9c0_systemctl show -p ActiveState --value "$unit" 2>/dev/null || true)
+        if _p9c0_systemctl kill --kill-whom=all --signal=SIGKILL "$unit" >/dev/null 2>&1; then
+            P9C0_STOP_KILL_RESULT="ok"
+        elif [[ $pre_state == inactive || $pre_state == failed ]]; then
+            P9C0_STOP_KILL_RESULT="not-needed"
+        else
+            P9C0_STOP_KILL_RESULT="failed"
+            kill_failed=1
+        fi
+    fi
 
     _p9c0_systemctl stop "$unit" >/dev/null 2>&1 || true
 
@@ -1911,6 +1935,8 @@ _p9c0_stop_exact_unit() {
     if [[ -n $recorded_cgroup ]]; then
         _p9c0_ledger_append "cgroup-empty unit=$unit"
     fi
+
+    [[ $kill_failed -eq 0 ]]
 }
 
 # ---------------------------------------------------------------------------

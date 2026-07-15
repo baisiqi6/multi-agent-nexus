@@ -108,12 +108,14 @@ The durable phase machine performs, in order:
 3. two concurrent exact 75-second complete requests, each with initial TTL 120,
    renew interval 30, two observed later deadlines, two matching DEBUG journal
    renewals, and exact `fixture complete` result;
-4. E1 hold/descendant process-tree proof, atomic intake freeze, and exact stop at
+4. E1 hold/descendant process-tree proof, atomic intake freeze, and exact crash stop
+   (`systemctl kill --kill-whom=all --signal=SIGKILL` for the ledger-bound unit,
+   followed by exact `systemctl stop` and recorded-cgroup-empty proof) at
    the adapter monotonic 80-second target (`75000 <= elapsed < 85000`, complete
    cleanup before 88 seconds);
 5. exact expiry/reap of attempt N, `<run-id>-r2` recovery against the same isolated
-   DB, rejection and immutability proof for one old-N stale report, then exact stop,
-   expiry, and reap of N+1;
+   DB, rejection and immutability proof for one old-N stale report, then the same
+   exact crash stop, expiry, and reap of N+1;
 6. production-baseline comparison and idempotent cleanup in the fixed order
    `executor v3 disabled -> capacity v2 empty -> executor v4 empty`.
 
@@ -138,6 +140,7 @@ Cleanup follows only exact primary/recovery ledger links and unit names. It wait
 past ledgered active-lease expiry, reaps through the isolated wrapper, proves every
 recorded cgroup empty, checks zero active/in-flight work before every catalog sync,
 and retains the isolated DB, wrappers, manifests, ledgers, and evidence for review.
+Cleanup and failure traps use graceful exact stop; they never opt into `--crash`.
 It never uses wildcard units, direct SQLite writes/deletes, `pkill`, `pgrep`, guessed
 PIDs, mutable TOML edits, provider credentials, or network access.
 
