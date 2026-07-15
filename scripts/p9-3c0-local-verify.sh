@@ -576,7 +576,25 @@ _p9c0_reject_unknown_run_entries() {
 }
 
 _p9c0_with_run_lock() {
-    local run_root lock_file status
+    local run_root lock_file status previous_depth current_depth fd
+    previous_depth="${P9C0_RUN_LOCK_DEPTH:-0}"
+
+    # Validate previous depth strictly before any filesystem side effect.
+    case "$previous_depth" in
+        0)
+            current_depth=1
+            fd=9
+            ;;
+        1)
+            current_depth=2
+            fd=8
+            ;;
+        *)
+            printf 'p9-3c0-local-verify: run lock previous depth rejected: %s\n' "$previous_depth" >&2
+            return 1
+            ;;
+    esac
+
     run_root="$(_p9c0_per_run_root)"
     lock_file="$run_root/lock/controller.lock"
     _p9c0_enforce_root_owned_dir "$run_root/lock" "700" "0" "0" \
@@ -589,12 +607,26 @@ _p9c0_with_run_lock() {
     fi
     _p9c0_enforce_root_owned_file "$lock_file" "600" "0" "0" \
         || _p9c0_die "run lock file authority rejected: $lock_file" 26
-    exec 9>>"$lock_file" || _p9c0_die "run lock open failed: $lock_file" 26
-    _p9c0_flock -x 9 || _p9c0_die "run lock acquire failed: $lock_file" 26
-    "$@"
-    status=$?
-    _p9c0_flock -u 9 || status=1
-    exec 9>&-
+
+    P9C0_RUN_LOCK_DEPTH="$current_depth"
+    status=0
+    if [[ "$fd" == "9" ]]; then
+        exec 9>>"$lock_file" || { P9C0_RUN_LOCK_DEPTH="$previous_depth"; _p9c0_die "run lock open failed: $lock_file" 26; }
+        _p9c0_flock -x 9 || { exec 9>&-; P9C0_RUN_LOCK_DEPTH="$previous_depth"; _p9c0_die "run lock acquire failed: $lock_file" 26; }
+        "$@"
+        status=$?
+        _p9c0_flock -u 9 || status=1
+        exec 9>&-
+    else
+        exec 8>>"$lock_file" || { P9C0_RUN_LOCK_DEPTH="$previous_depth"; _p9c0_die "run lock open failed: $lock_file" 26; }
+        _p9c0_flock -x 8 || { exec 8>&-; P9C0_RUN_LOCK_DEPTH="$previous_depth"; _p9c0_die "run lock acquire failed: $lock_file" 26; }
+        "$@"
+        status=$?
+        _p9c0_flock -u 8 || status=1
+        exec 8>&-
+    fi
+
+    P9C0_RUN_LOCK_DEPTH="$previous_depth"
     return "$status"
 }
 

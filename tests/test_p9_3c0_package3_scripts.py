@@ -2766,6 +2766,335 @@ class TestLocalVerifyMissingDbRealpath:
 
 
 
+class TestLocalVerifyNestedRunLock:
+    """Behavioral regression tests for the explicit two-depth run lock.
+
+    These tests exercise the real `_p9c0_with_run_lock` helper in isolation.
+    A real `flock` binary is not required because the lock seam is mocked to
+    record its FD and mode rather than to serialize.
+
+    Outer (depth 0 -> 1) and inner (depth 1 -> 2) must operate in distinct
+    namespaces so their `controller.lock` files are independent. Nesting depth
+    validation runs before any per-run directory or lock-file side effect.
+    """
+
+    PRIMARY_RUN_ID = "pkg3-lock-primary"
+    RECOVERY_RUN_ID = f"{PRIMARY_RUN_ID}-r2"
+
+    def _nested_lock_script(self, state_root: Path, body: str) -> str:
+        primary_root = state_root / self.PRIMARY_RUN_ID
+        recovery_root = state_root / self.RECOVERY_RUN_ID
+        return f'''
+        set -uo pipefail
+        source "{LOCAL_VERIFY}"
+        P9C0_PROD_STATE_PREFIX="{state_root}"
+        _p9c0_controller_state_prefix() {{ printf '%s\\n' "{state_root}"; }}
+        _p9c0_assert_state_prefix_authority() {{ return 0; }}
+        _p9c0_assert_state_prefix_resolved() {{ return 0; }}
+        _p9c0_euid() {{ echo 0; }}
+        mkdir -p "{primary_root}/lock"
+        mkdir -p "{recovery_root}/lock"
+        P9C0_RUN_ID={self.PRIMARY_RUN_ID}
+        _p9c0_enforce_root_owned_dir() {{ return 0; }}
+        _p9c0_enforce_root_owned_file() {{ return 0; }}
+        _p9c0_chown() {{ :; }}
+        _p9c0_chmod() {{ chmod "$1" "$2"; }}
+        {body}
+        '''
+
+    def test_acquire_9_then_8_release_8_then_9(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        calls = tmp_path / "lock.calls"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        body = f'''
+        _p9c0_flock() {{
+            printf '%s|%s\\n' "$1" "$2" >> "{calls}"
+            return 0
+        }}
+        _inner() {{
+            printf 'inner\\n'
+        }}
+        _outer() {{
+            printf 'outer-before\\n'
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner
+            P9C0_RUN_ID={primary}
+            printf 'outer-after\\n'
+        }}
+        _p9c0_with_run_lock _outer
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 0, result.stderr
+        lines = calls.read_text().splitlines()
+        assert lines == ["-x|9", "-x|8", "-u|8", "-u|9"]
+
+    def test_inner_critical_section_can_write_fd_9_and_fd_8(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        body = f'''
+        _p9c0_flock() {{ return 0; }}
+        _inner() {{
+            printf 'inner-9' >&9 || {{ echo "write-fd9-failed" >&2; return 3; }}
+            printf 'inner-8' >&8 || {{ echo "write-fd8-failed" >&2; return 4; }}
+        }}
+        _outer() {{
+            printf 'outer-9' >&9 || {{ echo "write-fd9-failed" >&2; return 1; }}
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner || return 2
+            P9C0_RUN_ID={primary}
+        }}
+        _p9c0_with_run_lock _outer
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 0, result.stderr
+
+    def test_inner_return_closes_fd_8_but_fd_9_stays_alive(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        inner_after = tmp_path / "inner-after"
+        outer_after = tmp_path / "outer-after"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        body = f'''
+        _p9c0_flock() {{ return 0; }}
+        _inner() {{
+            printf 'inside' >&8
+        }}
+        _outer() {{
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner
+            P9C0_RUN_ID={primary}
+            if printf 'still-9' >&9; then
+                echo fd9-alive > "{outer_after}"
+            else
+                echo fd9-dead > "{outer_after}"
+            fi
+            if (printf 'closed-8' >&8) 2>/dev/null; then
+                echo fd8-open > "{inner_after}"
+            else
+                echo fd8-closed > "{inner_after}"
+            fi
+        }}
+        _p9c0_with_run_lock _outer
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 0, result.stderr
+        assert outer_after.read_text().strip() == "fd9-alive"
+        assert inner_after.read_text().strip() == "fd8-closed"
+
+    def test_final_return_closes_both_fd_9_and_fd_8(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        after = tmp_path / "after"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        body = f'''
+        _p9c0_flock() {{ return 0; }}
+        _inner() {{ :; }}
+        _outer() {{
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner
+            P9C0_RUN_ID={primary}
+        }}
+        _p9c0_with_run_lock _outer
+        if (printf 'closed-9' >&9) 2>/dev/null; then
+            echo fd9-open > "{after}"
+        elif (printf 'closed-8' >&8) 2>/dev/null; then
+            echo fd8-open > "{after}"
+        else
+            echo both-closed > "{after}"
+        fi
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 0, result.stderr
+        assert after.read_text().strip() == "both-closed"
+
+    def test_fd_lifecycle_writes_distinct_markers_to_independent_lock_files(
+        self, tmp_path: Path
+    ):
+        state_root = tmp_path / "state"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        primary_lock = state_root / primary / "lock" / "controller.lock"
+        recovery_lock = state_root / recovery / "lock" / "controller.lock"
+        body = f'''
+        _p9c0_flock() {{ return 0; }}
+        _inner() {{
+            printf 'marker-8' >&8
+        }}
+        _outer() {{
+            printf 'marker-9' >&9
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner
+            P9C0_RUN_ID={primary}
+        }}
+        _p9c0_with_run_lock _outer
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 0, result.stderr
+        assert primary_lock.read_text() == "marker-9"
+        assert recovery_lock.read_text() == "marker-8"
+
+    def test_third_level_fail_closed_and_outer_inner_unwind(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        calls = tmp_path / "unwind.calls"
+        third_root = state_root / "pkg3-lock-third"
+        primary = self.PRIMARY_RUN_ID
+        recovery = self.RECOVERY_RUN_ID
+        body = f'''
+        _p9c0_flock() {{
+            printf '%s|%s\\n' "$1" "$2" >> "{calls}"
+            return 0
+        }}
+        _third() {{ echo "should-not-run"; }}
+        _inner() {{
+            printf 'inner-before\\n'
+            P9C0_RUN_ID={third_root.name}
+            _p9c0_with_run_lock _third || INNER_RC=$?
+            P9C0_RUN_ID={recovery}
+            printf 'inner-rc-${{INNER_RC:-0}}\\n'
+            return "${{INNER_RC:-0}}"
+        }}
+        _outer() {{
+            printf 'outer-before\\n'
+            P9C0_RUN_ID={recovery}
+            _p9c0_with_run_lock _inner || return 99
+            P9C0_RUN_ID={primary}
+            printf 'outer-after\\n'
+        }}
+        _p9c0_with_run_lock _outer || OUTER_RC=$?
+        echo "OUTER_RC=${{OUTER_RC:-0}}"
+        exit "${{OUTER_RC:-0}}"
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 99, result.stderr
+        assert "should-not-run" not in result.stdout
+        assert "outer-after" not in result.stdout
+        lines = calls.read_text().splitlines()
+        assert lines == ["-x|9", "-x|8", "-u|8", "-u|9"]
+        # Third namespace must not have any controller.lock created.
+        assert not (third_root / "lock" / "controller.lock").exists()
+        assert not third_root.exists()
+
+    def test_callback_nonzero_still_releases_and_propagates(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        calls = tmp_path / "lock.calls"
+        body = f'''
+        _p9c0_flock() {{
+            printf '%s|%s\\n' "$1" "$2" >> "{calls}"
+            return 0
+        }}
+        _failing() {{
+            printf 'failing\\n'
+            return 42
+        }}
+        _p9c0_with_run_lock _failing || LOCK_RC=$?
+        echo "LOCK_RC=${{LOCK_RC:-0}}"
+        exit "${{LOCK_RC:-0}}"
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 42, result.stderr
+        lines = calls.read_text().splitlines()
+        assert lines == ["-x|9", "-u|9"]
+
+    def test_unlock_failure_makes_result_fail(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        calls = tmp_path / "lock.calls"
+        body = f'''
+        _p9c0_flock() {{
+            printf '%s|%s\\n' "$1" "$2" >> "{calls}"
+            if [[ "$1" == "-u" ]]; then
+                return 7
+            fi
+            return 0
+        }}
+        _ok() {{ :; }}
+        _p9c0_with_run_lock _ok || LOCK_RC=$?
+        echo "LOCK_RC=${{LOCK_RC:-0}}"
+        exit "${{LOCK_RC:-0}}"
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 1, result.stderr
+        lines = calls.read_text().splitlines()
+        assert lines == ["-x|9", "-u|9"]
+
+    def test_acquire_failure_closes_fd_and_restores_depth(self, tmp_path: Path):
+        state_root = tmp_path / "state"
+        calls = tmp_path / "lock.calls"
+        after = tmp_path / "after"
+        body = f'''
+        _p9c0_flock() {{
+            printf '%s|%s\\n' "$1" "$2" >> "{calls}"
+            if [[ "$1" == "-x" && "$2" == "9" ]]; then
+                return 3
+            fi
+            return 0
+        }}
+        _p9c0_die() {{
+            printf 'died: %s\\n' "$1" >&2
+            printf 'DEPTH=%s\\n' "${{P9C0_RUN_LOCK_DEPTH:-unset}}" > "{after}"
+            if (printf 'closed-9' >&9) 2>/dev/null; then
+                echo fd9-open >> "{after}"
+            else
+                echo fd9-closed >> "{after}"
+            fi
+            exit "${{2:-1}}"
+        }}
+        _ok() {{ :; }}
+        _p9c0_with_run_lock _ok
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 26, result.stderr
+        assert "run lock acquire failed" in result.stderr
+        lines = calls.read_text().splitlines()
+        assert lines == ["-x|9"]
+        assert after.read_text().splitlines() == [
+            "DEPTH=0",
+            "fd9-closed",
+        ]
+
+    @pytest.mark.parametrize(
+        ("previous_depth", "run_id"),
+        [
+            ("2", "pkg3-lock-bad-depth-2"),
+            ("-1", "pkg3-lock-bad-depth-neg"),
+            ("nonnumeric", "pkg3-lock-bad-depth-nan"),
+        ],
+    )
+    def test_invalid_previous_depth_rejects_without_filesystem_side_effects(
+        self,
+        tmp_path: Path,
+        previous_depth: str,
+        run_id: str,
+    ):
+        state_root = tmp_path / "state"
+        bad_root = state_root / run_id
+        after = tmp_path / "after"
+        callback_marker = tmp_path / "callback-marker"
+        body = f'''
+        _p9c0_flock() {{ return 0; }}
+        _ok() {{
+            echo "ran" > "{callback_marker}"
+        }}
+        P9C0_RUN_ID={run_id}
+        P9C0_RUN_LOCK_DEPTH={previous_depth}
+        _p9c0_with_run_lock _ok || RC=$?
+        printf 'RC=%s\\n' "${{RC:-0}}" > "{after}"
+        printf 'DEPTH=%s\\n' "${{P9C0_RUN_LOCK_DEPTH:-unset}}" >> "{after}"
+        exit "${{RC:-0}}"
+        '''
+        result = _run_bash(self._nested_lock_script(state_root, body))
+        assert result.returncode == 1, result.stderr
+        assert "previous depth rejected" in result.stderr
+        assert after.read_text().splitlines() == [
+            "RC=1",
+            f"DEPTH={previous_depth}",
+        ]
+        assert not callback_marker.exists()
+        assert not (bad_root / "lock" / "controller.lock").exists()
+        assert not bad_root.exists()
+
+
 class TestLocalVerifyScenarioContracts:
     def _prepared(self, tmp_path: Path, run_id: str) -> tuple[Path, str]:
         state_root = tmp_path / "state"
