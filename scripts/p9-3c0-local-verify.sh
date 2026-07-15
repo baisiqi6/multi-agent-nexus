@@ -1599,9 +1599,13 @@ PY
 _p9c0_hold_monitor() { _p9c0_real_hold_monitor; }
 
 _p9c0_real_process_tree_proof() {
-    local unit="$1" fixture_pid="$2"
+    local unit="$1" fixture_pid="$2" expected_worktree="${3:-}"
+    if [[ -z "$expected_worktree" ]]; then
+        expected_worktree="$(_p9c0_worktree_path_for_agent p9-3c-fixture-e1)" \
+            || return 1
+    fi
     python3 - "$(_p9c0_ledger_path)" "$unit" "$fixture_pid" "$P9C0_FIXTURE_BIN" \
-        "$(_p9c0_worktree_path_for_agent p9-3c-fixture-e1)" <<'PY'
+        "$expected_worktree" <<'PY'
 import pathlib, re, shutil, sys, time
 ledger, unit, fixture_pid, fixture_bin, expected_worktree = sys.argv[1:]
 fixture_pid=int(fixture_pid)
@@ -1848,11 +1852,13 @@ _p9c0_recovery_monitor() { _p9c0_real_recovery_monitor "$@"; }
 
 _p9c0_real_verify_recovery_start() {
     local primary="$P9C0_RUN_ID" recovery old_authority old_unit reason reason_sha saved_db
-    local unit boundary_before boundary_after journal line pid evidence seed output
+    local unit boundary_before boundary_after journal line pid evidence seed output primary_worktree
     old_authority="$(_p9c0_per_run_root)/evidence/hold-authority.json"
     old_unit="p9-3c-fixture-e1-$primary.service"
     grep -Fqx "cgroup-empty unit=$old_unit" "$(_p9c0_ledger_path)" \
         || _p9c0_die "prior-process-stopped lacks exact cgroup proof" 101
+    primary_worktree="$(_p9c0_worktree_path_for_agent p9-3c-fixture-e1)" \
+        || _p9c0_die "primary recovery worktree derivation failed" 101
     _p9c0_prepare_recovery_namespace "$primary"
     recovery="$(_p9c0_recovery_run_id "$primary")" || _p9c0_die "recovery id derivation failed" 101
     reason="p9-3c0-expired-after-exact-unit-stop"
@@ -1884,7 +1890,7 @@ _p9c0_real_verify_recovery_start() {
     [[ "$line" =~ ^claude_child_boundary\ monotonic_ns=[0-9]+\ pid=([0-9]+)$ ]] \
         || _p9c0_die "recovery boundary malformed" 101
     pid="${BASH_REMATCH[1]}"
-    evidence="$(_p9c0_process_tree_proof "$unit" "$pid")" \
+    evidence="$(_p9c0_process_tree_proof "$unit" "$pid" "$primary_worktree")" \
         || _p9c0_die "recovery process proof failed" 101
     _p9c0_ledger_append "$line"; _p9c0_ledger_append "$evidence"
     _p9c0_record_intake "$P9C0_INTAKE_FROZEN"

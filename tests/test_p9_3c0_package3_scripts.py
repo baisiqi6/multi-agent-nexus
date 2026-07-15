@@ -2865,6 +2865,68 @@ class TestLocalVerifyScenarioContracts:
         assert '"LC_CTYPE=C.UTF-8"' in source
         assert "fixture executable mismatch" not in source
 
+    def test_process_tree_proof_defaults_to_current_run_worktree(self, tmp_path: Path):
+        calls = tmp_path / "python.argv"
+        state_root = tmp_path / "state"
+        script = f'''
+        source "{LOCAL_VERIFY}"
+        P9C0_RUN_ID=pkg3-base-proof
+        P9C0_FIXTURE_BIN=/fixture.py
+        _p9c0_controller_state_prefix() {{ printf '%s\n' "{state_root}"; }}
+        python3() {{ printf '%s\n' "$@" > "{calls}"; }}
+        _p9c0_real_process_tree_proof base.service 123
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        assert calls.read_text().splitlines()[-1] == str(
+            state_root / "pkg3-base-proof" / "work" / "p9-3c-fixture-e1"
+        )
+
+    def test_recovery_proof_uses_primary_worktree_in_recovery_namespace(
+        self, tmp_path: Path
+    ):
+        state_root = tmp_path / "state"
+        primary_run = "pkg3-recovery-proof"
+        recovery_run = f"{primary_run}-r2"
+        primary_root = state_root / primary_run
+        recovery_root = state_root / recovery_run
+        (primary_root / "ledger").mkdir(parents=True)
+        (primary_root / "evidence").mkdir()
+        (recovery_root / "ledger").mkdir(parents=True)
+        old_unit = f"p9-3c-fixture-e1-{primary_run}.service"
+        (primary_root / "ledger" / "events.jsonl").write_text(
+            f"cgroup-empty unit={old_unit}\n"
+        )
+        proof = tmp_path / "proof.argv"
+        started = tmp_path / "started"
+        script = f'''
+        source "{LOCAL_VERIFY}"
+        P9C0_RUN_ID={primary_run}
+        P9C0_COORD_DB="{primary_root / 'db' / 'coord.sqlite3'}"
+        _p9c0_controller_state_prefix() {{ printf '%s\n' "{state_root}"; }}
+        _p9c0_prepare_recovery_namespace() {{ :; }}
+        _p9c0_unit_start() {{ : > "{started}"; }}
+        _p9c0_unit_journal() {{
+            [[ -f "{started}" ]] && printf 'claude_child_boundary monotonic_ns=10 pid=777\n'
+        }}
+        _p9c0_recovery_monitor() {{ : > "$2"; printf '{{}}\n'; }}
+        _p9c0_process_tree_proof() {{
+            printf '%s|%s\n' "$P9C0_RUN_ID" "$*" > "{proof}"
+            printf 'process-tree-ok\n'
+        }}
+        _p9c0_ledger_append() {{ :; }}
+        _p9c0_record_intake() {{ :; }}
+        _p9c0_chown() {{ :; }}
+        _p9c0_chmod() {{ :; }}
+        _p9c0_real_verify_recovery_start
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        assert proof.read_text().strip() == (
+            f"{recovery_run}|p9-3c-fixture-e1-{recovery_run}.service 777 "
+            f"{primary_root / 'work' / 'p9-3c-fixture-e1'}"
+        )
+
     def test_only_hold_and_recovery_stops_request_crash_semantics(self):
         source = LOCAL_VERIFY.read_text()
         assert source.count('_p9c0_unit_stop "$agent" --crash') == 2
