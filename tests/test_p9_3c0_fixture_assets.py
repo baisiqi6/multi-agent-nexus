@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import signal
 import stat
@@ -40,6 +41,72 @@ CANONICAL_AUTHORITY = REPO_ROOT / "config" / "agent-registry.toml"
 
 
 RUNBOOK = FIXTURE_ROOT / "docs" / "runbook.md"
+
+MOCK_UNIT_USER = "testuser"
+MOCK_UNIT_GROUP = "testgroup"
+MOCK_UNIT_ID = "1001"
+MOCK_WRAPPER_SHA = "abc123def456abc123def456abc123def456abc123def456abc123def456abcd"
+MOCK_DEFINITION_SHA = "def456abc123def456abc123def456abc123def456abc123def456abc123abcd"
+
+
+def _prepare_helper_manifest(state_root: Path, run_id: str, wrapper: Path) -> None:
+    state_dir = state_root / run_id
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state_dir.chmod(0o750)
+    for name in ("lock", "ledger", "context"):
+        directory = state_dir / name
+        directory.mkdir(exist_ok=True)
+        directory.chmod(0o700)
+    for name in ("controller.lock", "unit-helper.lock"):
+        lock_file = state_dir / "lock" / name
+        lock_file.touch()
+        lock_file.chmod(0o600)
+    ledger = state_dir / "ledger" / "events.jsonl"
+    ledger.touch()
+    ledger.chmod(0o600)
+    record = (
+        f"wrapper_raw={wrapper}"
+        f"\twrapper_dev_inode_size_nlink_uid_gid_mode="
+        f"0:0:256:1:0:{MOCK_UNIT_ID}:750"
+        f"\twrapper_sha256={MOCK_WRAPPER_SHA}\n"
+    )
+    manifest = state_dir / "wrapper.manifest"
+    manifest.write_text(record, encoding="utf-8")
+    manifest.chmod(0o640)
+
+
+def _helper_mock_prelude() -> str:
+    """Source-safe authority seams for local/macOS fixture helper tests."""
+    return f'''
+source "{UNIT_HELPER}"
+_p9c0_identity_lookup_user() {{ echo {MOCK_UNIT_ID}; }}
+_p9c0_identity_lookup_group() {{ echo {MOCK_UNIT_ID}; }}
+_p9c0_stat_file() {{
+    case "$1" in
+        */wrapper.manifest) echo "0:0:128:1:0:{MOCK_UNIT_ID}:640" ;;
+        */systemd.verify.service) echo "0:0:0:1:0:0:600" ;;
+        */controller.lock|*/unit-helper.lock) echo "0:0:0:1:0:0:600" ;;
+        *) echo "0:0:256:1:0:{MOCK_UNIT_ID}:750" ;;
+    esac
+}}
+_p9c0_sha256_file() {{
+    case "$1" in
+        */systemd.verify.service) echo "{MOCK_DEFINITION_SHA}" ;;
+        *) echo "{MOCK_WRAPPER_SHA}" ;;
+    esac
+}}
+_p9c0_systemd_analyze() {{ return 0; }}
+_p9c0_set_owner_group_mode() {{ chmod "$4" "$1"; }}
+_p9c0_lock_file_authority() {{ return 0; }}
+'''
+
+
+def _run_sourced_helper(argv: list[str], *, extra_funcs: str = ""):
+    command = " ".join(shlex.quote(str(value)) for value in argv)
+    script = f"{_helper_mock_prelude()}\n{extra_funcs}\nmain {command}\n"
+    return subprocess.run(
+        ["bash", "-c", script], capture_output=True, text=True
+    )
 
 
 def _run_fixture_process(argv, stdin):
@@ -503,17 +570,18 @@ class AgentConfigRenderTests(unittest.TestCase):
         self.fixture_bin = self.tmp / "fixture.py"
         self.fixture_bin.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
         self.fixture_bin.chmod(0o755)
-        self.wrapper = self.tmp / "coord-local"
+        self.wrapper = self.state_root / "coord-local"
         self.wrapper.write_text("#!/bin/sh\necho ok\n", encoding="utf-8")
         self.wrapper.chmod(0o755)
         self.coord_db = self.state_root / "db" / "coord.sqlite3"
         self.coord_db.parent.mkdir()
         self.work_dir = self.state_root / "work"
         self.work_dir.mkdir()
+        _prepare_helper_manifest(self.state_root, "test-run", self.wrapper)
 
     def _run_render(self, *extra_args):
-        return subprocess.run(
-            ["bash", str(UNIT_HELPER), "render",
+        return _run_sourced_helper(
+            ["render",
              "--state-root", str(self.state_root),
              "--run-id", "test-run",
              "--fixture-bin", str(self.fixture_bin),
@@ -522,9 +590,9 @@ class AgentConfigRenderTests(unittest.TestCase):
              "--work-dir", str(self.work_dir),
              "--python", sys.executable,
              "--repo-root", str(REPO_ROOT),
-             *extra_args],
-            capture_output=True,
-            text=True,
+             "--user", MOCK_UNIT_USER,
+             "--group", MOCK_UNIT_GROUP,
+             *extra_args]
         )
 
     def test_render_creates_config_and_loads_both_agents(self):
@@ -532,7 +600,7 @@ class AgentConfigRenderTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         rendered = self.state_root / "test-run" / "agents.rendered.toml"
         self.assertTrue(rendered.exists())
-        self.assertEqual(oct(rendered.stat().st_mode)[-3:], "600")
+        self.assertEqual(oct(rendered.stat().st_mode)[-3:], "640")
 
         for agent_id in ("p9-3c-fixture-e1", "p9-3c-fixture-e2"):
             with self.subTest(agent_id=agent_id):
@@ -562,19 +630,7 @@ class AgentConfigRenderTests(unittest.TestCase):
             + '\nextra = "__P9C0_COORDINATOR_CLI__"\n',
             encoding="utf-8",
         )
-        result = subprocess.run(
-            ["bash", str(UNIT_HELPER), "render",
-             "--state-root", str(self.state_root),
-             "--run-id", "test-run",
-             "--fixture-bin", str(self.fixture_bin),
-             "--wrapper", str(self.wrapper),
-             "--coord-db", str(self.coord_db),
-             "--work-dir", str(self.work_dir),
-             "--python", sys.executable,
-             "--repo-root", str(broken_repo)],
-            capture_output=True,
-            text=True,
-        )
+        result = self._run_render("--repo-root", str(broken_repo))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("marker", result.stderr.lower())
 
@@ -583,35 +639,25 @@ class AgentConfigRenderTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("production", result.stderr)
 
-    def test_render_tightens_state_root_permissions(self):
-        # Start permissive; render must tighten to 0700 without widening anything.
+    def test_render_preserves_controller_ownership_matrix(self):
+        # The Package 3 controller owns directory modes; helper render preserves them.
         self.state_root.chmod(0o755)
         result = self._run_render()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(oct(self.state_root.stat().st_mode)[-3:], "700")
+        self.assertEqual(oct(self.state_root.stat().st_mode)[-3:], "755")
         run_dir = self.state_root / "test-run"
-        self.assertEqual(oct(run_dir.stat().st_mode)[-3:], "700")
-        self.assertEqual(oct((run_dir / "lock").stat().st_mode)[-3:], "600")
-        self.assertEqual(oct((run_dir / "agents.rendered.toml").stat().st_mode)[-3:], "600")
+        self.assertEqual(oct(run_dir.stat().st_mode)[-3:], "750")
+        self.assertEqual(oct((run_dir / "lock").stat().st_mode)[-3:], "700")
+        self.assertEqual(oct((run_dir / "lock" / "unit-helper.lock").stat().st_mode)[-3:], "600")
+        self.assertEqual(oct((run_dir / "agents.rendered.toml").stat().st_mode)[-3:], "640")
         self.assertEqual(oct((run_dir / "values.rendered").stat().st_mode)[-3:], "600")
-        self.assertEqual(oct((run_dir / "ledger").stat().st_mode)[-3:], "600")
+        self.assertEqual(oct((run_dir / "ledger").stat().st_mode)[-3:], "700")
+        self.assertEqual(oct((run_dir / "ledger" / "events.jsonl").stat().st_mode)[-3:], "600")
 
     def test_render_rejects_missing_template(self):
         empty_repo = self.tmp / "empty-repo"
         empty_repo.mkdir()
-        result = subprocess.run(
-            ["bash", str(UNIT_HELPER), "render",
-             "--state-root", str(self.state_root),
-             "--run-id", "test-run",
-             "--fixture-bin", str(self.fixture_bin),
-             "--wrapper", str(self.wrapper),
-             "--coord-db", str(self.coord_db),
-             "--work-dir", str(self.work_dir),
-             "--python", sys.executable,
-             "--repo-root", str(empty_repo)],
-            capture_output=True,
-            text=True,
-        )
+        result = self._run_render("--repo-root", str(empty_repo))
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("missing fixture template", result.stderr)
 
@@ -770,16 +816,18 @@ class UnitHelperStaticTests(unittest.TestCase):
         self.assertNotIn("pkill", source)
         self.assertNotIn("killall", source)
 
-    def test_runbook_bans_atfile_json_flags_and_keeps_placeholders(self):
+    def test_runbook_has_package3_operator_and_resume_contract(self):
         source = RUNBOOK.read_text(encoding="utf-8")
-        section2 = source.split("## 2.4 Submit target request")[1].split("## 2.5")[0]
-        lines = [line.strip().rstrip("\\").strip() for line in section2.splitlines()]
-        self.assertNotIn("--origin-json @<file>", lines)
-        self.assertNotIn("--reply-json @<file>", lines)
-        self.assertIn('--origin-json \'{"field": "<origin-value>"}\'', lines)
-        self.assertIn('--reply-json \'{"field": "<reply-value>"}\'', lines)
-        self.assertIn("<workspace-id>", section2)
-        self.assertIn("UNAUTHORIZED until approved", source)
+        section2 = source.split("## 2. Package 3 isolated sidecar operator contract")[1].split("## 3.")[0]
+        self.assertNotIn("@<file>", section2)
+        self.assertIn("p9-3c0-local-verify.sh prepare", section2)
+        self.assertIn("p9-3c0-local-verify.sh verify", section2)
+        self.assertIn("p9-3c0-cleanup.sh cleanup", section2)
+        self.assertIn("<run-id>-r2", section2)
+        self.assertIn("executor v1 disabled -> capacity v1 -> executor v2 enabled", section2)
+        self.assertIn("executor v3 disabled -> capacity v2 empty -> executor v4 empty", section2)
+        self.assertIn("Re-run the same `verify` command after interruption", section2)
+        self.assertNotIn("UNAUTHORIZED until approved", source)
 
     def test_sourcing_does_not_run_main(self):
         result = subprocess.run(
@@ -800,7 +848,7 @@ class UnitHelperFunctionTests(unittest.TestCase):
         self.fixture_bin = self.tmp / "fixture.py"
         self.fixture_bin.write_text("#!/usr/bin/env python3\n", encoding="utf-8")
         self.fixture_bin.chmod(0o755)
-        self.wrapper = self.tmp / "coord-local"
+        self.wrapper = self.state_root / "coord-local"
         self.wrapper.write_text("#!/bin/sh\necho test-wrapper\n", encoding="utf-8")
         self.wrapper.chmod(0o755)
         self.coord_db = self.state_root / "db" / "coord.sqlite3"
@@ -809,11 +857,13 @@ class UnitHelperFunctionTests(unittest.TestCase):
         self.work_dir.mkdir()
         self.repo_root = REPO_ROOT
 
+        _prepare_helper_manifest(self.state_root, "test-run", self.wrapper)
+
         self._render()
 
     def _render(self):
-        result = subprocess.run(
-            ["bash", str(UNIT_HELPER), "render",
+        result = _run_sourced_helper(
+            ["render",
              "--state-root", str(self.state_root),
              "--run-id", "test-run",
              "--fixture-bin", str(self.fixture_bin),
@@ -821,24 +871,20 @@ class UnitHelperFunctionTests(unittest.TestCase):
              "--coord-db", str(self.coord_db),
              "--work-dir", str(self.work_dir),
              "--python", sys.executable,
-             "--repo-root", str(self.repo_root)],
-            capture_output=True,
-            text=True,
+             "--repo-root", str(self.repo_root),
+             "--user", MOCK_UNIT_USER,
+             "--group", MOCK_UNIT_GROUP]
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def _source_with_mocks(self, extra_funcs=""):
-        script = f"""
-source "{UNIT_HELPER}"
-{extra_funcs}
-"""
-        return script
+        return f"{_helper_mock_prelude()}\n{extra_funcs}\n"
 
     def test_run_id_grammar_rejected(self):
         for bad in ("", "Upper", "under_score", "a--b", "a b", "1234567890123456789012345678901234567890123456789012345678901234567890"):
             with self.subTest(run_id=bad):
-                result = subprocess.run(
-                    ["bash", str(UNIT_HELPER), "render",
+                result = _run_sourced_helper(
+                    ["render",
                      "--state-root", str(self.state_root),
                      "--run-id", bad,
                      "--fixture-bin", str(self.fixture_bin),
@@ -846,9 +892,9 @@ source "{UNIT_HELPER}"
                      "--coord-db", str(self.coord_db),
                      "--work-dir", str(self.work_dir),
                      "--python", sys.executable,
-                     "--repo-root", str(self.repo_root)],
-                    capture_output=True,
-                    text=True,
+                     "--repo-root", str(self.repo_root),
+                     "--user", MOCK_UNIT_USER,
+                     "--group", MOCK_UNIT_GROUP]
                 )
                 self.assertNotEqual(result.returncode, 0, result.stderr)
 
@@ -867,8 +913,8 @@ _p9c0_real_systemctl() {{
             User) echo testuser ;;
             Group) echo testgroup ;;
             WorkingDirectory) echo {self.work_dir} ;;
-            RuntimeMaxSec) echo 300 ;;
-            TimeoutStopSec) echo 30 ;;
+            RuntimeMaxUSec) echo 300000000 ;;
+            TimeoutStopUSec) echo 30000000 ;;
             KillMode) echo control-group ;;
             IPAddressDeny) echo any ;;
             RestrictAddressFamilies) echo AF_UNIX ;;
@@ -877,6 +923,7 @@ _p9c0_real_systemctl() {{
             ProtectSystem) echo strict ;;
             ProtectHome) echo yes ;;
             ReadWritePaths) echo {self.state_root} ;;
+            UnsetEnvironment) echo "${{P9C0_UNSET_ENVIRONMENT_NAMES//,/ }}" ;;
             UMask) echo 0077 ;;
             *) echo "" ;;
         esac
@@ -900,6 +947,9 @@ _p9c0_cmd_start --state-root {self.state_root} --run-id test-run --agent-id p9-3
         self.assertIn("--property=IPAddressDeny=any", calls_text)
         self.assertIn("--property=RestrictAddressFamilies=AF_UNIX", calls_text)
         self.assertIn("env -i", calls_text)
+        self.assertIn(f"env -i -C {self.repo_root}", calls_text)
+        self.assertIn("--property=UnsetEnvironment=", calls_text)
+        self.assertNotIn("UnsetEnvironment=*", calls_text)
         self.assertIn("-m multinexus.agentd", calls_text)
         self.assertIn("--config", calls_text)
         self.assertIn("--agent p9-3c-fixture-e1", calls_text)
@@ -924,8 +974,8 @@ _p9c0_real_systemctl() {{
             User) echo wronguser ;;
             Group) echo testgroup ;;
             WorkingDirectory) echo {self.work_dir} ;;
-            RuntimeMaxSec) echo 300 ;;
-            TimeoutStopSec) echo 30 ;;
+            RuntimeMaxUSec) echo 300000000 ;;
+            TimeoutStopUSec) echo 30000000 ;;
             KillMode) echo control-group ;;
             IPAddressDeny) echo any ;;
             RestrictAddressFamilies) echo AF_UNIX ;;
@@ -954,7 +1004,7 @@ _p9c0_cmd_start --state-root {self.state_root} --run-id test-run --agent-id p9-3
         self.assertNotEqual(result.returncode, 0, result.stderr)
         calls_text = calls.read_text(encoding="utf-8")
         self.assertIn("stop p9-3c-fixture-e1-test-run.service", calls_text)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("post-start-mismatch", ledger)
         self.assertIn("post-start-cleanup", ledger)
 
@@ -962,7 +1012,7 @@ _p9c0_cmd_start --state-root {self.state_root} --run-id test-run --agent-id p9-3
         unit = f"{agent_id}-test-run.service"
         if cgroup is None:
             cgroup = f"/system.slice/{unit}"
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             ledger.read_text(encoding="utf-8")
             + f"unit {unit} agent={agent_id} mode={mode} start_ms=80000 main_pid=1234 cgroup={cgroup} state=active result=success\n",
@@ -1004,7 +1054,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
                     text=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
-                ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+                ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
                 self.assertIn("cgroup-empty", ledger)
                 self.assertIn("stop unit=", ledger)
 
@@ -1047,7 +1097,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
                 self.assertNotEqual(result.returncode, 0, result.stderr)
                 calls_text = calls.read_text(encoding="utf-8")
                 self.assertIn("stop p9-3c-fixture-e1-test-run.service", calls_text)
-                ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+                ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
                 self.assertIn("cgroup-empty", ledger)
                 self.assertIn("stop unit=", ledger)
 
@@ -1081,7 +1131,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
             text=True,
         )
         self.assertNotEqual(result.returncode, 0, result.stderr)
-        self.assertIn("run-id-mismatch", (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8"))
+        self.assertIn("run-id-mismatch", (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8"))
 
     def test_stop_uses_recorded_cgroup_when_post_stop_control_group_empty(self):
         self.setUp()
@@ -1113,7 +1163,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
             text=True,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("cgroup-empty", ledger)
         self.assertIn(f"cgroup={cgroup}", ledger)
 
@@ -1147,7 +1197,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
             text=True,
         )
         self.assertNotEqual(result.returncode, 0, result.stderr)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("cgroup-not-empty", ledger)
         self.assertNotIn("cgroup-empty", ledger)
 
@@ -1184,7 +1234,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
         self.assertNotEqual(result.returncode, 0, result.stderr)
         calls_text = calls.read_text(encoding="utf-8")
         self.assertIn("stop p9-3c-fixture-e1-test-run.service", calls_text)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("cgroup-proof-read-failed", ledger)
         self.assertNotIn("cgroup-empty", ledger)
 
@@ -1221,7 +1271,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
             text=True,
         )
         self.assertNotEqual(result.returncode, 0, result.stderr)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("cgroup-proof-read-failed", ledger)
         self.assertNotIn("cgroup-empty", ledger)
         self.assertNotIn("cgroup-not-empty", ledger)
@@ -1257,7 +1307,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
             text=True,
         )
         self.assertNotEqual(result.returncode, 0, result.stderr)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("stop-inactive-timeout", ledger)
         self.assertNotIn("cgroup-empty", ledger)
         self.assertGreaterEqual(sleeps.read_text(encoding="utf-8").strip().count("\n") + 1, 1)
@@ -1265,7 +1315,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
     def test_stop_fails_closed_when_recorded_cgroup_malformed(self):
         self.setUp()
         # Seed a unit line with a cgroup that could escape /sys/fs/cgroup.
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             ledger.read_text(encoding="utf-8")
             + "unit p9-3c-fixture-e1-test-run.service agent=p9-3c-fixture-e1 mode=hold start_ms=80000 main_pid=1234 cgroup=/system.slice/../../etc/passwd state=active result=success\n",
@@ -1301,7 +1351,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
 
     def test_stop_fails_closed_when_recorded_cgroup_missing(self):
         self.setUp()
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             ledger.read_text(encoding="utf-8")
             + "unit p9-3c-fixture-e1-test-run.service agent=p9-3c-fixture-e1 mode=hold start_ms=80000 main_pid=1234 state=active result=success\n",
@@ -1331,23 +1381,21 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
         self.assertNotEqual(result.returncode, 0, result.stderr)
         calls_text = calls.read_text(encoding="utf-8")
         self.assertIn("stop p9-3c-fixture-e1-test-run.service", calls_text)
-        ledger = (self.state_root / "test-run" / "ledger").read_text(encoding="utf-8")
+        ledger = (self.state_root / "test-run" / "ledger" / "events.jsonl").read_text(encoding="utf-8")
         self.assertIn("stop unit=", ledger)
         self.assertNotIn("cgroup-empty", ledger)
 
         self.setUp()
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             "unit p9-3c-fixture-e1-test-run.service agent=p9-3c-fixture-e1\n",
             encoding="utf-8",
         )
-        result = subprocess.run(
-            ["bash", str(UNIT_HELPER), "cleanup",
+        result = _run_sourced_helper(
+            ["cleanup",
              "--state-root", str(self.state_root),
              "--run-id", "test-run",
-             "--agent-id", "p9-3c-fixture-e1"],
-            capture_output=True,
-            text=True,
+             "--agent-id", "p9-3c-fixture-e1"]
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("cgroup proof missing", result.stderr)
@@ -1356,7 +1404,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
         # A ledger record whose unit name differs only by replacing .service with
         # a different character must not satisfy the exact unit identity check.
         self.setUp()
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             ledger.read_text(encoding="utf-8")
             + "unit p9-3c-fixture-e1-test-runXservice agent=p9-3c-fixture-e1 mode=hold\n",
@@ -1377,7 +1425,7 @@ _p9c0_cmd_stop --state-root {self.state_root} --run-id test-run --agent-id p9-3c
         # A ledger line that would match via regex wildcard must not be selected
         # for cgroup extraction.
         self.setUp()
-        ledger = self.state_root / "test-run" / "ledger"
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
         ledger.write_text(
             "unit p9-3c-fixture-e1-test-runXservice agent=p9-3c-fixture-e1 mode=hold start_ms=0 main_pid=0 cgroup=/system.slice/other.service state=active result=success\n",
             encoding="utf-8",
@@ -1398,21 +1446,27 @@ echo "$output"
 
     def test_cleanup_deletes_only_ledger_files(self):
         self.setUp()
-        ledger = self.state_root / "test-run" / "ledger"
-        ledger.write_text("unit p9-3c-fixture-e1-test-run.service agent=p9-3c-fixture-e1\ncgroup-empty unit=p9-3c-fixture-e1-test-run.service\n", encoding="utf-8")
+        ledger = self.state_root / "test-run" / "ledger" / "events.jsonl"
+        ledger.write_text(
+            ledger.read_text(encoding="utf-8")
+            + "unit p9-3c-fixture-e1-test-run.service agent=p9-3c-fixture-e1\n"
+            + "cgroup-empty unit=p9-3c-fixture-e1-test-run.service\n",
+            encoding="utf-8",
+        )
+        script = self._source_with_mocks(f'''
+_p9c0_cmd_cleanup --state-root "{self.state_root}" --run-id test-run --agent-id p9-3c-fixture-e1
+''')
         result = subprocess.run(
-            ["bash", str(UNIT_HELPER), "cleanup",
-             "--state-root", str(self.state_root),
-             "--run-id", "test-run",
-             "--agent-id", "p9-3c-fixture-e1"],
-            capture_output=True,
-            text=True,
+            ["bash", "-c", script], capture_output=True, text=True
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(ledger.exists())
 
     def test_with_lock_serializes_two_contenders(self):
         log = self.tmp / "lock_order.log"
+        lock_dir = self.tmp / "run-lock-test" / "lock"
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        (lock_dir / "unit-helper.lock").touch()
         script = self._source_with_mocks(f"""
 _p9c0_real_sleep() {{ sleep "$1"; }}
 holder() {{
@@ -1434,6 +1488,9 @@ _p9c0_with_lock "{self.tmp}" "run-lock-test" contender
 
     def test_with_lock_blocks_second_contender_until_first_releases(self):
         marker = self.tmp / "holder.marker"
+        lock_dir = self.tmp / "run-block-test" / "lock"
+        lock_dir.mkdir(parents=True, exist_ok=True)
+        (lock_dir / "unit-helper.lock").touch()
         holder_script = self._source_with_mocks(f"""
 _p9c0_real_sleep() {{ sleep "$1"; }}
 holder() {{
@@ -1470,8 +1527,8 @@ _p9c0_with_lock "{self.tmp}" "run-block-test" contender
     def test_render_holds_exclusive_lock(self):
         record = self.tmp / "lock_calls.txt"
         run_id = "lock-render-run"
-        script = f"""
-source "{UNIT_HELPER}"
+        _prepare_helper_manifest(self.state_root, run_id, self.wrapper)
+        script = f"""{_helper_mock_prelude()}
 _p9c0_real_flock() {{ printf '%s\\n' "$*" >> "{record}"; }}
 _p9c0_cmd_render \
   --state-root {self.state_root} \
@@ -1481,7 +1538,9 @@ _p9c0_cmd_render \
   --coord-db {self.coord_db} \
   --work-dir {self.work_dir} \
   --python {sys.executable} \
-  --repo-root {self.repo_root}
+  --repo-root {self.repo_root} \
+  --user {MOCK_UNIT_USER} \
+  --group {MOCK_UNIT_GROUP}
 """
         result = subprocess.run(
             ["bash", "-c", script],
@@ -1491,10 +1550,10 @@ _p9c0_cmd_render \
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(record.exists())
         self.assertIn("-x 9", record.read_text(encoding="utf-8"))
-        lock_file = self.state_root / run_id / "lock"
+        lock_file = self.state_root / run_id / "lock" / "unit-helper.lock"
         self.assertTrue(lock_file.exists())
         self.assertEqual(oct(lock_file.stat().st_mode)[-3:], "600")
-        self.assertEqual(oct((self.state_root / run_id).stat().st_mode)[-3:], "700")
+        self.assertEqual(oct((self.state_root / run_id).stat().st_mode)[-3:], "750")
 
 
 class DeploymentStaticTests(unittest.TestCase):

@@ -1,9 +1,12 @@
 import asyncio
 import json
+import logging
 
 from ..models import AgentConfig
 from .base import AdapterResult, AgentAdapter
 from .utils import async_subprocess_kwargs, filtered_env, terminate_owned_process_group
+
+log = logging.getLogger(__name__)
 
 
 def _timeout_message(kind: str, elapsed_seconds: int, total_seconds: int) -> str:
@@ -126,9 +129,9 @@ class ClaudeAdapter(AgentAdapter):
         session_id: str | None = resume_session_id
         loop = asyncio.get_event_loop()
         deadline = loop.time() + timeout
-        last_activity = loop.time()
         saw_output = False
         cleanup_attempted = False
+        pid = proc.pid
 
         async def cleanup() -> None:
             nonlocal cleanup_attempted
@@ -140,6 +143,8 @@ class ClaudeAdapter(AgentAdapter):
         try:
             full_prompt = self._with_system_prompt(prompt)
             assert proc.stdin is not None
+            last_activity = loop.time()
+            log.debug("claude_child_boundary monotonic_ns=%s pid=%s", int(last_activity * 1_000_000_000), pid)
             proc.stdin.write(full_prompt.encode("utf-8"))
             await proc.stdin.drain()
             proc.stdin.close()
