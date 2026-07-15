@@ -1919,6 +1919,8 @@ def _local_verify_mock_prelude(state_root: Path) -> str:
     """Source the controller with filesystem/identity seams kept in tmp_path."""
     return f'''
     set -euo pipefail
+    mkdir -p "{state_root}"
+    touch "{state_root}/production-wrapper" "{state_root}/production.sqlite3"
     source "{LOCAL_VERIFY}"
     P9C0_PROD_STATE_PREFIX="{state_root}"
     P9C0_PROD_WRAPPER="{state_root}/production-wrapper"
@@ -1930,7 +1932,6 @@ def _local_verify_mock_prelude(state_root: Path) -> str:
     _p9c0_euid() {{ echo 0; }}
     _p9c0_identity_lookup_user() {{ [[ "$1" == "{MOCK_USER}" ]] && echo {MOCK_UID}; }}
     _p9c0_identity_lookup_group() {{ [[ "$1" == "{MOCK_GROUP}" ]] && echo {MOCK_GID}; }}
-    _p9c0_realpath() {{ printf '%s\\n' "$1"; }}
     _p9c0_environment_names() {{ printf '%s\\n' OPENAI_EXTRA_TOKEN SAFE_NAME; }}
     _p9c0_flock() {{ :; }}
     _p9c0_mkdir() {{ mkdir -m "$1" "$2"; }}
@@ -2455,6 +2456,134 @@ esac
         assert (primary / "control" / "intake").read_text() == "intake=frozen\n"
         assert (recovery / "control" / "intake").read_text() == "intake=frozen\n"
         assert (recovery / "control" / "phase").read_text() == "phase=failed\n"
+
+
+class TestLocalVerifyMissingDbRealpath:
+    """Isolation DB realpath must resolve missing leaf/suffix while still
+    rejecting symlink escapes and production aliases."""
+
+    def _fresh_state_root(self, tmp_path: Path) -> Path:
+        state_root = tmp_path / "state"
+        state_root.mkdir(parents=True, exist_ok=True)
+        return state_root
+
+    def _prelude(self, state_root: Path, prod_db: Path) -> str:
+        return f'''
+        set -euo pipefail
+        source "{LOCAL_VERIFY}"
+        P9C0_PROD_STATE_PREFIX="{state_root}"
+        P9C0_PROD_DB="{prod_db}"
+        P9C0_UNIT_USER="{MOCK_USER}"
+        P9C0_UNIT_GROUP="{MOCK_GROUP}"
+        P9C0_UNIT_UID="{MOCK_UID}"
+        P9C0_UNIT_GID="{MOCK_GID}"
+        _p9c0_controller_state_prefix() {{ printf '%s\\n' "{state_root}"; }}
+        _p9c0_identity_lookup_user() {{ [[ "$1" == "{MOCK_USER}" ]] && echo {MOCK_UID}; }}
+        _p9c0_identity_lookup_group() {{ [[ "$1" == "{MOCK_GROUP}" ]] && echo {MOCK_GID}; }}
+        '''
+
+    def _call_enforce(
+        self,
+        tmp_path: Path,
+        db: Path,
+        prod_db: Path,
+        *,
+        extra_overrides: str = "",
+    ) -> subprocess.CompletedProcess[str]:
+        state_root = self._fresh_state_root(tmp_path)
+        script = self._prelude(state_root, prod_db) + extra_overrides + f'''
+        _p9c0_enforce_unit_identity "{MOCK_USER}" "{MOCK_GROUP}" \
+            "{MOCK_UID}" "{MOCK_GID}" "{db}" "{prod_db}"
+        '''
+        return _run_bash(script)
+
+    def test_fresh_db_with_missing_suffixes_passes(self, tmp_path: Path):
+        state_root = self._fresh_state_root(tmp_path)
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        db = state_root / "run" / "db" / "coord.sqlite3"
+        result = self._call_enforce(tmp_path, db, prod_db)
+        assert result.returncode == 0, result.stderr
+
+    def test_fresh_state_prefix_and_db_suffixes_pass(self, tmp_path: Path):
+        state_root = tmp_path / "not-created-yet" / "state"
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        db = state_root / "run" / "db" / "coord.sqlite3"
+        script = self._prelude(state_root, prod_db) + f'''
+        _p9c0_enforce_unit_identity "{MOCK_USER}" "{MOCK_GROUP}" \
+            "{MOCK_UID}" "{MOCK_GID}" "{db}" "{prod_db}"
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        assert not state_root.exists()
+
+    def test_ancestor_symlink_to_production_db_is_rejected(self, tmp_path: Path):
+        state_root = self._fresh_state_root(tmp_path)
+        prod_db = state_root / "production.sqlite3"
+        prod_db.touch()
+        trap = state_root / "trap"
+        trap.symlink_to(prod_db)
+        db = state_root / "trap"
+        result = self._call_enforce(tmp_path, db, prod_db)
+        assert result.returncode != 0
+        assert "isolation db resolves to production" in result.stderr
+
+    def test_ancestor_symlink_escaping_state_prefix_is_rejected(self, tmp_path: Path):
+        state_root = self._fresh_state_root(tmp_path)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        trap = state_root / "trap"
+        trap.symlink_to(outside)
+        db = state_root / "trap" / "db" / "coord.sqlite3"
+        result = self._call_enforce(tmp_path, db, prod_db)
+        assert result.returncode != 0
+        assert "isolation db resolved path escapes state prefix" in result.stderr
+
+    def test_realpath_seam_failure_is_rejected(self, tmp_path: Path):
+        state_root = self._fresh_state_root(tmp_path)
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        db = state_root / "run" / "db" / "coord.sqlite3"
+        result = self._call_enforce(
+            tmp_path,
+            db,
+            prod_db,
+            extra_overrides='\n        _p9c0_realpath_missing_ok() { return 1; }\n        ',
+        )
+        assert result.returncode != 0
+        assert "isolation db realpath failed" in result.stderr
+
+    def test_missing_suffix_dotdot_is_rejected(self, tmp_path: Path):
+        state_root = self._fresh_state_root(tmp_path)
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        db = f"{state_root}/run/../outside/coord.sqlite3"
+        result = self._call_enforce(tmp_path, db, prod_db)
+        assert result.returncode != 0
+        assert "isolation db realpath failed" in result.stderr
+
+    def test_production_db_strict_realpath_failure_is_rejected(
+        self, tmp_path: Path
+    ):
+        state_root = self._fresh_state_root(tmp_path)
+        prod_db = tmp_path / "production.sqlite3"
+        prod_db.touch()
+        db = state_root / "run" / "db" / "coord.sqlite3"
+        override = f'''
+        _p9c0_realpath() {{
+            [[ "$1" == "{prod_db}" ]] && return 1
+            _p9c0_real_realpath "$1"
+        }}
+        '''
+        result = self._call_enforce(
+            tmp_path, db, prod_db, extra_overrides=override
+        )
+        assert result.returncode != 0
+        assert "production db realpath failed" in result.stderr
+
 
 
 class TestLocalVerifyScenarioContracts:
