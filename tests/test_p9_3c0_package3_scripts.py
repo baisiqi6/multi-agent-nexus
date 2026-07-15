@@ -2665,6 +2665,65 @@ class TestLocalVerifyScenarioContracts:
         assert "intake is frozen" in result.stderr
         assert not calls.exists()
 
+    def test_claude_boundary_normalizer_accepts_python_log_prefix_only(self):
+        script = f'''
+        source "{LOCAL_VERIFY}"
+        printf '%s\n' \
+            'claude_child_boundary monotonic_ns=101 pid=201' \
+            '2026-07-16 00:40:39,255 multinexus.adapters.claude DEBUG claude_child_boundary monotonic_ns=102 pid=202' \
+            'claude_child_boundary monotonic_ns=bad pid=203' \
+            'prefix claude_child_boundary monotonic_ns=104 pid=204 suffix' \
+            | _p9c0_claude_boundary_lines
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [
+            "claude_child_boundary monotonic_ns=101 pid=201",
+            "claude_child_boundary monotonic_ns=102 pid=202",
+        ]
+
+    def test_hold_scenario_counts_one_new_boundary_after_formatted_base_log(
+        self, tmp_path: Path
+    ):
+        journal = tmp_path / "journal.log"
+        ledger = tmp_path / "ledger.log"
+        run_root = tmp_path / "run"
+        (run_root / "evidence").mkdir(parents=True)
+        journal.write_text(
+            "2026-07-16 00:39:21,392 multinexus.adapters.claude DEBUG "
+            "claude_child_boundary monotonic_ns=101 pid=201\n"
+        )
+        script = f'''
+        source "{LOCAL_VERIFY}"
+        P9C0_RUN_ID=pkg3-hold-prefixed
+        _p9c0_unit_journal() {{ cat "{journal}"; }}
+        _p9c0_submit_request() {{
+            local ns
+            ns=$(python3 -c 'import time; print(time.monotonic_ns())')
+            printf '2026-07-16 00:40:39,255 multinexus.adapters.claude DEBUG claude_child_boundary monotonic_ns=%s pid=202\n' "$ns" >> "{journal}"
+        }}
+        _p9c0_hold_monitor() {{
+            printf '{{"job_id":"job","lease_id":"lease","attempt_token":1}}\n'
+        }}
+        _p9c0_process_tree_proof() {{ printf 'process-tree-ok\n'; }}
+        _p9c0_ledger_append() {{ printf '%s\n' "$1" >> "{ledger}"; }}
+        _p9c0_record_intake() {{ :; }}
+        _p9c0_wait_monotonic_target() {{ :; }}
+        _p9c0_unit_stop() {{ :; }}
+        _p9c0_per_run_root() {{ printf '%s\n' "{run_root}"; }}
+        _p9c0_hold_authority() {{ printf 'lease-active lease_id=lease\n'; }}
+        _p9c0_chown() {{ :; }}
+        _p9c0_chmod() {{ :; }}
+        _p9c0_production_snapshot() {{ :; }}
+        _p9c0_real_verify_hold_scenario
+        '''
+        result = _run_bash(script)
+        assert result.returncode == 0, result.stderr
+        lines = ledger.read_text().splitlines()
+        boundaries = [line for line in lines if line.startswith("claude_child_boundary")]
+        assert len(boundaries) == 1
+        assert boundaries[0].endswith("pid=202")
+
     def test_submit_uses_exact_compact_fixture_and_literal_json_argv(self, tmp_path: Path):
         state_root, prelude = self._prepared(tmp_path, "pkg3-submit-exact")
         calls = tmp_path / "coordinate.argv"

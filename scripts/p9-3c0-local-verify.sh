@@ -1385,6 +1385,14 @@ _p9c0_sleep() { _p9c0_real_sleep "$@"; }
 _p9c0_real_unit_journal() { journalctl -u "$1" --no-pager -o cat; }
 _p9c0_unit_journal() { _p9c0_real_unit_journal "$@"; }
 
+# ``journalctl -o cat`` returns the Python logging formatter prefix as part of
+# MESSAGE (timestamp, logger name, and level).  Normalize only an exact marker
+# at the end of a journal line so scenario code can count provider boundaries
+# without depending on the active logging formatter.
+_p9c0_claude_boundary_lines() {
+    sed -nE 's/^.*(claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+)$/\1/p'
+}
+
 _p9c0_unit_start() {
     local agent="$1" mode="$2"; shift 2
     _p9c0_unit_helper start \
@@ -1682,14 +1690,14 @@ _p9c0_hold_authority() { _p9c0_real_hold_authority "$@"; }
 _p9c0_real_verify_hold_scenario() {
     local agent="p9-3c-fixture-e1" unit boundary_before boundary_after seed boundary_line ns pid start_ms proof now_ms authority output
     unit="$agent-$P9C0_RUN_ID.service"
-    boundary_before="$(_p9c0_unit_journal "$unit" | grep -E -c '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$' || true)"
+    boundary_before="$(_p9c0_unit_journal "$unit" | _p9c0_claude_boundary_lines | wc -l | tr -d '[:space:]')"
     _p9c0_submit_request "$agent" hold true hold >/dev/null \
         || _p9c0_die "hold request submit failed" 99
     seed="$(_p9c0_hold_monitor)" || _p9c0_die "hold job/lease monitor failed" 99
     local tries=0 journal=""
     while [[ $tries -lt 50 ]]; do
         journal="$(_p9c0_unit_journal "$unit")" || _p9c0_die "hold unit journal read failed" 99
-        boundary_after="$(printf '%s\n' "$journal" | grep -E -c '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$' || true)"
+        boundary_after="$(printf '%s\n' "$journal" | _p9c0_claude_boundary_lines | wc -l | tr -d '[:space:]')"
         [[ "$boundary_after" -eq $((boundary_before + 1)) ]] && break
         [[ "$boundary_after" -le $((boundary_before + 1)) ]] \
             || _p9c0_die "ambiguous extra Claude adapter boundary" 99
@@ -1697,7 +1705,7 @@ _p9c0_real_verify_hold_scenario() {
     done
     [[ "$boundary_after" -eq $((boundary_before + 1)) ]] \
         || _p9c0_die "hold adapter boundary missing" 99
-    boundary_line="$(printf '%s\n' "$journal" | grep -E '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$' | tail -n 1)"
+    boundary_line="$(printf '%s\n' "$journal" | _p9c0_claude_boundary_lines | tail -n 1)"
     [[ "$boundary_line" =~ ^claude_child_boundary\ monotonic_ns=([0-9]+)\ pid=([0-9]+)$ ]] \
         || _p9c0_die "hold adapter boundary malformed" 99
     ns="${BASH_REMATCH[1]}"; pid="${BASH_REMATCH[2]}"; start_ms=$((ns / 1000000))
@@ -1840,7 +1848,7 @@ _p9c0_real_verify_recovery_start() {
     P9C0_COORD_DB="$(_p9c0_controller_state_prefix)/$primary/db/coord.sqlite3"
     _p9c0_ledger_append "recovery-of original_unit=$old_unit prior_proof=cgroup-empty reason_sha256=$reason_sha"
     unit="p9-3c-fixture-e1-$recovery.service"
-    boundary_before="$(_p9c0_unit_journal "$unit" | grep -E -c '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$' || true)"
+    boundary_before="$(_p9c0_unit_journal "$unit" | _p9c0_claude_boundary_lines | wc -l | tr -d '[:space:]')"
     [[ "$boundary_before" -eq 0 ]] || _p9c0_die "recovery unit has pre-existing adapter boundary" 101
     _p9c0_unit_start p9-3c-fixture-e1 hold \
         --recoverable --recovery-reason "$reason" --prior-process-stopped \
@@ -1852,13 +1860,13 @@ _p9c0_real_verify_recovery_start() {
     local tries=0
     while [[ $tries -lt 50 ]]; do
         journal="$(_p9c0_unit_journal "$unit")" || _p9c0_die "recovery journal read failed" 101
-        boundary_after="$(printf '%s\n' "$journal" | grep -E -c '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$' || true)"
+        boundary_after="$(printf '%s\n' "$journal" | _p9c0_claude_boundary_lines | wc -l | tr -d '[:space:]')"
         [[ "$boundary_after" -eq 1 ]] && break
         [[ "$boundary_after" -le 1 ]] || _p9c0_die "ambiguous recovery adapter boundary" 101
         _p9c0_sleep .1; tries=$((tries+1))
     done
     [[ "$boundary_after" -eq 1 ]] || _p9c0_die "recovery adapter boundary missing" 101
-    line="$(printf '%s\n' "$journal" | grep -E '^claude_child_boundary monotonic_ns=[0-9]+ pid=[0-9]+$')"
+    line="$(printf '%s\n' "$journal" | _p9c0_claude_boundary_lines)"
     [[ "$line" =~ ^claude_child_boundary\ monotonic_ns=[0-9]+\ pid=([0-9]+)$ ]] \
         || _p9c0_die "recovery boundary malformed" 101
     pid="${BASH_REMATCH[1]}"
