@@ -2,6 +2,28 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-15 — P9-3C0 Package 3 isolated sidecar completed
+
+- MultiNexus `805901e` was independently reviewed, pushed, and deployed with
+  `--no-restart`; deployed `p9-3c0-local-verify.sh` SHA matches source.
+- Local gates passed: focused `253 + 26 subtests`, adjacent `207 + 39 subtests`, full
+  `878 passed, 2 skipped + 81 subtests`, plus Bash syntax, compileall, and diff-check.
+- Fresh run `p9-3c0-pkg3-20260715m` completed base renewals, exact crash stop, two
+  expiry/reap cycles, recovery attempt N+1, stale-N rejection, production compare, and
+  idempotent cleanup. It exited 0 with no flock warning.
+- Final isolated DB is integrity `ok`, schema 13, jobs `done=2/timed_out=1`, leases
+  `released=2/expired=2`, and zero active/nonterminal/catalog entries. Production DB is
+  integrity `ok`, schema 13, with zero nonterminal jobs, active leases, or fixture rows.
+- Canonical service PID/NRestarts remained unchanged in the final deploy/run; all
+  fixture units/processes are absent. Runs `a-m` and recovery namespaces are retained.
+- Earlier run/deploy deviations, including the one accidental bridge restart and the
+  run `l` nested FD 9 lock loss, are preserved in the deployment dogfood rather than
+  erased by the final PASS.
+- Package 3 closeout is awaiting a fresh independent closeout review. P9-3C1 remains
+  blocked and unauthorized.
+- Exact evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`.
+
 ## 2026-07-15 — P9-3C0 Coordinate C1 bootstrap approved for worker launch
 
 - The Coordinate C1 implementation bootstrap was corrected and accepted by Codex at

@@ -133,15 +133,14 @@ Add executor capacity, attempt lease, normalized worktree mutual exclusion, stal
 lease recovery, and a documented queue-order/fairness rule. Different worktrees may
 run concurrently; the same worktree is exclusive by default.
 
-Status (2026-07-14): P9-3A and P9-3B are deployed and durably `done/closed`; exact
-P9-3B evidence is in `../p9-3b-runtime-lease-wiring/closeout.md`. P9-3C is now the
-next gate for the disposable production concurrency/recovery matrix and P9-3 stage
-closeout. P9-3C measurement and plan revision
-`6321e77be6cfd50c82d9c7f995691fb523196c1b3ce238c501eadb4c385f6652` are
-independently approved only for the read-only P9-3C0 fixture assessment; see
-`../p9-3c-production-concurrency-recovery-matrix/plan-approval.md`. P9-3C0 coding and
-all P9-3C1 production execution remain blocked pending the fixture assessment, a
-separate exact-revision implementation plan if needed, and a fresh independent review.
+Status (2026-07-15): P9-3A and P9-3B are deployed and durably `done/closed`. P9-3C0
+Package 3 implementation, inert deploy, and the fresh production-host isolated sidecar
+run `m` have completed all functional/data/cleanup gates without canonical service
+restart or production fixture residue. Exact evidence is in
+`../p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`;
+Package 3 closeout remains pending fresh independent closeout review. P9-3C1 production
+catalog activation and production job/lease/reap/crash execution remain blocked and
+require a new exact-revision plan, independent review, bootstrap, and authorization.
 
 ### P9-4 — Provider-neutral observation contract
 

@@ -9,6 +9,43 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-15（P9-3C0 Package 3 isolated sidecar）
+
+### 1. JSONL 能区分“仍在思考”和“临时探针自锁”
+
+- 状态：fixed / retained operator practice。
+- Claude Sonnet 路由的 Kimi worker 长时间无 diff 时，provider JSONL 仍持续产生
+  `thinking_tokens`，证明 worker 在活动；另一次 JSONL 最后一条 Bash tool call 显示它把
+  FD 9/8 指向同一文件并连续申请 exclusive flock，精确定位为探针自锁。
+- Operator 只终止该临时探针并用 clean session 重派，随后继续以 diff/tests 判断正确性。
+  结论保持：JSONL 判断状态，artifact/tests/review 判断实现是否可接受。
+
+### 2. nested run lock 不能复用固定 FD
+
+- 状态：fixed。
+- run `l` 所有业务与数据门都 PASS，但 recovery namespace 内层 `_p9c0_with_run_lock`
+  再次 `exec 9>>...`，覆盖并关闭 outer primary lock，最终出现
+  `flock: 9: Bad file descriptor`。如果只看 exit 0/DB 结果会错误放行。
+- 修复使用 Bash 3.2-compatible depth mapping：outer FD 9、inner FD 8、第三层在任何
+  filesystem 副作用前 fail closed；run `m` 实际 recovery 路径无 flock warning。
+
+### 3. fresh run id 是 fail-closed 证据的一部分
+
+- 状态：fixed / retained invariant。
+- runs `a-m` 分别暴露 runuser、PrivateTmp、resource key、installed CLI、journal、argv、
+  locale、crash-stop、effective kill、snapshot row shape、recovery worktree 与 nested lock
+  偏差。每轮都保留 immutable namespace，修复/审核后才创建下一 id；没有删除失败证据或
+  在原目录“修到绿”。
+
+### 4. inert deploy 必须把 `--no-restart` 写进命令
+
+- 状态：one historical deviation / final gate fixed。
+- 较早部署 `f2f309f` 时 Operator 遗漏 `--no-restart`，bridge 被重启；健康已恢复，但该轮
+  不满足 inert intent。后续部署全部显式 `--no-restart`，最终 revision `805901e` 部署前后
+  三项 canonical PID/NRestarts 完全不变。
+- 结论：授权“不要重启”不能只存在于计划文字；部署命令与 post-deploy PID gate 都必须
+  成为可复制 evidence。
+
 ## 2026-07-14（P9-3B runtime lease wiring）
 
 ### 1. producer/consumer协议升级不能逐个默认重启

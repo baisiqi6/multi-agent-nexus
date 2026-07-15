@@ -112,8 +112,9 @@ The active architecture alignment now governs:
    receipt `046f5bf9-62ad-40ea-a828-c2b984531212`.
 4. **P9-0A6 post-closeout module review** — complete and terminally closed with an
    accepted no-change decision.
-5. **Phase 9 runtime isolation packages (P9-1+)** — P9-1 job-scoped execution context
-   is the next detailed-plan gate after P9-0A6 acceptance.
+5. **Phase 9 runtime isolation packages (P9-1+)** — P9-1, P9-2, P9-3A, and P9-3B are
+   durably closed. P9-3C0 Package 3 has completed its isolated production-host sidecar
+   run and awaits independent closeout review. P9-3C1 remains blocked and unauthorized.
 
 The stale Slice-4-first P9-0A1 plan approval/bootstrap remains historical evidence only.
 It was superseded by exact plan SHA-256
@@ -220,8 +221,8 @@ Canonical overview:
 
 Outcome: reduce proven change concentration with static, behavior-preserving seams before
 runtime isolation. Status: P9-0A1 through P9-0A5 are durably closed. Slice 4 is now
-durably closed. P9-0A6 is durably closed with an accepted no-change decision;
-P9-1 job-scoped execution context is the next detailed-plan gate.
+durably closed. P9-0A6 is durably closed with an accepted no-change decision. P9-1
+through P9-3B are also closed; current detail is owned by the Phase 9 section below.
 
 ### 3. Slice 4 projection and split-operation hardening
 
@@ -234,7 +235,8 @@ S4-C1/C2, and S4-D are deployed and terminally closed. Final S4-D evidence is in
 `tasks/slice-4d-projection-doctor-evidence/closeout.md`; Slice 4 stage closeout is
 complete through consumed receipt `046f5bf9-62ad-40ea-a828-c2b984531212`. Stage
 evidence is in `tasks/slice-4-projection-hardening/closeout.md`. P9-0A6, P9-1,
-P9-2A, and P9-2B are now durably closed; P9-3 capacity/resource leases is next.
+P9-2A, P9-2B, P9-3A, and P9-3B are now durably closed; P9-3C0 Package 3 is at its
+independent closeout-review gate.
 
 ### 4. Phase 9 multi-project execution isolation
 
@@ -245,16 +247,15 @@ Outcome: safely run multiple projects, task lines, providers, and executor insta
 without session, worktree, queue, log, authority, or result contamination.
 
 Status (2026-07-15): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C0
-Package 1 Coordinate capacity-source decoupling is merged, pushed, backed up, inertly
-deployed, and accepted at `a7397b9`. The separate snapshot/restore multi-source
-compatibility measurement and plan are independently approved at reviewed commit
-`ffa7848`. The Coordinate C1 bootstrap is independently approved at reviewed commit
-`c91b025`; its isolated two-file implementation worker is the active gated package,
-while MultiNexus C2 deploy-contract coverage remains blocked on C1 result acceptance.
-Production remains single-source, and live restore proof is
-forbidden outside isolated/local/sidecar databases. Fixture assets, fixture activation,
-and the P9-3C1 production concurrency/crash matrix remain unauthorized until their own
-detailed implementation, result-review, verification, and activation gates close.
+Package 1 capacity-source decoupling, Coordinate C1/MultiNexus C2 snapshot compatibility,
+Package 2 inert fixture assets, and Package 3 isolated sidecar implementation are
+merged and deployed. Fresh run `p9-3c0-pkg3-20260715m` passed base concurrency,
+renewal, crash-stop, two reap cycles, recovery, stale fencing, production comparison,
+and cleanup with no canonical restart or fixture residue. Package 3 now awaits its
+fresh independent closeout review. Production remains single-source; P9-3C1 production
+catalog activation and production job/lease/reap/crash execution remain unauthorized
+until a new exact-revision detailed plan, independent review, bootstrap, implementation,
+and activation gate close.
 
 ## Scheduling model
 
