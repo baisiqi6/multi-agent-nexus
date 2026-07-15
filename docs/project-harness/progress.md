@@ -2173,3 +2173,20 @@ evidence package. The same session spans two provider/model intervals:
   `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package2-deployment-dogfood.md`.
 - Next gate: Package 3 isolated sidecar detailed plan and independent review.
   P9-3C1 production activation remains blocked.
+
+## 2026-07-15 — P9-3C0 Package 3 planning gate opened
+
+- Refreshed source, deployed host, Coordinate CLI, lease/recovery, agentd, fixture
+  helper, systemd, production DB, and canonical service facts without running a
+  fixture or mutating any catalog.
+- The measured Ubuntu systemd 255 rejects the Package 2 helper's
+  `systemd-run --dry-run` probe. The Package 3 plan replaces it with an inert
+  `systemd-analyze verify` parse gate plus exact post-start property verification.
+- The plan also closes three execution-evidence gaps before any sidecar run:
+  fail-closed recovery argument grouping, opt-in DEBUG renewal logs, and exact-cgroup
+  fixture-child monotonic start observation.
+- Package 3 remains a fresh-DB production-host isolated sidecar. Production DB,
+  wrapper, catalogs, configs, services, and paid providers remain outside mutation
+  scope; P9-3C1 activation remains blocked.
+- No implementation/bootstrap is authorized. Next gate: commit the measurement and
+  detailed plan, then obtain fresh independent exact-revision review.
