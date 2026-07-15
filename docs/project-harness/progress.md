@@ -2,6 +2,29 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-16 — P9-3C1 P0 shared production mutation lock closed
+
+- Candidate `ec748dc040b9ebf8f456c6bc0ab6db28e0dd26c6` passed Codex adversarial
+  review and fresh independent DeepSeek V4 Pro result review with no blocker.
+- Both review paths reproduced focused `95 passed` and full `953 passed, 2 skipped,
+  81 subtests`; exact one-commit/four-file identity, bootstrap SHA, shell, compile and
+  diff gates passed.
+- The commit was fast-forward merged, pushed, and deployed with explicit
+  `multinexus --no-restart`. Installed helper is exact reviewed SHA
+  `7dd71c31595c7135a8a75ef3d8e459788682f6a30272ea5bdeb66bb7c2a2ebd4`,
+  `root:root 0755`, single-link; post-deploy lock status is free and smoke is OK.
+- Canonical services were not restarted. DB integrity/schema/FK stayed `ok/13/0`;
+  nonterminal jobs, active leases, P9-3C1 fixture/catalog/unit/process state and deploy
+  residue stayed zero.
+- The initial clean-worktree attempt failed at local runtime parity before acquire;
+  the bounded ignored/non-transferred config symlink retry is retained as dogfood.
+- Exact evidence:
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p0-production-mutation-lock-result-review.md`
+  and
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p0-production-mutation-lock-deployment-dogfood.md`.
+- P1 Coordinate scoped reap/claim/deactivate is next. P2/P3 and production fixture
+  activation/live matrix remain blocked.
+
 ## 2026-07-15 — P9-3C0 Package 3 closed
 
 - MultiNexus `805901e` was independently reviewed, pushed, and deployed with

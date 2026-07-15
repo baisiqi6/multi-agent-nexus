@@ -133,14 +133,16 @@ Add executor capacity, attempt lease, normalized worktree mutual exclusion, stal
 lease recovery, and a documented queue-order/fairness rule. Different worktrees may
 run concurrently; the same worktree is exclusive by default.
 
-Status (2026-07-15): P9-3A and P9-3B are deployed and durably `done/closed`. P9-3C0
+Status (2026-07-16): P9-3A and P9-3B are deployed and durably `done/closed`. P9-3C0
 Package 3 implementation, inert deploy, and the fresh production-host isolated sidecar
 run `m` have completed all functional/data/cleanup gates without canonical service
 restart or production fixture residue. Exact evidence is in
 `../p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`;
-fresh independent live closeout review approved Package 3 and closed P9-3C0. P9-3C1 production
-catalog activation and production job/lease/reap/crash execution remain blocked and
-require a new exact-revision plan, independent review, bootstrap, and authorization.
+fresh independent live closeout review approved Package 3 and closed P9-3C0. P9-3C1
+fresh plan review is complete, and P0 shared production mutation lock `ec748dc` has
+passed independent result review, merge/push, `--no-restart` inert deploy, exact helper
+hash/status, and zero-activation gates. P1 scoped Coordinate primitives are next;
+P2/P3 and production catalog/job/lease/reap/crash execution remain blocked.
 
 ### P9-4 — Provider-neutral observation contract
 

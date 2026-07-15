@@ -246,17 +246,18 @@ Canonical overview:
 Outcome: safely run multiple projects, task lines, providers, and executor instances
 without session, worktree, queue, log, authority, or result contamination.
 
-Status (2026-07-15): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C0
+Status (2026-07-16): P9-0A, P9-1, P9-2, P9-3A, and P9-3B are durably closed. P9-3C0
 Package 1 capacity-source decoupling, Coordinate C1/MultiNexus C2 snapshot compatibility,
 Package 2 inert fixture assets, and Package 3 isolated sidecar implementation are
 merged and deployed. Fresh run `p9-3c0-pkg3-20260715m` passed base concurrency,
 renewal, crash-stop, two reap cycles, recovery, stale fencing, production comparison,
 and cleanup with no canonical restart or fixture residue. Fresh independent live
-closeout review approved Package 3 and closed P9-3C0. Production remains single-source;
-P9-3C1 production
-catalog activation and production job/lease/reap/crash execution remain unauthorized
-until a new exact-revision detailed plan, independent review, bootstrap, implementation,
-and activation gate close.
+closeout review approved Package 3 and closed P9-3C0. P9-3C1 now has an approved fresh
+detailed plan, and P0 shared production mutation lock `ec748dc` is independently
+reviewed, merged, pushed, inert-deployed, and closed with final lock state free and no
+canonical restart or fixture residue. Production remains single-source; P1 scoped
+Coordinate primitives, P2 inert controller/assets, P3 live bootstrap, and production
+catalog activation/job/lease/reap/crash execution remain separately gated.
 
 ## Scheduling model
 

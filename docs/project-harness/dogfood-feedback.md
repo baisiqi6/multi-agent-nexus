@@ -9,6 +9,47 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-16（P9-3C1 P0 shared production mutation lock）
+
+### 1. Reviewer APPROVE 仍要由主审对照 exact contract
+
+- 状态：fixed / retained hard gate。
+- 旧候选 `400146d` 的独立 reviewer 重跑测试后给出 APPROVE，但漏掉 bootstrap 7.2：helper
+  已 install/validate 后，normal release 仍从 stdin streamed local source。Codex 拒绝放行，要求
+  `unvalidated` 只允许 loud streamed fallback，`validated` 必须调用 installed helper，且
+  installed release failure 不得二次 streamed retry。
+- 修订后 fresh reviewer 与 Codex 都接受 exact candidate `ec748dc`。结论：独立 reviewer 是
+  hard gate，不是主审判断力的替代品；tests green 也不能覆盖遗漏的 authority transition。
+
+### 2. Worker JSONL 同时暴露 quota 与实现质量
+
+- 状态：mitigated / retained routing practice。
+- Claude Code `--model sonnet` 的 Kimi route 在任何 repo write 前返回 billing-cycle `403`；
+  session/JSONL 被保留后才启动 fresh fallback。MiniMax native JSONL 证明 actual provider/model，
+  但它随后重复 argparse 并移除有效 `parse_args`。Codex 及时中止并接管窄修订。
+- 结论：quota fallback 必须 fresh session 且 native model attributable；worker 是否仍活动看
+  JSONL，worker 产物是否可接收仍看 compile/diff/tests/review。
+
+### 3. Clean worktree 不自动拥有 ignored runtime parity input
+
+- 状态：fail-closed / fixed invocation。
+- 首次 `multinexus --no-restart` 在 local parity gate 因隔离 worktree 缺少 ignored
+  `agents.toml` 而退出；该时点尚未 remote acquire，生产完全未变。
+- Operator 没有使用 `--allow-dirty`，而是提供指向 canonical local runtime config 的 ignored
+  symlink；deploy staging 继续 exclude `agents.toml`，所以配置只用于读取/parity，不会传输。
+- 结论：未来 production deploy worktree bootstrap 应显式建立 runtime config read seam，并用
+  “pre-acquire failure”作为可验证 contract，而不是让 operator 临时猜测。
+
+### 4. First-install lock dogfood 必须验证最终 authority route
+
+- 状态：fixed / accepted。
+- Production preflight 中 helper/lock 都 absent；部署先 streamed acquire，再 under-lock atomic
+  install + SHA/token validation，最后 installed-helper release。Post-deploy installed/local/deployed
+  SHA exact match，helper `root:root 0755` single-link，status `free`，lock path absent。
+- `--no-restart` 前后 canonical PID/NRestarts exact unchanged，DB/catalog/job/lease/fixture residue
+  保持零。结论：只检查“helper 已复制”不足以证明 P0；必须同时证明 first acquire、validation、
+  normal release route、final free state 和 zero activation。
+
 ## 2026-07-15（P9-3C0 Package 3 isolated sidecar）
 
 ### 1. JSONL 能区分“仍在思考”和“临时探针自锁”
