@@ -2,9 +2,12 @@
 
 状态：`APPROVE`
 
-审核角色：独立 plan reviewer  
-执行入口：Claude Code `--model sonnet`  
-JSONL 实际 provider model：`kimi-for-coding`  
+审核角色：独立 plan reviewer
+
+执行入口：Claude Code `--model sonnet`
+
+JSONL 实际 provider model：`kimi-for-coding`
+
 审核日期：2026-07-15
 
 ## 审核结论
