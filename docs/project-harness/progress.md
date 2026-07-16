@@ -17,6 +17,11 @@ Harness root: `docs/project-harness/`
   `44ba89b` adds exact array forwarding plus dynamic old-bug regression；full gate increased to
   `1028 passed, 2 skipped, 81 subtests`，fresh KAT correction reviewer APPROVE。Failed run root absent、
   lock free、canonical PID/NRestarts unchanged；corrected inert deploy/dogfood remains下一步。
+- Second installed `prepare` exposed the normal venv Python symlink against the plan's no-symlink
+  launcher authority。Correction `c83714e` binds real `/usr/bin/python3.12` across wrapper/controller/
+  helper，implements exact directory ownership/modes and 0600 fsynced forensic marker。Full gate is
+  `1030 passed, 2 skipped, 81 subtests`；fresh KAT reviewer APPROVE。Forensic run retained、lock free；
+  another corrected inert deploy remains required。
 
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable

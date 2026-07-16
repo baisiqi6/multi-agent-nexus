@@ -85,6 +85,21 @@ Codex 最终 adversarial review没有发现新的 blocker。
   roster/executor/capacity sync；acceptance is no added/removed/updated entry and no fixture source，
   while controller/helper/job/fixture activation remains forbidden。
 
+Second installed `prepare` reached launcher identity validation and fail-closed because the ordinary
+venv path is a symlink chain owned by `multinexus`。The plan requires symlink rejection，so correction
+`c83714e` does not add an exception：wrapper/controller/helper all bind the real root-owned single-link
+`/usr/bin/python3.12` instead。The same correction implements the previously missing run-root
+owner/mode matrix and hardens future `prepare-failed` markers to `O_EXCL|O_NOFOLLOW`、0600、fsync。
+
+- Failure run `p9-3c1-prod-20260716t062904z-90d00e16` remains as loud non-runnable forensic evidence；
+  lock stayed free and canonical PID/NRestarts stayed unchanged。
+- Correction gates：controller `45 passed`；helper/package `216 passed, 26 subtests passed`；full
+  `1030 passed, 2 skipped, 81 subtests passed`；syntax/compile/diff PASS。
+- Fresh independent reviewer session `019f69a9-22a3-7000-8949-fcbbf1c8b7b7` used native
+  `kat-coder/kat-coder-pro-v2.5` and returned `VERDICT: APPROVE`。Native JSONL SHA-256
+  `c9e504cbd4857bf9b947d8c3b583a36e6b61703197af29ce6011b544acd0df08`；raw stream SHA-256
+  `fe36a9d0d58f71cad02b7fd8b9fa6e3f8a487bbdb8541a70d4dbd01542eb7e21`。
+
 ## Accepted contract clarifications
 
 - J3 exact crash contract需要 helper新增 `production-stop --crash`；这是 bounded public surface，

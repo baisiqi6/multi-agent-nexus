@@ -49,6 +49,18 @@
   job submission与 fixture activation。结论：inert应由 durable delta/activation定义，不能把每个
   command surface都误写成未调用。
 
+### 5. Security path invariant必须与 installed filesystem reality联合测量
+
+- 状态：fixed / fail-closed retained。
+- Wrapper修复后，第二个 fresh `prepare` 在 launcher identity阻止了
+  `/opt/multinexus/.venv/bin/python -> python3.12 -> /usr/bin/python3.12`。这不是放宽 symlink规则的
+  理由：venv links属于 `multinexus`，而 real binary是 `root:root 0755` single-link。
+- Correction统一绑定 `/usr/bin/python3.12`，保留 full symlink rejection；同时真实失败树暴露
+  `_create_run_dirs`只有注释、没有实施 owner/mode matrix，`prepare-failed`也受 umask成为0644。
+  两项一并按 plan补齐并用动态 stat/chown capture测试。
+- 结论：local fake seam能证明算法分支，却不能替代 installed path type/owner/mode测量；inert
+  prepare的价值正是把这种环境假设在 live mutation前转成可修复证据。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级
