@@ -172,8 +172,10 @@ scripts/deploy-server.sh multinexus \
   --no-restart
 ```
 
-The deploy script only installs these assets. It never invokes
-`p9-3c1-production-verify.sh`, any `production-*` helper command, catalog sync,
+The deploy script installs these assets and runs the existing canonical registry
+parity/smoke path. That path may issue idempotent roster/executor/capacity syncs;
+acceptance requires no added/removed/updated entries and no fixture source. It
+never invokes `p9-3c1-production-verify.sh`, any `production-*` helper command,
 job submission, or fixture unit creation.
 
 ### 3.1 Create one inert sealed run

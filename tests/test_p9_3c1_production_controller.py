@@ -1202,6 +1202,53 @@ class TestArgparse:
             _ctrl.main(["unknown-cmd", "--run-id", "p9-3c1-prod-20260716t120000z-abcdef01"])
 
 
+class TestThinEntrypoint:
+    def test_forwards_exact_original_argv_after_run_id_validation(self, tmp_path):
+        source_path = _REPO_ROOT / "scripts" / "p9-3c1-production-verify.sh"
+        source = source_path.read_text(encoding="utf-8")
+        fake_python = tmp_path / "python"
+        fake_controller = tmp_path / "controller.py"
+        fake_python.write_text(
+            "#!/usr/bin/env bash\nprintf '%s\\n' \"$@\"\n",
+            encoding="utf-8",
+        )
+        fake_python.chmod(0o755)
+        fake_controller.write_text("# fixture controller\n", encoding="utf-8")
+        wrapper = tmp_path / "verify.sh"
+        transformed = source.replace(
+            "readonly EXPECTED_EUID=0",
+            f"readonly EXPECTED_EUID={os.geteuid()}",
+        ).replace(
+            "readonly EXPECTED_PYTHON='/opt/multinexus/.venv/bin/python'",
+            f"readonly EXPECTED_PYTHON='{fake_python}'",
+        ).replace(
+            "readonly EXPECTED_CONTROLLER='/opt/multinexus/scripts/p9_3c1_controller.py'",
+            f"readonly EXPECTED_CONTROLLER='{fake_controller}'",
+        )
+        wrapper.write_text(transformed, encoding="utf-8")
+        wrapper.chmod(0o755)
+        run_id = "p9-3c1-prod-20260716t120000z-abcdef01"
+        argv = [
+            "prepare",
+            "--run-id",
+            run_id,
+            "--unit-user",
+            "coord",
+            "--unit-group",
+            "coord",
+        ]
+
+        result = subprocess.run(
+            [str(wrapper), *argv],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.splitlines() == [str(fake_controller), *argv]
+
+
 # ---------------------------------------------------------------------------
 # Key verify: all 18 phases are registered
 # ---------------------------------------------------------------------------

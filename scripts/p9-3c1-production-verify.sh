@@ -23,6 +23,7 @@ fi
 
 _subcommand="$1"
 shift
+_original_args=("$@")
 
 # Validate run-id from arguments: --run-id must appear exactly once with a
 # non-empty value matching the production run-id regex.
@@ -73,4 +74,4 @@ if [[ ! -f "${EXPECTED_CONTROLLER}" ]]; then
     exit 1
 fi
 
-exec "${EXPECTED_PYTHON}" "${EXPECTED_CONTROLLER}" "${_subcommand}" "$@"
+exec "${EXPECTED_PYTHON}" "${EXPECTED_CONTROLLER}" "${_subcommand}" "${_original_args[@]}"
