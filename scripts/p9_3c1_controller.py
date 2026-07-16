@@ -127,7 +127,7 @@ _seams: dict[str, Any] = {
     "fixture_bin": os.path.join(
         INSTALLED_ROOT, "multinexus", "fixture", "bin", "p9-3c0-fixture.py"
     ),
-    "python_path": os.path.join(INSTALLED_ROOT, ".venv", "bin", "python"),
+    "python_path": "/usr/bin/python3.12",
     "now_utc": lambda: datetime.datetime.now(datetime.timezone.utc),
     "os_getuid": os.getuid,
     "os_geteuid": os.geteuid,
@@ -811,7 +811,7 @@ def cmd_prepare(run_id: str, unit_user: str, unit_group: str) -> dict[str, Any]:
 
     try:
         # Create directory structure
-        _create_run_dirs(run_id)
+        _create_run_dirs(run_id, unit_user, unit_group)
 
         # Collect Coordinate CLI/DB identity
         coord_cli_identity = _file_identity(_seams["production_cli"])
@@ -2504,7 +2504,7 @@ def _validate_prepare_args(run_id: str, unit_user: str, unit_group: str) -> None
         raise ControllerError("unit_group must be non-blank string")
 
 
-def _create_run_dirs(run_id: str) -> None:
+def _create_run_dirs(run_id: str, unit_user: str, unit_group: str) -> None:
     root = state_root(run_id)
     dirs = [
         os.path.join(root, "control"),
@@ -2518,10 +2518,34 @@ def _create_run_dirs(run_id: str) -> None:
     ]
     for d in dirs:
         os.makedirs(d, exist_ok=False)
-    # Set ownership: control/ledger/backup root:root 0700
-    for d in [os.path.join(root, "control"), os.path.join(root, "ledger"), os.path.join(root, "backup")]:
-        os.chmod(d, 0o700)
-    # runtime: would be root:coord 0750 in production
+    unit_uid = int(_seams["resolve_user"](unit_user))
+    unit_gid = int(_seams["resolve_group"](unit_group))
+    root_owned = [
+        root,
+        os.path.join(root, "control"),
+        os.path.join(root, "ledger"),
+        os.path.join(root, "evidence"),
+        os.path.join(root, "backup"),
+        os.path.join(root, "runtime", "unit"),
+    ]
+    runtime_shared = [
+        os.path.join(root, "runtime"),
+        os.path.join(root, "runtime", "work"),
+    ]
+    unit_owned = [
+        os.path.join(root, "runtime", "work", "e1"),
+        os.path.join(root, "runtime", "work", "e2"),
+        os.path.join(root, "runtime", "context"),
+    ]
+    for path in root_owned:
+        _seams["chown"](path, 0, 0)
+        os.chmod(path, 0o750 if path == root else 0o700)
+    for path in runtime_shared:
+        _seams["chown"](path, 0, unit_gid)
+        os.chmod(path, 0o750)
+    for path in unit_owned:
+        _seams["chown"](path, unit_uid, unit_gid)
+        os.chmod(path, 0o700)
 
 
 def _file_identity(path: str) -> dict[str, Any]:
@@ -2783,8 +2807,11 @@ def _write_evidence(run_id: str, filename: str, data: dict[str, Any]) -> None:
 def _write_forensic_failure(run_id: str, marker: str) -> None:
     """Write a forensic failure marker."""
     fp = os.path.join(state_root(run_id), marker)
-    with open(fp, "w") as fh:
+    fd = os.open(fp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
         fh.write(f"{marker}\n")
+        fh.flush()
+        os.fsync(fh.fileno())
 
 
 def _atomic_copy(src: str, dst: str, mode: int = 0o600) -> None:

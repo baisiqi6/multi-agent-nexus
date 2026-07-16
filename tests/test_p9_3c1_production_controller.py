@@ -211,7 +211,7 @@ def controller_seams(fake_manifest):
     _ctrl._set_seam(
         "collect_launcher_files",
         lambda: {
-            "python": launcher_identity("/opt/multinexus/.venv/bin/python", "1" * 64),
+            "python": launcher_identity("/usr/bin/python3.12", "1" * 64),
             "helper": launcher_identity(
                 "/opt/multinexus/multinexus/fixture/bin/p9-3c0-unit.sh", "2" * 64
             ),
@@ -1219,7 +1219,7 @@ class TestThinEntrypoint:
             "readonly EXPECTED_EUID=0",
             f"readonly EXPECTED_EUID={os.geteuid()}",
         ).replace(
-            "readonly EXPECTED_PYTHON='/opt/multinexus/.venv/bin/python'",
+            "readonly EXPECTED_PYTHON='/usr/bin/python3.12'",
             f"readonly EXPECTED_PYTHON='{fake_python}'",
         ).replace(
             "readonly EXPECTED_CONTROLLER='/opt/multinexus/scripts/p9_3c1_controller.py'",
@@ -1247,6 +1247,61 @@ class TestThinEntrypoint:
 
         assert result.returncode == 0, result.stderr
         assert result.stdout.splitlines() == [str(fake_controller), *argv]
+
+
+class TestRunDirectoryAuthority:
+    def test_exact_mode_and_owner_matrix(self, controller_seams, fake_manifest):
+        run_id = "p9-3c1-prod-20260716t120001z-abcdef02"
+        chowns = []
+        _ctrl._set_seam("chown", lambda path, uid, gid: chowns.append((path, uid, gid)))
+
+        _ctrl._create_run_dirs(run_id, "coord", "coord")
+
+        root = Path(_ctrl.state_root(run_id))
+        expected_modes = {
+            root: 0o750,
+            root / "control": 0o700,
+            root / "ledger": 0o700,
+            root / "evidence": 0o700,
+            root / "backup": 0o700,
+            root / "runtime": 0o750,
+            root / "runtime" / "work": 0o750,
+            root / "runtime" / "unit": 0o700,
+            root / "runtime" / "work" / "e1": 0o700,
+            root / "runtime" / "work" / "e2": 0o700,
+            root / "runtime" / "context": 0o700,
+        }
+        assert {
+            path: stat.S_IMODE(path.stat().st_mode) for path in expected_modes
+        } == expected_modes
+        expected_chowns = {
+            (str(root), 0, 0),
+            (str(root / "control"), 0, 0),
+            (str(root / "ledger"), 0, 0),
+            (str(root / "evidence"), 0, 0),
+            (str(root / "backup"), 0, 0),
+            (str(root / "runtime" / "unit"), 0, 0),
+            (str(root / "runtime"), 0, 1001),
+            (str(root / "runtime" / "work"), 0, 1001),
+            (str(root / "runtime" / "work" / "e1"), 1001, 1001),
+            (str(root / "runtime" / "work" / "e2"), 1001, 1001),
+            (str(root / "runtime" / "context"), 1001, 1001),
+        }
+        assert set(chowns) == expected_chowns
+
+    def test_forensic_marker_is_single_link_mode_0600(
+        self, controller_seams, fake_manifest
+    ):
+        run_id = "p9-3c1-prod-20260716t120002z-abcdef03"
+        _ctrl._create_run_dirs(run_id, "coord", "coord")
+
+        _ctrl._write_forensic_failure(run_id, "prepare-failed")
+
+        marker = Path(_ctrl.state_root(run_id)) / "prepare-failed"
+        marker_stat = marker.stat()
+        assert stat.S_IMODE(marker_stat.st_mode) == 0o600
+        assert marker_stat.st_nlink == 1
+        assert marker.read_text(encoding="utf-8") == "prepare-failed\n"
 
 
 # ---------------------------------------------------------------------------

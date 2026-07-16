@@ -328,7 +328,7 @@ P9C0_MAX_UNITS=2
 # Installed P9-3C1 authority paths. The script assigns these constants at
 # startup, so environment variables cannot redirect production execution.
 # Dynamic tests may replace the shell variables only after sourcing the file.
-P9C1_INSTALLED_PYTHON="/opt/multinexus/.venv/bin/python"
+P9C1_INSTALLED_PYTHON="/usr/bin/python3.12"
 P9C1_INSTALLED_LOCK_HELPER="/opt/multinexus/scripts/production-mutation-lock.sh"
 P9C1_STATE_ROOT_PREFIX="/var/tmp/multinexus-p9-3c1"
 P9C1_RUN_ID_RE='^p9-3c1-prod-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$'

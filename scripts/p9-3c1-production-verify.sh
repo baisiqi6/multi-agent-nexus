@@ -8,7 +8,7 @@
 set -euo pipefail
 
 readonly EXPECTED_EUID=0
-readonly EXPECTED_PYTHON='/opt/multinexus/.venv/bin/python'
+readonly EXPECTED_PYTHON='/usr/bin/python3.12'
 readonly EXPECTED_CONTROLLER='/opt/multinexus/scripts/p9_3c1_controller.py'
 
 if [[ "${EUID:-$(id -u)}" -ne "${EXPECTED_EUID}" ]]; then
