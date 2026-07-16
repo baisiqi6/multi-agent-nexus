@@ -29,6 +29,26 @@
 - 结论：independence由角色、session、输入与 mutation boundary共同定义；同 provider/model不是
   自动失效，但复用写入会话或缺少 native evidence不能算独立审核。
 
+### 3. Installed thin wrapper必须做 end-to-end argv forwarding test
+
+- 状态：fixed / pre-mutation failure。
+- 首次 inert deploy成功且未重启服务，但 installed `prepare` 在 argparse返回 missing required args。
+  根因是 wrapper扫描 `--run-id`时用 `shift`消耗 `$@`，exec只剩 subcommand。失败发生在 state root、
+  lock或Coordinate mutation之前，远端零状态证据保持不变。
+- 修复在扫描前保存 Bash array，最终用 `"${_original_args[@]}"`逐元素转发；新增动态测试真正执行
+  transformed wrapper与 fake Python，旧实现会稳定失败。结论：wrapper source syntax与 controller
+  argparse单测都不足以证明组合边界，必须测试 installed-style argv relay。
+
+### 4. Deploy smoke里的 canonical sync不能被文档写成“绝不调用 catalog sync”
+
+- 状态：fixed / clarified。
+- `--no-restart` deploy输出显示既有 roster/executor/capacity parity commands被调用，但所有结果均
+  `changed=false`、added/removed/updated为空，且没有 fixture source。旧 runbook却写成 deploy绝不
+  调用 catalog sync，属于过度承诺。
+- 文档已改为准确边界：允许 canonical idempotent parity，要求 zero delta；仍严禁 controller/helper、
+  job submission与 fixture activation。结论：inert应由 durable delta/activation定义，不能把每个
+  command surface都误写成未调用。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级

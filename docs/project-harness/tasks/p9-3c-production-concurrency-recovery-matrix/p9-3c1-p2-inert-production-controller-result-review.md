@@ -65,6 +65,26 @@ No blocking findings.
 
 Codex 最终 adversarial review没有发现新的 blocker。
 
+## Inert deploy correction review
+
+- First inert deploy of `3772112` completed with `--no-restart` and `server smoke OK`，but the first
+  installed `prepare` failed in controller argparse before any state root/write：thin wrapper consumed
+  validation `$@` and then forwarded only the subcommand。
+- Zero-mutation proof：failed run root absent、P0 lock free、Coordinate/bridge PID/NRestarts仍为
+  `836234/0` 与 `1276892/0`、DB/fixture residue未变。
+- Correction commit `44ba89b` saves the post-subcommand original argv array before validation shifts and
+  execs exact `"${_original_args[@]}"`。A dynamic transformed-wrapper/fake-Python test fails on the old
+  bug and proves exact argv order/element boundaries。
+- Correction gates：controller `43 passed`；full `1028 passed, 2 skipped, 81 subtests passed`；
+  `bash -n`/diff-check PASS。
+- Fresh independent reviewer native route `provider=kat-coder`、`model=kat-coder-pro-v2.5`，session
+  `019f699a-bacb-7000-9291-219f799330ac`，returned `VERDICT: APPROVE` with no residual risk。Native
+  JSONL SHA-256 `2ff8ec57cfa4ecd3a19caa156f211b9615123a7ce0eddcb8b6c3b4bb8eede556`；raw stream
+  SHA-256 `c1ec9d94f2e119561b8f582feb38679ad33e30bf478cec008e240b6a098183f6`。
+- Dogfood also corrected one documentation overclaim：canonical deploy parity may issue idempotent
+  roster/executor/capacity sync；acceptance is no added/removed/updated entry and no fixture source，
+  while controller/helper/job/fixture activation remains forbidden。
+
 ## Accepted contract clarifications
 
 - J3 exact crash contract需要 helper新增 `production-stop --crash`；这是 bounded public surface，
@@ -77,7 +97,7 @@ Codex 最终 adversarial review没有发现新的 blocker。
 
 ## Authorization boundary
 
-本 review关闭 P2 local/result gate，允许 fast-forward merge/push、在既有 P0 production mutation
+本 review与 correction review关闭 P2 local/result gate，允许 fast-forward merge/push、在既有 P0 production mutation
 lock 下执行一次 `multinexus --no-restart` inert deploy，并只运行 fresh `prepare`、双次
 `preflight/status` read-only dogfood。P2不得调用 `run` 或 `cleanup`，不得启动 fixture unit、创建
 workspace/agent/catalog/job/lease/delivery mutation、重启 canonical service或访问 paid provider。

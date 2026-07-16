@@ -13,6 +13,10 @@ Harness root: `docs/project-harness/`
   P3 live `run/cleanup` 仍未授权。
 - Exact result evidence：
   `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p2-inert-production-controller-result-review.md`。
+- First deployed `prepare` exposed wrapper argv loss before controller argparse/state creation。Correction
+  `44ba89b` adds exact array forwarding plus dynamic old-bug regression；full gate increased to
+  `1028 passed, 2 skipped, 81 subtests`，fresh KAT correction reviewer APPROVE。Failed run root absent、
+  lock free、canonical PID/NRestarts unchanged；corrected inert deploy/dogfood remains下一步。
 
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
