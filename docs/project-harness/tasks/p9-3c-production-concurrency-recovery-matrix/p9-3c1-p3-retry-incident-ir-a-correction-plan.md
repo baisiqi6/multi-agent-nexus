@@ -21,19 +21,20 @@ Exact allowlist remains：
 The replacement worker may use `git diff f76e4b51..3f337eb2 -- <allowlist> | git apply` only to create an
 uncommitted starting tree in a new clean worktree at exact base。It must then implement the corrections below，
 run test-first regression rows，and create exactly one new commit。No cherry-pick commit、amend、rebase、other
-path、SSH/network、sessions read or production mutation。
+path、SSH/network or sessions read。No P0 recover、release、cleanup、resume、deploy、service、DB or other
+production mutation。
 
 ## 3. Required runtime corrections
 
 1. Restore successful `release` CLI `_json_out(result)` and `return 0` without changing failure semantics。
 2. Default PID enumeration：require `returncode == 0` and empty stderr；bound stdout to `1 MiB` before parse；
-   accept only unique positive decimal PIDs and at most `131072` rows；all other authority blocks with bounded
-   static detail。
+   accept at most `131072` unique positive decimal PIDs；all other authority blocks with bounded static detail。
 3. Cmdline read：read at most `64 KiB + 1` and treat exactly `64 KiB + 1` as oversized。Only at most `64 KiB`
    proceeds to NUL parsing。Keep confirmed-exit and exact identity semantics unchanged。
 4. Systemd output：keep the exact reviewed regex and direct command；nonzero/missing/oversized blocks。Reject
-   non-empty malformed rows that cannot be parsed as the expected first-column unit authority；internal blank
-   or whitespace-only rows block。Do not match obsolete/unrelated/suffix/prefix rows。
+   non-empty rows whose first column cannot be parsed as a systemd unit name；internal blank or whitespace-only
+   rows block。Well-formed unrelated/obsolete unit names continue to pass；prefix/suffix-only matches do not
+   block。
 5. Token-file：convert `OSError` and path-shape `ValueError` from path/stat/open/read authorities into bounded
    redacted `LockError` before recover。Do not include exception text that can echo untrusted path/token data。
    Preserve one open、two fstats、size/content rules and existing recover ordering。
