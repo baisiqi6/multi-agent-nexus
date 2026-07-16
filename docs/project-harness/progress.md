@@ -2,6 +2,29 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-16 — P9-3C1 P2 inert production controller plan approved
+
+- Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
+  `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
+  state。Focused baseline is `379 passed, 45 subtests`；full baseline is
+  `953 passed, 2 skipped, 81 subtests`。
+- Measurement proved current agentd still relies on Coordinate default global claim reap and the
+  reviewed P9-3C0 helper correctly hard-rejects production DB/wrapper。The plan therefore adds a
+  distinct production-authorized path inside the same helper while preserving/reusing its sandbox、
+  stop and cgroup authority。
+- Claude Code `--model sonnet` reached the Kimi route but returned native quota `403` before any write。
+  DeepSeek V4 Pro Round 1 approved old SHA with P0/P1 None and P2 clarity notes；operator incorporated
+  every substantive note rather than relying on the old approval。
+- Fresh DeepSeek V4 Pro Round 2 approved exact current plan SHA
+  `7c78a260...f00` with P0/P1/P2/residual risks all None。The approved plan now fixes exact helper
+  interfaces、P3 authorization fence、preactivation lock handling、manifest separation、`__P9C1_*__`
+  namespace、canonical projection scope and dynamic deploy-asset proof。
+- Fresh DeepSeek V4 Pro bootstrap review approved exact bootstrap SHA
+  `b61d05fc...872` with every contract matrix row PASS and P0/P1/P2/residual risks None。The local
+  DeepSeek worker route is explicit after the Claude/Sonnet→Kimi 403；20-path isolated implementation
+  is now authorized。
+- Push/merge、inert deployment and P3 live activation remain behind their separate review gates。
+
 ## 2026-07-16 — P9-3C1 P1 Coordinate scoped primitives closed
 
 - Coordinate candidate `a8fc3178806c5d4c7bfbf1cafa41567499d5cfd7` passed Codex adversarial
