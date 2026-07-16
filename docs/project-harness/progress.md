@@ -2,6 +2,30 @@
 
 Harness root: `docs/project-harness/`
 
+## 2026-07-16 — P9-3C1 P1 Coordinate scoped primitives closed
+
+- Coordinate candidate `a8fc3178806c5d4c7bfbf1cafa41567499d5cfd7` passed Codex adversarial
+  review and fresh independent OMP DeepSeek V4 Pro result review with P0/P1/P2 findings None。
+- Final gates reproduced focused `261 passed, 52 subtests, 8 known failures` and full
+  `2508 passed, 532 subtests, 9 known failures`；failure names match base exactly，P1-only CLI
+  rewind restores base fixture SHA `13cb4f3b...`。
+- A DeepSeek worker was interrupted when native JSONL exposed a prohibited downgrade from
+  file-backed/two-connection races to single-connection sequential tests；Codex retained only audited
+  code and rebuilt real SQLite/thread/barrier evidence。Claude Sonnet/Kimi result-review attempt later
+  timed out before its first native event and was not counted as review。
+- Candidate was fast-forward merged/pushed and deployed under the P0 production mutation lock with
+  explicit `coordinate --no-restart`。Deployed source and installed package hashes match local source；
+  installed CLI help exposes exact reap、claim `global|none` policy and audited deactivate surfaces。
+- Canonical PIDs/NRestarts stayed `836234/0` and `1276892/0`；lock final state is free；DB
+  integrity/schema/FK stayed `ok/13/0`，with zero nonterminal jobs、active leases、P9-3C1 fixture
+  rows/unit/process state。No new production mutation CLI was invoked。
+- Exact evidence：
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p1-coordinate-scoped-primitives-result-review.md`
+  and
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p1-coordinate-scoped-primitives-deployment-dogfood.md`。
+- P2 controller/orchestration detailed plan is next；P3 intake/routing closure and live matrix remain
+  blocked behind their own reviewed packages。
+
 ## 2026-07-16 — P9-3C1 P0 shared production mutation lock closed
 
 - Candidate `ec748dc040b9ebf8f456c6bc0ab6db28e0dd26c6` passed Codex adversarial

@@ -9,6 +9,49 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
+
+### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级
+
+- 状态：fixed / worker interrupted。
+- DeepSeek worker有持续 native `provider/model`、thinking 与 tool-call 记录，但明确把 bootstrap
+  要求的 file-backed/two-connection deterministic races改成 single-connection sequential tests。
+  Operator没有因已有大量 diff而继续等待，也没有接受最终文字；立即 `Ctrl-C`，exit 130，随后
+  逐段审计 dirty tree。
+- Codex最终使用 real file-backed SQLite、independent connections、threads和 explicit BEGIN/barrier
+  events重建 claim/deactivate winner interleavings；去掉 `sleep(0.05)` timing猜测。结论：JSONL不仅
+  用来判断“还在思考”，也能在产物提交前识别 contract downgrade并及时止损。
+
+### 2. Claude/Kimi连接成功不等于一次有效 review
+
+- 状态：mitigated / bounded timeout。
+- Result review优先按新路由调用 Claude Code `--model sonnet`；进程已连接 local provider gateway，
+  但六分钟无 init/message/result，CPU idle，原生输出文件保持 zero-byte。Operator中止后保留
+  zero-byte SHA证据，明确不把它记为 review，再启动 fresh DeepSeek reviewer。
+- DeepSeek native JSONL证明实际 `provider=deepseek`、`model=deepseek-v4-pro`，独立重跑 focused/full
+  并 APPROVE。结论：model route“没有立即403”只表示连接阶段推进；必须看到 native event、tool
+  evidence和 verdict才算 review。
+
+### 3. Golden更新必须有本包可逆证明
+
+- 状态：fixed。
+- 直接生成新 CLI fixture会让新增 leaf/flags/help与历史 Python/argparse SHA failures混在一起。
+  本包新增 P1-only rewind，移除 deactivate leaf、claim reap policy和 exact reap flags后，逐字节
+  恢复 base fixture SHA `13cb4f3b...`；全部 historical SHA constants保持不变，focused/full失败名
+  也与 base相同。
+- 结论：golden文件变更不能只靠“generated fixture matches”；每个 package应提供 own-delta inverse
+  或等价 byte-level proof，防止更新 golden洗掉 unrelated drift。
+
+### 4. Inert deploy要同时验证 source、installed package与 loaded process boundary
+
+- 状态：fixed / accepted boundary。
+- Coordinate P1使用 P0 lock和显式 `--no-restart` 部署；local source、`/opt/coordinate/src`与
+  installed site-packages三组 SHA exact match，CLI `--help`读取到新 surface。Canonical service
+  PIDs/NRestarts完全不变，所以 running daemon仍遵守 no-restart边界，没有声称它已热加载新代码。
+- Production DB integrity/FK/queue/lease/fixture counts不变，且没有调用 reap/claim/deactivate。结论：
+  inert deploy证据必须同时区分“bytes已部署并安装”和“长期进程未重启/未激活”，不能把两者混成
+  一个含糊的 deployed 状态。
+
 ## 2026-07-16（P9-3C1 P0 shared production mutation lock）
 
 ### 1. Reviewer APPROVE 仍要由主审对照 exact contract
