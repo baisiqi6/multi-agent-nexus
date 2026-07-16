@@ -139,10 +139,11 @@ run `m` have completed all functional/data/cleanup gates without canonical servi
 restart or production fixture residue. Exact evidence is in
 `../p9-3c-production-concurrency-recovery-matrix/p9-3c0-fixture-package3-deployment-dogfood.md`;
 fresh independent live closeout review approved Package 3 and closed P9-3C0. P9-3C1
-fresh plan review is complete, and P0 shared production mutation lock `ec748dc` has
-passed independent result review, merge/push, `--no-restart` inert deploy, exact helper
-hash/status, and zero-activation gates. P1 scoped Coordinate primitives are next;
-P2/P3 and production catalog/job/lease/reap/crash execution remain blocked.
+P0 shared production mutation lock、P1 scoped Coordinate primitives and P2 inert production
+controller have passed independent result/live review、merge/push、`--no-restart` deployment、exact
+installed identity、repeated read-only state stability and zero-activation gates。P0-P2 are closed。
+P3 fresh measurement/detailed plan/bootstrap/authorization and production catalog/job/lease/reap/crash
+execution remain blocked and unauthorized.
 
 ### P9-4 — Provider-neutral observation contract
 

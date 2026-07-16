@@ -1,6 +1,6 @@
 # P9-3C1 P2 Inert Production Controller — Deployment and Dogfood
 
-状态：`INERT_DOGFOOD_PASS_INDEPENDENT_DEPLOYED_REVIEW_REQUIRED`
+状态：`P2_CLOSED_P3_PLAN_NEXT`
 
 日期：2026-07-16 Asia/Shanghai
 
@@ -98,6 +98,15 @@ Prepare后、Round 1后、Round 2后的 full tree bytes+metadata aggregate SHA-2
 4dca4e1d2f3908ee4d6effdd7f5cfafcc2951dd854c0993198d74286b061c207
 ```
 
+Canonical aggregate formula：
+
+```bash
+ROOT=/var/tmp/multinexus-p9-3c1/p9-3c1-prod-20260716t071325z-06f98f25
+(sudo find "$ROOT" -xdev -printf '%P|%y|%m|%U|%G|%s|%T@|%n\n'; \
+ sudo find "$ROOT" -xdev -type f -exec sha256sum {} +) \
+  | LC_ALL=C sort | sha256sum
+```
+
 两轮 `preflight`精确返回：
 
 - `status=preflight_passed`、`phase=sealed`、`lock_mode=free`；
@@ -135,4 +144,34 @@ Prepare后、Round 1后、Round 2后的 full tree bytes+metadata aggregate SHA-2
 Successful inert run同样保留为 sealed audit evidence。P3必须使用新的 run id与新 prepare，并继续需要
 独立 authorization/review；本 P2 evidence不授权 `run` 或 `cleanup`。
 
-P9_3C1_P2_INERT_DOGFOOD_PASS_AWAITING_INDEPENDENT_DEPLOYED_REVIEW
+## Independent deployed-evidence review
+
+- KAT first-choice attempt在 provider/session init前停滞两分钟且没有 native JSONL，exit 130；不计为
+  review。
+- Exact `zhipu-coding-plan/glm-5.2` route产生 native 429，明确 quota reset
+  `2026-07-17 16:50:49`；不计为 review。
+- First DeepSeek attempt因 non-interactive `always-ask`拒绝所有 bash/SSH，无法验证 live evidence，
+  exit 130；不计为 review。
+- Fresh effective reviewer session `019f69d0-e674-7000-bd04-98a6cf6516f1`使用 native
+  `provider=deepseek`、`model=deepseek-v4-pro`，只读检查 source/origin/deployed/install SHA、
+  VERSION、service PID/NRestarts、lock、SQLite mode=ro、run tree、两轮额外 preflight/status、failure
+  evidence、unit/process与 network smoke boundary。
+- Reviewer初稿误把 `90d00e16`标为 argv failure；Operator未固化该错误。Same-session corrected addendum
+  重新证明 argv run `37721127` root absent、`90d00e16`是 symlink forensic root、`c2bee4d4`是
+  dual-clock sealed root；并用上方 exact formula复算得到
+  `4dca4e1d2f3908ee4d6effdd7f5cfafcc2951dd854c0993198d74286b061c207`，关闭 INFO finding。
+- Final corrected verdict：`APPROVE — P2 close authorized；P3 run/cleanup remains unauthorized`。
+  Native JSONL SHA-256：
+  `ed34445b72b3df3d958fa119a2a661cfabc06b68f0cc84b0cbc5e8f23cf35dae`。
+
+## Closeout
+
+P9-3C1 P2 已完成 reviewed implementation、三轮 installed fail-closed correction、merge/push、
+`--no-restart` deployment、exact installed identity、fresh sealed prepare、双轮 read-only stability、
+zero-activation final gate和 independent live review。P2 closed。
+
+下一步是 P3 fresh measurement/detailed plan/independent plan review/bootstrap review。P3必须使用新的 run
+id、fresh prepare和 separately reviewed authorization artifact；在这些 gate关闭前，production
+`run`/`cleanup`、fixture catalog activation和 five-job live matrix仍未授权。
+
+P9_3C1_P2_INERT_PRODUCTION_CONTROLLER_CLOSED

@@ -1,6 +1,6 @@
 # P9-3C1 P2 Inert Production Controller — Result Review
 
-状态：`APPROVED_AND_INERT_DEPLOY_GATE_OPEN`
+状态：`APPROVED_DEPLOYED_P2_CLOSED`
 
 日期：2026-07-16 Asia/Shanghai
 
@@ -141,3 +141,12 @@ lock 下执行一次 `multinexus --no-restart` inert deploy，并只运行 fresh
 workspace/agent/catalog/job/lease/delivery mutation、重启 canonical service或访问 paid provider。
 
 P9_3C1_P2_RESULT_APPROVED_FOR_INERT_DEPLOY
+
+## Post-review closeout
+
+The authorized inert deployment/dogfood is complete and independently live-reviewed。Exact final evidence
+is in `p9-3c1-p2-inert-production-controller-deployment-dogfood.md`：deployed `06f98f2`、fresh sealed
+run `p9-3c1-prod-20260716t071325z-06f98f25`、two byte/metadata-stable read-only rounds、zero activation、
+and corrected independent DeepSeek verdict `APPROVE`。P2 is closed；P3 remains a fresh unauthorized gate。
+
+P9_3C1_P2_RESULT_AND_DEPLOYMENT_CLOSED

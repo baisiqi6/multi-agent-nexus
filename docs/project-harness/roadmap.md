@@ -114,7 +114,9 @@ The active architecture alignment now governs:
    accepted no-change decision.
 5. **Phase 9 runtime isolation packages (P9-1+)** — P9-1, P9-2, P9-3A, and P9-3B are
    durably closed. P9-3C0 Package 3 and the isolated fixture scope are independently
-   reviewed and closed. P9-3C1 remains blocked and unauthorized.
+   reviewed and closed. P9-3C1 P0 shared lock, P1 scoped primitives, and P2 inert
+   controller are independently reviewed/deployed/closed; P3 live activation remains
+   blocked and unauthorized.
 
 The stale Slice-4-first P9-0A1 plan approval/bootstrap remains historical evidence only.
 It was superseded by exact plan SHA-256
@@ -235,8 +237,8 @@ S4-C1/C2, and S4-D are deployed and terminally closed. Final S4-D evidence is in
 `tasks/slice-4d-projection-doctor-evidence/closeout.md`; Slice 4 stage closeout is
 complete through consumed receipt `046f5bf9-62ad-40ea-a828-c2b984531212`. Stage
 evidence is in `tasks/slice-4-projection-hardening/closeout.md`. P9-0A6, P9-1,
-P9-2A, P9-2B, P9-3A, P9-3B, and P9-3C0 are now independently closed. P9-3C1 has no
-inherited authorization.
+P9-2A, P9-2B, P9-3A, P9-3B, and P9-3C0 are now independently closed. P9-3C1 P0-P2
+are also closed; P3 has no inherited authorization.
 
 ### 4. Phase 9 multi-project execution isolation
 
@@ -253,11 +255,11 @@ merged and deployed. Fresh run `p9-3c0-pkg3-20260715m` passed base concurrency,
 renewal, crash-stop, two reap cycles, recovery, stale fencing, production comparison,
 and cleanup with no canonical restart or fixture residue. Fresh independent live
 closeout review approved Package 3 and closed P9-3C0. P9-3C1 now has an approved fresh
-detailed plan, and P0 shared production mutation lock `ec748dc` is independently
-reviewed, merged, pushed, inert-deployed, and closed with final lock state free and no
-canonical restart or fixture residue. Production remains single-source; P1 scoped
-Coordinate primitives, P2 inert controller/assets, P3 live bootstrap, and production
-catalog activation/job/lease/reap/crash execution remain separately gated.
+detailed plan；P0 shared production mutation lock、P1 scoped Coordinate primitives and P2 inert
+controller/assets are independently reviewed、merged、pushed、`--no-restart` deployed and closed。
+Fresh P2 sealed run proved byte/metadata-stable repeated preflight/status and zero activation。
+Production remains single-source；P3 live measurement/plan/bootstrap/authorization and production
+catalog activation/job/lease/reap/crash execution remain separately gated and unauthorized.
 
 ## Scheduling model
 

@@ -86,6 +86,18 @@
 - 结论：部署证据至少分为 install authority、canonical process identity、external connectivity与
   bounded log window四层；恢复后的 smoke必须绑定新的 ready boundary，不能抹掉首次真实失败。
 
+### 8. Independent review必须验证工具实际可用，而不只是模型已响应
+
+- 状态：fixed / fallback evidence retained。
+- KAT first-choice deployed reviewer卡在 session init且没有 JSONL；GLM 5.2 native返回429；第一轮
+  DeepSeek虽能读文件，但 `always-ask`在 non-interactive模式拒绝 bash/SSH，因此不能算 live review。
+  Operator逐一停止，不把 provider/model标签或文档阅读当成 deployed-evidence approval。
+- Fresh DeepSeek session只开放 `read/grep/glob/bash`并维持 prompt-level no-mutation boundary，实际执行
+  SSH read-only probes后 APPROVE。Reviewer初稿仍把 symlink failure误写成 argv failure；Operator用 run
+  root事实要求 same-session addendum纠正，并让它用 exact tree formula复算关闭唯一 INFO finding。
+- 结论：独立性还包括 tool-surface有效性与事实纠错；reviewer输出 APPROVE不是不可审查的终点，
+  Operator仍需核对它是否真的运行了 required probes、是否正确解释了证据。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级

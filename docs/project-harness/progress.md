@@ -2,7 +2,7 @@
 
 Harness root: `docs/project-harness/`
 
-## 2026-07-16 — P9-3C1 P2 inert production controller plan approved
+## 2026-07-16 — P9-3C1 P2 inert production controller closed
 
 - Implementation candidate `d60805d` 已完成 exact 20-path allowlist；Codex focused/full gates为
   `490 passed, 45 subtests` 与 `1027 passed, 2 skipped, 81 subtests`，shell/compile/diff gates PASS。
@@ -35,6 +35,11 @@ Harness root: `docs/project-harness/`
   PID/NRestarts remained unchanged。Initial smoke observed a live Discord TLS reconnect and correctly
   failed；post-ready bounded smoke passed。Independent deployed-evidence review is the remaining P2 gate；
   P3 remains unauthorized。
+- Fresh DeepSeek V4 Pro live reviewer session `019f69d0-...` independently verified exact
+  source/origin/deployed/install identity、sealed tree、repeat preflight/status、lock/DB/PID/unit/process
+  zero-activation and retained failure roots。Its initial failure-run label was corrected before closeout，
+  exact documented tree formula reproduced `4dca4e1d...c207`，final verdict remained `APPROVE`。P2 is
+  durably closed；P3 measurement/detailed plan is next，and `run/cleanup` remains unauthorized。
 
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
