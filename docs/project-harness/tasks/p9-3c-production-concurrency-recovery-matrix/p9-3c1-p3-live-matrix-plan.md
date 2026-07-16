@@ -263,7 +263,8 @@ Controller attempts fixed cleanup under the same token。After nonzero exit：
    incident review；do not start `cleanup` or a second controller blindly；
 5. P0 recover requires its own exact no-unit/no-process proof and operator reason；after any reviewed
    release，controller `cleanup` may be considered only by a new incident authorization，never inferred
-   from this plan；
+   from this plan。`cmd_cleanup` does not validate an external authorization artifact itself，so this is
+   an explicit procedural hard gate rather than a controller-enforced auth check；
 6. any real user job/canonical drift/DB integrity failure/stale mutation accepted/duplicate resource lease
    is an immediate halt with forensic preservation and human escalation。
 

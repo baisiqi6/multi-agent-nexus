@@ -81,7 +81,7 @@ Installed controller already contains the reviewed P3-only surfaces：
 
 - canonical external authorization validation and one-time live copy；
 - P0 lock acquire/ownership/release；
-- exact 18-phase forward machine；
+- exact 19-label phase machine with 18 forward transitions；
 - five-request/two-unit/zero-network budgets；
 - P9-3C1 workspace/agent/executor/capacity activation；
 - J1/J2 sequential capacity，J3/J4 overlap，J5 resource blocker；
