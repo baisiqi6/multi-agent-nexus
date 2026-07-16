@@ -367,6 +367,22 @@ class TestPhaseAndLedger:
         with pytest.raises(_ctrl.ControllerError):
             _ctrl._validate_ledger_chain(run_id)
 
+    def test_ledger_missing_timestamp_authority_rejected(
+        self, controller_seams, fake_manifest
+    ):
+        run_id = fake_manifest["run_id"]
+        os.makedirs(os.path.join(fake_manifest["state_root"], "ledger"), exist_ok=True)
+        _ctrl._append_ledger(run_id, "sealed", "prepare.completed")
+
+        record = _ctrl._read_ledger(run_id)[0]
+        del record["timestamp_utc"]
+        Path(_ctrl.ledger_path(run_id)).write_text(
+            _ctrl.canonical_json(record) + "\n", encoding="utf-8"
+        )
+
+        with pytest.raises(_ctrl.ControllerError, match="timestamp authority missing"):
+            _ctrl._validate_ledger_chain(run_id)
+
     def test_phase_tail_agreement(self, controller_seams, fake_manifest):
         run_id = fake_manifest["run_id"]
         root = fake_manifest["state_root"]
@@ -379,6 +395,54 @@ class TestPhaseAndLedger:
 
     def test_no_phase_returns_none(self):
         assert _ctrl._current_phase("nonexistent-run") is None
+
+    def test_ledger_chain_valid_with_advancing_clock(
+        self, controller_seams, fake_manifest
+    ):
+        """Regression: hash must use the same exact timestamp as the persisted record.
+
+        With an advancing clock, each call to now_utc returns a different value.
+        The old bug called now_utc twice per record (once for hash, once for persist),
+        causing a SHA mismatch on validation. This test verifies the fix.
+        """
+        run_id = fake_manifest["run_id"]
+
+        # Advancing clock: each call returns a distinct timestamp.
+        call_count = [0]
+        base = datetime.datetime(2026, 7, 16, 12, 0, 0, tzinfo=datetime.timezone.utc)
+
+        def advancing_clock():
+            call_count[0] += 1
+            return base + datetime.timedelta(seconds=call_count[0])
+
+        _ctrl._set_seam("now_utc", advancing_clock)
+
+        # Append three records.
+        _ctrl._append_ledger(run_id, "preflight-ok", "preflight.completed")
+        _ctrl._append_ledger(run_id, "preflight-ok", "lock.acquired")
+        _ctrl._append_ledger(run_id, "lock-held", "baseline.captured")
+
+        # Validation must pass: no ControllerError raised.
+        _ctrl._validate_ledger_chain(run_id)
+
+        # Verify each persisted record's timestamp matches its hash.
+        records = _ctrl._read_ledger(run_id)
+        assert len(records) == 3
+        for rec in records:
+            expected_sha = _ctrl._compute_record_sha(
+                rec["seq"],
+                rec["phase"],
+                rec["event"],
+                rec["prev_sha256"],
+                rec.get("evidence"),
+                rec["timestamp_utc"],
+            )
+            assert rec["record_sha256"] == expected_sha, (
+                f"record {rec['seq']}: persisted timestamp hash mismatch"
+            )
+
+        # Confirm the clock actually advanced (test is meaningful).
+        assert call_count[0] == 3, "append or validation performed an extra clock read"
 
 
 # ---------------------------------------------------------------------------

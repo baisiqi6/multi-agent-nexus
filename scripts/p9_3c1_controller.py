@@ -311,11 +311,20 @@ class ControllerError(Exception):
 # ---------------------------------------------------------------------------
 
 
-def _compute_record_sha(seq: int, phase: str, event: str, prev_sha: str, evidence: dict[str, Any] | None) -> str:
-    """Compute the SHA-256 of a ledger record (before the record_sha256 field is set)."""
+def _compute_record_sha(
+    seq: int,
+    phase: str,
+    event: str,
+    prev_sha: str,
+    evidence: dict[str, Any] | None,
+    timestamp_utc: str,
+) -> str:
+    """Hash the exact persisted ledger fields, excluding ``record_sha256``."""
+    if not isinstance(timestamp_utc, str) or not timestamp_utc:
+        raise ControllerError("ledger timestamp authority is missing")
     record = {
         "seq": seq,
-        "timestamp_utc": _seams["now_utc"]().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "timestamp_utc": timestamp_utc,
         "phase": phase,
         "event": event,
         "prev_sha256": prev_sha,
@@ -341,10 +350,14 @@ def _append_ledger(run_id: str, phase: str, event: str, evidence: dict[str, Any]
             prev_sha = last.get("record_sha256", prev_sha)
             seq = last.get("seq", 0) + 1
 
-    record_sha = _compute_record_sha(seq, phase, event, prev_sha, evidence)
+    # Capture one exact timestamp for both hash computation and the persisted record.
+    timestamp_utc = _seams["now_utc"]().strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    record_sha = _compute_record_sha(
+        seq, phase, event, prev_sha, evidence, timestamp_utc
+    )
     record = {
         "seq": seq,
-        "timestamp_utc": _seams["now_utc"]().strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+        "timestamp_utc": timestamp_utc,
         "phase": phase,
         "event": event,
         "prev_sha256": prev_sha,
@@ -393,8 +406,18 @@ def _validate_ledger_chain(run_id: str) -> None:
                 f"ledger hash chain broken at record {i + 1}: "
                 f"expected prev={prev}, got prev={rec.get('prev_sha256')}"
             )
+        timestamp_utc = rec.get("timestamp_utc")
+        if not isinstance(timestamp_utc, str) or not timestamp_utc:
+            raise ControllerError(
+                f"ledger timestamp authority missing at record {rec['seq']}"
+            )
         expected_sha = _compute_record_sha(
-            rec["seq"], rec["phase"], rec["event"], rec["prev_sha256"], rec.get("evidence")
+            rec["seq"],
+            rec["phase"],
+            rec["event"],
+            rec["prev_sha256"],
+            rec.get("evidence"),
+            timestamp_utc,
         )
         if rec.get("record_sha256") != expected_sha:
             raise ControllerError(
