@@ -44,6 +44,26 @@ AUDIT_PATH = "/var/log/coordinate-production-mutation-lock-recovery.jsonl"
 _ALLOWED_RE = re.compile(r"^[A-Za-z0-9_:-]{1,128}$")
 _TOKEN_RE = re.compile(r"^[0-9a-f]{64}$")
 
+# ── systemd unit identity (Section 4) ──────────────────────────────────
+
+_UNIT_RE = re.compile(
+    r"^p9-3c-fixture-e[12]-p9-3c1-prod-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}\.service$"
+)
+
+# ── process identity (Section 5) ───────────────────────────────────────
+
+_CONTROLLER_ARGV0 = "/usr/bin/python3.12"
+_CONTROLLER_ARGV1 = "/opt/multinexus/scripts/p9_3c1_controller.py"
+_FIXTURE_ARGV0 = "/usr/bin/python3.12"
+_FIXTURE_MODULE = "multinexus.agentd"
+_FIXTURE_IDS = frozenset({"p9-3c-fixture-e1", "p9-3c-fixture-e2"})
+_MAX_PID_STDOUT = 1 * 1024 * 1024  # 1 MiB
+_MAX_PID_COUNT = 131072
+_MAX_CMDLINE_READ = 64 * 1024 + 1  # 64 KiB + 1
+_MAX_SYSTEMD_STDOUT = 1 * 1024 * 1024  # 1 MiB
+_MAX_PID_VALUE = 2147483647  # fixed reviewed signed 32-bit PID value bound
+
+
 
 class LockError(Exception):
     """Bounded lock operation error with structured detail."""
@@ -73,61 +93,260 @@ def _probe_systemd_default() -> _ProbeResult:
                 "--state=running,reloading,activating,deactivating",
                 "--no-pager", "--no-legend",
             ],
+            shell=False,
             capture_output=True,
             text=True,
             timeout=10,
         )
     except FileNotFoundError:
-        # systemctl missing on the host: cannot prove no active p9-3c1 unit.
         return _ProbeResult(
             ok=False,
             reason="systemctl unavailable: cannot prove no p9-3c1 units",
         )
-    except Exception as exc:
-        return _ProbeResult(ok=False, reason=f"systemd probe unavailable: {exc}")
+    except Exception:
+        return _ProbeResult(ok=False, reason="systemd probe unavailable")
     rc = result.returncode
     if rc != 0:
         return _ProbeResult(
-            ok=False, reason=f"systemctl exited {rc}: {result.stderr.strip()}"
+            ok=False, reason="systemctl exited non-zero"
+        )
+    if result.stderr:
+        return _ProbeResult(
+            ok=False, reason="systemd probe returned non-empty stderr"
+        )
+    stdout_bytes = result.stdout.encode("utf-8", errors="replace")
+    if len(stdout_bytes) > _MAX_SYSTEMD_STDOUT:
+        return _ProbeResult(
+            ok=False,
+            reason="systemd probe: oversized stdout",
         )
     for line in result.stdout.splitlines():
-        name = line.split()[0] if line.split() else ""
-        if name.startswith("p9-3c1-"):
-            return _ProbeResult(ok=False, reason=f"active p9-3c1 unit: {name}")
+        if not line.strip():
+            return _ProbeResult(
+                ok=False, reason="systemd output contains blank or whitespace-only row"
+            )
+        columns = line.split()
+        if len(columns) < 4:
+            return _ProbeResult(
+                ok=False, reason="systemd output row has fewer than four columns"
+            )
+        name = columns[0]
+        if any(ord(ch) < 32 or ord(ch) == 127 for ch in name):
+            return _ProbeResult(
+                ok=False, reason="systemd output row unit name contains control character"
+            )
+        if not name.endswith(".service"):
+            return _ProbeResult(
+                ok=False, reason="systemd output row is not a .service unit"
+            )
+        if _UNIT_RE.match(name):
+            return _ProbeResult(ok=False, reason="active p9-3c1 unit")
     return _ProbeResult(ok=True, reason="no active p9-3c1 units")
 
 
-def _probe_processes_default() -> _ProbeResult:
+
+# ── default PID enumeration (Section 5.1) ──────────────────────────────
+
+
+def _default_enumerate_pids() -> list[int]:
+    result = subprocess.run(
+        ["ps", "-e", "-o", "pid="],
+        shell=False,
+        timeout=10,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise OSError(errno.EIO, "ps exited non-zero")
+    if result.stderr:
+        raise OSError(errno.EIO, "ps returned non-empty stderr")
+    stdout_bytes = result.stdout.encode("utf-8", errors="replace")
+    if len(stdout_bytes) > _MAX_PID_STDOUT:
+        raise OSError(errno.EIO, "ps output exceeds 1 MiB")
+    pids: list[int] = []
+    for line in result.stdout.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if not re.fullmatch(r"[0-9]+", stripped):
+            raise OSError(errno.EIO, "malformed PID")
+        try:
+            pid = int(stripped)
+        except ValueError:
+            raise OSError(errno.EIO, "malformed PID")
+        if pid <= 0 or pid > _MAX_PID_VALUE:
+            raise OSError(errno.EIO, "PID out of range")
+        pids.append(pid)
+    if len(pids) > _MAX_PID_COUNT:
+        raise OSError(errno.EIO, "PID count exceeds limit")
+    if len(set(pids)) != len(pids):
+        raise OSError(errno.EIO, "duplicate PIDs in ps output")
+    return pids
+
+
+def _default_read_cmdline(pid: int) -> bytes:
     try:
-        result = subprocess.run(
-            ["pgrep", "-f", "p9-3c1"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except FileNotFoundError:
-        # Missing pgrep is indistinguishable from "could not prove no live
-        # process". Fail closed: an absent probe cannot authorize a recover.
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return f.read(_MAX_CMDLINE_READ)
+    except OSError:
+        raise
+
+
+def _probe_processes_default(
+    *,
+    enumerate_pids: Callable[[], list[int]] = _default_enumerate_pids,
+    read_cmdline: Callable[[int], bytes] = _default_read_cmdline,
+    kill_0: Callable[[int, int], None] = os.kill,
+    self_pid: Callable[[], int] = os.getpid,
+) -> _ProbeResult:
+    """Bounded exact-argv process probe (Section 5).
+
+    Enumerates PIDs via ``enumerate_pids``, reads ``/proc/<pid>/cmdline``
+    via ``read_cmdline``, and identifies controller/fixture processes by
+    exact argv identity.  Malformed candidates fail closed.
+    """
+    try:
+        pids = enumerate_pids()
+    except Exception:
         return _ProbeResult(
             ok=False,
-            reason="pgrep unavailable: cannot prove no p9-3c1 processes",
+            reason="PID enumeration failed",
         )
-    except Exception as exc:
-        return _ProbeResult(ok=False, reason=f"process probe unavailable: {exc}")
-    rc = result.returncode
-    # pgrep returns 1 when no process matched (the desired "ok" case).
-    # Any other non-zero exit is treated as probe failure so recover cannot
-    # authorize on uncertain ground.
-    if rc not in (0, 1):
+    my_pid = self_pid()
+    blocked: list[int] = []
+    for pid in pids:
+        if pid == my_pid:
+            continue
+        try:
+            raw = read_cmdline(pid)
+        except OSError as exc:
+            eno = getattr(exc, "errno", 0)
+            if eno in (errno.ENOENT, errno.ESRCH):
+                # PID may have disappeared — confirm via kill(pid, 0)
+                try:
+                    kill_0(pid, 0)
+                except OSError as exc2:
+                    if getattr(exc2, "errno", 0) == errno.ESRCH:
+                        continue  # confirmed exited
+                    return _ProbeResult(
+                        ok=False,
+                        reason=(
+                            f"PID {pid} disappeared from /proc but "
+                            "kill(0) did not confirm exit"
+                        ),
+                    )
+                except (OverflowError, ValueError):
+                    return _ProbeResult(
+                        ok=False,
+                        reason=(
+                            f"PID {pid} disappeared from /proc but "
+                            "kill(0) did not confirm exit"
+                        ),
+                    )
+                # kill succeeded or EPERM — PID is present/uncertain
+                return _ProbeResult(
+                    ok=False,
+                    reason=(
+                        f"PID {pid} /proc read returned error but "
+                        "kill(0) did not confirm exit"
+                    ),
+                )
+            # Permission, I/O, or other error — fail closed
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline read failed",
+            )
+        if len(raw) >= _MAX_CMDLINE_READ:
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline too long",
+            )
+        # Empty cmdline → kernel thread — ignore
+        if not raw or raw == b"\x00":
+            continue
+        # Parse NUL-delimited argv
+        if b"\x00\x00" in raw:
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline contains empty interior argv",
+            )
+        try:
+            raw_str = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline is not valid UTF-8",
+            )
+        # Every non-kernel-thread authority must end with NUL
+        if not raw.endswith(b"\x00"):
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline does not end with NUL",
+            )
+        # Strip trailing NUL for split
+        raw_str = raw_str[:-1]
+        argv = raw_str.split("\x00")
+        # Leading or interior empty argv is malformed
+        if "" in argv:
+            return _ProbeResult(
+                ok=False,
+                reason=f"PID {pid} cmdline contains empty argv",
+            )
+        if _classify_argv(argv) is not None:
+            blocked.append(pid)
+    if blocked:
         return _ProbeResult(
-            ok=False, reason=f"pgrep exited {rc}: {result.stderr.strip()}"
+            ok=False,
+            reason=f"running p9-3c1 processes: {blocked}",
         )
-    if rc == 1:
-        return _ProbeResult(ok=True, reason="no running p9-3c1 processes")
-    pids = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    if pids:
-        return _ProbeResult(ok=False, reason=f"running p9-3c1 processes: {pids}")
     return _ProbeResult(ok=True, reason="no running p9-3c1 processes")
+
+
+def _classify_argv(argv: list[str]) -> str | None:
+    """Return a classification label if argv is a blocked identity.
+
+    Returns ``"controller"``, ``"fixture-e1"``, ``"fixture-e2"`` for
+    exact matches, or ``None`` for non-matching argv.  Malformed
+    candidates that contain the module plus a fixture id without the
+    exact expected structure fall through to the final check.
+    """
+    if len(argv) < 2:
+        return None
+    # ── controller identity (Section 5.2 item 1) ──
+    if (
+        argv[0] == _CONTROLLER_ARGV0
+        and len(argv) >= 2
+        and argv[1] == _CONTROLLER_ARGV1
+    ):
+        return "controller"
+    # ── fixture identity pre-check ──
+    if (
+        argv[0] == _FIXTURE_ARGV0
+        and len(argv) >= 3
+        and argv[1:3] == ["-m", _FIXTURE_MODULE]
+    ):
+        # Look for exactly one ``--agent <id>`` pair with a fixture id
+        agent_id: str | None = None
+        agent_count = 0
+        i = 3
+        while i < len(argv):
+            if argv[i] == "--agent" and i + 1 < len(argv):
+                agent_id = argv[i + 1]
+                agent_count += 1
+                i += 2
+            else:
+                i += 1
+        if agent_count == 1 and agent_id is not None and agent_id in _FIXTURE_IDS:
+            return "fixture-" + agent_id.removeprefix("p9-3c-").replace("-", "")
+        # Malformed: module present with a fixture id but wrong --agent structure
+        if agent_id in _FIXTURE_IDS:
+            return "malformed-fixture"
+        has_fixture_in_argv = any(
+            fid in argv for fid in _FIXTURE_IDS
+        )
+        if has_fixture_in_argv:
+            return "malformed-fixture"
+    return None
 
 
 # ── core lock class ─────────────────────────────────────────────────────────
@@ -180,6 +399,12 @@ class ProductionMutationLock:
         self._inject_audit_fsync_failure: bool = False
         self._probe_systemd: Callable[[], _ProbeResult] = _probe_systemd_default
         self._probe_processes: Callable[[], _ProbeResult] = _probe_processes_default
+        # Process probe sub-seams (Section 5 injectable).
+        self._enumerate_pids: Callable[[], list[int]] = _default_enumerate_pids
+        self._read_proc_cmdline: Callable[[int], bytes] = _default_read_cmdline
+        self._kill_0: Callable[[int, int], None] = os.kill
+        # Rebind default process probe to capture injectable sub-seams.
+        self._probe_processes = self._run_probe_processes
 
     # ── input validation ────────────────────────────────────────────────
 
@@ -695,6 +920,185 @@ class ProductionMutationLock:
             )
         return {"state": "released", "phase": "free"}
 
+
+    def _run_probe_processes(self) -> _ProbeResult:
+        """Run process probe with current injectable sub-seams."""
+        return _probe_processes_default(
+            enumerate_pids=self._enumerate_pids,
+            read_cmdline=self._read_proc_cmdline,
+            kill_0=self._kill_0,
+        )
+
+    # ── token file validation (Section 6) ────────────────────────────────
+
+    def _read_token_file(self, path_str: str) -> str:
+        """Validate and read a token from a recover-only token file.
+
+        Returns the validated 64-char lowercase hex token.  Every error
+        (path, stat, open, read, decode, content) is converted into a
+        bounded redacted ``LockError`` before recovery can begin.  The
+        raw token never enters argv/stdout/stderr/error detail/audit.
+        """
+        # ── path validation ──
+        if not path_str or not os.path.isabs(path_str):
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file must be a non-blank absolute path"},
+                exit_code=4,
+            )
+        token_path = Path(path_str)
+        parent = str(token_path.parent)
+        # ── parent lstat ──
+        try:
+            parent_st = self._lstat(parent)
+        except (OSError, ValueError) as exc:
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file parent lstat failed"},
+                exit_code=4,
+            )
+        if stat.S_ISLNK(parent_st.st_mode):
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file parent is a symlink"},
+                exit_code=4,
+            )
+        if not self._isdir(parent_st):
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file parent is not a directory"},
+                exit_code=4,
+            )
+        if parent_st.st_uid != 0 or parent_st.st_gid != 0:
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file parent must be root:root"},
+                exit_code=4,
+            )
+        if stat.S_IMODE(parent_st.st_mode) != 0o700:
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file parent mode must be 0700"},
+                exit_code=4,
+            )
+        # ── open file ──
+        try:
+            fd = self._open(path_str, os.O_RDONLY | os.O_NOFOLLOW)
+        except (OSError, ValueError):
+            raise LockError(
+                state="blocked",
+                detail={"reason": "token-file open failed"},
+                exit_code=4,
+            )
+        try:
+            # ── first fstat ──
+            try:
+                st1 = self._fstat(fd)
+            except (OSError, ValueError):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file fstat failed"},
+                    exit_code=4,
+                )
+            if not self._isfile(st1):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file is not a regular file"},
+                    exit_code=4,
+                )
+            if st1.st_uid != 0 or st1.st_gid != 0:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file must be root:root"},
+                    exit_code=4,
+                )
+            if stat.S_IMODE(st1.st_mode) != 0o600:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file mode must be 0600"},
+                    exit_code=4,
+                )
+            if st1.st_nlink != 1:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file link count must be 1"},
+                    exit_code=4,
+                )
+            size = st1.st_size
+            if size not in (64, 65):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": f"token-file size {size} not in (64, 65)"},
+                    exit_code=4,
+                )
+            # ── read (exact size + 1-byte growth probe) ──
+            try:
+                raw = os.read(fd, size + 1)
+            except (OSError, ValueError):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file read failed"},
+                    exit_code=4,
+                )
+            # ── growth probe: check if file grew ──
+            if len(raw) != size:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file size changed between stat and read"},
+                    exit_code=4,
+                )
+            # ── second fstat (TOCTOU guard) ──
+            try:
+                st2 = self._fstat(fd)
+            except (OSError, ValueError):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file second fstat failed"},
+                    exit_code=4,
+                )
+            if (
+                st2.st_ino != st1.st_ino
+                or st2.st_dev != st1.st_dev
+                or st2.st_size != st1.st_size
+                or st2.st_uid != st1.st_uid
+                or st2.st_gid != st1.st_gid
+                or st2.st_mode != st1.st_mode
+                or st2.st_nlink != st1.st_nlink
+                or st2.st_mtime_ns != st1.st_mtime_ns
+                or st2.st_ctime_ns != st1.st_ctime_ns
+            ):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file changed between stat calls"},
+                    exit_code=4,
+                )
+            # ── decode content ──
+            content = raw
+            if content.endswith(b"\n"):
+                content = content[:-1]
+            try:
+                text = content.decode("ascii")
+            except UnicodeDecodeError:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file content is not ASCII"},
+                    exit_code=4,
+                )
+            if "\n" in text or "\r" in text:
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file contains embedded newline/CR"},
+                    exit_code=4,
+                )
+            if not _TOKEN_RE.fullmatch(text):
+                raise LockError(
+                    state="blocked",
+                    detail={"reason": "token-file content is not 64-char lowercase hex"},
+                    exit_code=4,
+                )
+            return text
+        finally:
+            os.close(fd)
     # ── recover (incident-only) ──────────────────────────────────────────
 
     def recover(
@@ -910,7 +1314,9 @@ def main(argv: list[str] | None = None) -> int:
     release_parser.add_argument("--allow-already-free", action="store_true")
 
     recover_parser = subparsers.add_parser("recover")
-    recover_parser.add_argument("--token", required=True)
+    token_group = recover_parser.add_mutually_exclusive_group(required=True)
+    token_group.add_argument("--token", default=None)
+    token_group.add_argument("--token-file", default=None)
     recover_parser.add_argument("--operator", required=True)
     recover_parser.add_argument("--reason", required=True)
     recover_parser.add_argument("--confirm-owner-stopped", action="store_true")
@@ -945,9 +1351,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             _json_out(result)
             return 0
-        if args.command == "recover":
+        elif args.command == "recover":
+            if args.token_file is not None:
+                token = lock._read_token_file(args.token_file)
+            else:
+                token = args.token
             result = lock.recover(
-                token=args.token,
+                token=token,
                 operator=args.operator,
                 reason=args.reason,
                 confirm_owner_stopped=args.confirm_owner_stopped,
