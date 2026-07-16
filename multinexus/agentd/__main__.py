@@ -13,7 +13,11 @@ import signal
 import sys
 
 from ..config import load_config
-from .coordinate_client import CoordinateRuntimeError, normalize_recovery_reason
+from .coordinate_client import (
+    CoordinateRuntimeError,
+    normalize_claim_reap_policy,
+    normalize_recovery_reason,
+)
 from .worker import AgentdWorker
 
 log = logging.getLogger(__name__)
@@ -48,6 +52,17 @@ def main(argv: list[str] | None = None) -> None:
         default=False,
         help="Evidence: the prior process handling this agent was confirmed stopped before recovery.",
     )
+    parser.add_argument(
+        "--reap-mode",
+        choices=["global", "none"],
+        default="global",
+        help="Claim reap policy: 'global' (default, legacy) or 'none' (requires --reap-reason).",
+    )
+    parser.add_argument(
+        "--reap-reason",
+        default=None,
+        help="Sealed reason for reap_mode=none; must be non-blank, stripped-stable, no control chars.",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -68,6 +83,15 @@ def main(argv: list[str] | None = None) -> None:
         if args.prior_process_stopped:
             parser.error("--prior-process-stopped requires --recoverable")
 
+    # Validate reap policy before config load or any subprocess can run.
+    try:
+        _, args.reap_reason = normalize_claim_reap_policy(
+            reap_mode=args.reap_mode,
+            reap_reason=args.reap_reason,
+        )
+    except CoordinateRuntimeError as exc:
+        parser.error(str(exc))
+
     config = load_config(
         ["--config", args.config, "--agent", args.agent],
         require_token=False,
@@ -85,15 +109,24 @@ def main(argv: list[str] | None = None) -> None:
         loop.add_signal_handler(signal.SIGTERM, _shutdown)
 
     try:
-        log.info("agentd worker starting: agent=%s recoverable=%s", config.id, args.recoverable)
-        loop.run_until_complete(
-            worker.run(
-                poll_interval=args.poll_interval,
-                recoverable=args.recoverable,
-                recovery_reason=args.recovery_reason,
-                prior_process_stopped=args.prior_process_stopped,
-            )
+        log.info(
+            "agentd worker starting: agent=%s recoverable=%s reap_mode=%s",
+            config.id,
+            args.recoverable,
+            args.reap_mode,
         )
+        run_kwargs = {
+            "poll_interval": args.poll_interval,
+            "recoverable": args.recoverable,
+            "recovery_reason": args.recovery_reason,
+            "prior_process_stopped": args.prior_process_stopped,
+        }
+        if args.reap_mode == "none":
+            run_kwargs.update(
+                reap_mode=args.reap_mode,
+                reap_reason=args.reap_reason,
+            )
+        loop.run_until_complete(worker.run(**run_kwargs))
     except (KeyboardInterrupt, RuntimeError):
         pass
     finally:

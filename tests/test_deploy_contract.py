@@ -850,6 +850,30 @@ class DeployContractTests(unittest.TestCase):
             repo_root / "scripts" / "capacity_snapshot_helper.py",
             self.source_dir / "scripts" / "capacity_snapshot_helper.py",
         )
+        self.p9c1_deploy_paths = [
+            Path("scripts/p9-3c1-production-verify.sh"),
+            Path("scripts/p9_3c1_controller.py"),
+            Path("multinexus/fixture/bin/p9-3c0-unit.sh"),
+            Path("multinexus/agentd/__main__.py"),
+            Path("multinexus/agentd/coordinate_client.py"),
+            Path("multinexus/agentd/worker.py"),
+            *[
+                Path("multinexus/fixture/config/p9-3c1") / name
+                for name in (
+                    "agents.production.toml",
+                    "executor.v1-disabled.toml",
+                    "executor.v2-enabled.toml",
+                    "executor.v3-disabled.toml",
+                    "executor.v4-empty.toml",
+                    "capacity.v1.toml",
+                    "capacity.v2-empty.toml",
+                )
+            ],
+        ]
+        for relative in self.p9c1_deploy_paths:
+            destination = self.source_dir / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(repo_root / relative, destination)
 
         self.authority = self.source_dir / "config" / "agent-registry.toml"
         self.authority.write_text(
@@ -1535,6 +1559,20 @@ class DeployContractTests(unittest.TestCase):
         version_file = self.remote_opt / "VERSION_DEPLOYED"
         self.assertTrue(version_file.exists())
         self._assert_no_deploy_residue()
+
+    def test_p9c1_inert_assets_reach_installed_tree_without_invocation(self):
+        result = self._run_deploy("--no-restart")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for relative in self.p9c1_deploy_paths:
+            installed = self.remote_opt / relative
+            source = self.source_dir / relative
+            self.assertTrue(installed.is_file(), str(relative))
+            self.assertEqual(installed.read_bytes(), source.read_bytes(), str(relative))
+        log = self._ssh_log()
+        self.assertNotIn("p9-3c1-production-verify.sh", log)
+        self.assertNotIn("p9_3c1_controller.py", log)
+        self.assertNotIn("production-render", log)
+        self.assertNotIn("production-start", log)
 
     def test_no_restart_still_syncs_and_verifies(self):
         result = self._run_deploy("--no-restart")

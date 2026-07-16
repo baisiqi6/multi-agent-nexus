@@ -325,6 +325,18 @@ P9C0_PROD_DB="/var/lib/coordinate/coord.sqlite3"
 P9C0_PROD_WRAPPER="/usr/local/bin/coord-local"
 P9C0_RUN_ID_RE='^[a-z0-9]+(-[a-z0-9]+)*$'
 P9C0_MAX_UNITS=2
+# Installed P9-3C1 authority paths. The script assigns these constants at
+# startup, so environment variables cannot redirect production execution.
+# Dynamic tests may replace the shell variables only after sourcing the file.
+P9C1_INSTALLED_PYTHON="/opt/multinexus/.venv/bin/python"
+P9C1_INSTALLED_LOCK_HELPER="/opt/multinexus/scripts/production-mutation-lock.sh"
+P9C1_STATE_ROOT_PREFIX="/var/tmp/multinexus-p9-3c1"
+P9C1_RUN_ID_RE='^p9-3c1-prod-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$'
+
+_p9c1_effective_uid() { id -u; }
+_p9c1_lock_helper_status() {
+    "$P9C1_INSTALLED_LOCK_HELPER" status --expect-token "$1"
+}
 P9C0_CREDENTIAL_DENYLIST=(
     ANTHROPIC_API_KEY CLAUDE_API_KEY OPENAI_API_KEY CODEX_API_KEY
     KIMI_API_KEY MOONSHOT_API_KEY AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
@@ -393,7 +405,7 @@ _p9c0_die() {
 }
 
 _p9c0_usage() {
-    _p9c0_die "usage: $0 render|preflight|start|status|stop|cleanup [flags]" 2
+    _p9c0_die "usage: $0 render|preflight|start|status|stop|cleanup|production-render|production-preflight|production-start|production-status|production-stop|production-cleanup [flags]" 2
 }
 
 # ---------------------------------------------------------------------------
@@ -870,6 +882,10 @@ _p9c0_verify_unit_definition() {
 # exact sealed path, and never escapes the run directory.
 _p9c0_unit_definition_path() {
     local state_root="$1" run_id="$2"
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        printf '%s/%s/runtime/unit/systemd.verify.service\n' "$state_root" "$run_id"
+        return 0
+    fi
     printf '%s/%s/systemd.verify.service\n' "$state_root" "$run_id"
 }
 
@@ -897,8 +913,8 @@ _p9c0_authorize_unit_definition() {
     fi
 
     [[ -e $def_path && -f $def_path && ! -L $def_path ]] || return 1
-    resolved=$(python3 -c "import os, sys; print(os.path.realpath(sys.argv[1]))" "$def_path" 2>/dev/null) || return 1
-    state_root_resolved=$(python3 -c "import os, sys; print(os.path.realpath(sys.argv[1]))" "$state_root" 2>/dev/null) || return 1
+    resolved=$(${P9C0_PYTHON:-python3} -c "import os, sys; print(os.path.realpath(sys.argv[1]))" "$def_path" 2>/dev/null) || return 1
+    state_root_resolved=$(${P9C0_PYTHON:-python3} -c "import os, sys; print(os.path.realpath(sys.argv[1]))" "$state_root" 2>/dev/null) || return 1
     case $resolved in "$state_root_resolved"/*) ;; *) return 1 ;; esac
 
     # Type / mode / owner / hard-link gates via the existing stat seam.
@@ -938,7 +954,8 @@ _p9c0_static_definition_ledger_record() {
 
 _p9c0_require_static_definition_ledger() {
     local run_id="$1" def_path="$2" def_sha="$3"
-    local ledger="$P9C0_STATE_ROOT/$run_id/ledger/events.jsonl" expected
+    local ledger expected
+    ledger=$(_p9c0_ledger_file)
     [[ -f $ledger ]] || return 1
     expected=$(_p9c0_static_definition_ledger_record "$run_id" "$def_path" "$def_sha")
     grep -Fqx -- "$expected" "$ledger" 2>/dev/null
@@ -1120,6 +1137,10 @@ PYEOF
 
 
 _p9c0_ledger_file() {
+    if [[ -n ${P9C0_LEDGER_FILE:-} ]]; then
+        printf '%s\n' "$P9C0_LEDGER_FILE"
+        return 0
+    fi
     printf '%s/%s/ledger/events.jsonl\n' "$P9C0_STATE_ROOT" "$P9C0_RUN_ID"
 }
 
@@ -1131,6 +1152,29 @@ _p9c0_ledger_append() {
         || _p9c0_die "ledger parent missing or unsafe"
     [[ -f $ledger && ! -L $ledger ]] || _p9c0_die "ledger missing or unsafe"
     printf '%s\n' "$line" >> "$ledger" || _p9c0_die "ledger append failed"
+}
+
+_p9c0_ledger_unit_count() {
+    local ledger="$1"
+    [[ -f $ledger && ! -L $ledger ]] || return 1
+    awk '/^unit / { count += 1 } END { print count + 0 }' "$ledger"
+}
+
+# P9-3C1 may restart one exact production unit for the reviewed recovery
+# attempt.  Its two-unit budget is therefore the number of distinct sealed
+# unit identities (E1/E2), not the number of generations recorded for an
+# identity.  The isolated P9-3C0 counter above deliberately keeps its original
+# one-record-per-unit contract.
+_p9c1_ledger_distinct_unit_count() {
+    local ledger="$1"
+    [[ -f $ledger && ! -L $ledger ]] || return 1
+    awk '/^unit / { seen[$2] = 1 } END { for (unit in seen) count += 1; print count + 0 }' "$ledger"
+}
+
+_p9c0_ledger_has_exact_unit() {
+    local ledger="$1" unit="$2"
+    [[ -f $ledger && ! -L $ledger ]] || return 1
+    awk -v expected="$unit" '$1 == "unit" && $2 == expected { found = 1 } END { exit(found ? 0 : 1) }' "$ledger"
 }
 
 # ---------------------------------------------------------------------------
@@ -1490,10 +1534,11 @@ _p9c0_cmd_preflight() {
 
     # No more than two units per run.
     local ledger
-    ledger="$P9C0_STATE_ROOT/$run_id/ledger/events.jsonl"
+    ledger=$(_p9c0_ledger_file)
     local unit_count=0
     if [[ -f $ledger ]]; then
-        unit_count=$(grep -cE "^unit " "$ledger" 2>/dev/null || true)
+        unit_count=$(_p9c0_ledger_unit_count "$ledger") \
+            || _p9c0_die "preflight: cannot count ledger units"
     fi
     [[ $unit_count -lt $P9C0_MAX_UNITS ]] || _p9c0_die "preflight: run already has $P9C0_MAX_UNITS units"
 
@@ -1595,12 +1640,24 @@ _p9c0_start_locked() {
     fi
 
     local ledger
-    ledger="$state_dir/ledger/events.jsonl"
+    ledger=$(_p9c0_ledger_file)
     local unit_count=0
     if [[ -f $ledger ]]; then
-        unit_count=$(grep -cE "^unit " "$ledger" 2>/dev/null || true)
+        if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+            unit_count=$(_p9c1_ledger_distinct_unit_count "$ledger") \
+                || _p9c0_die "start: cannot count production ledger units"
+        else
+            unit_count=$(_p9c0_ledger_unit_count "$ledger") \
+                || _p9c0_die "start: cannot count ledger units"
+        fi
     fi
-    [[ $unit_count -lt $P9C0_MAX_UNITS ]] || _p9c0_die "start: run already has $P9C0_MAX_UNITS units"
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]] && \
+       _p9c0_ledger_has_exact_unit "$ledger" "$unit"; then
+        : # reviewed same-identity recovery generation; no new unit budget
+    else
+        [[ $unit_count -lt $P9C0_MAX_UNITS ]] \
+            || _p9c0_die "start: run already has $P9C0_MAX_UNITS units"
+    fi
 
     local rendered
     rendered="$state_dir/agents.rendered.toml"
@@ -1612,17 +1669,28 @@ _p9c0_start_locked() {
     # the same approved record. Any drift here aborts before either gate
     # is invoked.
     [[ -n $P9C0_MANIFEST_PATH ]] || _p9c0_die "start: manifest path missing from values"
-    [[ -n $P9C0_MANIFEST_RECORD ]] || _p9c0_die "start: manifest record missing from values"
     [[ -n $P9C0_UNIT_GID ]] || _p9c0_die "start: unit gid missing from values"
-    _p9c0_recheck_manifest_authority "$P9C0_MANIFEST_PATH" "$P9C0_MANIFEST_RECORD" \
-        "$P9C0_WRAPPER" "$P9C0_UNIT_GID" \
-        || _p9c0_die "start: manifest authority drift detected"
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        [[ -n ${P9C1_CONTROLLER_MANIFEST_SHA256:-} ]] \
+            || _p9c0_die "start: controller manifest SHA missing from values"
+        _p9c1_recheck_loaded_authority \
+            "$P9C0_STATE_ROOT/$run_id" "$run_id" "$P9C0_MANIFEST_PATH" \
+            "$P9C1_CONTROLLER_MANIFEST_SHA256" \
+            || _p9c0_die "start: production authority drift detected"
+        _p9c1_validate_lock_token "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT/$run_id" \
+            "$run_id" "$P9C1_LOCK_TOKEN_FILE"
+    else
+        [[ -n $P9C0_MANIFEST_RECORD ]] || _p9c0_die "start: manifest record missing from values"
+        _p9c0_recheck_manifest_authority "$P9C0_MANIFEST_PATH" "$P9C0_MANIFEST_RECORD" \
+            "$P9C0_WRAPPER" "$P9C0_UNIT_GID" \
+            || _p9c0_die "start: manifest authority drift detected"
 
-    # Identity recheck runs BEFORE static verify and systemd-run.
-    _p9c0_enforce_unit_identity \
-        "$P9C0_UNIT_USER" "$P9C0_UNIT_GROUP" "$P9C0_RUNTIME_PARENT" \
-        "$P9C0_WRAPPER" "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT" \
-        || _p9c0_die "start: unit identity drift detected"
+        # Isolated identity recheck runs BEFORE static verify and systemd-run.
+        _p9c0_enforce_unit_identity \
+            "$P9C0_UNIT_USER" "$P9C0_UNIT_GROUP" "$P9C0_RUNTIME_PARENT" \
+            "$P9C0_WRAPPER" "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT" \
+            || _p9c0_die "start: unit identity drift detected"
+    fi
 
     # Static-definition authority recheck. The definition file was
     # written + verified at render time and is sealed in
@@ -1683,6 +1751,18 @@ _p9c0_start_locked() {
         agentd_argv+=(--recoverable)
         agentd_argv+=(--recovery-reason "$P9C0_RECOVERY_REASON")
         agentd_argv+=(--prior-process-stopped)
+    fi
+    # Production mode (P9C1) always appends the complete sealed reap policy.
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        [[ ${P9C0_REAP_MODE:-} == none ]] \
+            || _p9c0_die "start: production reap mode must be none"
+        _p9c1_validate_reason "${P9C0_REAP_REASON:-}" \
+            || _p9c0_die "start: production reap reason rejected"
+        agentd_argv+=(--reap-mode "$P9C0_REAP_MODE")
+        agentd_argv+=(--reap-reason "$P9C0_REAP_REASON")
+        # Revalidate immediately before the sole process-creation mutation.
+        _p9c1_validate_lock_token "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT/$run_id" \
+            "$run_id" "$P9C1_LOCK_TOKEN_FILE"
     fi
 
     _p9c0_run_systemd_run \
@@ -1794,6 +1874,15 @@ _p9c0_cmd_stop() {
 
 _p9c0_stop_locked() {
     local unit="$1" start_ms="$2" evidence_run_id="$3" crash="$4"
+
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        _p9c1_recheck_loaded_authority \
+            "$P9C0_STATE_ROOT/$P9C0_RUN_ID" "$P9C0_RUN_ID" "$P9C0_MANIFEST_PATH" \
+            "$P9C1_CONTROLLER_MANIFEST_SHA256" \
+            || _p9c0_die "stop: production authority drift detected"
+        _p9c1_validate_lock_token "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT/$P9C0_RUN_ID" \
+            "$P9C0_RUN_ID" "$P9C1_LOCK_TOKEN_FILE"
+    fi
 
     local requested_ms actual_ms elapsed verdict timing_note
     requested_ms=$(_p9c0_date_ms)
@@ -2009,10 +2098,21 @@ _p9c0_cmd_cleanup() {
 _p9c0_cleanup_locked() {
     local unit="$1"
 
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        _p9c1_recheck_loaded_authority \
+            "$P9C0_STATE_ROOT/$P9C0_RUN_ID" "$P9C0_RUN_ID" "$P9C0_MANIFEST_PATH" \
+            "$P9C1_CONTROLLER_MANIFEST_SHA256" \
+            || _p9c0_die "cleanup: production authority drift detected"
+        _p9c1_validate_lock_token "$P9C0_MANIFEST_PATH" "$P9C0_STATE_ROOT/$P9C0_RUN_ID" \
+            "$P9C0_RUN_ID" "$P9C1_LOCK_TOKEN_FILE"
+    fi
+
     # Cleanup requires cgroup-empty proof.
     local state_dir
     state_dir="$P9C0_STATE_ROOT/$P9C0_RUN_ID"
-    if ! grep -qE "^cgroup-empty unit=$unit( |$)" "$state_dir/ledger/events.jsonl" 2>/dev/null; then
+    local helper_ledger
+    helper_ledger=$(_p9c0_ledger_file)
+    if ! grep -qE "^cgroup-empty unit=$unit( |$)" "$helper_ledger" 2>/dev/null; then
         _p9c0_die "cleanup: stop/cgroup proof missing for $unit"
     fi
 
@@ -2022,7 +2122,7 @@ _p9c0_cleanup_locked() {
     # Only the inert static-definition file may be removed, and only after
     # every exact unit recorded in this run has its own cleanup proof.
     local ledger
-    ledger="$state_dir/ledger/events.jsonl"
+    ledger="$helper_ledger"
     if ! grep -Fqx -- "cleanup unit=$unit" "$ledger" 2>/dev/null; then
         _p9c0_ledger_append "cleanup unit=$unit"
     fi
@@ -2072,7 +2172,7 @@ _p9c0_cleanup_locked() {
 _p9c0_require_ledger_unit() {
     local unit="$1"
     local ledger
-    ledger="$P9C0_STATE_ROOT/$P9C0_RUN_ID/ledger/events.jsonl"
+    ledger=$(_p9c0_ledger_file)
     [[ -f $ledger ]] || _p9c0_die "ledger missing"
     local line found=0
     while IFS= read -r line; do
@@ -2084,13 +2184,16 @@ _p9c0_require_ledger_unit() {
     [[ $found -eq 1 ]] || _p9c0_die "unit not in ledger: $unit"
 }
 
-# Fail-closed extraction of the one recorded cgroup for an exact unit.
+# Fail-closed extraction of the authoritative recorded cgroup for an exact
+# unit. P9-3C0 permits exactly one generation. P9-3C1 recovery may record a
+# later generation for the same exact unit, so production mode uses only the
+# latest complete record.
 # Prints the cgroup to stdout and returns 0. On any failure prints a diagnostic
 # to stderr and returns 1 so the caller can fail closed.
 _p9c0_recorded_cgroup_for_unit() {
     local unit="$1"
     local ledger
-    ledger="$P9C0_STATE_ROOT/$P9C0_RUN_ID/ledger/events.jsonl"
+    ledger=$(_p9c0_ledger_file)
     if [[ ! -f $ledger ]]; then
         printf 'recorded cgroup: ledger missing\n' >&2
         return 1
@@ -2109,7 +2212,7 @@ _p9c0_recorded_cgroup_for_unit() {
         printf 'recorded cgroup: unit not in ledger: %s\n' "$unit" >&2
         return 1
     fi
-    if [[ $count -ne 1 ]]; then
+    if [[ $count -ne 1 && ${P9C0_PRODUCTION_MODE:-} != 1 ]]; then
         printf 'recorded cgroup: duplicate unit records (%s) for %s\n' "$count" "$unit" >&2
         return 1
     fi
@@ -2155,13 +2258,20 @@ _p9c0_load_values() {
             unit_definition_path) P9C0_UNIT_DEFINITION_PATH="$value" ;;
             unit_definition_sha256) P9C0_UNIT_DEFINITION_SHA256="$value" ;;
             unset_environment_names) P9C0_UNSET_ENVIRONMENT_NAMES="$value" ;;
+            ledger_file) P9C0_LEDGER_FILE="$value" ;;
+            production_mode) P9C0_PRODUCTION_MODE="$value" ;;
+            controller_manifest_sha256) P9C1_CONTROLLER_MANIFEST_SHA256="$value" ;;
+            reap_mode) P9C0_REAP_MODE="$value" ;;
+            reap_reason) P9C0_REAP_REASON="$value" ;;
+            lock_token_file) P9C1_LOCK_TOKEN_FILE="$value" ;;
         esac
     done < "$values_file"
 
     # Static-definition authority is required for preflight / start /
     # cleanup. A missing or empty sealed path / SHA is a hard failure;
     # the helper cannot silently proceed without durable evidence of the
-    # unit-definition file identity.
+    # unit-definition file identity. Production uses the same retained,
+    # sealed definition contract at its dedicated runtime/unit path.
     [[ -n ${P9C0_UNIT_DEFINITION_PATH:-} ]] \
         || _p9c0_die "values.rendered missing unit_definition_path"
     [[ -n ${P9C0_UNIT_DEFINITION_SHA256:-} ]] \
@@ -2194,7 +2304,11 @@ _p9c0_with_lock() {
     local state_root="$1" run_id="$2"
     shift 2
     local lock_file
-    lock_file="$state_root/$run_id/lock/unit-helper.lock"
+    if [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]]; then
+        lock_file="$state_root/$run_id/runtime/unit/unit-helper.lock"
+    else
+        lock_file="$state_root/$run_id/lock/unit-helper.lock"
+    fi
     [[ -d $(dirname "$lock_file") && ! -L $(dirname "$lock_file") ]] \
         || _p9c0_die "lock parent missing or unsafe"
     _p9c0_lock_file_authority "$lock_file" || _p9c0_die "lock file authority rejected"
@@ -2208,6 +2322,683 @@ _p9c0_with_lock() {
 # Main dispatch
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Production subcommands (P9-3C1 P2)
+# ---------------------------------------------------------------------------
+
+_p9c1_validate_run_id() {
+    [[ $1 =~ $P9C1_RUN_ID_RE ]] || _p9c0_die "invalid P9-3C1 run-id: $1"
+}
+
+_p9c1_require_root() {
+    [[ $(_p9c1_effective_uid) == 0 ]] || _p9c0_die "production mutation requires root"
+}
+
+_p9c1_validate_reason() {
+    "$P9C1_INSTALLED_PYTHON" - "$1" <<'PYEOF'
+import sys
+value = sys.argv[1]
+if not value or value != value.strip():
+    raise SystemExit(1)
+if len(value) > 512 or len(value.encode("utf-8")) > 2048:
+    raise SystemExit(1)
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+    raise SystemExit(1)
+PYEOF
+}
+
+# Extract an exact value from canonical controller JSON using the installed,
+# manifest-bound Python. Missing keys and non-scalar ambiguity fail closed.
+_p9c1_manifest_get() {
+    local manifest_path="$1"
+    shift
+    "$P9C1_INSTALLED_PYTHON" - "$manifest_path" "$@" <<'PYEOF'
+import json, sys
+with open(sys.argv[1], "rb") as handle:
+    value = json.load(handle)
+for key in sys.argv[2:]:
+    value = value[key]
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif isinstance(value, (dict, list)):
+    print(json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+elif value is None:
+    print("null")
+else:
+    print(value)
+PYEOF
+}
+
+_p9c1_validate_controller_manifest() {
+    local manifest="$1" expected_sha="$2" state_root="$3" run_id="$4"
+    _p9c1_validate_run_id "$run_id"
+    [[ $state_root == "$P9C1_STATE_ROOT_PREFIX/$run_id" ]] \
+        || _p9c0_die "controller state-root is not the fixed run root"
+    [[ $manifest == "$state_root/control/manifest.json" ]] \
+        || _p9c0_die "controller-manifest is not the fixed run path"
+    [[ $expected_sha =~ ^[a-f0-9]{64}$ ]] \
+        || _p9c0_die "controller-manifest SHA authority malformed"
+    [[ -f $manifest && ! -L $manifest ]] \
+        || _p9c0_die "controller-manifest not a regular file"
+    local stat_line nlink owner group mode actual_sha
+    stat_line=$(_p9c0_stat_file "$manifest") \
+        || _p9c0_die "cannot stat controller-manifest"
+    IFS=: read -r _ _ _ nlink owner group mode <<< "$stat_line"
+    [[ $nlink == 1 && $owner == 0 && $group == 0 && $mode == 600 ]] \
+        || _p9c0_die "controller-manifest owner/mode/link authority rejected"
+    actual_sha=$(_p9c0_sha256_file "$manifest") \
+        || _p9c0_die "cannot hash controller-manifest"
+    [[ $actual_sha == "$expected_sha" ]] \
+        || _p9c0_die "controller-manifest SHA mismatch"
+
+    "$P9C1_INSTALLED_PYTHON" - "$manifest" "$state_root" "$run_id" \
+        <<'PYEOF' || _p9c0_die "controller-manifest canonical contract rejected"
+import json, sys
+path, state_root, run_id = sys.argv[1:]
+raw = open(path, "rb").read()
+data = json.loads(raw)
+if not isinstance(data, dict):
+    raise SystemExit(1)
+canonical = (json.dumps(data, ensure_ascii=False, sort_keys=True,
+                        separators=(",", ":")) + "\n").encode()
+if raw != canonical:
+    raise SystemExit(1)
+required = {
+    "production_launcher_identity", "run_id", "state_root", "unit_user",
+    "unit_group", "unit_uid", "unit_gid", "installed_revisions",
+    "installed_hashes", "config_hashes", "helper_allowlist", "reap_policy",
+    "budgets", "workspace_id", "host_id", "backup_identity",
+    "canonical_projection_sha256", "prepared_at_utc", "p3_authorization_digest",
+}
+if set(data) != required:
+    raise SystemExit(1)
+if data["run_id"] != run_id or data["state_root"] != state_root:
+    raise SystemExit(1)
+if data["helper_allowlist"] != ["p9-3c-fixture-e1", "p9-3c-fixture-e2"]:
+    raise SystemExit(1)
+if data["reap_policy"].get("mode") != "none":
+    raise SystemExit(1)
+reason = data["reap_policy"].get("reason")
+if not isinstance(reason, str) or not reason or reason != reason.strip():
+    raise SystemExit(1)
+if len(reason) > 512 or len(reason.encode()) > 2048:
+    raise SystemExit(1)
+if any(ord(ch) < 32 or ord(ch) == 127 for ch in reason):
+    raise SystemExit(1)
+if data["budgets"] != {"external_delivery": 0, "max_active_units": 2,
+                       "provider_network": 0, "total_requests": 5}:
+    raise SystemExit(1)
+if not isinstance(data["canonical_projection_sha256"], str) or len(data["canonical_projection_sha256"]) != 64:
+    raise SystemExit(1)
+launcher = data["production_launcher_identity"]
+for key in ("files", "cli_file", "db_file", "cli_path", "db_path",
+            "lock_helper_path", "config_dir"):
+    if key not in launcher:
+        raise SystemExit(1)
+for name in ("python", "helper", "fixture_bin", "agent_template",
+             "mutation_lock_helper"):
+    if name not in launcher["files"]:
+        raise SystemExit(1)
+PYEOF
+}
+
+_p9c1_validate_identity_object() {
+    local manifest="$1" section="$2" name="$3" mutable_content="${4:-0}"
+    local prefix=(production_launcher_identity "$section")
+    [[ -n $name ]] && prefix+=("$name")
+    local path expected_dev expected_inode expected_size expected_nlink
+    local expected_owner expected_group expected_mode expected_sha stat_line actual_sha
+    path=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" path) || return 1
+    expected_dev=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" dev) || return 1
+    expected_inode=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" inode) || return 1
+    expected_size=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" size) || return 1
+    expected_nlink=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" nlink) || return 1
+    expected_owner=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" owner) || return 1
+    expected_group=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" group) || return 1
+    expected_mode=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" mode) || return 1
+    expected_sha=$(_p9c1_manifest_get "$manifest" "${prefix[@]}" sha256) || return 1
+    printf -v expected_mode '%o' "$expected_mode"
+    [[ $path == /* && -f $path && ! -L $path ]] || return 1
+    stat_line=$(_p9c0_stat_file "$path") || return 1
+    local actual_dev actual_inode actual_size actual_nlink actual_owner actual_group actual_mode
+    IFS=: read -r actual_dev actual_inode actual_size actual_nlink actual_owner actual_group actual_mode <<< "$stat_line"
+    [[ $actual_dev == "$expected_dev" && $actual_inode == "$expected_inode" && \
+       $actual_nlink == "$expected_nlink" && $actual_owner == "$expected_owner" && \
+       $actual_group == "$expected_group" && $actual_mode == "$expected_mode" ]] || return 1
+    [[ $expected_nlink == 1 ]] || return 1
+    if [[ $mutable_content != 1 ]]; then
+        [[ $actual_size == "$expected_size" ]] || return 1
+        actual_sha=$(_p9c0_sha256_file "$path") || return 1
+        [[ $actual_sha == "$expected_sha" ]] || return 1
+    fi
+    printf '%s\n' "$path"
+}
+
+_p9c1_validate_all_launcher_identities() {
+    local manifest="$1" name
+    for name in python helper fixture_bin agent_template mutation_lock_helper; do
+        _p9c1_validate_identity_object "$manifest" files "$name" >/dev/null \
+            || _p9c0_die "production launcher identity drift: $name"
+    done
+    _p9c1_validate_identity_object "$manifest" cli_file "" >/dev/null \
+        || _p9c0_die "production CLI identity drift"
+    # The production DB contents legitimately change during the matrix. Its
+    # launcher authority is path/dev/inode/link/owner/group/mode, not a frozen
+    # size or content hash captured before the run.
+    _p9c1_validate_identity_object "$manifest" db_file "" 1 >/dev/null \
+        || _p9c0_die "production DB identity drift"
+}
+
+_p9c1_recheck_loaded_authority() {
+    local state_root="$1" run_id="$2" manifest="$3" manifest_sha="$4"
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    [[ $P9C0_WRAPPER == "$(_p9c1_manifest_get "$manifest" production_launcher_identity cli_path)" ]] || return 1
+    [[ $P9C0_COORD_DB == "$(_p9c1_manifest_get "$manifest" production_launcher_identity db_path)" ]] || return 1
+    [[ $P9C0_PYTHON == "$P9C1_INSTALLED_PYTHON" ]] || return 1
+    [[ $P9C0_UNIT_USER == "$(_p9c1_manifest_get "$manifest" unit_user)" ]] || return 1
+    [[ $P9C0_UNIT_GROUP == "$(_p9c1_manifest_get "$manifest" unit_group)" ]] || return 1
+    [[ $P9C0_UNIT_UID == "$(_p9c1_manifest_get "$manifest" unit_uid)" ]] || return 1
+    [[ $P9C0_UNIT_GID == "$(_p9c1_manifest_get "$manifest" unit_gid)" ]] || return 1
+    [[ $(_p9c0_identity_lookup_user "$P9C0_UNIT_USER") == "$P9C0_UNIT_UID" ]] || return 1
+    [[ $(_p9c0_identity_lookup_group "$P9C0_UNIT_GROUP") == "$P9C0_UNIT_GID" ]] || return 1
+    _p9c0_is_under_root "$P9C0_WORK_DIR" "$state_root" || return 1
+    _p9c0_is_under_root "$P9C0_RUNTIME_PARENT" "$state_root" || return 1
+}
+
+_p9c1_validate_lock_token() {
+    local manifest="$1" state_root="$2" run_id="$3" token_file="$4"
+    _p9c1_require_root
+    [[ $token_file == "$state_root/control/production-lock.token" ]] \
+        || _p9c0_die "lock-token-file is not the fixed run path"
+    [[ -f $token_file && ! -L $token_file ]] \
+        || _p9c0_die "lock-token-file not a regular file"
+    local stat_line nlink owner group mode token_content status
+    stat_line=$(_p9c0_stat_file "$token_file") || _p9c0_die "cannot stat lock-token-file"
+    IFS=: read -r _ _ _ nlink owner group mode <<< "$stat_line"
+    [[ $nlink == 1 && $owner == 0 && $group == 0 && $mode == 600 ]] \
+        || _p9c0_die "lock-token-file owner/mode/link authority rejected"
+    token_content=$(<"$token_file")
+    [[ $token_content =~ ^[a-f0-9]{64}$ ]] \
+        || _p9c0_die "lock-token-file content malformed"
+    [[ $(_p9c1_manifest_get "$manifest" production_launcher_identity lock_helper_path) == "$P9C1_INSTALLED_LOCK_HELPER" ]] \
+        || _p9c0_die "installed lock helper path drift"
+    status=$(_p9c1_lock_helper_status "$token_content") \
+        || _p9c0_die "installed lock helper rejected token"
+    "$P9C1_INSTALLED_PYTHON" - "$run_id" "$status" <<'PYEOF' \
+        || _p9c0_die "installed lock helper held authority mismatch"
+import json, sys
+payload = json.loads(sys.argv[2])
+run_id = sys.argv[1]
+if payload.get("state") != "held" or payload.get("phase") != "held":
+    raise SystemExit(1)
+if payload.get("owner") != "p9-3c1-controller":
+    raise SystemExit(1)
+if payload.get("action") != "p9-3c1-run:" + run_id:
+    raise SystemExit(1)
+if payload.get("token_matches") is not True:
+    raise SystemExit(1)
+PYEOF
+}
+
+_p9c1_cmd_production_render() {
+    local state_root="" run_id="" manifest="" manifest_sha="" lock_token=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-render: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-render: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-render: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-render: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-render: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-render: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-render: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-render: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --lock-token-file) [[ -n $lock_token ]] && _p9c0_die "production-render: duplicate --lock-token-file" 2; [[ $# -lt 2 ]] && _p9c0_die "production-render: --lock-token-file requires a value" 2; lock_token="$2"; shift 2 ;;
+            *) _p9c0_die "production-render: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $state_root ]] || _p9c0_die "production-render: --state-root required"
+    [[ -n $run_id ]] || _p9c0_die "production-render: --run-id required"
+    [[ -n $manifest ]] || _p9c0_die "production-render: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-render: --controller-manifest-sha256 required"
+    [[ -n $lock_token ]] || _p9c0_die "production-render: --lock-token-file required"
+    _p9c1_require_root
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    _p9c1_validate_lock_token "$manifest" "$state_root" "$run_id" "$lock_token"
+
+    local state_dir="$state_root"
+    local state_base="${state_root%/$run_id}"
+    local unit_dir="$state_dir/runtime/unit"
+    local work_dir="$state_dir/runtime/work"
+    local context_dir="$state_dir/runtime/context"
+    local path
+    for path in "$state_dir" "$unit_dir" "$work_dir" "$work_dir/e1" "$work_dir/e2" "$context_dir"; do
+        [[ -d $path && ! -L $path ]] || _p9c0_die "production-render: unsafe required directory: $path"
+    done
+
+    local manifest_cli manifest_db manifest_user manifest_group unit_uid unit_gid
+    local prod_template fixture_bin helper_path python_path repo_root reap_mode reap_reason
+    manifest_cli=$(_p9c1_manifest_get "$manifest" production_launcher_identity cli_path) || _p9c0_die "production-render: CLI authority missing"
+    manifest_db=$(_p9c1_manifest_get "$manifest" production_launcher_identity db_path) || _p9c0_die "production-render: DB authority missing"
+    manifest_user=$(_p9c1_manifest_get "$manifest" unit_user) || _p9c0_die "production-render: unit user missing"
+    manifest_group=$(_p9c1_manifest_get "$manifest" unit_group) || _p9c0_die "production-render: unit group missing"
+    unit_uid=$(_p9c1_manifest_get "$manifest" unit_uid) || _p9c0_die "production-render: unit uid missing"
+    unit_gid=$(_p9c1_manifest_get "$manifest" unit_gid) || _p9c0_die "production-render: unit gid missing"
+    prod_template=$(_p9c1_manifest_get "$manifest" production_launcher_identity files agent_template path) || _p9c0_die "production-render: template authority missing"
+    fixture_bin=$(_p9c1_manifest_get "$manifest" production_launcher_identity files fixture_bin path) || _p9c0_die "production-render: fixture authority missing"
+    helper_path=$(_p9c1_manifest_get "$manifest" production_launcher_identity files helper path) || _p9c0_die "production-render: helper authority missing"
+    python_path=$(_p9c1_manifest_get "$manifest" production_launcher_identity files python path) || _p9c0_die "production-render: Python authority missing"
+    reap_mode=$(_p9c1_manifest_get "$manifest" reap_policy mode) || _p9c0_die "production-render: reap mode missing"
+    reap_reason=$(_p9c1_manifest_get "$manifest" reap_policy reason) || _p9c0_die "production-render: reap reason missing"
+    [[ $python_path == "$P9C1_INSTALLED_PYTHON" ]] || _p9c0_die "production-render: installed Python path drift"
+    [[ $reap_mode == none ]] || _p9c0_die "production-render: reap mode must be none"
+    _p9c1_validate_reason "$reap_reason" || _p9c0_die "production-render: reap reason rejected"
+    [[ $(_p9c0_identity_lookup_user "$manifest_user") == "$unit_uid" ]] || _p9c0_die "production-render: unit uid drift"
+    [[ $(_p9c0_identity_lookup_group "$manifest_group") == "$unit_gid" ]] || _p9c0_die "production-render: unit gid drift"
+    repo_root=$(cd "$(dirname "$helper_path")/../../.." && pwd -P) || _p9c0_die "production-render: cannot derive repo root"
+    [[ -f $repo_root/multinexus/__init__.py && -f $repo_root/multinexus/agentd/__main__.py ]] \
+        || _p9c0_die "production-render: installed agentd module missing"
+
+    local rendered="$state_dir/agents.rendered.toml"
+    local values_file="$state_dir/values.rendered"
+    local helper_ledger="$unit_dir/helper-events.log"
+    local helper_lock="$unit_dir/unit-helper.lock"
+    [[ ! -e $rendered && ! -e $values_file && ! -e $helper_ledger && ! -e $helper_lock ]] \
+        || _p9c0_die "production-render: rendered authority already exists"
+    : > "$helper_ledger" || _p9c0_die "production-render: cannot create helper ledger"
+    : > "$helper_lock" || _p9c0_die "production-render: cannot create helper lock"
+    _p9c0_set_owner_group_mode "$helper_ledger" 0 0 600 || _p9c0_die "production-render: helper ledger owner/mode rejected"
+    _p9c0_set_owner_group_mode "$helper_lock" 0 0 600 || _p9c0_die "production-render: helper lock owner/mode rejected"
+
+    local tmp e1_db="$context_dir/e1.sqlite3" e2_db="$context_dir/e2.sqlite3"
+    tmp=$(mktemp "$state_dir/.agents.rendered.XXXXXX.toml") || _p9c0_die "production-render: cannot create temp config"
+    cp "$prod_template" "$tmp" || _p9c0_die "production-render: cannot copy template"
+    _p9c0_replace_once "$tmp" "__P9C1_E1_WORK_DIR__" "$work_dir/e1"
+    _p9c0_replace_once "$tmp" "__P9C1_E2_WORK_DIR__" "$work_dir/e2"
+    _p9c0_replace_once "$tmp" "__P9C1_E1_CONTEXT_DB__" "$e1_db"
+    _p9c0_replace_once "$tmp" "__P9C1_E2_CONTEXT_DB__" "$e2_db"
+    if grep -qE '__P9C[01]_[A-Z0-9_]+__' "$tmp"; then
+        rm -f "$tmp"
+        _p9c0_die "production-render: unresolved fixture placeholder"
+    fi
+    "$P9C1_INSTALLED_PYTHON" - "$tmp" "$manifest_cli" "$manifest_db" "$fixture_bin" \
+        "$work_dir/e1" "$work_dir/e2" "$e1_db" "$e2_db" <<'PYEOF' \
+        || _p9c0_die "production-render: rendered config contract rejected"
+import sys, tomllib
+path, cli, db, fixture, w1, w2, c1, c2 = sys.argv[1:]
+with open(path, "rb") as handle:
+    data = tomllib.load(handle)
+defaults = data.get("defaults", {})
+agents = data.get("agents", [])
+if [a.get("id") for a in agents] != ["p9-3c-fixture-e1", "p9-3c-fixture-e2"]:
+    raise SystemExit(1)
+def resolved(agent, key):
+    return agent.get(key, defaults.get(key))
+if defaults.get("agentd_mode") is not True:
+    raise SystemExit(1)
+if defaults.get("coordinator_cli_path") != cli or defaults.get("coordinator_db_path") != db:
+    raise SystemExit(1)
+if defaults.get("claude_bin") != fixture:
+    raise SystemExit(1)
+if [resolved(a, "work_dir") for a in agents] != [w1, w2]:
+    raise SystemExit(1)
+if [resolved(a, "context_db_path") for a in agents] != [c1, c2]:
+    raise SystemExit(1)
+PYEOF
+    mv "$tmp" "$rendered" || _p9c0_die "production-render: cannot install rendered config"
+    _p9c0_set_owner_group_mode "$rendered" 0 "$unit_gid" 640 \
+        || _p9c0_die "production-render: rendered owner/mode rejected"
+
+    P9C0_STATE_ROOT="$state_base"
+    P9C0_RUN_ID="$run_id"
+    P9C0_PRODUCTION_MODE=1
+    P9C0_PYTHON="$python_path"
+    P9C0_LEDGER_FILE="$helper_ledger"
+    P9C0_UNSET_ENVIRONMENT_NAMES=$(_p9c0_join_unset_environment_names) \
+        || _p9c0_die "production-render: UnsetEnvironment authority failed"
+    local def_path def_sha
+    def_path=$(_p9c0_unit_definition_path "$state_base" "$run_id")
+    def_sha=$(_p9c0_authorize_unit_definition "$def_path" "$state_base" "$manifest_user" "$manifest_group" "$work_dir" "") \
+        || _p9c0_die "production-render: static definition authority rejected"
+    [[ -n $def_sha ]] || _p9c0_die "production-render: static definition SHA missing"
+    _p9c0_ledger_append "$(_p9c0_static_definition_ledger_record "$run_id" "$def_path" "$def_sha")"
+
+    cat > "$values_file" <<EOF
+state_root=$state_base
+run_id=$run_id
+fixture_bin=$fixture_bin
+wrapper=$manifest_cli
+coord_db=$manifest_db
+work_dir=$work_dir
+python=$python_path
+repo_root=$repo_root
+unit_user=$manifest_user
+unit_group=$manifest_group
+unit_uid=$unit_uid
+unit_gid=$unit_gid
+runtime_parent=$state_dir/runtime
+state_path=$state_dir
+manifest_path=$manifest
+manifest_record=
+unit_definition_path=$def_path
+unit_definition_sha256=$def_sha
+unset_environment_names=$P9C0_UNSET_ENVIRONMENT_NAMES
+ledger_file=$helper_ledger
+production_mode=1
+controller_manifest_sha256=$manifest_sha
+reap_mode=$reap_mode
+reap_reason=$reap_reason
+lock_token_file=$lock_token
+EOF
+    _p9c0_set_owner_group_mode "$values_file" 0 0 600 \
+        || _p9c0_die "production-render: values owner/mode rejected"
+    _p9c1_validate_lock_token "$manifest" "$state_root" "$run_id" "$lock_token"
+    printf '{"status":"rendered","run_id":"%s","state_dir":"%s"}\n' "$run_id" "$state_dir"
+}
+
+_p9c1_validate_rendered_config() {
+    local rendered="$1" manifest="$2" state_root="$3" run_id="$4"
+    local fixture cli db
+    fixture=$(_p9c1_manifest_get "$manifest" production_launcher_identity files fixture_bin path) || return 1
+    cli=$(_p9c1_manifest_get "$manifest" production_launcher_identity cli_path) || return 1
+    db=$(_p9c1_manifest_get "$manifest" production_launcher_identity db_path) || return 1
+    "$P9C1_INSTALLED_PYTHON" - "$rendered" "$fixture" "$cli" "$db" \
+        "$state_root/runtime/work/e1" "$state_root/runtime/work/e2" \
+        "$state_root/runtime/context/e1.sqlite3" \
+        "$state_root/runtime/context/e2.sqlite3" <<'PYEOF'
+import sys, tomllib
+path, fixture, cli, db, w1, w2, c1, c2 = sys.argv[1:]
+with open(path, "rb") as handle:
+    data = tomllib.load(handle)
+defaults = data.get("defaults", {})
+agents = data.get("agents", [])
+if [a.get("id") for a in agents] != ["p9-3c-fixture-e1", "p9-3c-fixture-e2"]:
+    raise SystemExit(1)
+def resolved(agent, key):
+    return agent.get(key, defaults.get(key))
+if defaults.get("agentd_mode") is not True:
+    raise SystemExit(1)
+if defaults.get("claude_bin") != fixture:
+    raise SystemExit(1)
+if defaults.get("coordinator_cli_path") != cli or defaults.get("coordinator_db_path") != db:
+    raise SystemExit(1)
+if [resolved(agent, "work_dir") for agent in agents] != [w1, w2]:
+    raise SystemExit(1)
+if [resolved(agent, "context_db_path") for agent in agents] != [c1, c2]:
+    raise SystemExit(1)
+PYEOF
+}
+
+_p9c1_authorize_static_definition_readonly() {
+    local path="$1" expected_sha="$2" output stat_line sha
+    [[ -f $path && ! -L $path ]] || return 1
+    stat_line=$(_p9c0_stat_file "$path") || return 1
+    local nlink owner group mode
+    IFS=: read -r _ _ _ nlink owner group mode <<< "$stat_line"
+    [[ $nlink == 1 && $owner == 0 && $group == 0 && $mode == 600 ]] || return 1
+    sha=$(_p9c0_sha256_file "$path") || return 1
+    [[ $sha == "$expected_sha" ]] || return 1
+    output=$(_p9c0_systemd_analyze verify "$path" 2>&1) || return 1
+    if [[ -n $output ]] && printf '%s\n' "$output" | grep -qiE 'warning|error|fail|invalid'; then
+        return 1
+    fi
+}
+
+_p9c1_load_and_validate_readonly() {
+    local state_root="$1" run_id="$2" manifest="$3" manifest_sha="$4"
+    local allow_removed_definition="${5:-0}"
+    local state_base="${state_root%/$run_id}"
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    P9C0_PRODUCTION_MODE=1
+    P9C0_LEDGER_FILE=""
+    P9C1_CONTROLLER_MANIFEST_SHA256=""
+    P9C0_REAP_MODE=""
+    P9C0_REAP_REASON=""
+    _p9c0_load_values "$state_base" "$run_id"
+    [[ ${P9C0_PRODUCTION_MODE:-} == 1 ]] || _p9c0_die "production values mode rejected"
+    [[ $P9C0_LEDGER_FILE == "$state_root/runtime/unit/helper-events.log" ]] \
+        || _p9c0_die "production helper ledger path rejected"
+    [[ $P9C0_UNIT_DEFINITION_PATH == "$(_p9c0_unit_definition_path "$state_base" "$run_id")" ]] \
+        || _p9c0_die "production static definition path rejected"
+    [[ $P9C0_MANIFEST_PATH == "$manifest" ]] || _p9c0_die "production manifest path drift"
+    [[ $P9C1_CONTROLLER_MANIFEST_SHA256 == "$manifest_sha" ]] \
+        || _p9c0_die "production manifest SHA drift"
+    [[ $P9C0_REAP_MODE == none ]] || _p9c0_die "production reap mode drift"
+    _p9c1_validate_reason "$P9C0_REAP_REASON" || _p9c0_die "production reap reason drift"
+    _p9c1_recheck_loaded_authority "$state_root" "$run_id" "$manifest" "$manifest_sha" \
+        || _p9c0_die "production loaded authority rejected"
+    [[ -f $P9C0_LEDGER_FILE && ! -L $P9C0_LEDGER_FILE ]] \
+        || _p9c0_die "production helper ledger missing"
+    local rendered="$state_root/agents.rendered.toml"
+    [[ -f $rendered && ! -L $rendered ]] || _p9c0_die "production rendered config missing"
+    _p9c1_validate_rendered_config "$rendered" "$manifest" "$state_root" "$run_id" \
+        || _p9c0_die "production rendered config drift"
+    _p9c0_require_static_definition_ledger \
+        "$run_id" "$P9C0_UNIT_DEFINITION_PATH" "$P9C0_UNIT_DEFINITION_SHA256" \
+        || _p9c0_die "production static definition ledger authority missing"
+    if [[ -e $P9C0_UNIT_DEFINITION_PATH || $allow_removed_definition != 1 ]]; then
+        _p9c1_authorize_static_definition_readonly \
+            "$P9C0_UNIT_DEFINITION_PATH" "$P9C0_UNIT_DEFINITION_SHA256" \
+            || _p9c0_die "production static definition drift"
+    fi
+}
+
+_p9c1_cmd_production_preflight() {
+    local state_root="" run_id="" manifest="" manifest_sha="" agent_id=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-preflight: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-preflight: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-preflight: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-preflight: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-preflight: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-preflight: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-preflight: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-preflight: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --agent-id) [[ -n $agent_id ]] && _p9c0_die "production-preflight: duplicate --agent-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-preflight: --agent-id requires a value" 2; agent_id="$2"; shift 2 ;;
+            *) _p9c0_die "production-preflight: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $state_root ]] || _p9c0_die "production-preflight: --state-root required"
+    [[ -n $run_id ]] || _p9c0_die "production-preflight: --run-id required"
+    [[ -n $manifest ]] || _p9c0_die "production-preflight: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-preflight: --controller-manifest-sha256 required"
+    [[ -n $agent_id ]] || _p9c0_die "production-preflight: --agent-id required"
+    _p9c0_validate_agent_id "$agent_id"
+    _p9c1_load_and_validate_readonly "$state_root" "$run_id" "$manifest" "$manifest_sha"
+    command -v systemctl >/dev/null || _p9c0_die "production-preflight: systemctl missing"
+    command -v systemd-run >/dev/null || _p9c0_die "production-preflight: systemd-run missing"
+    local unit unit_count active_units
+    unit=$(_p9c0_unit_name "$agent_id" "$run_id")
+    active_units=$(_p9c0_systemctl list-units --type=service \
+        --state=running,activating --no-legend "$unit") \
+        || _p9c0_die "production-preflight: systemctl list-units failed"
+    if printf '%s\n' "$active_units" | grep -Fq "$unit"; then
+        _p9c0_die "production-preflight: exact unit already active"
+    fi
+    unit_count=$(_p9c1_ledger_distinct_unit_count "$P9C0_LEDGER_FILE") \
+        || _p9c0_die "production-preflight: cannot count ledger units"
+    local already_recorded=0
+    _p9c0_ledger_has_exact_unit "$P9C0_LEDGER_FILE" "$unit" && already_recorded=1
+    [[ $unit_count =~ ^[0-9]+$ ]] \
+        || _p9c0_die "production-preflight: invalid unit budget"
+    [[ $already_recorded -eq 1 || $unit_count -lt $P9C0_MAX_UNITS ]] \
+        || _p9c0_die "production-preflight: two-unit budget exhausted"
+    printf '{"status":"preflight_ok","agent_id":"%s","run_id":"%s","unit_count":%s}\n' \
+        "$agent_id" "$run_id" "$unit_count"
+}
+
+_p9c1_cmd_production_start() {
+    local state_root="" run_id="" manifest="" manifest_sha="" lock_token="" agent_id="" mode="complete"
+    local recoverable="" recovery_reason="" prior_process_stopped=""
+    local recoverable_present="" recovery_reason_present="" prior_process_stopped_present=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-start: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-start: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-start: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-start: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --lock-token-file) [[ -n $lock_token ]] && _p9c0_die "production-start: duplicate --lock-token-file" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --lock-token-file requires a value" 2; lock_token="$2"; shift 2 ;;
+            --agent-id) [[ -n $agent_id ]] && _p9c0_die "production-start: duplicate --agent-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --agent-id requires a value" 2; agent_id="$2"; shift 2 ;;
+            --mode) [[ $mode != "complete" ]] && _p9c0_die "production-start: duplicate --mode" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --mode requires a value" 2; mode="$2"; shift 2 ;;
+            --recoverable) [[ -n $recoverable_present ]] && _p9c0_die "production-start: duplicate --recoverable" 2; recoverable=1; recoverable_present=1; shift ;;
+            --recovery-reason) [[ -n $recovery_reason_present ]] && _p9c0_die "production-start: duplicate --recovery-reason" 2; [[ $# -lt 2 ]] && _p9c0_die "production-start: --recovery-reason requires a value" 2; recovery_reason="$2"; recovery_reason_present=1; shift 2 ;;
+            --prior-process-stopped) [[ -n $prior_process_stopped_present ]] && _p9c0_die "production-start: duplicate --prior-process-stopped" 2; prior_process_stopped=1; prior_process_stopped_present=1; shift ;;
+            *) _p9c0_die "production-start: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $run_id ]] || _p9c0_die "production-start: --run-id required"
+    [[ -n $manifest ]] || _p9c0_die "production-start: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-start: --controller-manifest-sha256 required"
+    [[ -n $lock_token ]] || _p9c0_die "production-start: --lock-token-file required"
+    [[ -n $agent_id ]] || _p9c0_die "production-start: --agent-id required"
+    [[ -n $state_root ]] || _p9c0_die "production-start: --state-root required"
+    [[ $mode == "complete" || $mode == "hold" ]] || _p9c0_die "production-start: --mode must be complete or hold"
+    _p9c0_validate_agent_id "$agent_id"
+    _p9c1_require_root
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    _p9c1_validate_lock_token "$manifest" "$state_root" "$run_id" "$lock_token"
+    _p9c1_load_and_validate_readonly "$state_root" "$run_id" "$manifest" "$manifest_sha"
+    [[ ${P9C1_LOCK_TOKEN_FILE:-} == "$lock_token" ]] \
+        || _p9c0_die "production-start: lock token path drift"
+
+    local recovery_argv=()
+    [[ -n $recoverable_present ]] && recovery_argv+=(--recoverable)
+    [[ -n $recovery_reason_present ]] && recovery_argv+=(--recovery-reason "$recovery_reason")
+    [[ -n $prior_process_stopped_present ]] && recovery_argv+=(--prior-process-stopped)
+    _p9c0_parse_recovery_flags ${recovery_argv[@]+"${recovery_argv[@]}"} \
+        || _p9c0_die "production-start: recovery evidence rejected"
+    if [[ $P9C0_RECOVERY_MODE == recovery && $mode != hold ]]; then
+        _p9c0_die "production-start: recovery requires mode=hold"
+    fi
+
+    local unit
+    unit=$(_p9c0_unit_name "$agent_id" "$run_id")
+    local distinct_units=0 already_recorded=0
+    distinct_units=$(_p9c1_ledger_distinct_unit_count "$P9C0_LEDGER_FILE") \
+        || _p9c0_die "production-start: cannot count ledger units"
+    _p9c0_ledger_has_exact_unit "$P9C0_LEDGER_FILE" "$unit" && already_recorded=1
+    [[ $already_recorded -eq 1 || $distinct_units -lt $P9C0_MAX_UNITS ]] \
+        || _p9c0_die "production-start: two-unit budget exhausted"
+    local manifest_user manifest_group
+    manifest_user=$(_p9c1_manifest_get "$manifest" unit_user) || _p9c0_die "production-start: cannot read unit_user from manifest"
+    manifest_group=$(_p9c1_manifest_get "$manifest" unit_group) || _p9c0_die "production-start: cannot read unit_group from manifest"
+    _p9c0_with_lock "${state_root%/$run_id}" "$run_id" _p9c0_start_locked \
+        "$agent_id" "$run_id" "$unit" "$mode" "$manifest_user" "$manifest_group" >/dev/null
+    printf '{"status":"started","agent_id":"%s","run_id":"%s","mode":"%s"}\n' "$agent_id" "$run_id" "$mode"
+}
+
+_p9c1_cmd_production_status() {
+    local state_root="" run_id="" manifest="" manifest_sha="" agent_id=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-status: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-status: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-status: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-status: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-status: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-status: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-status: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-status: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --agent-id) [[ -n $agent_id ]] && _p9c0_die "production-status: duplicate --agent-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-status: --agent-id requires a value" 2; agent_id="$2"; shift 2 ;;
+            *) _p9c0_die "production-status: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $state_root ]] || _p9c0_die "production-status: --state-root required"
+    [[ -n $manifest ]] || _p9c0_die "production-status: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-status: --controller-manifest-sha256 required"
+    [[ -n $agent_id ]] || _p9c0_die "production-status: --agent-id required"
+    [[ -n $run_id ]] || _p9c0_die "production-status: --run-id required"
+    _p9c0_validate_agent_id "$agent_id"
+    _p9c1_load_and_validate_readonly "$state_root" "$run_id" "$manifest" "$manifest_sha"
+    local unit output
+    unit=$(_p9c0_unit_name "$agent_id" "$run_id")
+    _p9c0_require_ledger_unit "$unit"
+    output=$(_p9c0_systemctl show -p ActiveState -p SubState -p MainPID \
+        -p ControlGroup -p Result "$unit") \
+        || _p9c0_die "production-status: systemctl show failed"
+    "$P9C1_INSTALLED_PYTHON" - "$agent_id" "$unit" "$output" <<'PYEOF'
+import json, sys
+agent_id, unit, raw = sys.argv[1:]
+allowed = {"ActiveState", "SubState", "MainPID", "ControlGroup", "Result"}
+values = {}
+for line in raw.splitlines():
+    key, sep, value = line.partition("=")
+    if not sep or key not in allowed or key in values:
+        raise SystemExit(1)
+    values[key] = value
+if set(values) != allowed:
+    raise SystemExit(1)
+payload = {"agent_id": agent_id, "status": "ok", "unit": unit,
+           "properties": values}
+print(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+PYEOF
+}
+
+_p9c1_cmd_production_stop() {
+    local state_root="" run_id="" manifest="" manifest_sha="" lock_token="" agent_id="" crash=0
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-stop: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-stop: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-stop: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-stop: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --lock-token-file) [[ -n $lock_token ]] && _p9c0_die "production-stop: duplicate --lock-token-file" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --lock-token-file requires a value" 2; lock_token="$2"; shift 2 ;;
+            --agent-id) [[ -n $agent_id ]] && _p9c0_die "production-stop: duplicate --agent-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-stop: --agent-id requires a value" 2; agent_id="$2"; shift 2 ;;
+            --crash) [[ $crash -eq 0 ]] || _p9c0_die "production-stop: duplicate --crash" 2; crash=1; shift ;;
+            *) _p9c0_die "production-stop: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $agent_id ]] || _p9c0_die "production-stop: --agent-id required"
+    [[ -n $run_id ]] || _p9c0_die "production-stop: --run-id required"
+    [[ -n $state_root ]] || _p9c0_die "production-stop: --state-root required"
+    [[ -n $manifest ]] || _p9c0_die "production-stop: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-stop: --controller-manifest-sha256 required"
+    [[ -n $lock_token ]] || _p9c0_die "production-stop: --lock-token-file required"
+    _p9c0_validate_agent_id "$agent_id"
+    _p9c1_require_root
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    _p9c1_validate_lock_token "$manifest" "$state_root" "$run_id" "$lock_token"
+    _p9c1_load_and_validate_readonly "$state_root" "$run_id" "$manifest" "$manifest_sha"
+    [[ ${P9C1_LOCK_TOKEN_FILE:-} == "$lock_token" ]] \
+        || _p9c0_die "production-stop: lock token path drift"
+    local unit
+    unit=$(_p9c0_unit_name "$agent_id" "$run_id")
+    _p9c0_require_ledger_unit "$unit"
+    _p9c0_with_lock "${state_root%/$run_id}" "$run_id" _p9c0_stop_locked \
+        "$unit" "" "" "$crash" >/dev/null
+    local termination="graceful"
+    [[ $crash -eq 1 ]] && termination="crash"
+    printf '{"status":"stopped","agent_id":"%s","termination":"%s","unit":"%s"}\n' \
+        "$agent_id" "$termination" "$unit"
+}
+
+_p9c1_cmd_production_cleanup() {
+    local state_root="" run_id="" manifest="" manifest_sha="" lock_token="" agent_id=""
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --state-root) [[ -n $state_root ]] && _p9c0_die "production-cleanup: duplicate --state-root" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --state-root requires a value" 2; state_root="$2"; shift 2 ;;
+            --run-id) [[ -n $run_id ]] && _p9c0_die "production-cleanup: duplicate --run-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --run-id requires a value" 2; run_id="$2"; shift 2 ;;
+            --controller-manifest) [[ -n $manifest ]] && _p9c0_die "production-cleanup: duplicate --controller-manifest" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --controller-manifest requires a value" 2; manifest="$2"; shift 2 ;;
+            --controller-manifest-sha256) [[ -n $manifest_sha ]] && _p9c0_die "production-cleanup: duplicate --controller-manifest-sha256" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --controller-manifest-sha256 requires a value" 2; manifest_sha="$2"; shift 2 ;;
+            --lock-token-file) [[ -n $lock_token ]] && _p9c0_die "production-cleanup: duplicate --lock-token-file" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --lock-token-file requires a value" 2; lock_token="$2"; shift 2 ;;
+            --agent-id) [[ -n $agent_id ]] && _p9c0_die "production-cleanup: duplicate --agent-id" 2; [[ $# -lt 2 ]] && _p9c0_die "production-cleanup: --agent-id requires a value" 2; agent_id="$2"; shift 2 ;;
+            *) _p9c0_die "production-cleanup: unknown option $1" 2 ;;
+        esac
+    done
+    [[ -n $agent_id ]] || _p9c0_die "production-cleanup: --agent-id required"
+    [[ -n $run_id ]] || _p9c0_die "production-cleanup: --run-id required"
+    [[ -n $state_root ]] || _p9c0_die "production-cleanup: --state-root required"
+    [[ -n $manifest ]] || _p9c0_die "production-cleanup: --controller-manifest required"
+    [[ -n $manifest_sha ]] || _p9c0_die "production-cleanup: --controller-manifest-sha256 required"
+    [[ -n $lock_token ]] || _p9c0_die "production-cleanup: --lock-token-file required"
+    _p9c0_validate_agent_id "$agent_id"
+    _p9c1_require_root
+    _p9c1_validate_controller_manifest "$manifest" "$manifest_sha" "$state_root" "$run_id"
+    _p9c1_validate_all_launcher_identities "$manifest"
+    _p9c1_validate_lock_token "$manifest" "$state_root" "$run_id" "$lock_token"
+    _p9c1_load_and_validate_readonly "$state_root" "$run_id" "$manifest" "$manifest_sha" 1
+    [[ ${P9C1_LOCK_TOKEN_FILE:-} == "$lock_token" ]] \
+        || _p9c0_die "production-cleanup: lock token path drift"
+    local unit
+    unit=$(_p9c0_unit_name "$agent_id" "$run_id")
+    _p9c0_require_ledger_unit "$unit"
+    _p9c0_with_lock "${state_root%/$run_id}" "$run_id" _p9c0_cleanup_locked "$unit" >/dev/null
+    printf '{"status":"cleaned","agent_id":"%s","unit":"%s"}\n' "$agent_id" "$unit"
+}
+
 main() {
     [[ $# -ge 1 ]] || _p9c0_usage
     local cmd="$1"
@@ -2215,6 +3006,12 @@ main() {
 
     case $cmd in
         render|preflight|start|status|stop|cleanup) "_p9c0_cmd_$cmd" "$@" ;;
+        production-render) _p9c1_cmd_production_render "$@" ;;
+        production-preflight) _p9c1_cmd_production_preflight "$@" ;;
+        production-start) _p9c1_cmd_production_start "$@" ;;
+        production-status) _p9c1_cmd_production_status "$@" ;;
+        production-stop) _p9c1_cmd_production_stop "$@" ;;
+        production-cleanup) _p9c1_cmd_production_cleanup "$@" ;;
         *) _p9c0_usage ;;
     esac
 }

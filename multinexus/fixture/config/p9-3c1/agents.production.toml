@@ -1,0 +1,20 @@
+[defaults]
+agentd_mode = true
+adapter = "claude"
+timeout = 240
+first_byte_timeout = 90
+activity_timeout = 90
+system_prompt = ""
+claude_bin = "/opt/multinexus/multinexus/fixture/bin/p9-3c0-fixture.py"
+work_dir = "__P9C1_E1_WORK_DIR__"
+coordinator_cli_path = "/usr/local/bin/coord-local"
+coordinator_db_path = "/var/lib/coordinate/coord.sqlite3"
+context_db_path = "__P9C1_E1_CONTEXT_DB__"
+
+[[agents]]
+id = "p9-3c-fixture-e1"
+
+[[agents]]
+id = "p9-3c-fixture-e2"
+work_dir = "__P9C1_E2_WORK_DIR__"
+context_db_path = "__P9C1_E2_CONTEXT_DB__"

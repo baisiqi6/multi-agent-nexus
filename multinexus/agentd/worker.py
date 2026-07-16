@@ -24,6 +24,7 @@ from ..sessions.store import SessionStore
 from .coordinate_client import (
     CoordinateRuntimeClient,
     CoordinateRuntimeError,
+    normalize_claim_reap_policy,
     normalize_recovery_reason,
 )
 from .execution_context import ExecutionContextError, validate_claim_response
@@ -65,6 +66,8 @@ class AgentdWorker:
         recoverable: bool = False,
         recovery_reason: str = "",
         prior_process_stopped: bool = False,
+        reap_mode: str = "global",
+        reap_reason: Any = None,
     ) -> None:
         """Main worker loop: claim jobs, execute, report.
 
@@ -73,13 +76,21 @@ class AgentdWorker:
         ``prior_process_stopped=True``; missing evidence fails closed immediately.
         Default False = normal launchd poll, only pending jobs (8.4.3 P1 #1: never
         auto-reclaim stuck timed_out jobs).
+
+        reap_mode="global" (default) preserves legacy claim argv. reap_mode="none"
+        forwards the sealed reap policy on every poll. Policy is validated once
+        before ``_running=True``.
         """
+        normalized_mode, normalized_reap_reason = normalize_claim_reap_policy(
+            reap_mode=reap_mode,
+            reap_reason=reap_reason,
+        )
         if recoverable:
             if prior_process_stopped is not True:
                 raise CoordinateRuntimeError(
                     "recoverable worker run requires prior_process_stopped=True"
                 )
-            normalized_reason = normalize_recovery_reason(recovery_reason)
+            normalized_rec_reason = normalize_recovery_reason(recovery_reason)
         else:
             if recovery_reason != "":
                 raise CoordinateRuntimeError(
@@ -89,24 +100,30 @@ class AgentdWorker:
                 raise CoordinateRuntimeError(
                     "non-recoverable worker run must not carry prior_process_stopped"
                 )
-            normalized_reason = ""
+            normalized_rec_reason = ""
         self._running = True
         if recoverable:
             log.warning(
                 "Agentd worker started in RECOVERY mode: agent=%s reason=%s (will claim timed_out+recoverable jobs)",
                 self.config.id,
-                normalized_reason,
+                normalized_rec_reason,
             )
         else:
             log.info("Agentd worker started: agent=%s", self.config.id)
         while self._running:
             try:
-                claim_result = await self.coordinate.claim_job(
-                    agent_id=self.config.id,
-                    recoverable=recoverable,
-                    recovery_reason=normalized_reason,
-                    prior_process_stopped=prior_process_stopped,
-                )
+                claim_kwargs = {
+                    "agent_id": self.config.id,
+                    "recoverable": recoverable,
+                    "recovery_reason": normalized_rec_reason,
+                    "prior_process_stopped": prior_process_stopped,
+                }
+                if normalized_mode == "none":
+                    claim_kwargs.update(
+                        reap_mode=normalized_mode,
+                        reap_reason=normalized_reap_reason,
+                    )
+                claim_result = await self.coordinate.claim_job(**claim_kwargs)
             except CoordinateRuntimeError as exc:
                 log.error(
                     "Coordinate claim error for agent %s: %s", self.config.id, exc

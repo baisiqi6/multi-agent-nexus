@@ -11,6 +11,8 @@ not invoked directly except for the parser and pure normalizer checks.
 from __future__ import annotations
 
 import os
+import hashlib
+import json
 import re
 import sqlite3
 import stat
@@ -3660,3 +3662,422 @@ class TestCleanupController:
             f"cleanup|p9-3c-fixture-e2|{facts['run_id']}",
             f"cleanup|p9-3c-fixture-e1|{recovery_id}",
         ]
+
+
+def _p9c1_helper_state(tmp_path: Path) -> dict:
+    """Build a fake installed production tree for public helper commands."""
+    run_id = "p9-3c1-prod-20260716t120000z-abcdef01"
+    state_base = tmp_path / "state"
+    state_root = state_base / run_id
+    for relative in (
+        "control",
+        "ledger",
+        "evidence",
+        "backup",
+        "runtime/work/e1",
+        "runtime/work/e2",
+        "runtime/context",
+        "runtime/unit",
+    ):
+        (state_root / relative).mkdir(parents=True, exist_ok=True)
+
+    python_path = Path(sys.executable).resolve()
+    helper_path = UNIT_HELPER.resolve()
+    fixture = tmp_path / "p9-3c0-fixture.py"
+    fixture.write_text("#!/bin/sh\nexit 0\n")
+    _chmod_exec(fixture)
+    cli = tmp_path / "coord-local"
+    cli.write_text("#!/bin/sh\nexit 0\n")
+    _chmod_exec(cli)
+    db = tmp_path / "coord.sqlite3"
+    db.write_bytes(b"fake-production-db")
+    lock_helper = tmp_path / "production-mutation-lock.sh"
+    lock_helper.write_text("#!/bin/sh\nexit 0\n")
+    _chmod_exec(lock_helper)
+    template = tmp_path / "agents.production.toml"
+    template_text = (
+        REPO_ROOT
+        / "multinexus"
+        / "fixture"
+        / "config"
+        / "p9-3c1"
+        / "agents.production.toml"
+    ).read_text()
+    template.write_text(
+        template_text.replace(
+            "/opt/multinexus/multinexus/fixture/bin/p9-3c0-fixture.py",
+            str(fixture),
+        )
+        .replace("/usr/local/bin/coord-local", str(cli))
+        .replace("/var/lib/coordinate/coord.sqlite3", str(db))
+    )
+
+    def identity(path: Path, digest: str, inode: int, mode: int) -> dict:
+        return {
+            "path": str(path),
+            "dev": 10,
+            "inode": inode,
+            "size": 128,
+            "nlink": 1,
+            "owner": 0,
+            "group": 0,
+            "mode": mode,
+            "sha256": digest,
+        }
+
+    identities = {
+        "python": identity(python_path, "1" * 64, 101, 0o755),
+        "helper": identity(helper_path, "2" * 64, 102, 0o755),
+        "fixture_bin": identity(fixture, "3" * 64, 103, 0o755),
+        "agent_template": identity(template, "4" * 64, 104, 0o644),
+        "mutation_lock_helper": identity(lock_helper, "5" * 64, 105, 0o755),
+    }
+    cli_identity = identity(cli, "6" * 64, 106, 0o755)
+    db_identity = identity(db, "7" * 64, 107, 0o600)
+    launcher = {
+        "cli_path": str(cli),
+        "cli_dev": cli_identity["dev"],
+        "cli_inode": cli_identity["inode"],
+        "cli_owner": 0,
+        "cli_group": 0,
+        "cli_mode": 0o755,
+        "db_path": str(db),
+        "db_dev": db_identity["dev"],
+        "db_inode": db_identity["inode"],
+        "db_owner": 0,
+        "db_group": 0,
+        "db_mode": 0o600,
+        "python_path": str(python_path),
+        "python_sha256": identities["python"]["sha256"],
+        "python_dev": 10,
+        "python_inode": 101,
+        "python_owner": 0,
+        "python_group": 0,
+        "python_mode": 0o755,
+        "helper_path": str(helper_path),
+        "helper_sha256": identities["helper"]["sha256"],
+        "fixture_bin_path": str(fixture),
+        "fixture_bin_sha256": identities["fixture_bin"]["sha256"],
+        "agent_template_path": str(template),
+        "agent_template_sha256": identities["agent_template"]["sha256"],
+        "config_dir": str(tmp_path),
+        "lock_helper_path": str(lock_helper),
+        "files": identities,
+        "cli_file": cli_identity,
+        "db_file": db_identity,
+    }
+    manifest = {
+        "production_launcher_identity": launcher,
+        "run_id": run_id,
+        "state_root": str(state_root),
+        "unit_user": MOCK_USER,
+        "unit_group": MOCK_GROUP,
+        "unit_uid": int(MOCK_UID),
+        "unit_gid": int(MOCK_GID),
+        "installed_revisions": {
+            "multinexus_deployed": "8" * 40,
+            "coordinate_deployed": "9" * 40,
+        },
+        "installed_hashes": {"controller": "a" * 64},
+        "config_hashes": {"agents.production.toml": "b" * 64},
+        "helper_allowlist": ["p9-3c-fixture-e1", "p9-3c-fixture-e2"],
+        "reap_policy": {"mode": "none", "reason": "p9-3c1-sealed-test"},
+        "budgets": {
+            "total_requests": 5,
+            "max_active_units": 2,
+            "provider_network": 0,
+            "external_delivery": 0,
+        },
+        "workspace_id": "p9-3c1-production",
+        "host_id": "VM-0-15-ubuntu",
+        "backup_identity": db_identity,
+        "canonical_projection_sha256": "d" * 64,
+        "prepared_at_utc": "2026-07-16T12:00:00Z",
+        "p3_authorization_digest": None,
+    }
+    manifest_bytes = (
+        json.dumps(manifest, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    ).encode()
+    manifest_path = state_root / "control" / "manifest.json"
+    manifest_path.write_bytes(manifest_bytes)
+    manifest_path.chmod(0o600)
+    manifest_sha = hashlib.sha256(manifest_bytes).hexdigest()
+    token = state_root / "control" / "production-lock.token"
+    token.write_text("c" * 64)
+    token.chmod(0o600)
+
+    calls = tmp_path / "systemd-run.calls"
+    stopped = tmp_path / "systemd.stopped"
+    stub_bin = tmp_path / "stub-bin"
+    stub_bin.mkdir()
+    for name in ("systemctl", "systemd-run"):
+        stub = stub_bin / name
+        stub.write_text("#!/bin/sh\nexit 0\n")
+        _chmod_exec(stub)
+
+    stat_cases = []
+    sha_cases = []
+    for item in [*identities.values(), cli_identity, db_identity]:
+        if item["path"] == str(db):
+            stat_cases.append(
+                f'"{item["path"]}") '
+                f'echo "{item["dev"]}:$([[ "${{DB_INODE_DRIFT:-0}}" == 1 ]] '
+                f'&& echo 999 || echo {item["inode"]}):'
+                f'$([[ "${{DB_CONTENT_MUTATED:-0}}" == 1 ]] && echo 999 || echo {item["size"]})'
+                f':1:0:0:{item["mode"]:o}" ;;'
+            )
+        else:
+            stat_cases.append(
+                f'"{item["path"]}") echo "{item["dev"]}:{item["inode"]}:'
+                f'{item["size"]}:1:0:0:{item["mode"]:o}" ;;'
+            )
+        sha_cases.append(f'"{item["path"]}") echo "{item["sha256"]}" ;;')
+
+    prelude = f'''
+    source "{UNIT_HELPER}"
+    P9C1_STATE_ROOT_PREFIX="{state_base}"
+    P9C1_INSTALLED_PYTHON="{python_path}"
+    P9C1_INSTALLED_LOCK_HELPER="{lock_helper}"
+    export PATH="{stub_bin}:$PATH"
+    _p9c1_effective_uid() {{ echo 0; }}
+    _p9c1_lock_helper_status() {{
+        if [[ "${{LOCK_MISMATCH:-0}}" == 1 ]]; then
+            printf '%s\n' '{{"state":"held","phase":"held","owner":"wrong","action":"p9-3c1-run:{run_id}","token_matches":false}}'
+        else
+            printf '%s\n' '{{"state":"held","phase":"held","owner":"p9-3c1-controller","action":"p9-3c1-run:{run_id}","token_matches":true}}'
+        fi
+    }}
+    _p9c0_identity_lookup_user() {{ [[ "$1" == "{MOCK_USER}" ]] && echo {MOCK_UID}; }}
+    _p9c0_identity_lookup_group() {{ [[ "$1" == "{MOCK_GROUP}" ]] && echo {MOCK_GID}; }}
+    _p9c0_set_owner_group_mode() {{ chmod "$4" "$1"; }}
+    _p9c0_lock_file_authority() {{ return 0; }}
+    _p9c0_stat_file() {{
+        case "$1" in
+            {os.linesep.join(stat_cases)}
+            "{manifest_path}"|"{token}"|*/helper-events.log|*/unit-helper.lock|*/values.rendered|*/systemd.verify.service)
+                echo "10:201:128:1:0:0:600" ;;
+            *) echo "10:202:128:1:0:{MOCK_GID}:640" ;;
+        esac
+    }}
+    _p9c0_sha256_file() {{
+        case "$1" in
+            "{manifest_path}") echo "{manifest_sha}" ;;
+            {os.linesep.join(sha_cases)}
+            */systemd.verify.service) echo "{MOCK_DEF_SHA}" ;;
+            *) echo "{MOCK_WRAPPER_SHA}" ;;
+        esac
+    }}
+    _p9c0_systemd_analyze() {{ return 0; }}
+    _p9c0_run_systemd_run() {{ printf '%s\n' "$*" >> "{calls}"; }}
+    _p9c0_post_start_verify() {{ return 0; }}
+    _p9c0_date_ms() {{ echo 1000; }}
+    _p9c0_flock() {{ return 0; }}
+    _p9c0_sleep() {{ return 0; }}
+    _p9c0_python_normalize() {{ return 0; }}
+    _p9c0_cgroup_procs_path() {{ printf '%s\n' "{tmp_path}/absent-cgroup.procs"; }}
+    _p9c0_systemctl() {{
+        if [[ "$1" == list-units ]]; then
+            [[ "${{EXACT_UNIT_ACTIVE:-0}}" == 1 ]] && printf '%s loaded active running\n' "${{@: -1}}"
+            return 0
+        fi
+        if [[ "$1" == stop ]]; then : > "{stopped}"; return 0; fi
+        if [[ "$1" == reset-failed || "$1" == kill ]]; then return 0; fi
+        if [[ "$1" == show ]]; then
+            case "$*" in
+                *"-p ActiveState -p SubState -p MainPID -p ControlGroup -p Result"*)
+                    printf 'ActiveState=%s\nSubState=%s\nMainPID=4321\nControlGroup=/system.slice/fake.service\nResult=success\n' \
+                        "$([[ -f "{stopped}" ]] && echo inactive || echo active)" \
+                        "$([[ -f "{stopped}" ]] && echo dead || echo running)" ;;
+                *"-p MainPID --value"*) echo 4321 ;;
+                *"-p ControlGroup --value"*) echo /system.slice/fake.service ;;
+                *"-p ActiveState --value"*) [[ -f "{stopped}" ]] && echo inactive || echo active ;;
+                *"-p Result --value"*) echo success ;;
+                *) return 0 ;;
+            esac
+            return 0
+        fi
+        return 0
+    }}
+    '''
+    base_args = (
+        f'--state-root "{state_root}" --run-id "{run_id}" '
+        f'--controller-manifest "{manifest_path}" '
+        f'--controller-manifest-sha256 "{manifest_sha}"'
+    )
+    return {
+        "prelude": prelude,
+        "state_root": state_root,
+        "run_id": run_id,
+        "manifest": manifest_path,
+        "manifest_sha": manifest_sha,
+        "token": token,
+        "calls": calls,
+        "base_args": base_args,
+    }
+
+
+def _tree_snapshot(root: Path) -> dict:
+    return {
+        str(path.relative_to(root)): (
+            stat.S_IMODE(path.stat().st_mode),
+            path.stat().st_mtime_ns,
+            path.read_bytes() if path.is_file() else None,
+        )
+        for path in sorted(root.rglob("*"))
+    }
+
+
+class TestP9C1ProductionUnitHelper:
+    def test_public_commands_reuse_start_stop_cleanup_and_sealed_reap_policy(self, tmp_path: Path):
+        facts = _p9c1_helper_state(tmp_path)
+        render = _run_bash(
+            facts["prelude"]
+            + f'main production-render {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}"'
+        )
+        assert render.returncode == 0, render.stderr
+
+        before = _tree_snapshot(facts["state_root"])
+        preflight = _run_bash(
+            facts["prelude"]
+            + f'main production-preflight {facts["base_args"]} --agent-id p9-3c-fixture-e1'
+        )
+        assert preflight.returncode == 0, preflight.stderr
+        assert _tree_snapshot(facts["state_root"]) == before
+
+        normal = _run_bash(
+            facts["prelude"]
+            + f'main production-start {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}" --agent-id p9-3c-fixture-e1 --mode complete'
+        )
+        assert normal.returncode == 0, normal.stderr
+        recovery = _run_bash(
+            facts["prelude"]
+            + f'main production-start {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}" --agent-id p9-3c-fixture-e2 --mode hold '
+            + '--recoverable --recovery-reason bounded-recovery --prior-process-stopped'
+        )
+        assert recovery.returncode == 0, recovery.stderr
+        calls = facts["calls"].read_text().splitlines()
+        assert len(calls) == 2
+        assert "--reap-mode none --reap-reason p9-3c1-sealed-test" in calls[0]
+        assert "--recoverable" not in calls[0]
+        assert "--recoverable --recovery-reason bounded-recovery --prior-process-stopped" in calls[1]
+        assert "--reap-mode none --reap-reason p9-3c1-sealed-test" in calls[1]
+
+        third = _run_bash(
+            facts["prelude"]
+            + "EXACT_UNIT_ACTIVE=1; "
+            + f'main production-start {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}" --agent-id p9-3c-fixture-e1 --mode complete'
+        )
+        assert third.returncode != 0
+        assert "already active" in third.stderr
+        assert len(facts["calls"].read_text().splitlines()) == 2
+
+        status_before = _tree_snapshot(facts["state_root"])
+        status = _run_bash(
+            facts["prelude"]
+            + f'main production-status {facts["base_args"]} --agent-id p9-3c-fixture-e1'
+        )
+        assert status.returncode == 0, status.stderr
+        assert json.loads(status.stdout)["properties"]["ActiveState"] == "active"
+        assert _tree_snapshot(facts["state_root"]) == status_before
+
+        crashed = _run_bash(
+            facts["prelude"]
+            + f'main production-stop {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}" --agent-id p9-3c-fixture-e1 --crash'
+        )
+        assert crashed.returncode == 0, crashed.stderr
+        assert json.loads(crashed.stdout)["termination"] == "crash"
+
+        recovered = _run_bash(
+            facts["prelude"]
+            + f'main production-start {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}" --agent-id p9-3c-fixture-e1 --mode hold '
+            + '--recoverable --recovery-reason bounded-recovery-generation --prior-process-stopped'
+        )
+        assert recovered.returncode == 0, recovered.stderr
+        calls = facts["calls"].read_text().splitlines()
+        assert len(calls) == 3
+        assert "--recoverable --recovery-reason bounded-recovery-generation --prior-process-stopped" in calls[2]
+
+        for agent in ("p9-3c-fixture-e1", "p9-3c-fixture-e2"):
+            stopped = _run_bash(
+                facts["prelude"]
+                + f'main production-stop {facts["base_args"]} '
+                + f'--lock-token-file "{facts["token"]}" --agent-id {agent}'
+            )
+            assert stopped.returncode == 0, stopped.stderr
+        definition = facts["state_root"] / "runtime" / "unit" / "systemd.verify.service"
+        for agent in ("p9-3c-fixture-e1", "p9-3c-fixture-e2"):
+            cleaned = _run_bash(
+                facts["prelude"]
+                + f'main production-cleanup {facts["base_args"]} '
+                + f'--lock-token-file "{facts["token"]}" --agent-id {agent}'
+            )
+            assert cleaned.returncode == 0, cleaned.stderr
+        assert not definition.exists()
+
+    def test_lock_mismatch_blocks_render_before_helper_state_mutation(self, tmp_path: Path):
+        facts = _p9c1_helper_state(tmp_path)
+        result = _run_bash(
+            facts["prelude"]
+            + "LOCK_MISMATCH=1; "
+            + f'main production-render {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}"'
+        )
+        assert result.returncode != 0
+        assert "lock helper" in result.stderr
+        assert not (facts["state_root"] / "runtime" / "unit" / "helper-events.log").exists()
+        assert not (facts["state_root"] / "agents.rendered.toml").exists()
+
+    def test_identity_drift_fails_read_only_preflight_without_repair(self, tmp_path: Path):
+        facts = _p9c1_helper_state(tmp_path)
+        render = _run_bash(
+            facts["prelude"]
+            + f'main production-render {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}"'
+        )
+        assert render.returncode == 0, render.stderr
+        before = _tree_snapshot(facts["state_root"])
+        drift = facts["prelude"] + f'''
+        _p9c0_sha256_file() {{
+            if [[ "$1" == "{facts['manifest']}" ]]; then echo "{facts['manifest_sha']}";
+            elif [[ "$1" == */p9-3c0-fixture.py ]]; then echo "{'f' * 64}";
+            elif [[ "$1" == */systemd.verify.service ]]; then echo "{MOCK_DEF_SHA}";
+            else echo "{MOCK_WRAPPER_SHA}"; fi
+        }}
+        main production-preflight {facts['base_args']} --agent-id p9-3c-fixture-e1
+        '''
+        result = _run_bash(drift)
+        assert result.returncode != 0
+        assert "identity drift" in result.stderr
+        assert _tree_snapshot(facts["state_root"]) == before
+
+    def test_database_content_may_change_but_inode_authority_may_not(self, tmp_path: Path):
+        facts = _p9c1_helper_state(tmp_path)
+        render = _run_bash(
+            facts["prelude"]
+            + f'main production-render {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}"'
+        )
+        assert render.returncode == 0, render.stderr
+        before = _tree_snapshot(facts["state_root"])
+        content_change = _run_bash(
+            facts["prelude"]
+            + "DB_CONTENT_MUTATED=1; "
+            + f'main production-preflight {facts["base_args"]} --agent-id p9-3c-fixture-e1'
+        )
+        assert content_change.returncode == 0, content_change.stderr
+        assert _tree_snapshot(facts["state_root"]) == before
+        inode_change = _run_bash(
+            facts["prelude"]
+            + "DB_INODE_DRIFT=1; "
+            + f'main production-preflight {facts["base_args"]} --agent-id p9-3c-fixture-e1'
+        )
+        assert inode_change.returncode != 0
+        assert "DB identity drift" in inode_change.stderr
+        assert _tree_snapshot(facts["state_root"]) == before

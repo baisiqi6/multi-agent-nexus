@@ -1217,5 +1217,113 @@ class WorkerRenewalSupervisorTests(unittest.TestCase):
         )
 
 
+
+
+class ReapPolicyWorkerTests(unittest.TestCase):
+    """P9-3C1: reap_mode propagation through worker."""
+
+    def test_worker_none_forwards_same_policy_on_every_poll(self):
+        worker = AgentdWorker(_config())
+        claims = []
+
+        async def mock_claim(**kwargs):
+            claims.append(kwargs)
+            if len(claims) == 2:
+                worker.stop()
+            return {"claimed": False, "reason": "queue_empty"}
+
+        worker.coordinate.claim_job = mock_claim
+        asyncio.run(
+            worker.run(
+                poll_interval=0.001,
+                reap_mode="none",
+                reap_reason="sealed-test-reason",
+            )
+        )
+
+        self.assertEqual(len(claims), 2)
+        for claim in claims:
+            self.assertEqual(claim["reap_mode"], "none")
+            self.assertEqual(claim["reap_reason"], "sealed-test-reason")
+
+    def test_worker_recovery_forwards_evidence_and_reap_policy(self):
+        worker = AgentdWorker(_config())
+        claims = []
+
+        async def mock_claim(**kwargs):
+            claims.append(kwargs)
+            worker.stop()
+            return {"claimed": False, "reason": "queue_empty"}
+
+        worker.coordinate.claim_job = mock_claim
+        asyncio.run(
+            worker.run(
+                poll_interval=0.001,
+                recoverable=True,
+                recovery_reason="prior-process-crashed",
+                prior_process_stopped=True,
+                reap_mode="none",
+                reap_reason="sealed-recovery-policy",
+            )
+        )
+
+        self.assertEqual(
+            claims,
+            [
+                {
+                    "agent_id": "mac-omp",
+                    "recoverable": True,
+                    "recovery_reason": "prior-process-crashed",
+                    "prior_process_stopped": True,
+                    "reap_mode": "none",
+                    "reap_reason": "sealed-recovery-policy",
+                }
+            ],
+        )
+
+    def test_worker_invalid_reap_policy_fails_before_claim_or_running(self):
+        worker = AgentdWorker(_config())
+        claims = []
+
+        async def mock_claim(**kwargs):
+            claims.append(kwargs)
+            return {"claimed": False, "reason": "queue_empty"}
+
+        worker.coordinate.claim_job = mock_claim
+        with self.assertRaises(CoordinateRuntimeError):
+            asyncio.run(
+                worker.run(
+                    poll_interval=0.001,
+                    reap_mode="none",
+                    reap_reason=None,
+                )
+            )
+
+        self.assertEqual(claims, [])
+        self.assertFalse(worker._running)
+
+    def test_normalize_recovery_reason_unchanged(self):
+        """normalize_recovery_reason must remain backward-compatible."""
+        from multinexus.agentd.coordinate_client import normalize_recovery_reason
+        result = normalize_recovery_reason("test recovery")
+        self.assertEqual(result, "test recovery")
+
+    def test_normalize_recovery_reason_empty_fails(self):
+        from multinexus.agentd.coordinate_client import (
+            CoordinateRuntimeError,
+            normalize_recovery_reason,
+        )
+        with self.assertRaises(CoordinateRuntimeError):
+            normalize_recovery_reason("   ")
+
+    def test_normalize_recovery_reason_non_string_fails(self):
+        from multinexus.agentd.coordinate_client import (
+            CoordinateRuntimeError,
+            normalize_recovery_reason,
+        )
+        with self.assertRaises(CoordinateRuntimeError):
+            normalize_recovery_reason(123)
+
+
 if __name__ == "__main__":
     unittest.main()

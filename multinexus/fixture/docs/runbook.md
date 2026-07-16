@@ -155,28 +155,102 @@ captured `MainPID`, `NRestarts`, state, and fragment hashes.
 
 ---
 
-## 3. P9-3C1 production activation outline
+## 3. P9-3C1 P2 inert production controller
 
-Production activation is blocked in Package 2. Prerequisites for a future P9-3C1
-review:
+P9-3C1 P2 adds a separate production-authorized helper surface and a sealed
+controller, but deployment remains inert. The old P9-3C0
+`render/preflight/start/status/stop/cleanup` surface still rejects
+`/var/lib/coordinate/coord.sqlite3` and `/usr/local/bin/coord-local`; only the new
+`production-*` subcommands can use the manifest-bound production identities.
 
-1. Independent approval of a production-capable bootstrap.
-2. Fixture ids added to canonical `config/agent-registry.toml` through the
-   normal review process.
-3. Production Coordinate DB and wrapper explicitly authorized for fixture use.
+The P2 deploy gate must use a clean, reviewed revision and must not restart a
+service:
 
-**Package 2's helper rejects the production DB `/var/lib/coordinate/coord.sqlite3`
-and production wrapper `/usr/local/bin/coord-local`. There is no bypass token or
-environment variable in Package 2.**
+```bash
+scripts/deploy-server.sh multinexus \
+  --host kook-hermes-admin \
+  --no-restart
+```
+
+The deploy script only installs these assets. It never invokes
+`p9-3c1-production-verify.sh`, any `production-*` helper command, catalog sync,
+job submission, or fixture unit creation.
+
+### 3.1 Create one inert sealed run
+
+Choose a fresh id matching
+`^p9-3c1-prod-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}$`:
+
+```bash
+sudo /opt/multinexus/scripts/p9-3c1-production-verify.sh prepare \
+  --run-id <p9-3c1-run-id> \
+  --unit-user coord \
+  --unit-group coord
+```
+
+`prepare` requires the shared production mutation lock to be free. It creates a
+fresh root under `/var/tmp/multinexus-p9-3c1/<run-id>`, performs read-only schema,
+integrity, FK, due-lease and canonical-projection gates, creates an online SQLite
+backup, and seals installed revisions, file identities, budgets, config hashes and
+the controller manifest. It does not acquire the lock, render agent config, create
+Coordinate rows, sync catalogs, submit requests, or start units.
+
+### 3.2 Repeat the read-only inert gates
+
+Run both commands twice and compare their canonical JSON plus a byte-level tree
+snapshot before and after:
+
+```bash
+sudo /opt/multinexus/scripts/p9-3c1-production-verify.sh preflight \
+  --run-id <p9-3c1-run-id>
+sudo /opt/multinexus/scripts/p9-3c1-production-verify.sh status \
+  --run-id <p9-3c1-run-id>
+```
+
+Acceptance requires phase `sealed`, no
+`control/live-authorization.json`, no `control/production-lock.token`, lock free,
+DB `integrity=ok/user_version=13/FK=0`, zero due active leases, canonical projection
+equal to the sealed hash, no P9-3C1 workspace/agent/source/job/lease/delivery rows,
+no fixture unit/process/cgroup, and unchanged service PID/restart evidence.
+
+Do not invoke `run` or `cleanup` for a P2 inert run. Keep the sealed run root as
+audit evidence. P3 uses a new run id and a new exact-revision `prepare`.
+
+### 3.3 P3-only live boundary
+
+The installed controller contains locally tested P3 machinery, but `run` requires
+a separate root-owned mode `0600` canonical authorization artifact binding the
+exact run, manifest, revisions, hashes, approved review artifacts, expiry, nonce,
+five-request budget and maximum-two-active-unit budget. The controller revalidates
+that copy, its exact P0 lock token, ledger/phase agreement and expiry before every
+forward phase.
+
+Actual jobs are claimed only by the two agentd units with sealed
+`--reap-mode none`; the controller may issue only the reviewed negative claim
+probe. J3 uses explicit `production-stop --crash`, exact lease expiry/reap, then a
+same-unit `hold` recovery generation. The two-unit budget counts the two distinct
+sealed identities E1/E2, while the helper uses the latest ledgered cgroup for the
+reviewed E1 recovery generation. Three stale N operations (`progress`, `report`,
+`lease renew`) must fail without authoritative mutation before the current N+1
+empty report. Only the four non-J3 stdout deliveries may be sent.
+
+P3 live execution still requires a fresh independently reviewed operator bootstrap
+and exact deployed-evidence approval. P2 deployment or this runbook does not grant
+that authorization.
 
 ---
 
 ## 4. Forbidden operations
 
-Never perform these with Package 2 assets:
+Never perform these with an inert P2 run:
 
 - Direct SQLite writes or deletes in Coordinate DB.
 - Mutable TOML edits between staging versions.
 - `workspace agent sync` or roster verification using fixture executor files.
 - `pkill`, wildcard systemd units, or guessed PID cleanup.
 - Canonical authority mutation without a reviewed commit.
+- `run`, `cleanup`, `production-render`, `production-start`, `production-stop`,
+  `production-cleanup`, catalog sync, job claim/reap/report, delivery send, or
+  service restart.
+- Reuse of an old run root, authorization nonce, lock token, manifest, backup, or
+  P3 review artifact.

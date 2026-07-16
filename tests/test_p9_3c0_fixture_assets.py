@@ -36,6 +36,7 @@ FIXTURE_ROOT = Path(__file__).resolve().parent.parent / "multinexus" / "fixture"
 FIXTURE_BIN = FIXTURE_ROOT / "bin" / "p9-3c0-fixture.py"
 UNIT_HELPER = FIXTURE_ROOT / "bin" / "p9-3c0-unit.sh"
 CONFIG_DIR = FIXTURE_ROOT / "config"
+P9C1_CONFIG_DIR = CONFIG_DIR / "p9-3c1"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CANONICAL_AUTHORITY = REPO_ROOT / "config" / "agent-registry.toml"
 
@@ -798,6 +799,112 @@ class AuthorityTests(unittest.TestCase):
         for name, h in hashes:
             self.assertNotIn(h, seen, f"duplicate hash for {name}")
             seen.add(h)
+
+
+class P9C1AuthorityTests(unittest.TestCase):
+    IDS = {"p9-3c-fixture-e1", "p9-3c-fixture-e2"}
+
+    def test_executor_versions_parse_with_exact_contract(self):
+        hashes = set()
+        for version, suffix in (
+            (1, "v1-disabled"),
+            (2, "v2-enabled"),
+            (3, "v3-disabled"),
+            (4, "v4-empty"),
+        ):
+            auth = load_authority(P9C1_CONFIG_DIR / f"executor.{suffix}.toml")
+            self.assertEqual(auth.source_id, "p9-3c1-fixture-executors")
+            self.assertEqual(auth.source_version, version)
+            self.assertNotEqual(auth.source_id, "p9-3c0-fixture-executors")
+            if version == 4:
+                self.assertEqual(auth.executor_definitions, [])
+                self.assertEqual(auth.executor_bindings, [])
+            else:
+                self.assertEqual(len(auth.executor_definitions), 1)
+                definition = auth.executor_definitions[0]
+                self.assertEqual(definition.id, "p9-3c1-local-fixture")
+                self.assertEqual(definition.provider, "local-fixture")
+                self.assertEqual(definition.adapter, "claude")
+                self.assertEqual(tuple(definition.capabilities), ("p9-3c1-fixture",))
+                self.assertEqual({b.agent_id for b in auth.executor_bindings}, self.IDS)
+                self.assertEqual(
+                    {b.runner_profile_id for b in auth.executor_bindings}, self.IDS
+                )
+                expected_enabled = version == 2
+                self.assertEqual(
+                    {b.enabled for b in auth.executor_bindings}, {expected_enabled}
+                )
+            hashes.add(auth.executor_catalog_hash)
+        self.assertEqual(len(hashes), 4)
+
+    def test_capacity_versions_parse_with_exact_contract(self):
+        v1 = load_capacity_authority(P9C1_CONFIG_DIR / "capacity.v1.toml")
+        v2 = load_capacity_authority(P9C1_CONFIG_DIR / "capacity.v2-empty.toml")
+        self.assertEqual((v1.source_id, v1.source_version), ("p9-3c1-fixture-capacity", 1))
+        self.assertEqual(
+            {p.agent_id: p.max_concurrent_jobs for p in v1.policies},
+            {agent_id: 1 for agent_id in self.IDS},
+        )
+        self.assertEqual((v2.source_id, v2.source_version, v2.policies),
+                         ("p9-3c1-fixture-capacity", 2, ()))
+
+    def test_agent_template_real_parser_and_exact_markers(self):
+        path = P9C1_CONFIG_DIR / "agents.production.toml"
+        raw = path.read_text(encoding="utf-8")
+        parsed = tomllib.loads(raw)
+        self.assertEqual({row["id"] for row in parsed["agents"]}, self.IDS)
+        self.assertNotIn("__P9C0_", raw)
+        self.assertEqual(
+            set(re.findall(r"__P9C1_[A-Z0-9_]+__", raw)),
+            {
+                "__P9C1_E1_WORK_DIR__",
+                "__P9C1_E2_WORK_DIR__",
+                "__P9C1_E1_CONTEXT_DB__",
+                "__P9C1_E2_CONTEXT_DB__",
+            },
+        )
+        from unittest.mock import patch
+        with patch(
+            "multinexus.config._first_existing_command",
+            side_effect=lambda *candidates: next(
+                str(candidate) for candidate in candidates if candidate
+            ),
+        ):
+            for agent_id in sorted(self.IDS):
+                config = _load_toml_agent(path, agent_id, require_token=False)
+                self.assertTrue(config.agentd_mode)
+                self.assertEqual(config.adapter, "claude")
+                self.assertEqual(
+                    config.claude_bin,
+                    "/opt/multinexus/multinexus/fixture/bin/p9-3c0-fixture.py",
+                )
+                self.assertEqual(config.coordinator_cli_path, "/usr/local/bin/coord-local")
+                self.assertEqual(config.coordinator_db_path, "/var/lib/coordinate/coord.sqlite3")
+                self.assertEqual(config.token, "None")
+
+    def test_executor_wrong_capability_fails_real_parser_contract(self):
+        source = (P9C1_CONFIG_DIR / "executor.v2-enabled.toml").read_text(encoding="utf-8")
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "bad.toml"
+            path.write_text(source.replace('capabilities = ["p9-3c1-fixture"]',
+                                           'capabilities = ["coding"]'), encoding="utf-8")
+            auth = load_authority(path)
+            self.assertNotEqual(tuple(auth.executor_definitions[0].capabilities),
+                                ("p9-3c1-fixture",))
+
+    def test_executor_duplicate_and_near_match_rejected(self):
+        source = (P9C1_CONFIG_DIR / "executor.v2-enabled.toml").read_text(encoding="utf-8")
+        duplicate = source + "\n[[agents]]\nid = \"p9-3c-fixture-e1\"\n"
+        near_match = source.replace("p9-3c-fixture-e2", "p9-3c-fixture-e02")
+        with tempfile.TemporaryDirectory() as td:
+            duplicate_path = Path(td) / "duplicate.toml"
+            duplicate_path.write_text(duplicate, encoding="utf-8")
+            with self.assertRaises(AuthorityError):
+                load_authority(duplicate_path)
+            near_path = Path(td) / "near.toml"
+            near_path.write_text(near_match, encoding="utf-8")
+            auth = load_authority(near_path)
+            self.assertNotEqual({b.agent_id for b in auth.executor_bindings}, self.IDS)
 
 
 class UnitHelperStaticTests(unittest.TestCase):
@@ -1804,7 +1911,9 @@ class DeploymentStaticTests(unittest.TestCase):
         self.assertTrue(bin_mode & stat.S_IXOTH)
 
     def test_config_modes_are_not_executable(self):
-        for path in CONFIG_DIR.iterdir():
+        for path in CONFIG_DIR.rglob("*"):
+            if not path.is_file():
+                continue
             mode = path.stat().st_mode
             self.assertFalse(mode & stat.S_IXUSR, f"{path} must not be executable")
 

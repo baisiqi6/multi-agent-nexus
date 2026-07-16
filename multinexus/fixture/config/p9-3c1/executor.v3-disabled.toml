@@ -1,0 +1,25 @@
+[registry]
+id = "p9-3c1-fixture-executors"
+version = 3
+
+[[executor_definitions]]
+id = "p9-3c1-local-fixture"
+provider = "local-fixture"
+adapter = "claude"
+capabilities = ["p9-3c1-fixture"]
+
+[[agents]]
+id = "p9-3c-fixture-e1"
+display_name = "P9-3C1 Fixture E1"
+discord_user_id = "1001"
+executor_definition_id = "p9-3c1-local-fixture"
+runner_profile_id = "p9-3c-fixture-e1"
+enabled = false
+
+[[agents]]
+id = "p9-3c-fixture-e2"
+display_name = "P9-3C1 Fixture E2"
+discord_user_id = "1002"
+executor_definition_id = "p9-3c1-local-fixture"
+runner_profile_id = "p9-3c-fixture-e2"
+enabled = false

@@ -40,6 +40,54 @@ def normalize_recovery_reason(value: Any) -> str:
     return reason
 
 
+def normalize_claim_reap_policy(
+    reap_mode: Any = "global",
+    reap_reason: Any = None,
+) -> tuple[str, str | None]:
+    """Validate and normalize a claim reap policy per the Coordinate P1 contract.
+
+    Exact modes: ``global`` accepts only ``None`` reason and returns
+    ``("global", None)``. ``none`` requires a non-blank, stripped-stable,
+    C0/DEL-free string reason of at most 512 code points and 2048 UTF-8 bytes.
+    Any other combination fails closed before subprocess invocation.
+    """
+    if reap_mode not in ("global", "none"):
+        raise CoordinateRuntimeError(
+            f"reap_mode must be 'global' or 'none', got {reap_mode!r}"
+        )
+    if reap_mode == "global":
+        if reap_reason is not None:
+            raise CoordinateRuntimeError(
+                "global reap_mode must not carry reap_reason"
+            )
+        return ("global", None)
+    if not isinstance(reap_reason, str):
+        raise CoordinateRuntimeError(
+            f"none reap_mode requires a string reap_reason, got {type(reap_reason).__name__}"
+        )
+    reason = reap_reason.strip()
+    if not reason:
+        raise CoordinateRuntimeError(
+            "none reap_mode requires a non-blank reap_reason"
+        )
+    if reap_reason != reason:
+        raise CoordinateRuntimeError(
+            "reap_reason must be stripped-stable (no leading/trailing whitespace)"
+        )
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in reason):
+        raise CoordinateRuntimeError(
+            "reap_reason must not contain C0 or DEL control characters"
+        )
+    if len(reason) > 512:
+        raise CoordinateRuntimeError(
+            "reap_reason must be at most 512 code points"
+        )
+    if len(reason.encode("utf-8")) > 2048:
+        raise CoordinateRuntimeError(
+            "reap_reason must be at most 2048 UTF-8 bytes"
+        )
+    return "none", reason
+
 class CoordinateRuntimeClient:
     """Submit bridge requests to coordinate runtime.
 
@@ -109,6 +157,8 @@ class CoordinateRuntimeClient:
         recoverable: bool = False,
         recovery_reason: str = "",
         prior_process_stopped: bool = False,
+        reap_mode: str = "global",
+        reap_reason: Any = None,
     ) -> dict[str, Any]:
         """Claim the next pending job for this agent. Returns the full result envelope.
 
@@ -119,12 +169,24 @@ class CoordinateRuntimeClient:
         evidence. Default False = only pending jobs, so normal launchd agentd never
         auto-reclaims a stuck timed_out job (8.4.3 P1 #1).
 
+        reap_mode="global" (default) preserves legacy argv exactly and omits both
+        Coordinate reap flags. reap_mode="none" appends ``--reap-mode none
+        --reap-reason <reason>``. Policy is validated inside this method before
+        any subprocess invocation; callers must never bypass it.
+
         Even when ``claimed`` is False, the full inner result dict is returned so
         the caller can preserve ``reason`` and blocker diagnostics.
 
         The caller must validate ``result["execution_context"]`` before invoking
         an adapter; this client preserves the raw Coordinate response.
         """
+
+        # Validate and normalize reap policy before any subprocess invocation.
+        normalized_mode, normalized_reap_reason = normalize_claim_reap_policy(
+            reap_mode=reap_mode,
+            reap_reason=reap_reason,
+        )
+
         if recoverable:
             normalized_reason = normalize_recovery_reason(recovery_reason)
             if prior_process_stopped is not True:
@@ -151,6 +213,11 @@ class CoordinateRuntimeClient:
             cmd.append("--recoverable")
             cmd.extend(["--recovery-reason", normalized_reason])
             cmd.append("--prior-process-stopped")
+        if normalized_mode == "none":
+            assert normalized_reap_reason is not None
+            cmd.extend(
+                ["--reap-mode", "none", "--reap-reason", normalized_reap_reason]
+            )
         result = await asyncio.to_thread(self._run_cli, cmd)
         if not isinstance(result, dict):
             raise CoordinateRuntimeError(
