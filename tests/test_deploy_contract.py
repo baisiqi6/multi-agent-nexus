@@ -2566,6 +2566,28 @@ class DeployContractTests(unittest.TestCase):
         self.assertIn("trap 'production_mutation_exit_trap 130 INT' INT", source)
         self.assertIn("trap 'production_mutation_exit_trap 143 TERM' TERM", source)
 
+    def test_production_lock_helper_path_is_unique_across_shell_controller_deploy(self):
+        """The shipped shell, controller and deploy sources must all agree on the
+        exact production lock-helper path.  Read the unmodified source files — no
+        test prelude override — and assert the literal constant is the single
+        deployed authority."""
+        repo_root = Path(__file__).parent.parent
+        expected = "/usr/local/sbin/coordinate-production-mutation-lock"
+
+        shell_source = (repo_root / "multinexus" / "fixture" / "bin" / "p9-3c0-unit.sh").read_text()
+        shell_match = re.search(r'^P9C1_INSTALLED_LOCK_HELPER="([^"]+)"', shell_source, re.MULTILINE)
+        self.assertIsNotNone(shell_match, "P9C1_INSTALLED_LOCK_HELPER not found in shell source")
+        self.assertEqual(shell_match.group(1), expected)
+
+        controller_source = (repo_root / "scripts" / "p9_3c1_controller.py").read_text()
+        controller_match = re.search(r'^PRODUCTION_LOCK_HELPER\s*=\s*"([^"]+)"', controller_source, re.MULTILINE)
+        self.assertIsNotNone(controller_match, "PRODUCTION_LOCK_HELPER not found in controller source")
+        self.assertEqual(controller_match.group(1), expected)
+
+        deploy_source = self.deploy_script.read_text()
+        deploy_match = re.search(r'^LOCK_HELPER_REMOTE="([^"]+)"', deploy_source, re.MULTILINE)
+        self.assertIsNotNone(deploy_match, "LOCK_HELPER_REMOTE not found in deploy source")
+        self.assertEqual(deploy_match.group(1), expected)
 
 if __name__ == "__main__":
     unittest.main()

@@ -4081,3 +4081,28 @@ class TestP9C1ProductionUnitHelper:
         assert inode_change.returncode != 0
         assert "DB identity drift" in inode_change.stderr
         assert _tree_snapshot(facts["state_root"]) == before
+
+    def test_lock_helper_path_mismatch_blocks_render_before_any_mutation(self, tmp_path: Path):
+        """When the manifest lock_helper_path differs from the effective shell
+        P9C1_INSTALLED_LOCK_HELPER, production-render must fail closed with the
+        exact 'installed lock helper path drift' message and create no helper
+        events, rendered config, or unit authority."""
+        facts = _p9c1_helper_state(tmp_path)
+        divergent_helper = tmp_path / "divergent-lock-helper.sh"
+        divergent_helper.write_text("#!/bin/sh\nexit 0\n")
+        _chmod_exec(divergent_helper)
+        # Override the effective shell constant to a path different from the
+        # manifest's lock_helper_path.  The validation gate must reject before
+        # invoking the helper or rendering any authority.
+        mismatch_script = (
+            facts["prelude"]
+            + f'P9C1_INSTALLED_LOCK_HELPER="{divergent_helper}"; '
+            + f'main production-render {facts["base_args"]} '
+            + f'--lock-token-file "{facts["token"]}"'
+        )
+        result = _run_bash(mismatch_script)
+        assert result.returncode != 0, result.stderr
+        assert "installed lock helper path drift" in result.stderr
+        assert not (facts["state_root"] / "runtime" / "unit" / "helper-events.log").exists()
+        assert not (facts["state_root"] / "agents.rendered.toml").exists()
+        assert not (facts["state_root"] / "runtime" / "unit" / "systemd.verify.service").exists()
