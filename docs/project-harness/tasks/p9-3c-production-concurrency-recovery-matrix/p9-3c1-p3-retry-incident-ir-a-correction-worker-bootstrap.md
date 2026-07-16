@@ -61,7 +61,13 @@ remains unchanged。It must not fall through into `recover` or the final `return
 
 ### 4.2 Systemd authority
 
-Keep the direct `systemctl list-units` argv、`shell=False` behavior、10-second timeout and exact target regex：
+Keep this exact direct argv with `shell=False`、10-second timeout、`capture_output=True` and `text=True`：
+
+```text
+systemctl list-units --type=service --state=running,reloading,activating,deactivating --no-pager --no-legend
+```
+
+Keep the exact target regex：
 
 ```text
 ^p9-3c-fixture-e[12]-p9-3c1-prod-[0-9]{8}t[0-9]{6}z-[a-f0-9]{8}\.service$
