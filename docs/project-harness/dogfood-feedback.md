@@ -61,6 +61,19 @@
 - 结论：local fake seam能证明算法分支，却不能替代 installed path type/owner/mode测量；inert
   prepare的价值正是把这种环境假设在 live mutation前转成可修复证据。
 
+### 6. 固定时钟单测会掩盖 hash authority 的双读竞态
+
+- 状态：fixed / fail-closed retained。
+- 第三个 installed `prepare` 已成功 sealed，但首次只读 `preflight/status` 都以 record 1 SHA
+  mismatch停止；前后 state-tree bytes/metadata hash完全相同。根因是 hash helper与 append各自
+  读取一次 `now_utc`，固定 clock seam让 local tests错误地得到 T1=T2。
+- KAT worker先把 timestamp做成 optional并保留 clock fallback；Codex reviewer判定这不是
+  fail-closed，因为缺失 persisted authority时会再次读取实时钟。最终 API要求 mandatory exact
+  timestamp，validation只使用 record内值；advancing-clock test证明三次 append恰好三次 clock read，
+  validation为零次，并单独覆盖 missing timestamp受控拒绝。
+- 结论：涉及 digest、signature或 ledger authority 的测试不能只用固定 clock；至少要加入
+  advancing clock并精确断言 clock call count，才能证明“同一值被封存和验证”而非偶然相等。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级

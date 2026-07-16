@@ -100,6 +100,29 @@ owner/mode matrix and hardens future `prepare-failed` markers to `O_EXCL|O_NOFOL
   `c9e504cbd4857bf9b947d8c3b583a36e6b61703197af29ce6011b544acd0df08`；raw stream SHA-256
   `fe36a9d0d58f71cad02b7fd8b9fa6e3f8a487bbdb8541a70d4dbd01542eb7e21`。
 
+Third installed attempt `p9-3c1-prod-20260716t064920z-c2bee4d4` completed `prepare` and produced the
+planned sealed ownership/mode tree，but first `preflight` and `status` both fail-closed with `ledger
+record SHA mismatch at record 1`。The state-tree bytes/metadata hash stayed exact
+`86a98860a524be2e8ddbee2bfef1a93e335291e498ad867d314bb6e54d794d1b` before and after both rejected
+reads，and no live mutation command was invoked。
+
+- Root cause：`_compute_record_sha()` and `_append_ledger()` independently sampled `now_utc`，so the
+  hash covered T1 while the persisted record contained T2；fixed-clock tests hid the production bug。
+- Correction `17d0bcc` captures one exact timestamp per append、requires it in the hash function and
+  validates only the persisted authority；missing timestamp now raises a controlled `ControllerError`
+  instead of falling back to a new clock read。
+- Dynamic regressions use an advancing clock and prove three appends perform exactly three clock reads、
+  validation performs none、the persisted timestamps verify，and missing timestamp fails closed。
+- Correction gates：controller `47 passed`；full `1032 passed, 2 skipped, 81 subtests passed`；compile、
+  diff-check and focused ledger tests PASS。
+- Coding worker native route was `kat-coder/kat-coder-pro-v2.5`，session
+  `019f69b1-ade8-7000-aa1a-43dce44b7594`，JSONL SHA-256
+  `06719d21a4798c45afdfa1293fabbdce1c2ff27bd7fc1ad74b24cb6475e631bd`。Codex rejected its optional
+  timestamp fallback as not fail-closed and made timestamp authority mandatory。
+- Fresh read-only reviewer session `019f69bd-9bcd-7000-acb7-c495eb8d66b8` verified native
+  `kat-coder/kat-coder-pro-v2.5` and returned `APPROVE` with no blocker。Native JSONL SHA-256
+  `7d59b9616836c995af95346b941e0a7c45e9078cfb8c1f93cc8943100c9490f5`。
+
 ## Accepted contract clarifications
 
 - J3 exact crash contract需要 helper新增 `production-stop --crash`；这是 bounded public surface，

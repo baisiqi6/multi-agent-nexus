@@ -22,6 +22,12 @@ Harness root: `docs/project-harness/`
   helper，implements exact directory ownership/modes and 0600 fsynced forensic marker。Full gate is
   `1030 passed, 2 skipped, 81 subtests`；fresh KAT reviewer APPROVE。Forensic run retained、lock free；
   another corrected inert deploy remains required。
+- Third installed `prepare` sealed the planned tree，then read-only `preflight/status` rejected ledger
+  record 1 because hash and persisted record sampled different timestamps；tree hash stayed exact and no
+  live mutation occurred。Correction `17d0bcc` makes persisted timestamp mandatory and single-sampled，
+  adds advancing-clock/missing-authority regressions，passes `1032 passed, 2 skipped, 81 subtests`，and
+  has fresh native KAT result-review `APPROVE`。A new revision deploy and fresh inert run remain required；
+  the rejected sealed run is retained as forensic evidence。
 
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
