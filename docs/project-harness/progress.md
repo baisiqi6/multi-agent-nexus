@@ -19,10 +19,11 @@ Harness root: `docs/project-harness/`
   `7c78a260...f00` with P0/P1/P2/residual risks all None。The approved plan now fixes exact helper
   interfaces、P3 authorization fence、preactivation lock handling、manifest separation、`__P9C1_*__`
   namespace、canonical projection scope and dynamic deploy-asset proof。
-- Fresh DeepSeek V4 Pro bootstrap review approved exact bootstrap SHA
-  `b61d05fc...872` with every contract matrix row PASS and P0/P1/P2/residual risks None。The local
-  DeepSeek worker route is explicit after the Claude/Sonnet→Kimi 403；20-path isolated implementation
-  is now authorized。
+- Round 1 bootstrap review approved old SHA `b61d05fc...872` but Codex caught its pre-planning
+  `7cd1c04` worker base before launch。Fresh Round 2 proved `7cd1c04..ba8ded9` is docs-only，approved
+  corrected bootstrap SHA `fea507f0...d38` with P0/P1/P2/contract drift None，and binds worker base to
+  current main `ba8ded9`。The local DeepSeek route remains explicit after Claude/Sonnet→Kimi 403；
+  20-path implementation is now authorized。
 - Push/merge、inert deployment and P3 live activation remain behind their separate review gates。
 
 ## 2026-07-16 — P9-3C1 P1 Coordinate scoped primitives closed

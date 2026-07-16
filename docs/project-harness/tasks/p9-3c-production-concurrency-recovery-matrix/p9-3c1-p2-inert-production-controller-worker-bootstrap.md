@@ -16,7 +16,13 @@ Worker must read these files completely before any repo write：
 
 Exact authorities：
 
-- MultiNexus base：`7cd1c049d3157a778d79a0a69981032b2c9b2a02`；
+- approved source/test measurement base：
+  `7cd1c049d3157a778d79a0a69981032b2c9b2a02`；
+- exact worker base/current main：
+  `ba8ded97646a24233ee722719ef97eae3714fbf5`；this is the docs-only descendant that
+  durably adds the approved P2 measurement/plan/reviews/bootstrap；
+- `git diff --quiet 7cd1c049..ba8ded97 -- multinexus scripts tests config agents.toml` must return
+  `0`，proving no implementation/test/config/runtime surface changed after measurement；
 - approved plan SHA-256：
   `7c78a2609435751add2a7aeba94d089921239d6a83ac424792230644a7110f00`；
 - measurement SHA-256：
@@ -32,7 +38,9 @@ If any SHA/base/path differs，stop before write and report `BOOTSTRAP_AUTHORITY
 - Required branch：`agents/fallback/p9-3c1-p2-inert-production-controller`。
 - Required worktree：
   `/Users/yinxin/Documents/Codex/2026-07-10/ni/work/multinexus-p9-3c1-p2-inert-production-controller`。
-- Branch must start exactly at base `7cd1c049...` and be clean before the first write。
+- Branch must start exactly at worker base `ba8ded97646a24233ee722719ef97eae3714fbf5` and be clean
+  before the first write。The approved documents are therefore available inside the worker worktree，and
+  the resulting single implementation commit can fast-forward current main after review。
 - Do not modify the planning worktree or `/Users/yinxin/projects/multinexus` main worktree。
 
 Claude Code `--model sonnet` was attempted for the preceding independent review and its native Kimi
