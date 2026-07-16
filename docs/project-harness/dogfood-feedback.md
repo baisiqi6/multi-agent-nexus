@@ -74,6 +74,18 @@
 - 结论：涉及 digest、signature或 ledger authority 的测试不能只用固定 clock；至少要加入
   advancing clock并精确断言 clock call count，才能证明“同一值被封存和验证”而非偶然相等。
 
+### 7. Deploy完成与网络 smoke恢复必须分开记录
+
+- 状态：mitigated / evidence retained。
+- Corrected deploy已完成 install、VERSION、lock release和 no-restart service gate，但 final smoke
+  正好观察到 Discord gateway TLS reset/reconnect，因此命令返回1。不能因 source已安装就把本轮写成
+  deploy PASS，也不能把外部连接波动误归因于 controller代码。
+- Operator保留首次失败，确认 PID/NRestarts、DB、lock与revision不变；等 bridge输出 exact
+  `connected/ready` boundary后，以该时间运行 bounded smoke并得到 `server smoke OK`。随后 inert
+  controller验证可独立继续，且生产 executable state仍为零。
+- 结论：部署证据至少分为 install authority、canonical process identity、external connectivity与
+  bounded log window四层；恢复后的 smoke必须绑定新的 ready boundary，不能抹掉首次真实失败。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级

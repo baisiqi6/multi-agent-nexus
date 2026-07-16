@@ -28,6 +28,13 @@ Harness root: `docs/project-harness/`
   adds advancing-clock/missing-authority regressions，passes `1032 passed, 2 skipped, 81 subtests`，and
   has fresh native KAT result-review `APPROVE`。A new revision deploy and fresh inert run remain required；
   the rejected sealed run is retained as forensic evidence。
+- Corrected revision `06f98f2` is now deployed `--no-restart`。Fresh run
+  `p9-3c1-prod-20260716t071325z-06f98f25` passed `prepare` and two exact read-only
+  `preflight/status` rounds；state-tree bytes/metadata hash remained
+  `4dca4e1d...c207` across all three observations。Lock/token/auth/DB/catalog/unit/process and canonical
+  PID/NRestarts remained unchanged。Initial smoke observed a live Discord TLS reconnect and correctly
+  failed；post-ready bounded smoke passed。Independent deployed-evidence review is the remaining P2 gate；
+  P3 remains unauthorized。
 
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
