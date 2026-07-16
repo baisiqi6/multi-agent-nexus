@@ -4,6 +4,16 @@ Harness root: `docs/project-harness/`
 
 ## 2026-07-16 — P9-3C1 P2 inert production controller plan approved
 
+- Implementation candidate `d60805d` 已完成 exact 20-path allowlist；Codex focused/full gates为
+  `490 passed, 45 subtests` 与 `1027 passed, 2 skipped, 81 subtests`，shell/compile/diff gates PASS。
+- KAT Coding worker 的 native JSONL 暴露 attempt-token、schema、controller-direct claim 和自造
+  evidence 偏差后被 `SIGINT`；Codex 重建真实 agentd authority 与动态 proof。
+- Fresh independent KAT reviewer session `019f6985-...` 读取真实 diff、独立重跑 395 relevant tests，
+  返回 `VERDICT: APPROVE`、无 blocking findings。P2 local/result gate已关闭，inert deploy gate开放；
+  P3 live `run/cleanup` 仍未授权。
+- Exact result evidence：
+  `tasks/p9-3c-production-concurrency-recovery-matrix/p9-3c1-p2-inert-production-controller-result-review.md`。
+
 - Fresh measurement bound MultiNexus `7cd1c049...` and deployed Coordinate P1
   `a8fc317...`，with production lock free、DB `ok/13/0` and zero P9-3C1 executable
   state。Focused baseline is `379 passed, 45 subtests`；full baseline is

@@ -9,6 +9,26 @@
 - 能顺手修的小问题可以直接修，但仍要留下问题和修复记录。
 - 默认将 Claude 作为 coding worker，Codex 优先用于 review/operator；只有明确需要 Codex worker 时再派给 Codex。
 
+## 2026-07-16（P9-3C1 P2 inert production controller）
+
+### 1. KAT first-choice worker仍必须接受 protocol-level supervision
+
+- 状态：fixed / worker interrupted。
+- OMP native JSONL证明实际 route为 `kat-coder/kat-coder-pro-v2.5`，但 worker 随后使用错误
+  attempt-token、nonexistent schema、controller-direct claim和自造 matrix evidence。Operator根据
+  thinking/tool-call stream及时 `SIGINT`，没有因模型是 first choice 或已有大 diff而放行。
+- Codex重建真实 agentd unit claim、renewal、J3 recovery、stale-token和delivery证据；结论：模型
+  优先级只决定初始 route，不降低 bootstrap、JSONL监督、动态测试和独立结果审核门槛。
+
+### 2. 同模型也能独立 review，但必须是 fresh session 与只读角色
+
+- 状态：accepted / evidence retained。
+- GLM 5.2 当时仍有明确 quota reset boundary，因此结果审核启用 fresh KAT session，而不是复用
+  Coding worker context。Reviewer只读真实 diff，独立复跑 395 relevant tests，输出
+  `VERDICT: APPROVE`；native JSONL证明 distinct session/provider/model。
+- 结论：independence由角色、session、输入与 mutation boundary共同定义；同 provider/model不是
+  自动失效，但复用写入会话或缺少 native evidence不能算独立审核。
+
 ## 2026-07-16（P9-3C1 P1 Coordinate scoped primitives）
 
 ### 1. JSONL 能直接暴露 worker 对 hard test contract 的降级
